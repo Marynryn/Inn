@@ -422,7 +422,7 @@ useHead({ title: 'Админ · Странствующая Таверна' })
               <span class="stats-id">{{ ch.id }}</span>
               <span class="stats-title">{{ ch.title }}</span>
               <span class="stats-views">👁 {{ ch.views?.toLocaleString('ru') }}</span>
-              <span class="stats-dl">⭳ {{ ch.downloads?.toLocaleString('ru') }}</span>
+              <span class="stats-dl">↓ {{ ch.downloads?.toLocaleString('ru') }}</span>
             </div>
             <div v-if="!stats?.topChapters?.length" class="empty-hint">Нет данных</div>
           </div>

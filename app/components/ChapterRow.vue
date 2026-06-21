@@ -47,8 +47,10 @@ const emit = defineEmits<{
         @click.stop="emit('download', $event, chapter.id)"
       >
         <span v-if="downloading" class="spin" />
-        <span v-else-if="downloaded">✓</span>
-        <span v-else>⭳</span>
+        <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <path v-if="downloaded" d="M3 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path v-else d="M9 2v9M5 8l4 4 4-4M2 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </button>
     </div>
   </div>

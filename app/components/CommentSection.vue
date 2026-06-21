@@ -21,13 +21,19 @@ const sending = ref(false)
 const sendError = ref('')
 const remainingChars = computed(() => 500 - body.value.length)
 
-const showAll = ref(false)
+const visibleCount = ref(props.limit ?? Infinity)
 const visibleComments = computed(() =>
-  props.limit && !showAll.value ? comments.value?.slice(0, props.limit) : comments.value
+  props.limit ? comments.value?.slice(0, visibleCount.value) : comments.value
 )
-const hiddenCount = computed(() =>
-  props.limit && !showAll.value ? Math.max(0, (comments.value?.length ?? 0) - props.limit) : 0
+const remaining = computed(() =>
+  props.limit ? Math.max(0, (comments.value?.length ?? 0) - visibleCount.value) : 0
 )
+const nextBatch = computed(() =>
+  Math.min(remaining.value, props.limit!)
+)
+function showMore() {
+  visibleCount.value += props.limit!
+}
 
 // Emoji picker
 const showEmoji = ref(false)
@@ -213,11 +219,11 @@ onMounted(() => {
       </div>
     </div>
     <button
-      v-if="hiddenCount > 0"
+      v-if="remaining > 0"
       class="show-more-btn"
-      @click="showAll = true"
+      @click="showMore"
     >
-      Показать ещё {{ hiddenCount }}
+      Показать ещё {{ nextBatch }}
     </button>
   </div>
 </template>
