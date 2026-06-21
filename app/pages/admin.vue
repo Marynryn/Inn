@@ -94,38 +94,80 @@ const deleteChapter = async (id: string) => {
 // --- Профиль ---
 const { data: profile, refresh: refreshProfile } = await useFetch('/api/admin/profile')
 const displayName = ref('')
+const profileEmail = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
 const avatarFile = ref<File | null>(null)
 const avatarPreview = ref<string | null>(null)
 const savingProfile = ref(false)
 const profileSaved = ref(false)
+const profileError = ref('')
 
-watch(profile, (p) => { if(p) displayName.value = p.displayName || '' }, { immediate: true })
+watch(profile, (p) => {
+  if(p){
+    displayName.value = p.displayName || ''
+    profileEmail.value = p.email || ''
+  }
+}, { immediate: true })
 
 const onAvatarFile = (e: Event) => {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0] ?? null
   avatarFile.value = file
-  if(file){
-    avatarPreview.value = URL.createObjectURL(file)
-  }
+  if(file) avatarPreview.value = URL.createObjectURL(file)
 }
 
 const saveProfile = async () => {
+  profileError.value = ''
+  if(newPassword.value && newPassword.value !== confirmPassword.value){
+    profileError.value = 'Пароли не совпадают'
+    return
+  }
   savingProfile.value = true
   try {
     const fd = new FormData()
     fd.append('displayName', displayName.value)
+    if(profileEmail.value) fd.append('email', profileEmail.value)
+    if(newPassword.value) fd.append('newPassword', newPassword.value)
     if(avatarFile.value) fd.append('avatar', avatarFile.value)
     await $fetch('/api/admin/profile', { method: 'PUT', body: fd })
+    newPassword.value = ''
+    confirmPassword.value = ''
     profileSaved.value = true
     setTimeout(() => { profileSaved.value = false }, 2000)
     await refreshProfile()
+  } catch(e: any) {
+    profileError.value = e?.data?.message || 'Ошибка сохранения'
   } finally {
     savingProfile.value = false
   }
 }
 
 const currentAvatar = computed(() => avatarPreview.value || profile.value?.avatarUrl || null)
+
+// --- Пользователи ---
+const newUserEmail = ref('')
+const newUserPassword = ref('')
+const creatingUser = ref(false)
+const userCreated = ref(false)
+const userError = ref('')
+
+const createUser = async () => {
+  userError.value = ''
+  if(!newUserEmail.value || !newUserPassword.value){ userError.value = 'Заполни все поля'; return }
+  creatingUser.value = true
+  try {
+    await $fetch('/api/admin/users', { method: 'POST', body: { email: newUserEmail.value, password: newUserPassword.value, role: 'admin' } })
+    newUserEmail.value = ''
+    newUserPassword.value = ''
+    userCreated.value = true
+    setTimeout(() => { userCreated.value = false }, 3000)
+  } catch(e: any) {
+    userError.value = e?.data?.message || 'Ошибка создания'
+  } finally {
+    creatingUser.value = false
+  }
+}
 
 // --- Настройки сайта ---
 const form = reactive({
@@ -317,12 +359,38 @@ useHead({ title: 'Админ · Странствующая Таверна' })
               </div>
               <div class="field-row">
                 <label>Email</label>
-                <input :value="profile?.email" type="text" disabled>
+                <input v-model="profileEmail" type="email" placeholder="Email для входа">
+              </div>
+              <div class="field-row">
+                <label>Новый пароль</label>
+                <input v-model="newPassword" type="password" placeholder="Оставь пустым, чтобы не менять">
+              </div>
+              <div class="field-row" v-if="newPassword">
+                <label>Повтори пароль</label>
+                <input v-model="confirmPassword" type="password" placeholder="Повтори новый пароль">
               </div>
             </div>
           </div>
+          <div v-if="profileError" class="form-error">{{ profileError }}</div>
           <button class="btn-action" :disabled="savingProfile" @click="saveProfile">
             {{ profileSaved ? '✓ Сохранено' : savingProfile ? 'Сохраняем...' : 'Сохранить профиль' }}
+          </button>
+
+          <hr class="section-divider">
+          <h2>Добавить пользователя</h2>
+          <div class="profile-fields" style="max-width:360px">
+            <div class="field-row">
+              <label>Email</label>
+              <input v-model="newUserEmail" type="email" placeholder="Email нового пользователя">
+            </div>
+            <div class="field-row">
+              <label>Пароль</label>
+              <input v-model="newUserPassword" type="password" placeholder="Пароль (минимум 6 символов)">
+            </div>
+          </div>
+          <div v-if="userError" class="form-error">{{ userError }}</div>
+          <button class="btn-action" :disabled="creatingUser" @click="createUser" style="margin-top:12px">
+            {{ userCreated ? '✓ Пользователь создан' : creatingUser ? 'Создаём...' : 'Создать администратора' }}
           </button>
         </section>
 
@@ -701,6 +769,18 @@ useHead({ title: 'Админ · Странствующая Таверна' })
 .profile-fields {
   flex: 1;
   min-width: 0;
+}
+
+.form-error {
+  font-size: 13px;
+  color: #c66;
+  margin-bottom: 8px;
+}
+
+.section-divider {
+  border: none;
+  border-top: 1px solid rgba(43,30,22,.12);
+  margin: 28px 0;
 }
 
 /* Список глав */
