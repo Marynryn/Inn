@@ -153,6 +153,7 @@ useSeoMeta({
         <CommentSection
           title="Отзывы"
           placeholder="Что думаешь о проекте?"
+          :limit="4"
         />
       </div>
     </div>

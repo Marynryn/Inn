@@ -26,6 +26,7 @@ export const comments = sqliteTable('comments', {
   chapterId: text('chapter_id'), // NULL = отзыв о сайте
   authorName: text('author_name').notNull(),
   body: text('body').notNull(),
+  isSpoiler: integer('is_spoiler', { mode: 'boolean' }).notNull().default(false),
   userId: integer('user_id'), // NULL = гость, иначе — залогиненный пользователь
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
@@ -34,6 +35,15 @@ export const chapterStats = sqliteTable('chapter_stats', {
   chapterId: text('chapter_id').primaryKey(),
   viewsCount: integer('views_count').notNull().default(0),
   downloadsCount: integer('downloads_count').notNull().default(0),
+})
+
+export const commentReactions = sqliteTable('comment_reactions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  commentId: integer('comment_id').notNull(),
+  type: text('type', { enum: ['like', 'dislike'] }).notNull(),
+  userId: integer('user_id'),
+  ip: text('ip'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
 export const siteSettings = sqliteTable('site_settings', {

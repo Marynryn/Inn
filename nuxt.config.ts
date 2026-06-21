@@ -20,9 +20,16 @@ export default defineNuxtConfig({
     sessionPassword: process.env.NUXT_SESSION_PASSWORD,
   },
 
+  vue: {
+    compilerOptions: {
+      isCustomElement: (tag) => tag === 'emoji-picker',
+    },
+  },
+
   nitro: {
     experimental: {
       database: false,
+      websocket: true,
     },
   },
 })

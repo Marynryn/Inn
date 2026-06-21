@@ -100,8 +100,10 @@ useHead(() => ({
         @click="download"
       >
         <span v-if="dlState === 'loading'" class="spin" />
-        <span v-else-if="dlState === 'done'">✓</span>
-        <span v-else>⭳</span>
+        <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <path v-if="dlState === 'done'" d="M3 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path v-else d="M9 2v9M5 8l4 4 4-4M2 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </button>
     </div>
 
@@ -130,8 +132,10 @@ useHead(() => ({
           @click="download"
         >
           <span v-if="dlState === 'loading'" class="spin" />
-          <span v-else-if="dlState === 'done'">✓</span>
-          <span v-else>⭳</span>
+          <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            <path v-if="dlState === 'done'" d="M3 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path v-else d="M9 2v9M5 8l4 4 4-4M2 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </button>
 
         <NuxtLink
@@ -148,14 +152,17 @@ useHead(() => ({
 
     <!-- <AdSlot id="chapter-bottom" /> -->
 
-    <!-- КОММЕНТАРИИ -->
-    <div class="chapter-comments">
-      <CommentSection
-        :chapter-id="chapterId"
-        title="Комментарии к главе"
-        placeholder="Что думаешь об этой главе?"
-        spoiler-note="Спойлеры по сюжету разрешены."
-      />
+    <!-- КНОПКА КОММЕНТАРИЕВ -->
+    <div class="comments-cta">
+      <NuxtLink
+        :href="`/chapter/${route.params.id}/comments`"
+        class="comments-cta-btn"
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <path d="M2 3h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6l-4 3V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Обсуждение главы
+      </NuxtLink>
     </div>
   </div>
 </template>
@@ -321,12 +328,31 @@ useHead(() => ({
   background: var(--bg-dark-2);
 }
 
-.chapter-comments {
+.comments-cta {
   max-width: 960px;
   margin: 0 auto;
-  padding: 54px 48px 80px;
+  padding: 40px 48px 80px;
   background: var(--bg-dark-2);
-  color: var(--parchment);
+}
+
+.comments-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: 1px solid rgba(241, 230, 210, .2);
+  border-radius: var(--radius-sm);
+  color: var(--parchment-2);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color .15s, color .15s, background .15s;
+}
+
+.comments-cta-btn:hover {
+  border-color: var(--ember-soft);
+  color: var(--ember-soft);
+  background: rgba(214, 136, 62, .06);
 }
 
 @media (max-width: 600px) {
@@ -350,8 +376,8 @@ useHead(() => ({
     padding: 12px 18px;
   }
 
-  .chapter-comments {
-    padding: 40px 18px 60px;
+  .comments-cta {
+    padding: 32px 18px 60px;
   }
 }
 </style>

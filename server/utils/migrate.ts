@@ -44,11 +44,24 @@ export async function runMigrations() {
     );
   `)
 
+  // Таблица реакций на комментарии
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS comment_reactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      comment_id INTEGER NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('like','dislike')),
+      user_id INTEGER,
+      ip TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `)
+
   // Новые столбцы для аватарки и привязки комментария к пользователю
   const newCols = [
     'ALTER TABLE users ADD COLUMN avatar_url TEXT',
     'ALTER TABLE users ADD COLUMN display_name TEXT',
     'ALTER TABLE comments ADD COLUMN user_id INTEGER',
+    'ALTER TABLE comments ADD COLUMN is_spoiler INTEGER NOT NULL DEFAULT 0',
   ]
   for (const sql of newCols) {
     try { await client.execute(sql) } catch {}

@@ -236,9 +236,12 @@ const uploadChapter = async () => {
   }
 }
 
-const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings'>('upload')
+// --- Статистика ---
+const { data: stats } = await useFetch('/api/admin/stats')
+
+const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'stats'>('upload')
 const mobMenuOpen = ref(false)
-const mobTabLabels = { upload: '＋ Добавить главу', chapters: '≡ Список глав', settings: '⚙ Настройки', profile: '○ Профиль' }
+const mobTabLabels = { upload: '＋ Добавить главу', chapters: '≡ Список глав', settings: '⚙ Настройки', profile: '○ Профиль', stats: '📊 Статистика' }
 const mobTabLabel = computed(() => mobTabLabels[activeTab.value])
 
 useHead({ title: 'Админ · Странствующая Таверна' })
@@ -261,6 +264,7 @@ useHead({ title: 'Админ · Странствующая Таверна' })
             <button class="mob-option" :class="{ active: activeTab === 'chapters' }" @click="activeTab = 'chapters'">Список глав</button>
             <button class="mob-option" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">Настройки</button>
             <button class="mob-option" :class="{ active: activeTab === 'profile' }" @click="activeTab = 'profile'">Профиль</button>
+            <button class="mob-option" :class="{ active: activeTab === 'stats' }" @click="activeTab = 'stats'">Статистика</button>
           </div>
         </div>
         <button class="mob-logout" @click="auth.logout().then(() => navigateTo('/login'))">Выйти</button>
@@ -394,6 +398,36 @@ useHead({ title: 'Админ · Странствующая Таверна' })
           </button>
         </section>
 
+        <!-- Статистика -->
+        <section v-if="activeTab === 'stats'" class="card">
+          <h2>Статистика сайта</h2>
+          <div class="stats-totals">
+            <div class="stat-card">
+              <div class="stat-value">{{ stats?.totalViews?.toLocaleString('ru') ?? 0 }}</div>
+              <div class="stat-label">Просмотров глав</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">{{ stats?.totalDownloads?.toLocaleString('ru') ?? 0 }}</div>
+              <div class="stat-label">Скачиваний epub</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">{{ stats?.totalComments?.toLocaleString('ru') ?? 0 }}</div>
+              <div class="stat-label">Комментариев</div>
+            </div>
+          </div>
+
+          <h3 class="stats-sub">Топ-10 глав по просмотрам</h3>
+          <div class="stats-table">
+            <div v-for="ch in stats?.topChapters" :key="ch.id" class="stats-row">
+              <span class="stats-id">{{ ch.id }}</span>
+              <span class="stats-title">{{ ch.title }}</span>
+              <span class="stats-views">👁 {{ ch.views?.toLocaleString('ru') }}</span>
+              <span class="stats-dl">⭳ {{ ch.downloads?.toLocaleString('ru') }}</span>
+            </div>
+            <div v-if="!stats?.topChapters?.length" class="empty-hint">Нет данных</div>
+          </div>
+        </section>
+
         <!-- Настройки сайта -->
         <section v-if="activeTab === 'settings'" class="card">
           <h2>Настройки сайта</h2>
@@ -449,6 +483,10 @@ useHead({ title: 'Админ · Странствующая Таверна' })
           <button class="sb-tab" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">
             <span class="sb-icon">⚙</span>
             Настройки сайта
+          </button>
+          <button class="sb-tab" :class="{ active: activeTab === 'stats' }" @click="activeTab = 'stats'">
+            <span class="sb-icon">📊</span>
+            Статистика
           </button>
         </nav>
 
@@ -901,6 +939,83 @@ useHead({ title: 'Админ · Странствующая Таверна' })
 .btn-delete:not(:disabled):hover {
   border-color: #c66;
   background: rgba(200, 80, 80, .1);
+}
+
+/* Статистика */
+.stats-totals {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  flex: 1;
+  min-width: 120px;
+  background: rgba(241, 230, 210, .05);
+  border: 1px solid rgba(241, 230, 210, .1);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ember-soft);
+  font-family: var(--font-display);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.stats-sub {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--parchment-2);
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.stats-table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: 48px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 4px;
+  border-bottom: 1px solid rgba(241, 230, 210, .06);
+  font-size: 13px;
+}
+
+.stats-id {
+  color: var(--ember-soft);
+  font-family: var(--font-display);
+  font-size: 12px;
+}
+
+.stats-title {
+  color: var(--parchment-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats-views,
+.stats-dl {
+  color: var(--ink-soft);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .mobile-header {
