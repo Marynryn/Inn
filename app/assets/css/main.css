@@ -1,0 +1,74 @@
+/* ─── Fonts ─────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Poppins:wght@300;400;500;600&display=swap');
+
+/* ─── Design Tokens ──────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-dark:     #1f1813;
+  --bg-dark-2:   #2b221c;
+
+  /* Text */
+  --parchment:   #f1e6d2;
+  --parchment-2: #e8dac0;
+  --ink:         #2a1e16;
+  --ink-soft:    #5a4c3e;
+
+  /* Accent */
+  --ember:       #d6883e;
+  --ember-soft:  #e8b07a;
+  --moss:        #51694f;
+  --gold:        #c9a02e;
+
+  /* Typography */
+  --font-display: 'Fraunces', serif;
+  --font-body:    'Poppins', sans-serif;
+
+  /* Radius */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+}
+
+/* ─── Reset & Base ───────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--parchment);
+  color: var(--ink);
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ─── Utility Classes ────────────────────────────────────── */
+.display {
+  font-family: var(--font-display);
+}
+
+.ui {
+  font-family: var(--font-body);
+}
+
+/* ─── Spin animation ─────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: .001ms !important;
+    transition-duration: .001ms !important;
+  }
+}
