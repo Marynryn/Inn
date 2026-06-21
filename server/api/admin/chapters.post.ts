@@ -4,6 +4,7 @@ import { parseEpub } from '../../utils/epub-parser'
 import { writeFile, mkdir } from 'fs/promises'
 import { resolve } from 'path'
 import { getStorageDir } from '../../utils/storage'
+import { max } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -39,9 +40,13 @@ export default defineEventHandler(async (event) => {
   await writeFile(epubPath, epubField.data)
 
   const db = useDb()
+
+  const [{ maxOrder }] = await db.select({ maxOrder: max(chapters.sortOrder) }).from(chapters)
+  const sortOrder = (maxOrder ?? 0) + 1
+
   await db
     .insert(chapters)
-    .values({ id, volume, title, contentHtml, epubPath, publishedAt })
+    .values({ id, volume, title, contentHtml, epubPath, publishedAt, sortOrder })
     .onConflictDoUpdate({
       target: chapters.id,
       set: { volume, title, contentHtml, epubPath, publishedAt },

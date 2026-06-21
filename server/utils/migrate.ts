@@ -70,15 +70,16 @@ export async function runMigrations() {
   // Добавить sort_order если столбца ещё нет (для уже существующих БД)
   try {
     await client.execute('ALTER TABLE chapters ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0')
-    // Инициализировать порядок по published_at для существующих глав
-    await client.execute(`
-      UPDATE chapters SET sort_order = (
-        SELECT COUNT(*) FROM chapters c2 WHERE c2.published_at <= chapters.published_at
-      ) WHERE sort_order = 0
-    `)
   } catch {
     // Столбец уже существует — это нормально
   }
+
+  // Всегда исправлять главы с sort_order = 0 по published_at
+  await client.execute(`
+    UPDATE chapters SET sort_order = (
+      SELECT COUNT(*) FROM chapters c2 WHERE c2.published_at <= chapters.published_at
+    ) WHERE sort_order = 0
+  `)
 
   // Дефолтные настройки сайта
   const defaults: Record<string, string> = {
