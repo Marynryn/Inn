@@ -113,7 +113,7 @@ useSeoMeta({
         <div class="hero-meta">
           <div><b class="display">{{ chaptersLabel }}</b>переведено</div>
           <div><b class="display">{{ chapterRange }}</b>текущий диапазон</div>
-          <div><b class="display">2–3</b>главы в неделю</div>
+          <div><b class="display">{{ settings?.update_schedule || '2–3' }}</b>главы в неделю</div>
         </div>
       </div>
     </div>

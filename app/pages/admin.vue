@@ -178,6 +178,7 @@ const form = reactive({
   telegram_url: '',
   support_url: '',
   error_404_sub: '',
+  update_schedule: '',
 })
 watch(settings, (s) => { if (s) Object.assign(form, s) }, { immediate: true })
 
@@ -459,6 +460,10 @@ useHead({ title: 'Админ · Странствующая Таверна' })
           <div class="field-row">
             <label>Текст страницы 404</label>
             <input v-model="form.error_404_sub" type="text" placeholder="Козёл добрался до этой страницы раньше тебя.">
+          </div>
+          <div class="field-row">
+            <label>Глав в неделю</label>
+            <input v-model="form.update_schedule" type="text" placeholder="2–3">
           </div>
           <button class="btn-action" :disabled="savingSettings" @click="saveSettings">
             {{ settingsSaved ? '✓ Сохранено' : savingSettings ? 'Сохраняем...' : 'Сохранить' }}

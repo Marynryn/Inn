@@ -90,6 +90,7 @@ export async function runMigrations() {
     telegram_url: 'https://t.me/',
     support_url: 'https://buymeacoffee.com/',
     error_404_sub: 'Козёл добрался до этой страницы раньше тебя.',
+    update_schedule: '2–3',
   }
 
   for (const [key, value] of Object.entries(defaults)) {

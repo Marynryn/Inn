@@ -348,6 +348,19 @@ onMounted(() => {
   --category-font-color: rgba(241, 230, 210, .5);
 }
 
+@media (max-width: 480px) {
+  .emoji-panel {
+    position: fixed;
+    top: auto;
+    bottom: 16px;
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 24px);
+    --num-columns: 7;
+  }
+}
+
 .spoiler-check {
   display: inline-flex;
   align-items: center;
@@ -455,6 +468,9 @@ onMounted(() => {
   color: #cfc2aa;
   margin-top: 4px;
   line-height: 1.6;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
 }
 
 .comment-actions {
