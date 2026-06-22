@@ -11,10 +11,36 @@ const { prevChapter, nextChapter } = useChapterNav(chapterId, allChapters)
 const { dlState, download } = useChapterDownload(chapterId)
 const { showReadMarker } = useReadMarker(chapterId)
 const { lastRead, showProgressModal, confirmProgressUpdate, keepProgress } = useProgressGuard(chapter, allChapters)
+const { save: saveScroll, getSaved } = useScrollProgress(chapterId)
+
+const scrollRestored = ref(false)
 
 onMounted(() => {
   load()
   auth.fetchMe()
+
+  // Восстанавливаем позицию
+  const saved = getSaved()
+  if (saved && saved > 0.02) {
+    nextTick(() => {
+      const h = document.documentElement.scrollHeight - window.innerHeight
+      window.scrollTo({ top: saved * h, behavior: 'instant' })
+      scrollRestored.value = true
+      setTimeout(() => { scrollRestored.value = false }, 3000)
+    })
+  }
+
+  // Сохраняем позицию при скролле (debounce 500ms)
+  let timer: ReturnType<typeof setTimeout>
+  const onScroll = () => {
+    clearTimeout(timer)
+    timer = setTimeout(saveScroll, 500)
+  }
+  window.addEventListener('scroll', onScroll, { passive: true })
+  onUnmounted(() => {
+    window.removeEventListener('scroll', onScroll)
+    saveScroll()
+  })
 })
 
 const siteUrl = 'https://stranstvuyushchaya-taverna.ru'
@@ -93,24 +119,29 @@ useHead(() => ({
         <NuxtImg src="/favicon-32x32.png" class="topbar-logo" alt="" />
         Странствующая Таверна
       </div>
-      <button
-        class="icon-btn"
-        title="Скачать epub"
-        :class="{ 'is-loading': dlState === 'loading', 'is-done': dlState === 'done' }"
-        @click="download"
-      >
-        <span v-if="dlState === 'loading'" class="spin" />
-        <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-          <path v-if="dlState === 'done'" d="M3 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          <path v-else d="M9 2v9M5 8l4 4 4-4M2 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+      <span class="topbar-spacer" />
     </div>
 
     <!-- READER -->
     <div class="reader">
-      <div class="reader-eyebrow">Том {{ chapter.volume }} · Глава {{ chapter.id }}</div>
-      <h1 class="display">{{ chapter.title }}</h1>
+      <div class="reader-title-row">
+        <div>
+          <div class="reader-eyebrow">Том {{ chapter.volume }} · Глава {{ chapter.id }}</div>
+          <h1 class="display">{{ chapter.title }}</h1>
+        </div>
+        <button
+          class="icon-btn dl-title-btn"
+          title="Скачать epub"
+          :class="{ 'is-loading': dlState === 'loading', 'is-done': dlState === 'done' }"
+          @click="download"
+        >
+          <span v-if="dlState === 'loading'" class="spin" />
+          <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            <path v-if="dlState === 'done'" d="M3 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path v-else d="M9 2v9M5 8l4 4 4-4M2 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
       <div
         class="reader-content"
         v-html="chapter.contentHtml || '<p><em>Текст главы загружается...</em></p>'"
@@ -147,6 +178,10 @@ useHead(() => ({
         <span v-else class="nav-placeholder" />
       </div>
     </div>
+
+    <Transition name="toast">
+      <div v-if="scrollRestored" class="scroll-toast">↩ Продолжаем с того места</div>
+    </Transition>
 
     <div v-if="showReadMarker" class="read-marker">✓ глава отмечена как прочитанная</div>
 
@@ -261,12 +296,29 @@ useHead(() => ({
   to { transform: rotate(360deg); }
 }
 
+.topbar-spacer {
+  width: 40px;
+}
+
 .reader {
   max-width: 960px;
   margin: 0 auto;
   padding: 56px 48px 0;
   background: var(--bg-dark-2);
   color: var(--parchment);
+}
+
+.reader-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.dl-title-btn {
+  flex: 0 0 auto;
+  margin-top: 6px;
 }
 
 .reader-eyebrow {
@@ -279,7 +331,7 @@ useHead(() => ({
 
 .reader h1 {
   font-size: 30px;
-  margin: 0 0 28px;
+  margin: 0;
   font-weight: 600;
   line-height: 1.25;
 }
@@ -314,6 +366,32 @@ useHead(() => ({
 .nav-placeholder {
   visibility: hidden;
   width: 40px;
+}
+
+.scroll-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 20, 10, .92);
+  border: 1px solid rgba(241, 230, 210, .15);
+  color: var(--parchment-2);
+  font-size: 13px;
+  padding: 10px 20px;
+  border-radius: 20px;
+  z-index: 100;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+
+.toast-enter-active,
+.toast-leave-active {
+  transition: opacity .3s, transform .3s;
+}
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(8px);
 }
 
 .read-marker {

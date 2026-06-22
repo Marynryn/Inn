@@ -105,7 +105,7 @@ useSeoMeta({
           class="hero-title display"
           v-html="(settings?.hero_title || 'Истории трактира,\nрассказанные заново').replace(/\n/g, '<br>')"
         />
-        <p class="hero-sub">{{ settings?.hero_subtitle }}</p>
+        <p class="hero-sub" v-html="(settings?.hero_subtitle || '').replace(/\n/g, '<br>')" />
         <div class="hero-actions">
           <NuxtLink class="btn btn-primary" :href="ctaHref">{{ ctaText }}</NuxtLink>
           <a class="btn btn-ghost" href="#ledger">К главам →</a>

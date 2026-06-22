@@ -89,6 +89,7 @@ export async function runMigrations() {
     footer_text: 'Фанатский перевод. Оригинал — wanderinginn.com, автор Pirateaba.\nНекоммерческий проект. Все права на оригинальное произведение принадлежат автору.',
     telegram_url: 'https://t.me/',
     support_url: 'https://buymeacoffee.com/',
+    error_404_sub: 'Козёл добрался до этой страницы раньше тебя.',
   }
 
   for (const [key, value] of Object.entries(defaults)) {

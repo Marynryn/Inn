@@ -1,6 +1,6 @@
 import { useDb } from '../../../utils/db'
 import { commentReactions } from '../../../database/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, isNull } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   const commentId = Number(getRouterParam(event, 'id'))
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     ? await db.select().from(commentReactions)
         .where(and(eq(commentReactions.commentId, commentId), eq(commentReactions.userId, userId)))
     : await db.select().from(commentReactions)
-        .where(and(eq(commentReactions.commentId, commentId), eq(commentReactions.ip, ip), eq(commentReactions.userId, null as any)))
+        .where(and(eq(commentReactions.commentId, commentId), eq(commentReactions.ip, ip), isNull(commentReactions.userId)))
 
   if (existing.length > 0) {
     if (existing[0].type === type) {

@@ -177,6 +177,7 @@ const form = reactive({
   footer_text: '',
   telegram_url: '',
   support_url: '',
+  error_404_sub: '',
 })
 watch(settings, (s) => { if (s) Object.assign(form, s) }, { immediate: true })
 
@@ -454,6 +455,10 @@ useHead({ title: 'Админ · Странствующая Таверна' })
           <div class="field-row">
             <label>Ссылка поддержки</label>
             <input v-model="form.support_url" type="url">
+          </div>
+          <div class="field-row">
+            <label>Текст страницы 404</label>
+            <input v-model="form.error_404_sub" type="text" placeholder="Козёл добрался до этой страницы раньше тебя.">
           </div>
           <button class="btn-action" :disabled="savingSettings" @click="saveSettings">
             {{ settingsSaved ? '✓ Сохранено' : savingSettings ? 'Сохраняем...' : 'Сохранить' }}
