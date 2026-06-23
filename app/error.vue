@@ -25,7 +25,7 @@ useHead({ title: props.error.statusCode === 404 ? '404 · Странствующ
 <style scoped>
 .error-page {
   min-height: 100vh;
-  background: #f5f0e8;
+  background: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -39,7 +39,6 @@ useHead({ title: props.error.statusCode === 404 ? '404 · Странствующ
   width: 380px;
   max-width: 88vw;
   border-radius: 12px;
-  filter: drop-shadow(0 8px 32px rgba(0,0,0,.18));
 }
 
 .error-code {

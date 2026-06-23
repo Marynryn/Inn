@@ -16,15 +16,16 @@ const emit = defineEmits<{
       <div class="modal">
         <p class="modal-title">Обновить прогресс?</p>
         <p class="modal-body">
-          Ты вернулась к главе <b>{{ currentId }}</b>.
-          Хочешь продолжать с неё, или оставить закладку на главе <b>{{ lastId }}</b>?
+          Вы вернулись к прочитанной ранее главе <b>{{ currentId }}</b>.
+          Обновить прогресс или оставить закладку на главе <b>{{ lastId }}</b>?
         </p>
         <div class="modal-actions">
           <button class="btn-keep" @click="emit('keep')">
-            Оставить {{ lastId }}
+             Обновить до {{ currentId }}
           </button>
           <button class="btn-update" @click="emit('update')">
-            Обновить до {{ currentId }}
+          
+             Оставить {{ lastId }}
           </button>
         </div>
       </div>

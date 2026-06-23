@@ -63,7 +63,7 @@ useHead(() => ({
 }
 
 .back-link {
-  font-size: 13px;
+  font-size: 16px;
   color: var(--parchment-2);
   text-decoration: none;
   white-space: nowrap;

@@ -1056,7 +1056,7 @@ useHead({ title: 'Админ · Странствующая Таверна' })
   }
 
   .mob-back {
-    font-size: 12px;
+    font-size: 16px;
     color: var(--parchment-2);
     white-space: nowrap;
     text-decoration: none;
