@@ -29,7 +29,6 @@ export default defineEventHandler(async (event) => {
     .from(chapterStats)
     .innerJoin(chapters, eq(chapters.id, chapterStats.chapterId))
     .orderBy(desc(chapterStats.viewsCount))
-    .limit(10)
 
   return {
     totalViews: Number(totals?.totalViews ?? 0),

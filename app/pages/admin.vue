@@ -177,6 +177,8 @@ const form = reactive({
   footer_text: '',
   telegram_url: '',
   support_url: '',
+  about_title: '',
+  about_text: '',
   error_404_sub: '',
   update_schedule: '',
 })
@@ -240,6 +242,7 @@ const uploadChapter = async () => {
 
 // --- Статистика ---
 const { data: stats } = await useFetch('/api/admin/stats')
+const { data: commentLogs, refresh: refreshLogs } = await useFetch('/api/admin/comments')
 
 const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'stats'>('upload')
 const mobMenuOpen = ref(false)
@@ -418,15 +421,38 @@ useHead({ title: 'Админ · Странствующая Таверна' })
             </div>
           </div>
 
-          <h3 class="stats-sub">Топ-10 глав по просмотрам</h3>
+          <h3 class="stats-sub">Главы по просмотрам</h3>
           <div class="stats-table">
             <div v-for="ch in stats?.topChapters" :key="ch.id" class="stats-row">
               <span class="stats-id">{{ ch.id }}</span>
               <span class="stats-title">{{ ch.title }}</span>
-              <span class="stats-views">👁 {{ ch.views?.toLocaleString('ru') }}</span>
-              <span class="stats-dl">↓ {{ ch.downloads?.toLocaleString('ru') }}</span>
+              <span class="stats-views">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 2C3 2 1 5.5 1 5.5S3 9 5.5 9 10 5.5 10 5.5 8 2 5.5 2z" stroke="currentColor" stroke-width="1"/><circle cx="5.5" cy="5.5" r="1.5" fill="currentColor"/></svg>
+                {{ ch.views?.toLocaleString('ru') }}
+              </span>
+              <span class="stats-dl">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1v7M2 6l3.5 3.5L9 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {{ ch.downloads?.toLocaleString('ru') }}
+              </span>
             </div>
             <div v-if="!stats?.topChapters?.length" class="empty-hint">Нет данных</div>
+          </div>
+
+          <div class="logs-header">
+            <h3 class="stats-sub" style="margin:0">Последние комментарии</h3>
+            <button class="logs-refresh" @click="refreshLogs">↻ Обновить</button>
+          </div>
+          <div class="logs-list">
+            <div v-for="c in commentLogs" :key="c.id" class="log-item">
+              <div class="log-meta">
+                <span class="log-time">{{ c.createdAt?.slice(0, 16).replace('T', ' ') }}</span>
+                <span v-if="c.isSpoiler" class="log-spoiler">спойлер</span>
+                <NuxtLink v-if="c.chapterId" :href="`/chapter/${c.chapterId.replace('.', '-')}/comments`" class="log-link" target="_blank">гл. {{ c.chapterId }} ↗</NuxtLink>
+                <NuxtLink v-else href="/" class="log-link" target="_blank">отзыв о сайте ↗</NuxtLink>
+              </div>
+              <div class="log-body">{{ c.body }}</div>
+            </div>
+            <div v-if="!commentLogs?.length" class="empty-hint">Комментариев пока нет</div>
           </div>
         </section>
 
@@ -448,6 +474,14 @@ useHead({ title: 'Админ · Странствующая Таверна' })
           <div class="field-row">
             <label>Текст футера</label>
             <textarea v-model="form.footer_text" rows="3" />
+          </div>
+          <div class="field-row">
+            <label>Страница «О проекте» — заголовок</label>
+            <input v-model="form.about_title" type="text" placeholder="О проекте" />
+          </div>
+          <div class="field-row">
+            <label>Страница «О проекте» — текст</label>
+            <textarea v-model="form.about_text" rows="8" placeholder="Расскажите о проекте, переводчиках, истории..." />
           </div>
           <div class="field-row">
             <label>Ссылка Telegram</label>
@@ -995,7 +1029,30 @@ useHead({ title: 'Админ · Странствующая Таверна' })
 .stats-table {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid rgba(241, 230, 210, .07);
+  border-radius: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(214, 136, 62, .3) transparent;
+}
+
+.stats-table::-webkit-scrollbar {
+  width: 4px;
+}
+
+.stats-table::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.stats-table::-webkit-scrollbar-thumb {
+  background: rgba(214, 136, 62, .3);
+  border-radius: 4px;
+}
+
+.stats-table::-webkit-scrollbar-thumb:hover {
+  background: rgba(214, 136, 62, .6);
 }
 
 .stats-row {
@@ -1003,7 +1060,7 @@ useHead({ title: 'Админ · Странствующая Таверна' })
   grid-template-columns: 48px 1fr auto auto;
   gap: 10px;
   align-items: center;
-  padding: 8px 4px;
+  padding: 8px 12px;
   border-bottom: 1px solid rgba(241, 230, 210, .06);
   font-size: 13px;
 }
@@ -1023,9 +1080,120 @@ useHead({ title: 'Админ · Странствующая Таверна' })
 
 .stats-views,
 .stats-dl {
-  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--parchment);
   font-size: 12px;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-views svg,
+.stats-dl svg {
+  opacity: .5;
+  flex-shrink: 0;
+}
+
+.logs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 28px 0 12px;
+}
+
+.logs-refresh {
+  background: none;
+  border: 1px solid rgba(241, 230, 210, .15);
+  border-radius: 6px;
+  color: var(--parchment-2);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: border-color .15s;
+}
+
+.logs-refresh:hover {
+  border-color: var(--ember-soft);
+}
+
+.logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid rgba(241, 230, 210, .07);
+  border-radius: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(214, 136, 62, .3) transparent;
+}
+
+.logs-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.logs-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.logs-list::-webkit-scrollbar-thumb {
+  background: rgba(214, 136, 62, .3);
+  border-radius: 4px;
+}
+
+.logs-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(214, 136, 62, .6);
+}
+
+.log-item {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-bottom: 1px solid rgba(241, 230, 210, .05);
+}
+
+.log-item:last-child {
+  border-bottom: none;
+}
+
+.log-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-time {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.log-spoiler {
+  font-size: 11px;
+  color: var(--ember-soft);
+  font-style: italic;
+}
+
+.log-body {
+  font-size: 12.5px;
+  color: var(--parchment-2);
+  opacity: .85;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.log-link {
+  font-size: 11px;
+  color: var(--ember-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  margin-left: auto;
+}
+
+.log-link:hover {
+  color: var(--ember);
 }
 
 .mobile-header {

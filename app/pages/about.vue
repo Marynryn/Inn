@@ -1,0 +1,103 @@
+<script setup lang="ts">
+const { data: settings } = await useFetch('/api/settings')
+
+const siteUrl = 'https://stranstvuyushchaya-taverna.ru'
+
+const title = computed(() => settings.value?.about_title || 'О проекте')
+
+useHead(() => ({
+  title: `${title.value} · Странствующая Таверна`,
+  link: [{ rel: 'canonical', href: `${siteUrl}/about` }],
+}))
+
+useSeoMeta({
+  description: () => settings.value?.about_text?.slice(0, 155) || 'О проекте Странствующая Таверна — фанатский перевод The Wandering Inn на русский язык.',
+  ogTitle: () => `${title.value} · Странствующая Таверна`,
+  ogDescription: () => settings.value?.about_text?.slice(0, 155) || 'О проекте Странствующая Таверна — фанатский перевод The Wandering Inn на русский язык.',
+  ogUrl: `${siteUrl}/about`,
+  ogType: 'website',
+  ogLocale: 'ru_RU',
+  ogImage: `${siteUrl}/hero.png`,
+})
+</script>
+
+<template>
+  <div class="about-page">
+    <div class="topbar">
+      <NuxtLink href="/" class="back-link">← На главную</NuxtLink>
+      <div class="topbar-brand display">Странствующая Таверна</div>
+      <span class="topbar-spacer" />
+    </div>
+
+    <div class="about-wrap">
+      <h1 class="display about-title">{{ title }}</h1>
+      <div
+        class="about-body"
+        v-html="(settings?.about_text || '').replace(/\n/g, '<br>')"
+      />
+    </div>
+
+    <AppFooter :settings="settings as any" />
+  </div>
+</template>
+
+<style scoped>
+.about-page {
+  min-height: 100vh;
+  background: var(--parchment);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(42, 30, 22, .1);
+  background: var(--bg-dark);
+  color: var(--parchment);
+}
+
+.back-link {
+  font-size: 14px;
+  color: var(--parchment-2);
+  opacity: .8;
+  transition: opacity .15s;
+}
+
+.back-link:hover {
+  opacity: 1;
+}
+
+.topbar-brand {
+  font-size: 17px;
+  color: var(--parchment);
+  letter-spacing: .02em;
+}
+
+.topbar-spacer {
+  width: 80px;
+}
+
+.about-wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 24px 72px;
+  flex: 1;
+}
+
+.about-title {
+  font-size: clamp(28px, 5vw, 42px);
+  color: var(--ink);
+  margin: 0 0 32px;
+  text-align: center;
+}
+
+.about-body {
+  font-size: 16px;
+  line-height: 1.85;
+  color: var(--ink);
+}
+</style>

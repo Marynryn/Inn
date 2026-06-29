@@ -101,6 +101,11 @@ const react = async (id: number, type: 'like' | 'dislike') => {
   await refresh()
 }
 
+const revealedSpoilers = ref<Set<number>>(new Set())
+const reveal = (id: number) => {
+  revealedSpoilers.value = new Set([...revealedSpoilers.value, id])
+}
+
 const timeAgo = (iso: string) => {
   const diff = Date.now() - new Date(iso.replace(' ', 'T') + 'Z').getTime()
   const m = Math.floor(diff / 60000)
@@ -198,7 +203,13 @@ onMounted(() => {
         <span class="comment-name">{{ c.authorName }}</span>
         <span v-if="c.isSpoiler" class="spoiler-badge">[спойлер]</span>
         <span class="comment-time">{{ timeAgo(c.createdAt) }}</span>
-        <div class="comment-body">{{ c.body }}</div>
+        <div
+          class="comment-body"
+          :class="{ 'is-spoiler': c.isSpoiler && !revealedSpoilers.has(c.id) }"
+          @click="c.isSpoiler && !revealedSpoilers.has(c.id) && reveal(c.id)"
+        >
+          {{ c.body }}
+        </div>
         <div class="comment-actions">
           <button
             class="reaction-btn"
@@ -471,7 +482,20 @@ onMounted(() => {
   overflow-wrap: break-word;
   word-break: break-word;
   min-width: 0;
+  position: relative;
+  transition: filter .2s;
 }
+
+.comment-body.is-spoiler {
+  filter: blur(5px);
+  cursor: pointer;
+  user-select: none;
+}
+
+.comment-body.is-spoiler:hover {
+  filter: blur(3px);
+}
+
 
 .comment-actions {
   display: flex;

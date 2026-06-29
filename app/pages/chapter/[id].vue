@@ -19,7 +19,6 @@ onMounted(() => {
   load()
   auth.fetchMe()
 
-  // Восстанавливаем позицию
   const saved = getSaved()
   if (saved && saved > 0.02) {
     nextTick(() => {
@@ -30,7 +29,6 @@ onMounted(() => {
     })
   }
 
-  // Сохраняем позицию при скролле (debounce 500ms)
   let timer: ReturnType<typeof setTimeout>
   const onScroll = () => {
     clearTimeout(timer)

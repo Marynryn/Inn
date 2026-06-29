@@ -1,7 +1,7 @@
 import { useDb } from '../../utils/db'
 import { siteSettings } from '../../database/schema'
 
-const ALLOWED_KEYS = ['hero_title', 'hero_subtitle', 'ledger_note', 'footer_text', 'telegram_url', 'support_url']
+const ALLOWED_KEYS = ['hero_title', 'hero_subtitle', 'ledger_note', 'footer_text', 'telegram_url', 'support_url', 'about_title', 'about_text']
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

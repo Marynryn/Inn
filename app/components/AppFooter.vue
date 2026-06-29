@@ -8,6 +8,7 @@ defineProps<{
   <footer class="site-footer">
     <div class="footer-links">
       <a href="#ledger">Главы</a>
+      <NuxtLink href="/about">О проекте</NuxtLink>
       <a
         :href="settings?.telegram_url || '#'"
         target="_blank"
@@ -56,6 +57,13 @@ defineProps<{
 
 .footer-links a:hover {
   color: var(--ember);
+}
+
+@media (max-width: 480px) {
+  .footer-links {
+flex-direction: column;
+gap:4px;
+  }
 }
 
 .footer-rule {
