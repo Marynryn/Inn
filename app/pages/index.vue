@@ -85,7 +85,7 @@ useSeoMeta({
 
       <nav class="nav">
         <div class="nav-brand">
-          <NuxtImg src="/favicon-32x32.png" class="nav-mark" alt="Странствующая Таверна" />
+          <NuxtImg src="/header.png" class="nav-mark" width="512" height="512" format="webp" alt="Странствующая Таверна" />
           <div class="nav-title">Странствующая Таверна</div>
         </div>
         <div class="nav-links">

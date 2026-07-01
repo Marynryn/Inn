@@ -63,15 +63,17 @@ const onDragEnd = () => {
 
 const orderChanged = computed(() => {
   if (!chaptersData.value) return false
-  return chapterList.value.some((c, i) => c.id !== (chaptersData.value as any[])[i]?.id)
+  const currentIds = volumeGroups.value.flatMap(([, chs]) => chs.map((c: any) => c.id))
+  return currentIds.some((id, i) => id !== (chaptersData.value as any[])[i]?.id)
 })
 const savingOrder = ref(false)
 const saveOrder = async () => {
   savingOrder.value = true
   try {
+    const ids = volumeGroups.value.flatMap(([, chs]) => chs.map((c: any) => c.id))
     await $fetch('/api/admin/chapters/reorder', {
       method: 'PUT',
-      body: { ids: chapterList.value.map(c => c.id) },
+      body: { ids },
     })
     await refreshChapters()
   } finally {

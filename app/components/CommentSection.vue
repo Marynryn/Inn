@@ -258,17 +258,16 @@ onMounted(() => {
   text-transform: uppercase;
   color: var(--parchment-2);
   font-weight: 500;
-  opacity: .7;
 }
 
 .comments-count {
   font-size: 12px;
-  color: var(--ink-soft);
+  color: var(--text-muted);
 }
 
 .comments-note {
   font-size: 12px;
-  color: var(--ink-soft);
+  color: var(--text-muted);
   margin: 6px 0 22px;
 }
 
@@ -297,7 +296,7 @@ onMounted(() => {
 .comment-form textarea {
   width: 100%;
   min-height: 64px;
-  resize: vertical;
+  resize: none;
   background: rgba(241, 230, 210, .05);
   border: 1px solid rgba(241, 230, 210, .18);
   border-radius: 6px;
@@ -312,7 +311,7 @@ onMounted(() => {
 
 .comment-form input::placeholder,
 .comment-form textarea::placeholder {
-  color: var(--ink-soft);
+  color: var(--text-muted);
 }
 
 .comment-form input:focus-visible,
@@ -377,7 +376,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 12.5px;
-  color: var(--ink-soft);
+  color: var(--parchment-2);
   cursor: pointer;
   margin-bottom: 10px;
   user-select: none;
@@ -398,7 +397,7 @@ onMounted(() => {
 
 .comment-hint {
   font-size: 11.5px;
-  color: var(--ink-soft);
+  color: var(--text-muted);
 }
 
 .comment-error {
@@ -470,13 +469,13 @@ onMounted(() => {
 
 .comment-time {
   font-size: 11px;
-  color: var(--ink-soft);
+  color: var(--text-muted);
   margin-left: 8px;
 }
 
 .comment-body {
   font-size: 13.5px;
-  color: #cfc2aa;
+  color: var(--parchment-2);
   margin-top: 4px;
   line-height: 1.6;
   overflow-wrap: break-word;
@@ -510,7 +509,7 @@ onMounted(() => {
   border-radius: 20px;
   padding: 3px 10px;
   font-size: 12px;
-  color: var(--ink-soft);
+  color: var(--text-muted);
   cursor: pointer;
   transition: border-color .15s, color .15s, background .15s;
   display: flex;
@@ -534,9 +533,8 @@ onMounted(() => {
   border: none;
   padding: 0;
   font-size: 11px;
-  color: var(--ink-soft);
+  color: var(--text-muted);
   cursor: pointer;
-  opacity: .6;
   margin-left: auto;
 }
 
@@ -553,7 +551,7 @@ onMounted(() => {
   background: none;
   border: 1px solid rgba(241, 230, 210, .12);
   border-radius: var(--radius-sm);
-  color: var(--ink-soft);
+  color: var(--text-muted);
   font-family: var(--font-body);
   font-size: 13px;
   cursor: pointer;

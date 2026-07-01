@@ -42,7 +42,7 @@ export const useVolumes = (chapters: Ref<any[] | null>) => {
 
   const chapterRange = computed(() => {
     if(!chapters.value?.length){return '—'}
-    const sorted = [...chapters.value].sort(byChapterOrder)
+    const sorted = [...chapters.value].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
     return `${sorted[0].id}–${sorted[sorted.length - 1].id}`
   })
 

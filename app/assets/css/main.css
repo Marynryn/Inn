@@ -12,6 +12,7 @@
   --parchment-2: #e8dac0;
   --ink:         #2a1e16;
   --ink-soft:    #5a4c3e;
+  --text-muted:  rgba(241, 230, 210, 0.65); /* приглушённый текст на тёмном фоне */
 
   /* Accent */
   --ember:       #d6883e;

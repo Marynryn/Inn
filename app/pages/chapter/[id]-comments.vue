@@ -37,7 +37,7 @@ useHead(() => ({
         :chapter-id="chapterId"
         title="Обсуждение главы"
         placeholder="Что думаешь об этой главе?"
-        spoiler-note="Спойлеры по сюжету разрешены."
+        spoiler-note="Если хотите спойлерить, ставьте галочку 'спойлер'!"
       />
     </div>
   </div>

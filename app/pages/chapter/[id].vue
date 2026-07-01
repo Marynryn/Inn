@@ -15,13 +15,17 @@ const { save: saveScroll, getSaved } = useScrollProgress(chapterId)
 
 const scrollRestored = ref(false)
 
+onBeforeRouteLeave(() => {
+  saveScroll()
+})
+
 onMounted(() => {
   load()
   auth.fetchMe()
 
   const saved = getSaved()
   if (saved && saved > 0.02) {
-    nextTick(() => {
+    document.fonts.ready.then(() => {
       const h = document.documentElement.scrollHeight - window.innerHeight
       window.scrollTo({ top: saved * h, behavior: 'instant' })
       scrollRestored.value = true
@@ -36,8 +40,8 @@ onMounted(() => {
   }
   window.addEventListener('scroll', onScroll, { passive: true })
   onUnmounted(() => {
+    clearTimeout(timer)
     window.removeEventListener('scroll', onScroll)
-    saveScroll()
   })
 })
 

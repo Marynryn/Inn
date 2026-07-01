@@ -13,9 +13,19 @@ useHead({ title: props.error.statusCode === 404 ? '404 · Странствующ
       <p class="error-sub">{{ settings?.error_404_sub || 'Козёл добрался до этой страницы раньше тебя.' }}</p>
     </template>
 
+    <template v-else-if="error.statusCode === 403">
+      <NuxtImg src="/403.jpg" alt="403 — доступ закрыт" class="error-img" />
+      <p class="error-sub">Сюда не пускают. Даже если очень хочется.</p>
+    </template>
+
+    <template v-else-if="error.statusCode === 500">
+      <NuxtImg src="/500.jpg" alt="500 — что-то пошло не так" class="error-img" />
+      <p class="error-sub">{{ error.message || 'Таверна временно закрыта. Попробуй позже.' }}</p>
+    </template>
+
     <template v-else>
       <div class="error-code display">{{ error.statusCode }}</div>
-      <p class="error-sub">{{ error.message || 'Таверна временно закрыта. Попробуй позже.' }}</p>
+      <p class="error-sub">{{ error.message || 'Что-то пошло не так.' }}</p>
     </template>
 
     <NuxtLink href="/" class="btn-home">← На главную</NuxtLink>
