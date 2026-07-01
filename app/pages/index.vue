@@ -8,6 +8,14 @@ const { volumes, totalChapters, chaptersLabel, chapterRange, getBadge } = useVol
 const { ctaHref, ctaText } = useHeroCta(chapters)
 const { downloading, downloaded, download } = useChapterDownloadList()
 
+const scrollToLedger = () => {
+  const el = document.getElementById('ledger')
+  if (el) {
+    const top = el.getBoundingClientRect().top + window.scrollY - 64
+    window.scrollTo({ top, behavior: 'smooth' })
+  }
+}
+
 onMounted(() => {
   load()
   auth.fetchMe()
@@ -76,28 +84,18 @@ useSeoMeta({
 
 <template>
   <div>
+    <AppHeader
+      show-nav-links
+      :telegram-url="settings?.telegram_url"
+      :support-url="settings?.support_url"
+    />
+
     <!-- HERO -->
     <div class="hero">
       <div class="lantern" />
       <div class="hero-art">
         <NuxtImg src="/hero.png" alt="" />
       </div>
-
-      <nav class="nav">
-        <div class="nav-brand">
-          <NuxtImg src="/header.png" class="nav-mark" width="512" height="512" format="webp" alt="Странствующая Таверна" />
-          <div class="nav-title">Странствующая Таверна</div>
-        </div>
-        <div class="nav-links">
-          <a href="#ledger">Главы</a>
-          <a :href="settings?.telegram_url || '#'" target="_blank" rel="noopener">
-            Telegram <span class="ext-icon">↗</span>
-          </a>
-          <a :href="settings?.support_url || '#'" target="_blank" rel="noopener" class="nav-support">
-            Поддержать <span class="ext-icon">↗</span>
-          </a>
-        </div>
-      </nav>
 
       <div class="hero-content">
         <div class="eyebrow">Фанатский перевод · The Wandering Inn</div>
@@ -108,7 +106,7 @@ useSeoMeta({
         <p class="hero-sub" v-html="(settings?.hero_subtitle || '').replace(/\n/g, '<br>')" />
         <div class="hero-actions">
           <NuxtLink class="btn btn-primary" :href="ctaHref">{{ ctaText }}</NuxtLink>
-          <a class="btn btn-ghost" href="#ledger">К главам →</a>
+          <button class="btn btn-ghost" @click="scrollToLedger">К главам →</button>
         </div>
         <div class="hero-meta">
           <div><b class="display">{{ chaptersLabel }}</b>переведено</div>
@@ -168,7 +166,7 @@ useSeoMeta({
   background: radial-gradient(120% 90% at 20% -10%, #3a2c22 0%, var(--bg-dark) 55%, var(--bg-dark-2) 100%);
   color: var(--parchment);
   overflow: hidden;
-  padding: 0 0 64px;
+  padding: 56px 0 64px;
 }
 
 .hero-art {
@@ -204,73 +202,6 @@ useSeoMeta({
   pointer-events: none;
 }
 
-.nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 22px 24px;
-  position: relative;
-  z-index: 2;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.nav-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1.5px solid var(--gold);
-  object-fit: cover;
-}
-
-.nav-title {
-  font-size: 18px;
-  letter-spacing: .02em;
-  font-weight: 600;
-}
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  font-size: 14px;
-  color: var(--parchment-2);
-  opacity: .85;
-}
-
-.nav-links a {
-  color: inherit;
-}
-
-.nav-links a:hover {
-  color: var(--ember-soft);
-}
-
-.nav-support {
-  border: 1px solid rgba(201, 160, 46, .5);
-  color: var(--gold) !important;
-  padding: 6px 14px;
-  border-radius: var(--radius-sm);
-  opacity: 1 !important;
-  transition: background .15s, color .15s;
-}
-
-.nav-support:hover {
-  background: var(--gold);
-  color: var(--bg-dark) !important;
-}
-
-.ext-icon {
-  font-size: 11px;
-  opacity: .7;
-  margin-left: 2px;
-}
 
 .hero-content {
   position: relative;

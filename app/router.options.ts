@@ -13,7 +13,7 @@ export default <RouterConfig>{
     }
 
     if (savedPosition) return savedPosition
-    if (to.hash) return { el: to.hash, behavior: 'smooth' }
+    if (to.hash) return { el: to.hash, top: 64, behavior: 'smooth' }
     return { top: 0 }
   },
 }

@@ -4,6 +4,7 @@ const chapterId = (route.params.id as string).replace('-', '.')
 
 const { data: chapter, error } = await useFetch(`/api/chapters/${chapterId}`)
 const { data: allChapters } = await useFetch('/api/chapters')
+const { data: settings } = useFetch('/api/settings')
 
 const auth = useAuthStore()
 const { load } = useReadProgress()
@@ -114,15 +115,11 @@ useHead(() => ({
       @keep="keepProgress"
     />
 
-    <!-- TOP BAR -->
-    <div class="topbar">
-      <NuxtLink class="back-link" href="/#ledger">← К оглавлению</NuxtLink>
-      <div class="topbar-brand display">
-        <NuxtImg src="/favicon-32x32.png" class="topbar-logo" alt="" />
-        Странствующая Таверна
-      </div>
-      <span class="topbar-spacer" />
-    </div>
+    <AppHeader
+      show-nav-links
+      :telegram-url="settings?.telegram_url"
+      :support-url="settings?.support_url"
+    />
 
     <!-- READER -->
     <div class="reader">
@@ -213,45 +210,7 @@ useHead(() => ({
 .page-wrap {
   background: var(--bg-dark-2);
   min-height: 100vh;
-}
-
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 24px;
-  border-bottom: 1px solid rgba(241, 230, 210, .08);
-  background: var(--bg-dark);
-}
-
-.back-link {
-  font-size: 13px;
-  color: var(--parchment-2);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  opacity: .8;
-}
-
-.back-link:hover {
-  opacity: 1;
-  color: var(--ember-soft);
-}
-
-.topbar-brand {
-  font-size: 15px;
-  color: var(--parchment-2);
-  opacity: .7;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.topbar-logo {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  object-fit: cover;
+  padding-top: 56px;
 }
 
 .icon-btn {

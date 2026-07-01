@@ -19,17 +19,14 @@ useHead(() => ({
 
 <template>
   <div class="comments-page">
-    <!-- ШАПКА -->
-    <div class="topbar">
-      <NuxtLink :href="`/chapter/${rawId}`" class="back-link">
-        ← К главе
-      </NuxtLink>
-      <div v-if="chapter" class="topbar-info">
-        <span class="topbar-vol">Том {{ chapter.volume }} · {{ chapter.id }}</span>
-        <span class="topbar-title">{{ chapter.title }}</span>
-      </div>
-      <NuxtLink href="/#ledger" class="topbar-home">На главную</NuxtLink>
-    </div>
+    <AppHeader
+      :back-href="`/chapter/${rawId}`"
+      back-label="← К главе"
+      :chapter-vol="chapter?.volume"
+      :chapter-id="chapter?.id"
+      :chapter-title="chapter?.title"
+      show-home-link
+    />
 
     <!-- КОНТЕНТ -->
     <div class="comments-wrap">
@@ -48,67 +45,7 @@ useHead(() => ({
   min-height: 100vh;
   background: var(--bg-dark-2);
   color: var(--parchment);
-}
-
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 32px;
-  border-bottom: 1px solid rgba(241, 230, 210, .08);
-  background: var(--bg-dark);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.back-link {
-  font-size: 16px;
-  color: var(--parchment-2);
-  text-decoration: none;
-  white-space: nowrap;
-  opacity: .8;
-  transition: opacity .15s, color .15s;
-}
-
-.back-link:hover {
-  opacity: 1;
-  color: var(--ember-soft);
-}
-
-.topbar-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.topbar-vol {
-  font-size: 11px;
-  color: var(--ember-soft);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-}
-
-.topbar-title {
-  font-size: 13px;
-  color: var(--parchment-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.topbar-home {
-  font-size: 12px;
-  color: var(--ink-soft);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: color .15s;
-}
-
-.topbar-home:hover {
-  color: var(--parchment-2);
+  padding-top: 56px;
 }
 
 .comments-wrap {
@@ -118,14 +55,6 @@ useHead(() => ({
 }
 
 @media (max-width: 600px) {
-  .topbar {
-    padding: 12px 16px;
-  }
-
-  .topbar-home {
-    display: none;
-  }
-
   .comments-wrap {
     padding: 32px 16px 60px;
   }

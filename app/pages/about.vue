@@ -23,11 +23,7 @@ useSeoMeta({
 
 <template>
   <div class="about-page">
-    <div class="topbar">
-      <NuxtLink href="/" class="back-link">← На главную</NuxtLink>
-      <div class="topbar-brand display">Странствующая Таверна</div>
-      <span class="topbar-spacer" />
-    </div>
+    <AppHeader back-href="/" back-label="← На главную" show-brand />
 
     <div class="about-wrap">
       <h1 class="display about-title">{{ title }}</h1>
@@ -48,37 +44,7 @@ useSeoMeta({
   color: var(--ink);
   display: flex;
   flex-direction: column;
-}
-
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 24px;
-  border-bottom: 1px solid rgba(42, 30, 22, .1);
-  background: var(--bg-dark);
-  color: var(--parchment);
-}
-
-.back-link {
-  font-size: 14px;
-  color: var(--parchment-2);
-  opacity: .8;
-  transition: opacity .15s;
-}
-
-.back-link:hover {
-  opacity: 1;
-}
-
-.topbar-brand {
-  font-size: 17px;
-  color: var(--parchment);
-  letter-spacing: .02em;
-}
-
-.topbar-spacer {
-  width: 80px;
+  padding-top: 56px;
 }
 
 .about-wrap {
