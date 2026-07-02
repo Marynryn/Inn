@@ -100,10 +100,13 @@ onMounted(() => {
       <!-- обычный режим: ссылки + бургер справа -->
       <template v-else-if="showNavLinks">
         <a href="/#ledger" class="nav-link hide-mobile" @click="goToChapters">Главы</a>
+        <NuxtLink v-if="commentsHref" :href="commentsHref" class="nav-link hide-mobile">Обсуждение</NuxtLink>
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
-          Telegram        </a>
+          Telegram <span class="ext">↗</span>
+        </a>
         <a :href="supportUrl || '#'" target="_blank" rel="noopener" class="nav-link nav-support">
-          Поддержать        </a>
+          Поддержать <span class="ext">↗</span>
+        </a>
         <button
           class="burger"
           :class="{ open: menuOpen }"

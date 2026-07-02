@@ -27,14 +27,14 @@ useHead(() => ({
       :support-url="settings?.support_url"
     />
 
-    <div class="comments-back">
+
+
+    <div class="comments-wrap">
       <NuxtLink :href="`/chapter/${rawId}`" class="back-btn">
         <span class="back-chevron">‹</span> Глава {{ chapter?.id }}
       </NuxtLink>
-      <span v-if="chapter" class="back-title">{{ chapter.title }}</span>
-    </div>
-
-    <div class="comments-wrap">
+  
+  
       <CommentSection
         :chapter-id="chapterId"
         :title="chapter ? `Обсуждение главы ${chapter.id}` : 'Обсуждение главы'"
@@ -68,6 +68,7 @@ useHead(() => ({
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-bottom:16px ;
   line-height:1;
 }
 
@@ -81,14 +82,7 @@ useHead(() => ({
   color: var(--parchment);
 }
 
-.back-title {
-  font-size: 16px;
-  color: var(--parchment-2);
-  opacity: .6;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+
 
 .comments-wrap {
   max-width: 720px;
@@ -101,9 +95,6 @@ useHead(() => ({
     padding: 12px 16px;
   }
 
-  .back-title {
-    display: none;
-  }
 
   .comments-wrap {
     padding: 32px 16px 60px;
