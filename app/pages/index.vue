@@ -43,7 +43,7 @@ const openChapter = (id: string) => {
   navigateTo(`/chapter/${id.replace('.', '-')}`)
 }
 
-const siteUrl = 'https://stranstvuyushchaya-taverna.ru'
+const siteUrl = useRuntimeConfig().public.siteUrl
 
 useHead({
   title: 'Странствующая Таверна',
@@ -67,16 +67,18 @@ useHead({
   ],
 })
 
+const socialTitle = computed(() => (settings.value?.hero_title || 'Странствующая Таверна').replace(/\n/g, ' '))
+
 useSeoMeta({
   description: () => settings.value?.hero_subtitle || 'Фанатский перевод The Wandering Inn на русский язык.',
-  ogTitle: () => settings.value?.hero_title || 'Странствующая Таверна',
+  ogTitle: () => socialTitle.value,
   ogDescription: () => settings.value?.hero_subtitle || 'Фанатский перевод The Wandering Inn на русский язык.',
   ogImage: `${siteUrl}/hero.png`,
   ogUrl: siteUrl,
   ogType: 'website',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
-  twitterTitle: () => settings.value?.hero_title || 'Странствующая Таверна',
+  twitterTitle: () => socialTitle.value,
   twitterDescription: () => settings.value?.hero_subtitle || 'Фанатский перевод The Wandering Inn на русский язык.',
   twitterImage: `${siteUrl}/hero.png`,
 })
@@ -86,6 +88,7 @@ useSeoMeta({
   <div>
     <AppHeader
       show-nav-links
+      transparent-top
       :telegram-url="settings?.telegram_url"
       :support-url="settings?.support_url"
     />

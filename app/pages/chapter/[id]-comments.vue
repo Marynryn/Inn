@@ -11,11 +11,36 @@ const { data: settings } = useFetch('/api/settings')
 
 onMounted(() => auth.fetchMe())
 
+const siteUrl = useRuntimeConfig().public.siteUrl
+const pageUrl = computed(() => `${siteUrl}/chapter/${rawId}/comments`)
+const pageTitle = computed(() => chapter.value
+  ? `Обсуждение ${chapter.value.id} «${chapter.value.title}» · Странствующая Таверна`
+  : 'Обсуждение')
+const pageDescription = computed(() => chapter.value
+  ? `Обсуждение главы ${chapter.value.id} «${chapter.value.title}» — фанатский перевод The Wandering Inn.`
+  : 'Обсуждение главы — фанатский перевод The Wandering Inn.')
+
 useHead(() => ({
-  title: chapter.value
-    ? `Обсуждение ${chapter.value.id} «${chapter.value.title}» · Странствующая Таверна`
-    : 'Обсуждение',
+  title: pageTitle.value,
+  link: [{ rel: 'canonical', href: pageUrl.value }],
+  // Обсуждения — динамический, тонкий контент: не соревнуется в поиске со страницей главы,
+  // но остаётся доступным для перехода по ссылке.
+  meta: [{ name: 'robots', content: 'noindex, follow' }],
 }))
+
+useSeoMeta({
+  description: () => pageDescription.value,
+  ogTitle: () => pageTitle.value,
+  ogDescription: () => pageDescription.value,
+  ogImage: `${siteUrl}/hero.png`,
+  ogUrl: () => pageUrl.value,
+  ogType: 'website',
+  ogLocale: 'ru_RU',
+  twitterCard: 'summary_large_image',
+  twitterTitle: () => pageTitle.value,
+  twitterDescription: () => pageDescription.value,
+  twitterImage: `${siteUrl}/hero.png`,
+})
 </script>
 
 <template>

@@ -9,12 +9,13 @@ export default defineEventHandler(async (event) => {
     .from(chapters)
     .orderBy(desc(chapters.publishedAt))
 
-  const base = 'https://stranstvuyushchaya-taverna.ru'
+  const base = useRuntimeConfig(event).public.siteUrl
 
   const urls = [
     `<url><loc>${base}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>`,
+    `<url><loc>${base}/about</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>`,
     ...rows.map(c => {
-      const slug = c.id.replace('.', '-')
+      const slug = encodeURIComponent(c.id.replace('.', '-'))
       const lastmod = c.publishedAt ? c.publishedAt.slice(0, 10) : ''
       return `<url><loc>${base}/chapter/${slug}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}<changefreq>never</changefreq><priority>0.8</priority></url>`
     }),

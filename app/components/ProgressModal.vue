@@ -20,11 +20,10 @@ const emit = defineEmits<{
           Обновить прогресс или оставить закладку на главе <b>{{ lastId }}</b>?
         </p>
         <div class="modal-actions">
-          <button class="btn-keep" @click="emit('keep')">
+          <button class="btn-keep" @click="emit('update')">
              Обновить до {{ currentId }}
           </button>
-          <button class="btn-update" @click="emit('update')">
-          
+          <button class="btn-update" @click="emit('keep')">
              Оставить {{ lastId }}
           </button>
         </div>

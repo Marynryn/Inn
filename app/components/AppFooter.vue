@@ -2,13 +2,26 @@
 defineProps<{
   settings: Record<string, string> | null
 }>()
+
+const route = useRoute()
+
+const goToChapters = (e: Event) => {
+  if (route.path === '/') {
+    e.preventDefault()
+    const el = document.getElementById('ledger')
+    if (el) {
+      const top = el.getBoundingClientRect().top + window.scrollY - 64
+      window.scrollTo({ top, behavior: 'smooth' })
+    }
+  }
+}
 </script>
 
 <template>
   <footer class="site-footer">
     <div class="footer-links">
-      <a href="#ledger">Главы</a>
-      <NuxtLink href="/about">О проекте</NuxtLink>
+      <a href="/#ledger" @click="goToChapters">Главы</a>
+      <NuxtLink v-if="route.path !== '/about'" href="/about">О проекте</NuxtLink>
       <a
         :href="settings?.telegram_url || '#'"
         target="_blank"

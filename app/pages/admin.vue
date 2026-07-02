@@ -253,7 +253,10 @@ const switchTab = (tab: typeof activeTab.value) => {
   appHeader.value?.close()
 }
 
-useHead({ title: 'Админ · Странствующая Таверна' })
+useHead({
+  title: 'Админ · Странствующая Таверна',
+  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+})
 </script>
 
 <template>

@@ -4,4 +4,4 @@ Disallow: /admin
 Disallow: /login
 Disallow: /api/
 
-Sitemap: https://stranstvuyushchaya-taverna.ru/sitemap.xml
+Sitemap: https://taverna-book.com/sitemap.xml

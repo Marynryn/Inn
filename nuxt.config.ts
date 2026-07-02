@@ -22,6 +22,9 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     sessionPassword: process.env.NUXT_SESSION_PASSWORD,
+    public: {
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://taverna-book.com',
+    },
   },
 
   vue: {

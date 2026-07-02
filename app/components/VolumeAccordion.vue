@@ -36,7 +36,7 @@ const emit = defineEmits<{
           :downloading="downloading.has(ch.id)"
           :downloaded="downloaded.has(ch.id)"
           @open="emit('openChapter', $event)"
-          @download="emit('download', $event[0], $event[1])"
+          @download="(e, id) => emit('download', e, id)"
         />
       </div>
     </div>

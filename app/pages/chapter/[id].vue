@@ -46,7 +46,7 @@ onMounted(() => {
   })
 })
 
-const siteUrl = 'https://stranstvuyushchaya-taverna.ru'
+const siteUrl = useRuntimeConfig().public.siteUrl
 
 useHead(() => ({
   title: chapter.value ? `${chapter.value.title} · Странствующая Таверна` : 'Загрузка...',
@@ -68,6 +68,11 @@ useSeoMeta({
   ogType: 'article',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
+  twitterTitle: () => chapter.value ? `${chapter.value.title} · Странствующая Таверна` : undefined,
+  twitterDescription: () => chapter.value
+    ? `Читать главу ${chapter.value.id} «${chapter.value.title}» — фанатский перевод The Wandering Inn.`
+    : undefined,
+  twitterImage: `${siteUrl}/hero.png`,
 })
 
 useHead(() => ({

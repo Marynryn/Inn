@@ -18,7 +18,10 @@ const submit = async () => {
   }
 }
 
-useHead({ title: 'Вход · Странствующая Таверна' })
+useHead({
+  title: 'Вход · Странствующая Таверна',
+  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+})
 </script>
 
 <template>

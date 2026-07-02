@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { data: settings } = await useFetch('/api/settings')
 
-const siteUrl = 'https://stranstvuyushchaya-taverna.ru'
+const siteUrl = useRuntimeConfig().public.siteUrl
 
 const title = computed(() => settings.value?.about_title || 'О проекте')
 
@@ -18,6 +18,10 @@ useSeoMeta({
   ogType: 'website',
   ogLocale: 'ru_RU',
   ogImage: `${siteUrl}/hero.png`,
+  twitterCard: 'summary_large_image',
+  twitterTitle: () => `${title.value} · Странствующая Таверна`,
+  twitterDescription: () => settings.value?.about_text?.slice(0, 155) || 'О проекте Странствующая Таверна — фанатский перевод The Wandering Inn на русский язык.',
+  twitterImage: `${siteUrl}/hero.png`,
 })
 </script>
 

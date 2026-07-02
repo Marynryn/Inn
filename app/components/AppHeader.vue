@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   backHref?: string
   backLabel?: string
   showBrand?: boolean
@@ -15,17 +15,29 @@ defineProps<{
   burgerLeft?: boolean
   backToChapterHref?: string
   backToChapterLabel?: string
+  transparentTop?: boolean
 }>()
 
 const menuOpen = ref(false)
 const route = useRoute()
 const slots = useSlots()
+const scrolled = ref(false)
 
 defineExpose({ close: () => { menuOpen.value = false } })
 
 watch(() => route.fullPath, () => { menuOpen.value = false })
 
-const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
+const scrollTop = () => {
+  // На других страницах переход и сброс скролла уже делает router.options.ts —
+  // не дёргаем анимацию до навигации, иначе прогресс главы сохранится как «в начале».
+  if (route.path === '/') {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+const onScroll = () => {
+  scrolled.value = window.scrollY > 10
+}
 
 const goToChapters = (e: Event) => {
   menuOpen.value = false
@@ -46,11 +58,22 @@ onMounted(() => {
       menuOpen.value = false
     }
   })
+
+  if (props.transparentTop) {
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+  }
+})
+
+onUnmounted(() => {
+  if (props.transparentTop) {
+    window.removeEventListener('scroll', onScroll)
+  }
 })
 </script>
 
 <template>
-  <header class="app-header">
+  <header class="app-header" :class="{ 'is-transparent': transparentTop && !scrolled }">
 
     <!-- LEFT -->
     <div class="h-left">
@@ -157,6 +180,12 @@ onMounted(() => {
   padding: 0 24px;
   background: var(--bg-dark);
   border-bottom: 1px solid rgba(241, 230, 210, .08);
+  transition: background .25s ease, border-color .25s ease;
+}
+
+.app-header.is-transparent {
+  background: transparent;
+  border-bottom-color: transparent;
 }
 
 /* ── Layout sections ────────────────────────── */
