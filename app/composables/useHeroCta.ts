@@ -8,7 +8,7 @@ export const useHeroCta = (chapters: Ref<any[] | null>) => {
   })
 
   const ctaText = computed(() =>
-    lastRead.value ? `Продолжить главу ${lastRead.value.id} →` : 'Читать с начала →'
+    lastRead.value ? `Продолжить главу ${lastRead.value.id}` : 'Читать с начала'
   )
 
   return { ctaHref, ctaText }

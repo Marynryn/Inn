@@ -246,10 +246,12 @@ const uploadChapter = async () => {
 const { data: stats } = await useFetch('/api/admin/stats')
 const { data: commentLogs, refresh: refreshLogs } = await useFetch('/api/admin/comments')
 
-const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'stats'>('upload')
-const mobMenuOpen = ref(false)
-const mobTabLabels = { upload: '＋ Добавить главу', chapters: '≡ Список глав', settings: '⚙ Настройки', profile: '○ Профиль', stats: '📊 Статистика' }
-const mobTabLabel = computed(() => mobTabLabels[activeTab.value])
+const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'stats' | 'comments'>('upload')
+const appHeader = ref()
+const switchTab = (tab: typeof activeTab.value) => {
+  activeTab.value = tab
+  appHeader.value?.close()
+}
 
 useHead({ title: 'Админ · Странствующая Таверна' })
 </script>
@@ -258,23 +260,18 @@ useHead({ title: 'Админ · Странствующая Таверна' })
   <div class="admin-wrap">
     <div class="admin-layout">
 
-      <!-- МОБИЛЬНАЯ ШАПКА -->
-      <div class="mobile-header">
-        <NuxtLink href="/" class="mob-back">← Сайт</NuxtLink>
-        <div class="mob-dropdown" :class="{ open: mobMenuOpen }">
-          <button class="mob-dropdown-btn" @click="mobMenuOpen = !mobMenuOpen">
-            {{ mobTabLabel }}
-            <span class="mob-chev">▾</span>
-          </button>
-          <div class="mob-dropdown-list" @click="mobMenuOpen = false">
-            <button class="mob-option" :class="{ active: activeTab === 'upload' }" @click="activeTab = 'upload'">Добавить главу</button>
-            <button class="mob-option" :class="{ active: activeTab === 'chapters' }" @click="activeTab = 'chapters'">Список глав</button>
-            <button class="mob-option" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">Настройки</button>
-            <button class="mob-option" :class="{ active: activeTab === 'profile' }" @click="activeTab = 'profile'">Профиль</button>
-            <button class="mob-option" :class="{ active: activeTab === 'stats' }" @click="activeTab = 'stats'">Статистика</button>
-          </div>
-        </div>
-        <button class="mob-logout" @click="auth.logout().then(() => navigateTo('/login'))">Выйти</button>
+      <!-- ШАПКА (только мобильная) -->
+      <div class="admin-header-wrap">
+      <AppHeader ref="appHeader" burger-left>
+        <template #menu>
+          <button class="adm-menu-link" :class="{ active: activeTab === 'upload' }" @click="switchTab('upload')">Добавить главу</button>
+          <button class="adm-menu-link" :class="{ active: activeTab === 'chapters' }" @click="switchTab('chapters')">Список глав</button>
+          <button class="adm-menu-link" :class="{ active: activeTab === 'settings' }" @click="switchTab('settings')">Настройки сайта</button>
+          <button class="adm-menu-link" :class="{ active: activeTab === 'stats' }" @click="switchTab('stats')">Статистика</button>
+          <button class="adm-menu-link" :class="{ active: activeTab === 'comments' }" @click="switchTab('comments')">Комментарии</button>
+          <button class="adm-menu-link adm-logout" @click="auth.logout().then(() => navigateTo('/login'))">Выйти</button>
+        </template>
+      </AppHeader>
       </div>
 
       <!-- КОНТЕНТ -->
@@ -440,8 +437,12 @@ useHead({ title: 'Админ · Странствующая Таверна' })
             <div v-if="!stats?.topChapters?.length" class="empty-hint">Нет данных</div>
           </div>
 
+        </section>
+
+        <!-- Комментарии -->
+        <section v-if="activeTab === 'comments'" class="card card--fill">
           <div class="logs-header">
-            <h3 class="stats-sub" style="margin:0">Последние комментарии</h3>
+            <h2 style="margin:0">Последние комментарии</h2>
             <button class="logs-refresh" @click="refreshLogs">↻ Обновить</button>
           </div>
           <div class="logs-list">
@@ -533,6 +534,10 @@ useHead({ title: 'Админ · Странствующая Таверна' })
           <button class="sb-tab" :class="{ active: activeTab === 'stats' }" @click="activeTab = 'stats'">
             <span class="sb-icon">📊</span>
             Статистика
+          </button>
+          <button class="sb-tab" :class="{ active: activeTab === 'comments' }" @click="activeTab = 'comments'">
+            <span class="sb-icon">💬</span>
+            Комментарии
           </button>
         </nav>
 
@@ -1097,11 +1102,26 @@ useHead({ title: 'Админ · Странствующая Таверна' })
   flex-shrink: 0;
 }
 
+.card--fill {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 80px);
+}
+
+.card--fill .logs-header {
+  flex-shrink: 0;
+}
+
+.card--fill .logs-list {
+  flex: 1;
+  max-height: none;
+}
+
 .logs-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 28px 0 12px;
+  margin: 0 0 12px;
 }
 
 .logs-refresh {
@@ -1198,13 +1218,46 @@ useHead({ title: 'Админ · Странствующая Таверна' })
   color: var(--ember);
 }
 
-.mobile-header {
+.admin-header-wrap {
   display: none;
 }
 
 @media (max-width: 640px) {
+  .admin-header-wrap {
+    display: block;
+  }
+}
+
+.adm-menu-link {
+  display: block;
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 15px;
+  font-family: var(--font-body);
+  color: var(--parchment-2);
+  text-decoration: none;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(241, 230, 210, .06);
+  text-align: left;
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+
+.adm-menu-link:last-child { border-bottom: none; }
+
+.adm-menu-link:hover,
+.adm-menu-link.active {
+  color: var(--ember-soft);
+  background: rgba(241, 230, 210, .04);
+}
+
+.adm-logout { opacity: .6; }
+
+@media (max-width: 640px) {
   .admin-layout {
     flex-direction: column;
+    padding-top: 56px;
   }
 
   .admin-sidebar {
@@ -1215,112 +1268,12 @@ useHead({ title: 'Админ · Странствующая Таверна' })
     padding: 16px;
   }
 
-  .mobile-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(241, 230, 210, .08);
-    flex-shrink: 0;
-    background: rgba(0, 0, 0, .2);
-  }
-
-  .mob-back {
-    font-size: 16px;
-    color: var(--parchment-2);
-    white-space: nowrap;
-    text-decoration: none;
-  }
-
-  .mob-dropdown {
-    flex: 1;
-    position: relative;
-  }
-
-  .mob-dropdown-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-    background: rgba(241, 230, 210, .07);
-    border: 1px solid rgba(241, 230, 210, .18);
-    border-radius: var(--radius-sm);
-    color: var(--parchment);
-    font-family: var(--font-body);
-    font-size: 13px;
-    padding: 7px 10px;
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .mob-chev {
-    font-size: 11px;
-    color: var(--ink-soft);
-    transition: transform .2s;
-  }
-
-  .mob-dropdown.open .mob-chev {
-    transform: rotate(180deg);
-  }
-
-  .mob-dropdown-list {
-    display: none;
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    background: var(--bg-dark-2);
-    border: 1px solid rgba(241, 230, 210, .15);
-    border-radius: var(--radius-sm);
-    z-index: 100;
-    overflow: hidden;
-  }
-
-  .mob-dropdown.open .mob-dropdown-list {
-    display: block;
-  }
-
-  .mob-option {
-    display: block;
-    width: 100%;
-    padding: 11px 14px;
-    background: none;
-    border: none;
-    color: var(--parchment-2);
-    font-family: var(--font-body);
-    font-size: 13px;
-    text-align: left;
-    cursor: pointer;
-    border-bottom: 1px solid rgba(241, 230, 210, .06);
-  }
-
-  .mob-option:last-child {
-    border-bottom: none;
-  }
-
-  .mob-option:hover {
-    background: rgba(241, 230, 210, .05);
-    color: var(--parchment);
-  }
-
-  .mob-option.active {
-    color: var(--ember-soft);
-  }
-
-  .mob-logout {
-    background: none;
-    border: none;
-    color: var(--parchment-2);
-    font-family: var(--font-body);
-    font-size: 12px;
-    cursor: pointer;
-    white-space: nowrap;
-    padding: 0;
-  }
-
   .card {
     padding: 20px 16px;
+  }
+
+  .card--fill {
+    height: calc(100vh - 56px - 32px);
   }
 }
 </style>

@@ -119,6 +119,8 @@ useHead(() => ({
       show-nav-links
       :telegram-url="settings?.telegram_url"
       :support-url="settings?.support_url"
+      :comments-href="`/chapter/${route.params.id}/comments`"
+      :comments-label="chapter ? `Обсуждение главы ${chapter.id}` : 'Обсуждение главы'"
     />
 
     <!-- READER -->
@@ -295,6 +297,11 @@ useHead(() => ({
   margin: 0;
   font-weight: 600;
   line-height: 1.25;
+}
+
+.reader-content {
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .reader-content :deep(p) {

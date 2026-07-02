@@ -10,10 +10,18 @@ defineProps<{
   showNavLinks?: boolean
   telegramUrl?: string
   supportUrl?: string
+  commentsHref?: string
+  commentsLabel?: string
+  burgerLeft?: boolean
+  backToChapterHref?: string
+  backToChapterLabel?: string
 }>()
 
 const menuOpen = ref(false)
 const route = useRoute()
+const slots = useSlots()
+
+defineExpose({ close: () => { menuOpen.value = false } })
 
 watch(() => route.fullPath, () => { menuOpen.value = false })
 
@@ -46,7 +54,11 @@ onMounted(() => {
 
     <!-- LEFT -->
     <div class="h-left">
-      <NuxtLink v-if="backHref" :href="backHref" class="back-link">
+      <!-- страница комментариев: иконка таверны слева -->
+      <NuxtLink v-if="burgerLeft" href="/" class="brand-icon" @click="scrollTop">
+        <NuxtImg src="/header.png" width="30" height="30" format="webp" alt="Странствующая Таверна" />
+      </NuxtLink>
+      <NuxtLink v-else-if="backHref" :href="backHref" class="back-link">
         {{ backLabel ?? '← Назад' }}
       </NuxtLink>
       <NuxtLink v-else-if="showNavLinks" href="/" class="brand" @click="scrollTop">
@@ -61,7 +73,7 @@ onMounted(() => {
         <NuxtImg src="/header.png" class="brand-logo" width="32" height="32" format="webp" alt="" />
         <span class="brand-name display">Странствующая Таверна</span>
       </template>
-      <template v-else-if="chapterId">
+      <template v-else-if="chapterId && !burgerLeft">
         <span class="chapter-vol">Том {{ chapterVol }} · {{ chapterId }}</span>
         <span class="chapter-title">{{ chapterTitle }}</span>
       </template>
@@ -69,14 +81,29 @@ onMounted(() => {
 
     <!-- RIGHT -->
     <div class="h-right">
-      <template v-if="showNavLinks">
+      <!-- страница комментариев: десктоп-ссылки + бургер справа -->
+      <template v-if="burgerLeft">
         <a href="/#ledger" class="nav-link hide-mobile" @click="goToChapters">Главы</a>
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
-          Telegram <span class="ext">↗</span>
-        </a>
+          Telegram        </a>
+        <a :href="supportUrl || '#'" target="_blank" rel="noopener" class="nav-link nav-support hide-mobile">
+          Поддержать        </a>
+        <button
+          class="burger"
+          :class="{ open: menuOpen }"
+          aria-label="Меню"
+          @click.stop="menuOpen = !menuOpen"
+        >
+          <span /><span /><span />
+        </button>
+      </template>
+      <!-- обычный режим: ссылки + бургер справа -->
+      <template v-else-if="showNavLinks">
+        <a href="/#ledger" class="nav-link hide-mobile" @click="goToChapters">Главы</a>
+        <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
+          Telegram        </a>
         <a :href="supportUrl || '#'" target="_blank" rel="noopener" class="nav-link nav-support">
-          Поддержать <span class="ext">↗</span>
-        </a>
+          Поддержать        </a>
         <button
           class="burger"
           :class="{ open: menuOpen }"
@@ -91,14 +118,23 @@ onMounted(() => {
     </div>
 
     <!-- MOBILE DROPDOWN -->
-    <div v-if="showNavLinks" class="mobile-menu" :class="{ open: menuOpen }">
-      <a href="/#ledger" class="menu-link" @click="goToChapters">Главы</a>
-      <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="menu-link" @click="menuOpen = false">
-        Telegram <span class="ext">↗</span>
-      </a>
-      <a :href="supportUrl || '#'" target="_blank" rel="noopener" class="menu-link menu-support" @click="menuOpen = false">
-        Поддержать <span class="ext">↗</span>
-      </a>
+    <div v-if="showNavLinks || burgerLeft || slots.menu" class="mobile-menu" :class="{ open: menuOpen }">
+      <slot name="menu">
+        <NuxtLink v-if="backToChapterHref" :href="backToChapterHref" class="menu-link menu-back" @click="menuOpen = false">
+          {{ backToChapterLabel || '← К главе' }}
+        </NuxtLink>
+        <a href="/#ledger" class="menu-link" @click="goToChapters">Главы</a>
+        <NuxtLink v-if="commentsHref" :href="commentsHref" class="menu-link" @click="menuOpen = false">
+          {{ commentsLabel || 'Обсуждение главы' }}
+        </NuxtLink>
+        <NuxtLink v-if="route.path !== '/about'" href="/about" class="menu-link" @click="menuOpen = false">О проекте</NuxtLink>
+        <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="menu-link" @click="menuOpen = false">
+          Telegram <span class="ext">↗</span>
+        </a>
+        <a :href="supportUrl || '#'" target="_blank" rel="noopener" class="menu-link menu-support" @click="menuOpen = false">
+          Поддержать <span class="ext">↗</span>
+        </a>
+      </slot>
     </div>
 
   </header>
@@ -291,7 +327,7 @@ onMounted(() => {
 }
 
 .mobile-menu.open {
-  max-height: 240px;
+  max-height: calc(100vh - 56px);
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
@@ -317,6 +353,25 @@ onMounted(() => {
 
 .menu-support {
   color: var(--gold);
+}
+
+.menu-back {
+  color: var(--ember-soft);
+}
+
+/* ── Brand icon (logo only, right side) ─────── */
+.brand-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.brand-icon img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--gold);
 }
 
 /* ── Responsive ─────────────────────────────── */

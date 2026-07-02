@@ -7,6 +7,7 @@ const chapterId = rawId.replace('-', '.')
 
 const auth = useAuthStore()
 const { data: chapter } = await useFetch(`/api/chapters/${chapterId}`)
+const { data: settings } = useFetch('/api/settings')
 
 onMounted(() => auth.fetchMe())
 
@@ -20,19 +21,23 @@ useHead(() => ({
 <template>
   <div class="comments-page">
     <AppHeader
-      :back-href="`/chapter/${rawId}`"
-      back-label="← К главе"
-      :chapter-vol="chapter?.volume"
-      :chapter-id="chapter?.id"
-      :chapter-title="chapter?.title"
-      show-home-link
+      burger-left
+      show-nav-links
+      :telegram-url="settings?.telegram_url"
+      :support-url="settings?.support_url"
     />
 
-    <!-- КОНТЕНТ -->
+    <div class="comments-back">
+      <NuxtLink :href="`/chapter/${rawId}`" class="back-btn">
+        <span class="back-chevron">‹</span> Глава {{ chapter?.id }}
+      </NuxtLink>
+      <span v-if="chapter" class="back-title">{{ chapter.title }}</span>
+    </div>
+
     <div class="comments-wrap">
       <CommentSection
         :chapter-id="chapterId"
-        title="Обсуждение главы"
+        :title="chapter ? `Обсуждение главы ${chapter.id}` : 'Обсуждение главы'"
         placeholder="Что думаешь об этой главе?"
         spoiler-note="Если хотите спойлерить, ставьте галочку 'спойлер'!"
       />
@@ -48,6 +53,43 @@ useHead(() => ({
   padding-top: 56px;
 }
 
+.comments-back {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 32px;
+}
+
+.back-btn {
+  font-size: 13px;
+  color: var(--ember-soft);
+  white-space: nowrap;
+  transition: color .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height:1;
+}
+
+.back-chevron {
+  font-size: 24px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.back-btn:hover {
+  color: var(--parchment);
+}
+
+.back-title {
+  font-size: 16px;
+  color: var(--parchment-2);
+  opacity: .6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .comments-wrap {
   max-width: 720px;
   margin: 0 auto;
@@ -55,6 +97,14 @@ useHead(() => ({
 }
 
 @media (max-width: 600px) {
+  .comments-back {
+    padding: 12px 16px;
+  }
+
+  .back-title {
+    display: none;
+  }
+
   .comments-wrap {
     padding: 32px 16px 60px;
   }

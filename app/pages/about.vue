@@ -23,7 +23,11 @@ useSeoMeta({
 
 <template>
   <div class="about-page">
-    <AppHeader back-href="/" back-label="← На главную" show-brand />
+    <AppHeader
+      show-nav-links
+      :telegram-url="settings?.telegram_url"
+      :support-url="settings?.support_url"
+    />
 
     <div class="about-wrap">
       <h1 class="display about-title">{{ title }}</h1>

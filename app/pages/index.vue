@@ -106,7 +106,7 @@ useSeoMeta({
         <p class="hero-sub" v-html="(settings?.hero_subtitle || '').replace(/\n/g, '<br>')" />
         <div class="hero-actions">
           <NuxtLink class="btn btn-primary" :href="ctaHref">{{ ctaText }}</NuxtLink>
-          <button class="btn btn-ghost" @click="scrollToLedger">К главам →</button>
+          <button class="btn btn-ghost" @click="scrollToLedger">К главам</button>
         </div>
         <div class="hero-meta">
           <div><b class="display">{{ chaptersLabel }}</b>переведено</div>
@@ -347,8 +347,17 @@ useSeoMeta({
 
 @media (max-width: 600px) {
   .hero-art {
-    width: 100%;
-    opacity: .18;
+    width: 70%;
+    left: auto;
+    right: 0;
+    opacity:0.7;
+   
+
+  }
+
+  .hero-art img,
+  .hero-art picture {
+    object-position: center center;
   }
 
   .hero-title {
