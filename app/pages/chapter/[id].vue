@@ -16,7 +16,14 @@ const { save: saveScroll, getSaved } = useScrollProgress(chapterId)
 
 const scrollRestored = ref(false)
 
+// При переходе на другую страницу роутер сбрасывает scrollY новой страницы в 0 —
+// это может успеть вызвать debounced onScroll ниже ДО того, как слушатель снимется
+// в onUnmounted, и затереть только что сохранённый прогресс нулём. Флаг закрывает
+// эту гонку независимо от порядка отработки onUnmounted.
+let leavingChapter = false
+
 onBeforeRouteLeave(() => {
+  leavingChapter = true
   saveScroll()
 })
 
@@ -36,8 +43,12 @@ onMounted(() => {
 
   let timer: ReturnType<typeof setTimeout>
   const onScroll = () => {
+    if (leavingChapter) return
     clearTimeout(timer)
-    timer = setTimeout(saveScroll, 500)
+    timer = setTimeout(() => {
+      if (leavingChapter) return
+      saveScroll()
+    }, 500)
   }
   window.addEventListener('scroll', onScroll, { passive: true })
   onUnmounted(() => {
