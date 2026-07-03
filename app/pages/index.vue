@@ -12,7 +12,7 @@ const scrollToLedger = () => {
   const el = document.getElementById('ledger')
   if (el) {
     const top = el.getBoundingClientRect().top + window.scrollY - 64
-    window.scrollTo({ top, behavior: 'smooth' })
+    smoothScrollTo(top)
   }
 }
 

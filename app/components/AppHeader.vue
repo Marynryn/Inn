@@ -31,7 +31,7 @@ const scrollTop = () => {
   // На других страницах переход и сброс скролла уже делает router.options.ts —
   // не дёргаем анимацию до навигации, иначе прогресс главы сохранится как «в начале».
   if (route.path === '/') {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    smoothScrollTo(0)
   }
 }
 
@@ -46,7 +46,7 @@ const goToChapters = (e: Event) => {
     const el = document.getElementById('ledger')
     if (el) {
       const top = el.getBoundingClientRect().top + window.scrollY - 64
-      window.scrollTo({ top, behavior: 'smooth' })
+      smoothScrollTo(top)
     }
   }
 }
