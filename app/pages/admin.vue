@@ -93,6 +93,8 @@ const deleteChapter = async (id: string) => {
   }
 }
 
+const editingChapter = ref<{ id: string; title: string } | null>(null)
+
 // --- Профиль ---
 const { data: profile, refresh: refreshProfile } = await useFetch('/api/admin/profile')
 const displayName = ref('')
@@ -340,6 +342,10 @@ useHead({
                 <span class="chapter-row-id">{{ ch.id }}</span>
                 <span class="chapter-row-title">{{ ch.title }}</span>
                 <button
+                  class="btn-action btn-sm"
+                  @click.stop="editingChapter = { id: ch.id, title: ch.title }"
+                >Редактировать</button>
+                <button
                   class="btn-delete"
                   :disabled="deletingId === ch.id"
                   @click.stop="deleteChapter(ch.id)"
@@ -348,6 +354,14 @@ useHead({
             </div>
           </div>
         </section>
+
+        <ChapterEditModal
+          v-if="editingChapter"
+          :chapter-id="editingChapter.id"
+          :chapter-title="editingChapter.title"
+          @close="editingChapter = null"
+          @saved="editingChapter = null"
+        />
 
         <!-- Профиль -->
         <section v-if="activeTab === 'profile'" class="card">

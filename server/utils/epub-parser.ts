@@ -16,6 +16,10 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   },
 }
 
+export function sanitizeChapterHtml(raw: string): string {
+  return sanitizeHtml(raw, SANITIZE_OPTIONS)
+}
+
 export async function parseEpub(buffer: Buffer): Promise<string> {
   const zip = await JSZip.loadAsync(buffer)
 

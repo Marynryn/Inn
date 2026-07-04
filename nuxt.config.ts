@@ -33,6 +33,12 @@ export default defineNuxtConfig({
     },
   },
 
+  vite: {
+    optimizeDeps: {
+      include: ['@tiptap/vue-3', '@tiptap/starter-kit'],
+    },
+  },
+
   nitro: {
     experimental: {
       database: false,
