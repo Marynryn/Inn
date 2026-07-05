@@ -10,7 +10,7 @@ const props = defineProps<{
   showNavLinks?: boolean
   telegramUrl?: string
   boostyUrl?: string
-  coffeeUrl?: string
+  tributeUrl?: string
   commentsHref?: string
   commentsLabel?: string
   burgerLeft?: boolean
@@ -110,7 +110,7 @@ onUnmounted(() => {
         <a href="/#ledger" class="nav-link hide-mobile" @click="goToChapters">Главы</a>
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
           Telegram        </a>
-        <SupportLinks :boosty-url="boostyUrl" :coffee-url="coffeeUrl" link-class="nav-link nav-support hide-mobile" />
+        <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-link nav-support hide-mobile" />
         <button
           class="burger"
           :class="{ open: menuOpen }"
@@ -127,7 +127,7 @@ onUnmounted(() => {
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
           Telegram <span class="ext">↗</span>
         </a>
-        <SupportLinks :boosty-url="boostyUrl" :coffee-url="coffeeUrl" link-class="nav-link nav-support" />
+        <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-link nav-support" />
         <button
           class="burger"
           :class="{ open: menuOpen }"
@@ -157,7 +157,7 @@ onUnmounted(() => {
         </a>
         <SupportLinks
           :boosty-url="boostyUrl"
-          :coffee-url="coffeeUrl"
+          :tribute-url="tributeUrl"
           link-class="menu-link menu-support"
           inline
           @select="menuOpen = false"

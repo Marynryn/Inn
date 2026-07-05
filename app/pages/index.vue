@@ -91,7 +91,7 @@ useSeoMeta({
       transparent-top
       :telegram-url="settings?.telegram_url"
       :boosty-url="settings?.boosty_url"
-      :coffee-url="settings?.coffee_url"
+      :tribute-url="settings?.tribute_url"
     />
 
     <!-- HERO -->

@@ -135,7 +135,7 @@ useHead(() => ({
       show-nav-links
       :telegram-url="settings?.telegram_url"
       :boosty-url="settings?.boosty_url"
-      :coffee-url="settings?.coffee_url"
+      :tribute-url="settings?.tribute_url"
       :comments-href="`/chapter/${route.params.id}/comments`"
       :comments-label="chapter ? `Обсуждение главы ${chapter.id}` : 'Обсуждение главы'"
     />

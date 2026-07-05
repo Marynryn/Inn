@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
   boostyUrl?: string
-  coffeeUrl?: string
+  tributeUrl?: string
   linkClass?: string
   /** Мобильное бургер-меню обрезает контент через overflow:hidden (нужен для
    * анимации высоты) — всплывающая карточка там физически невидима, даже
@@ -14,8 +14,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{ select: [] }>()
 
-const hasBoth = computed(() => !!props.boostyUrl && !!props.coffeeUrl)
-const singleUrl = computed(() => props.boostyUrl || props.coffeeUrl || '')
+const hasBoth = computed(() => !!props.boostyUrl && !!props.tributeUrl)
+const singleUrl = computed(() => props.boostyUrl || props.tributeUrl || '')
 
 const open = ref(false)
 const root = ref<HTMLElement | null>(null)
@@ -40,7 +40,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
     </button>
     <div v-if="open" class="support-menu" :class="{ inline, 'open-up': openUp }">
       <a :href="boostyUrl" target="_blank" rel="noopener" @click="selectOption">Boosty</a>
-      <a :href="coffeeUrl" target="_blank" rel="noopener" @click="selectOption">Buy Me a Coffee</a>
+      <a :href="tributeUrl" target="_blank" rel="noopener" @click="selectOption">Tribute</a>
     </div>
   </span>
   <a v-else-if="singleUrl" :href="singleUrl" target="_blank" rel="noopener" :class="linkClass" @click="emit('select')">

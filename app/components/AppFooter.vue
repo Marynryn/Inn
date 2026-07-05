@@ -31,7 +31,7 @@ const goToChapters = (e: Event) => {
       </a>
       <SupportLinks
         :boosty-url="settings?.boosty_url"
-        :coffee-url="settings?.coffee_url"
+        :tribute-url="settings?.tribute_url"
         link-class="footer-support-link"
         open-up
       />
