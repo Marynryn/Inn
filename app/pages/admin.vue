@@ -1127,7 +1127,7 @@ useHead({
 .card--fill {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 80px);
+  height: calc(100dvh - 80px);
 }
 
 .card--fill .logs-header {
@@ -1295,7 +1295,7 @@ useHead({
   }
 
   .card--fill {
-    height: calc(100vh - 56px - 32px);
+    height: calc(100dvh - 56px - 32px);
   }
 }
 </style>
