@@ -180,7 +180,8 @@ const form = reactive({
   ledger_note: '',
   footer_text: '',
   telegram_url: '',
-  support_url: '',
+  boosty_url: '',
+  coffee_url: '',
   about_title: '',
   about_text: '',
   error_404_sub: '',
@@ -508,8 +509,12 @@ useHead({
             <input v-model="form.telegram_url" type="url">
           </div>
           <div class="field-row">
-            <label>Ссылка поддержки</label>
-            <input v-model="form.support_url" type="url">
+            <label>Ссылка Boosty</label>
+            <input v-model="form.boosty_url" type="url" placeholder="https://boosty.to/...">
+          </div>
+          <div class="field-row">
+            <label>Ссылка Buy Me a Coffee</label>
+            <input v-model="form.coffee_url" type="url" placeholder="https://buymeacoffee.com/...">
           </div>
           <div class="field-row">
             <label>Текст страницы 404</label>

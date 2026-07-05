@@ -88,7 +88,8 @@ export async function runMigrations() {
     ledger_note: 'том.глава — нумерация как в оригинале',
     footer_text: 'Фанатский перевод. Оригинал — wanderinginn.com, автор Pirateaba.\nНекоммерческий проект. Все права на оригинальное произведение принадлежат автору.',
     telegram_url: 'https://t.me/',
-    support_url: 'https://buymeacoffee.com/',
+    boosty_url: 'https://boosty.to/',
+    coffee_url: 'https://buymeacoffee.com/',
     error_404_sub: 'Козёл добрался до этой страницы раньше тебя.',
     update_schedule: '2–3',
   }

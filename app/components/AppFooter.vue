@@ -29,13 +29,12 @@ const goToChapters = (e: Event) => {
       >
         Telegram ↗
       </a>
-      <a
-        :href="settings?.support_url || '#'"
-        target="_blank"
-        rel="noopener"
-      >
-        Поддержать проект ↗
-      </a>
+      <SupportLinks
+        :boosty-url="settings?.boosty_url"
+        :coffee-url="settings?.coffee_url"
+        link-class="footer-support-link"
+        open-up
+      />
     </div>
     <div class="footer-rule" />
     <span
@@ -66,6 +65,20 @@ const goToChapters = (e: Event) => {
 
 .footer-links a {
   transition: color .15s;
+}
+
+.footer-links :deep(.footer-support-link) {
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  transition: color .15s;
+}
+
+.footer-links :deep(.footer-support-link:hover) {
+  color: var(--ember);
 }
 
 .footer-links a:hover {

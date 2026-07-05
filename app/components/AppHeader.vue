@@ -9,7 +9,8 @@ const props = defineProps<{
   showHomeLink?: boolean
   showNavLinks?: boolean
   telegramUrl?: string
-  supportUrl?: string
+  boostyUrl?: string
+  coffeeUrl?: string
   commentsHref?: string
   commentsLabel?: string
   burgerLeft?: boolean
@@ -109,8 +110,7 @@ onUnmounted(() => {
         <a href="/#ledger" class="nav-link hide-mobile" @click="goToChapters">Главы</a>
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
           Telegram        </a>
-        <a :href="supportUrl || '#'" target="_blank" rel="noopener" class="nav-link nav-support hide-mobile">
-          Поддержать        </a>
+        <SupportLinks :boosty-url="boostyUrl" :coffee-url="coffeeUrl" link-class="nav-link nav-support hide-mobile" />
         <button
           class="burger"
           :class="{ open: menuOpen }"
@@ -127,9 +127,7 @@ onUnmounted(() => {
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
           Telegram <span class="ext">↗</span>
         </a>
-        <a :href="supportUrl || '#'" target="_blank" rel="noopener" class="nav-link nav-support">
-          Поддержать <span class="ext">↗</span>
-        </a>
+        <SupportLinks :boosty-url="boostyUrl" :coffee-url="coffeeUrl" link-class="nav-link nav-support" />
         <button
           class="burger"
           :class="{ open: menuOpen }"
@@ -157,9 +155,13 @@ onUnmounted(() => {
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="menu-link" @click="menuOpen = false">
           Telegram <span class="ext">↗</span>
         </a>
-        <a :href="supportUrl || '#'" target="_blank" rel="noopener" class="menu-link menu-support" @click="menuOpen = false">
-          Поддержать <span class="ext">↗</span>
-        </a>
+        <SupportLinks
+          :boosty-url="boostyUrl"
+          :coffee-url="coffeeUrl"
+          link-class="menu-link menu-support"
+          inline
+          @select="menuOpen = false"
+        />
       </slot>
     </div>
 
@@ -268,7 +270,10 @@ onUnmounted(() => {
 }
 
 /* ── Nav links (desktop right) ──────────────── */
-.nav-link {
+/* :deep() variants also match the same class rendered inside SupportLinks.vue —
+   scoped CSS doesn't cross component boundaries just because the class name matches. */
+.nav-link,
+:deep(.nav-link) {
   font-size: 14px;
   color: var(--parchment-2);
   opacity: .85;
@@ -277,12 +282,14 @@ onUnmounted(() => {
   text-decoration: none;
 }
 
-.nav-link:hover {
+.nav-link:hover,
+:deep(.nav-link:hover) {
   color: var(--ember-soft);
   opacity: 1;
 }
 
-.nav-support {
+.nav-support,
+:deep(.nav-support) {
   border: 1px solid rgba(201, 160, 46, .5);
   color: var(--gold) !important;
   padding: 6px 14px;
@@ -291,7 +298,8 @@ onUnmounted(() => {
   transition: background .15s, color .15s;
 }
 
-.nav-support:hover {
+.nav-support:hover,
+:deep(.nav-support:hover) {
   background: var(--gold);
   color: var(--bg-dark) !important;
 }
@@ -365,25 +373,35 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
-.menu-link {
+.menu-link,
+:deep(.menu-link) {
   padding: 16px 24px;
   font-size: 15px;
   color: var(--parchment-2);
   text-decoration: none;
   border-bottom: 1px solid rgba(241, 230, 210, .06);
   transition: color .15s, background .15s;
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
 }
 
 .menu-link:last-child {
   border-bottom: none;
 }
 
-.menu-link:hover {
+.menu-link:hover,
+:deep(.menu-link:hover) {
   color: var(--ember-soft);
   background: rgba(241, 230, 210, .04);
 }
 
-.menu-support {
+.menu-support,
+:deep(.menu-support) {
   color: var(--gold);
 }
 
@@ -408,11 +426,13 @@ onUnmounted(() => {
 
 /* ── Responsive ─────────────────────────────── */
 @media (max-width: 600px) {
-  .hide-mobile {
+  .hide-mobile,
+  :deep(.hide-mobile) {
     display: none;
   }
 
-  .nav-support {
+  .nav-support,
+  :deep(.nav-support) {
     display: none;
   }
 

@@ -49,7 +49,8 @@ useSeoMeta({
       burger-left
       show-nav-links
       :telegram-url="settings?.telegram_url"
-      :support-url="settings?.support_url"
+      :boosty-url="settings?.boosty_url"
+      :coffee-url="settings?.coffee_url"
     />
 
 
