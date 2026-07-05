@@ -60,7 +60,7 @@ onMounted(() => {
 const siteUrl = useRuntimeConfig().public.siteUrl
 
 useHead(() => ({
-  title: chapter.value ? `${chapter.value.title} · Странствующая Таверна` : 'Загрузка...',
+  title: chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : 'Загрузка...',
   link: [
     { rel: 'canonical', href: `${siteUrl}/chapter/${route.params.id}` },
   ],
@@ -68,20 +68,20 @@ useHead(() => ({
 
 useSeoMeta({
   description: () => chapter.value
-    ? `Читать главу ${chapter.value.id} «${chapter.value.title}» — фанатский перевод The Wandering Inn.`
+    ? `Читать главу ${chapter.value.id} «${chapter.value.title}» The Wandering Inn на русском. Бесплатный фанатский перевод — taverna-book.com.`
     : undefined,
-  ogTitle: () => chapter.value ? `${chapter.value.title} · Странствующая Таверна` : undefined,
+  ogTitle: () => chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : undefined,
   ogDescription: () => chapter.value
-    ? `Читать главу ${chapter.value.id} «${chapter.value.title}» — фанатский перевод The Wandering Inn.`
+    ? `Читать главу ${chapter.value.id} «${chapter.value.title}» The Wandering Inn на русском. Бесплатный фанатский перевод — taverna-book.com.`
     : undefined,
   ogImage: `${siteUrl}/hero.png`,
   ogUrl: () => `${siteUrl}/chapter/${route.params.id}`,
   ogType: 'article',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
-  twitterTitle: () => chapter.value ? `${chapter.value.title} · Странствующая Таверна` : undefined,
+  twitterTitle: () => chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : undefined,
   twitterDescription: () => chapter.value
-    ? `Читать главу ${chapter.value.id} «${chapter.value.title}» — фанатский перевод The Wandering Inn.`
+    ? `Читать главу ${chapter.value.id} «${chapter.value.title}» The Wandering Inn на русском. Бесплатный фанатский перевод — taverna-book.com.`
     : undefined,
   twitterImage: `${siteUrl}/hero.png`,
 })

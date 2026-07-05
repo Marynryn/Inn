@@ -5,22 +5,24 @@ const siteUrl = useRuntimeConfig().public.siteUrl
 
 const title = computed(() => settings.value?.about_title || 'О проекте')
 
+const aboutDescription = 'Фанатский перевод The Wandering Inn на русский язык. Почему отдельный сайт, как переводим имена и названия, как можно помочь проекту.'
+
 useHead(() => ({
-  title: `${title.value} · Странствующая Таверна`,
+  title: `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
   link: [{ rel: 'canonical', href: `${siteUrl}/about` }],
 }))
 
 useSeoMeta({
-  description: () => settings.value?.about_text?.slice(0, 155) || 'О проекте Странствующая Таверна — фанатский перевод The Wandering Inn на русский язык.',
-  ogTitle: () => `${title.value} · Странствующая Таверна`,
-  ogDescription: () => settings.value?.about_text?.slice(0, 155) || 'О проекте Странствующая Таверна — фанатский перевод The Wandering Inn на русский язык.',
+  description: aboutDescription,
+  ogTitle: () => `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
+  ogDescription: aboutDescription,
   ogUrl: `${siteUrl}/about`,
   ogType: 'website',
   ogLocale: 'ru_RU',
   ogImage: `${siteUrl}/hero.png`,
   twitterCard: 'summary_large_image',
-  twitterTitle: () => `${title.value} · Странствующая Таверна`,
-  twitterDescription: () => settings.value?.about_text?.slice(0, 155) || 'О проекте Странствующая Таверна — фанатский перевод The Wandering Inn на русский язык.',
+  twitterTitle: () => `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
+  twitterDescription: aboutDescription,
   twitterImage: `${siteUrl}/hero.png`,
 })
 </script>

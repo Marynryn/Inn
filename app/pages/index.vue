@@ -46,7 +46,7 @@ const openChapter = (id: string) => {
 const siteUrl = useRuntimeConfig().public.siteUrl
 
 useHead({
-  title: 'Странствующая Таверна',
+  title: 'Странствующая Таверна — русский перевод The Wandering Inn',
   link: [{ rel: 'canonical', href: siteUrl }],
   script: [
     {
@@ -69,17 +69,19 @@ useHead({
 
 const socialTitle = computed(() => (settings.value?.hero_title || 'Странствующая Таверна').replace(/\n/g, ' '))
 
+const seoDescription = 'Бесплатный фанатский перевод The Wandering Inn (Блуждающий трактир) на русский. Обновляется каждую неделю. Читай онлайн или скачивай epub.'
+
 useSeoMeta({
-  description: () => settings.value?.hero_subtitle || 'Фанатский перевод The Wandering Inn на русский язык.',
+  description: seoDescription,
   ogTitle: () => socialTitle.value,
-  ogDescription: () => settings.value?.hero_subtitle || 'Фанатский перевод The Wandering Inn на русский язык.',
+  ogDescription: seoDescription,
   ogImage: `${siteUrl}/hero.png`,
   ogUrl: siteUrl,
   ogType: 'website',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
   twitterTitle: () => socialTitle.value,
-  twitterDescription: () => settings.value?.hero_subtitle || 'Фанатский перевод The Wandering Inn на русский язык.',
+  twitterDescription: seoDescription,
   twitterImage: `${siteUrl}/hero.png`,
 })
 </script>
