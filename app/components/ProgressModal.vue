@@ -8,6 +8,8 @@ const emit = defineEmits<{
   update: []
   keep: []
 }>()
+
+useScrollLock()
 </script>
 
 <template>

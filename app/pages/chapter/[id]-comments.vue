@@ -113,7 +113,7 @@ useSeoMeta({
 .comments-wrap {
   max-width: 720px;
   margin: 0 auto;
-  padding: 56px 32px 80px;
+  padding: 80px 32px 80px;
 }
 
 @media (max-width: 600px) {
@@ -123,7 +123,7 @@ useSeoMeta({
 
 
   .comments-wrap {
-    padding: 56px 16px 60px;
+    padding: 80px 16px 60px;
   }
 }
 </style>

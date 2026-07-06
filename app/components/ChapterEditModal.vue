@@ -14,6 +14,8 @@ const emit = defineEmits<{
   saved: []
 }>()
 
+useScrollLock()
+
 const loading = ref(true)
 const saving = ref(false)
 const saveError = ref('')
@@ -334,8 +336,12 @@ const save = async () => {
   gap: 8px;
   font-size: 13px;
   color: var(--parchment-2);
-  margin: -8px 0 16px;
+  margin: 0 0 16px;
   cursor: pointer;
+}
+
+.checkbox-row input {
+  flex-shrink: 0;
 }
 
 .loading-hint {
