@@ -14,6 +14,7 @@ export async function runMigrations() {
       epub_path TEXT,
       published_at TEXT NOT NULL,
       sort_order INTEGER NOT NULL DEFAULT 0,
+      is_published INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -70,6 +71,12 @@ export async function runMigrations() {
   // Добавить sort_order если столбца ещё нет (для уже существующих БД)
   try {
     await client.execute('ALTER TABLE chapters ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0')
+  } catch {
+    // Столбец уже существует — это нормально
+  }
+
+  try {
+    await client.execute('ALTER TABLE chapters ADD COLUMN is_published INTEGER NOT NULL DEFAULT 1')
   } catch {
     // Столбец уже существует — это нормально
   }

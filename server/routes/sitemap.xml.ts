@@ -1,12 +1,13 @@
 import { useDb } from '../utils/db'
 import { chapters } from '../database/schema'
-import { desc } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   const db = useDb()
   const rows = await db
     .select({ id: chapters.id, publishedAt: chapters.publishedAt })
     .from(chapters)
+    .where(eq(chapters.isPublished, true))
     .orderBy(desc(chapters.publishedAt))
 
   const base = useRuntimeConfig(event).public.siteUrl

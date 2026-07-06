@@ -9,11 +9,17 @@ export default defineEventHandler(async (event) => {
   const db = useDb()
 
   const [chapter] = await db
-    .select({ id: chapters.id, title: chapters.title, epubPath: chapters.epubPath })
+    .select({ id: chapters.id, title: chapters.title, epubPath: chapters.epubPath, isPublished: chapters.isPublished })
     .from(chapters)
     .where(eq(chapters.id, id))
 
   if (!chapter) throw createError({ statusCode: 404, message: 'Глава не найдена' })
+
+  const session = await getUserSession(event)
+  if (!chapter.isPublished && session.user?.role !== 'admin') {
+    throw createError({ statusCode: 404, message: 'Глава не найдена' })
+  }
+
   if (!chapter.epubPath) throw createError({ statusCode: 404, message: 'epub для этой главы недоступен' })
 
   const filePath = resolve(chapter.epubPath)

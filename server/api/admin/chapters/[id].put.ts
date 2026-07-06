@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
   if (!existing) throw createError({ statusCode: 404, message: 'Глава не найдена' })
 
   const contentHtml = sanitizeChapterHtml(body.contentHtml)
+  const isPublished = typeof body.isPublished === 'boolean' ? body.isPublished : undefined
 
   // Перегенерировать epub-файл, чтобы скачиваемая версия совпадала с текстом на сайте
   // (иначе он остаётся тем, что был загружен изначально, и расходится с правкой).
@@ -34,7 +35,7 @@ export default defineEventHandler(async (event) => {
   const epubBuffer = await buildEpub({ id, title: existing.title, contentHtml })
   await writeFile(epubPath, epubBuffer)
 
-  await db.update(chapters).set({ contentHtml, epubPath }).where(eq(chapters.id, id))
+  await db.update(chapters).set({ contentHtml, epubPath, ...(isPublished !== undefined && { isPublished }) }).where(eq(chapters.id, id))
 
   return { ok: true }
 })

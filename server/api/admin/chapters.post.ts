@@ -20,6 +20,7 @@ export default defineEventHandler(async (event) => {
   const titleField = get('title')
   const publishedAtField = get('publishedAt')
   const volumeField = get('volume')
+  const isPublishedField = get('isPublished')
 
   if (!epubField?.data || !idField || !titleField || !publishedAtField || !volumeField) {
     throw createError({ statusCode: 400, message: 'Нужны: epub, id, title, publishedAt, volume' })
@@ -29,8 +30,17 @@ export default defineEventHandler(async (event) => {
   const title = titleField.data.toString().trim()
   const publishedAt = publishedAtField.data.toString().trim()
   const volume = Number(volumeField.data.toString())
+  const isPublished = isPublishedField ? isPublishedField.data.toString().trim() === '1' : true
 
-  const contentHtml = await parseEpub(epubField.data as Buffer)
+  let contentHtml: string
+  try {
+    contentHtml = await parseEpub(epubField.data as Buffer)
+  } catch {
+    throw createError({
+      statusCode: 400,
+      message: 'Файл повреждён или загрузился не полностью. Если выбирали его прямо из окна Google Диска — сначала скачайте epub на устройство, а потом загрузите его из локальных файлов.',
+    })
+  }
 
   // Сохранить epub-файл
   const epubDir = resolve(getStorageDir(), 'epubs')
@@ -46,10 +56,10 @@ export default defineEventHandler(async (event) => {
 
   await db
     .insert(chapters)
-    .values({ id, volume, title, contentHtml, epubPath, publishedAt, sortOrder })
+    .values({ id, volume, title, contentHtml, epubPath, publishedAt, sortOrder, isPublished })
     .onConflictDoUpdate({
       target: chapters.id,
-      set: { volume, title, contentHtml, epubPath, publishedAt },
+      set: { volume, title, contentHtml, epubPath, publishedAt, isPublished },
     })
 
   await db

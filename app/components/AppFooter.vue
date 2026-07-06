@@ -10,7 +10,7 @@ const goToChapters = (e: Event) => {
     e.preventDefault()
     const el = document.getElementById('ledger')
     if (el) {
-      const top = el.getBoundingClientRect().top + window.scrollY - 64
+      const top = el.getBoundingClientRect().top + window.scrollY - 56
       smoothScrollTo(top)
     }
   }

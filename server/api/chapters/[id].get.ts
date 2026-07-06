@@ -10,6 +10,10 @@ export default defineEventHandler(async (event) => {
   if (!chapter) throw createError({ statusCode: 404, message: 'Глава не найдена' })
 
   const session = await getUserSession(event)
+  if (!chapter.isPublished && session.user?.role !== 'admin') {
+    throw createError({ statusCode: 404, message: 'Глава не найдена' })
+  }
+
   if (session.user?.role !== 'admin') {
     await db
       .insert(chapterStats)

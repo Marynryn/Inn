@@ -209,6 +209,7 @@ const chapterId = ref('')
 const chapterTitle = ref('')
 const chapterVolume = ref('')
 const chapterDate = ref(new Date().toISOString().slice(0, 10))
+const chapterPublished = ref(true)
 const epubFile = ref<File | null>(null)
 const uploading = ref(false)
 const uploadResult = ref('')
@@ -232,11 +233,13 @@ const uploadChapter = async () => {
     fd.append('title', chapterTitle.value)
     fd.append('volume', chapterVolume.value)
     fd.append('publishedAt', chapterDate.value)
+    fd.append('isPublished', chapterPublished.value ? '1' : '0')
     await $fetch('/api/admin/chapters', { method: 'POST', body: fd })
     uploadResult.value = `✓ Глава ${chapterId.value} загружена`
     chapterId.value = ''
     chapterTitle.value = ''
     chapterVolume.value = ''
+    chapterPublished.value = true
     epubFile.value = null
   } catch (e: any) {
     uploadResult.value = `Ошибка: ${e.data?.message || e.message}`
@@ -306,6 +309,10 @@ useHead({
             <label>Файл .epub</label>
             <input type="file" accept=".epub" @change="onFile">
           </div>
+          <label class="checkbox-row">
+            <input v-model="chapterPublished" type="checkbox">
+            <span>Опубликовать сразу (видно всем читателям)</span>
+          </label>
           <button class="btn-action" :disabled="uploading" @click="uploadChapter">
             {{ uploading ? 'Загружаем...' : 'Загрузить' }}
           </button>
@@ -342,6 +349,7 @@ useHead({
                 <span class="drag-handle" title="Перетащить">⠿</span>
                 <span class="chapter-row-id">{{ ch.id }}</span>
                 <span class="chapter-row-title">{{ ch.title }}</span>
+                <span v-if="!ch.isPublished" class="chapter-row-draft">черновик</span>
                 <button
                   class="btn-action btn-sm"
                   @click.stop="editingChapter = { id: ch.id, title: ch.title }"
@@ -794,6 +802,16 @@ useHead({
   color: var(--parchment-2);
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--parchment-2);
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
 .btn-action {
   background: var(--ember);
   color: var(--bg-dark);
@@ -990,6 +1008,16 @@ useHead({
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+}
+
+.chapter-row-draft {
+  font-size: 11px;
+  color: var(--ember-soft);
+  border: 1px solid rgba(214, 136, 62, .3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .btn-delete {

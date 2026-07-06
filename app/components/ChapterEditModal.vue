@@ -18,6 +18,7 @@ const loading = ref(true)
 const saving = ref(false)
 const saveError = ref('')
 const saved = ref(false)
+const isPublished = ref(true)
 
 const editor = useEditor({
   content: '',
@@ -44,8 +45,9 @@ const currentColor = computed(() => editor.value?.getAttributes('textStyle').col
 
 onMounted(async () => {
   try {
-    const chapter = await $fetch<{ contentHtml: string }>(`/api/chapters/${props.chapterId}`)
+    const chapter = await $fetch<{ contentHtml: string, isPublished: boolean }>(`/api/chapters/${props.chapterId}`)
     editor.value?.commands.setContent(chapter.contentHtml || '')
+    isPublished.value = chapter.isPublished
   } catch {
     saveError.value = 'Не удалось загрузить текст главы'
   } finally {
@@ -150,7 +152,7 @@ const save = async () => {
   try {
     await $fetch(`/api/admin/chapters/${props.chapterId}`, {
       method: 'PUT',
-      body: { contentHtml: editor.value.getHTML() },
+      body: { contentHtml: editor.value.getHTML(), isPublished: isPublished.value },
     })
     saved.value = true
     emit('saved')
@@ -172,6 +174,11 @@ const save = async () => {
           <button class="modal-close" title="Закрыть" @click="emit('close')">✕</button>
         </div>
         <p class="modal-subtitle">{{ chapterTitle }}</p>
+
+        <label v-if="!loading" class="checkbox-row">
+          <input v-model="isPublished" type="checkbox">
+          <span>Опубликовано (видно всем читателям)</span>
+        </label>
 
         <div v-if="loading" class="loading-hint">Загрузка текста главы...</div>
 
@@ -319,6 +326,16 @@ const save = async () => {
   font-size: 13px;
   color: var(--parchment-2);
   opacity: .75;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--parchment-2);
+  margin: -8px 0 16px;
+  cursor: pointer;
 }
 
 .loading-hint {

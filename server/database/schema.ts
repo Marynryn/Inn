@@ -9,6 +9,7 @@ export const chapters = sqliteTable('chapters', {
   epubPath: text('epub_path'), // storage/epubs/4-20.epub
   publishedAt: text('published_at').notNull(), // ISO date string
   sortOrder: integer('sort_order').notNull().default(0),
+  isPublished: integer('is_published', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
