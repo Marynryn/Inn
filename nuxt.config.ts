@@ -19,7 +19,7 @@ export default defineNuxtConfig({
       ],
     },
   },
-
+ 
   runtimeConfig: {
     sessionPassword: process.env.NUXT_SESSION_PASSWORD,
     public: {
@@ -43,6 +43,14 @@ export default defineNuxtConfig({
     experimental: {
       database: false,
       websocket: true,
+    },
+  },
+
+  routeRules: {
+    '/_nuxt/**': {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      },
     },
   },
 })
