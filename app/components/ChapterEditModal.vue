@@ -21,6 +21,7 @@ const saving = ref(false)
 const saveError = ref('')
 const saved = ref(false)
 const isPublished = ref(true)
+const title = ref(props.chapterTitle)
 
 const editor = useEditor({
   content: '',
@@ -154,7 +155,7 @@ const save = async () => {
   try {
     await $fetch(`/api/admin/chapters/${props.chapterId}`, {
       method: 'PUT',
-      body: { contentHtml: editor.value.getHTML(), isPublished: isPublished.value },
+      body: { title: title.value, contentHtml: editor.value.getHTML(), isPublished: isPublished.value },
     })
     saved.value = true
     emit('saved')
@@ -175,7 +176,7 @@ const save = async () => {
           <h2>Редактировать главу {{ chapterId }}</h2>
           <button class="modal-close" title="Закрыть" @click="emit('close')">✕</button>
         </div>
-        <p class="modal-subtitle">{{ chapterTitle }}</p>
+        <input v-model="title" type="text" class="title-input" placeholder="Название главы">
 
         <label v-if="!loading" class="checkbox-row">
           <input v-model="isPublished" type="checkbox">
@@ -323,11 +324,22 @@ const save = async () => {
   color: var(--ember-soft);
 }
 
-.modal-subtitle {
+.title-input {
+  display: block;
+  width: 100%;
   margin: 4px 0 16px;
-  font-size: 13px;
-  color: var(--parchment-2);
-  opacity: .75;
+  background: rgba(241, 230, 210, .05);
+  border: 1px solid rgba(241, 230, 210, .18);
+  border-radius: var(--radius-sm);
+  color: var(--parchment);
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: var(--font-body);
+}
+
+.title-input:focus-visible {
+  outline: none;
+  border-color: var(--ember-soft);
 }
 
 .checkbox-row {

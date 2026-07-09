@@ -369,7 +369,7 @@ useHead({
           :chapter-id="editingChapter.id"
           :chapter-title="editingChapter.title"
           @close="editingChapter = null"
-          @saved="editingChapter = null"
+          @saved="editingChapter = null; refreshChapters()"
         />
 
         <!-- Профиль -->
