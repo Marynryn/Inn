@@ -170,7 +170,7 @@ const save = async () => {
 
 <template>
   <Teleport to="body">
-    <div class="modal-backdrop" @click.self="emit('close')">
+    <div class="modal-backdrop">
       <div class="modal">
         <div class="modal-head">
           <h2>Редактировать главу {{ chapterId }}</h2>
@@ -297,6 +297,21 @@ const save = async () => {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+}
+
+@media (max-width: 600px) {
+  .modal-backdrop {
+    padding: 0;
+  }
+
+  .modal {
+    max-width: none;
+    width: 100%;
+    height: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
 }
 
 .modal-head {
