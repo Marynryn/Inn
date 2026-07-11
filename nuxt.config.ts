@@ -52,5 +52,15 @@ export default defineNuxtConfig({
         'Access-Control-Allow-Origin': '*',
       },
     },
+    '/api/**': {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    },
+    '/_ws': {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    },
   },
 })
