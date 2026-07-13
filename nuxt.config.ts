@@ -22,6 +22,12 @@ export default defineNuxtConfig({
  
   runtimeConfig: {
     sessionPassword: process.env.NUXT_SESSION_PASSWORD,
+    notifySecret: process.env.NOTIFY_SECRET,
+    telegram: {
+      botToken: process.env.TELEGRAM_BOT_TOKEN,
+      chatId: process.env.TELEGRAM_CHANNEL_ID,
+      threadId: process.env.TELEGRAM_THREAD_ID,
+    },
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://taverna-book.com',
     },
