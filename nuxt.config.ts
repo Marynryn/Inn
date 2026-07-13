@@ -56,6 +56,7 @@ export default defineNuxtConfig({
     '/_nuxt/**': {
       headers: {
         'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
     '/api/**': {
@@ -64,6 +65,11 @@ export default defineNuxtConfig({
       },
     },
     '/_ws': {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    },
+    '/**': {
       headers: {
         'Cache-Control': 'no-store',
       },
