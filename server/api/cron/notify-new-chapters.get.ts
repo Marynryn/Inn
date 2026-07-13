@@ -39,9 +39,30 @@ export default defineEventHandler(async (event) => {
   })
 
   const siteUrl = config.public.siteUrl
-  const message = byNumber.length === 1
-    ? `Добавлена новая глава — ${byNumber[0].id} «${byNumber[0].title}»\n${siteUrl}`
-    : `Добавлены новые главы: ${byNumber[0].id}-${byNumber[byNumber.length - 1].id}\n${siteUrl}`
+
+  let message: string
+  if (byNumber.length === 1) {
+    message = `Добавлена новая глава — ${byNumber[0].id} «${byNumber[0].title}»\n${siteUrl}`
+  } else {
+    const volumes = new Map<number, typeof byNumber>()
+    for (const ch of byNumber) {
+      const vol = Number(ch.id.split('.')[0])
+      if (!volumes.has(vol)) volumes.set(vol, [])
+      volumes.get(vol)!.push(ch)
+    }
+
+    const ranges = [...volumes.values()].map((group) => {
+      const first = group[0].id
+      const last = group[group.length - 1].id
+      return first === last ? first : `${first}-${last}`
+    })
+
+    const joined = ranges.length > 1
+      ? `${ranges.slice(0, -1).join(', ')} и ${ranges[ranges.length - 1]}`
+      : ranges[0]
+
+    message = `Добавлены новые главы: ${joined}\n${siteUrl}`
+  }
 
   await sendTelegramMessage(message)
 
