@@ -1,0 +1,13 @@
+name: Notify new chapters
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call notify endpoint
+        run: curl -sf "https://taverna-book.com/api/cron/notify-new-chapters?secret=${{ secrets.NOTIFY_SECRET }}"
