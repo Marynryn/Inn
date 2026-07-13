@@ -32,8 +32,18 @@ export default defineEventHandler(async (event) => {
   const published = newChapters.filter(c => c.isPublished)
   if (published.length === 0) return { ok: true, notified: false }
 
-  const list = published.map(c => `• ${c.title} (${c.id})`).join('\n')
-  await sendTelegramMessage(`Новые главы:\n${list}`)
+  const byNumber = [...published].sort((a, b) => {
+    const [av, ac] = a.id.split('.').map(Number)
+    const [bv, bc] = b.id.split('.').map(Number)
+    return av - bv || ac - bc
+  })
+
+  const siteUrl = config.public.siteUrl
+  const message = byNumber.length === 1
+    ? `Добавлена новая глава — ${byNumber[0].id} «${byNumber[0].title}»\n${siteUrl}`
+    : `Добавлены новые главы: ${byNumber[0].id}-${byNumber[byNumber.length - 1].id}\n${siteUrl}`
+
+  await sendTelegramMessage(message)
 
   const now = new Date().toISOString()
   await db
