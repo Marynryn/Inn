@@ -356,9 +356,13 @@ useHead({
                 >Редактировать</button>
                 <button
                   class="btn-delete"
+                  title="Удалить"
                   :disabled="deletingId === ch.id"
                   @click.stop="deleteChapter(ch.id)"
-                >{{ deletingId === ch.id ? '...' : 'Удалить' }}</button>
+                >
+                  <span v-if="deletingId === ch.id">...</span>
+                  <svg v-else width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 3.5h9M5 3.5V2.3a.8.8 0 0 1 .8-.8h1.4a.8.8 0 0 1 .8.8v1.2M3.5 3.5v7.2a.8.8 0 0 0 .8.8h4.4a.8.8 0 0 0 .8-.8V3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.3 6v3.5M7.7 6v3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+                </button>
               </div>
             </div>
           </div>
@@ -1021,10 +1025,15 @@ useHead({
 }
 
 .btn-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: 1px solid rgba(200, 80, 80, .3);
   color: #c66;
-  padding: 4px 10px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;

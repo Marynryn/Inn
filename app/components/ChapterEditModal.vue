@@ -291,12 +291,14 @@ const save = async () => {
   background: var(--bg-dark-2);
   border: 1px solid rgba(241, 230, 210, .12);
   border-radius: var(--radius-md);
-  padding: 24px 28px;
+  padding: 16px 18px;
   max-width: 760px;
   width: 100%;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 @media (max-width: 600px) {
@@ -441,6 +443,8 @@ const save = async () => {
   gap: 6px;
   padding: 8px 0 12px;
   flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .search-input {
@@ -452,6 +456,8 @@ const save = async () => {
   font-size: 13px;
   font-family: var(--font-body);
   width: 160px;
+  flex: 1 1 120px;
+  min-width: 0;
 }
 
 .search-input:focus-visible {
@@ -484,12 +490,12 @@ const save = async () => {
   border-radius: var(--radius-sm);
   padding: 16px;
   color: #e7d9c2;
-  min-height: 300px;
+  min-height: 160px;
 }
 
 .editor-body :deep(.ProseMirror) {
   outline: none;
-  min-height: 280px;
+  min-height: 140px;
 }
 
 .editor-body :deep(p) {

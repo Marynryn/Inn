@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Глава не найдена' })
   }
 
-  if (session.user?.role !== 'admin') {
+  if (session.user?.role !== 'admin' && !isBotRequest(event)) {
     await db
       .insert(chapterStats)
       .values({ chapterId: id, viewsCount: 1, downloadsCount: 0 })

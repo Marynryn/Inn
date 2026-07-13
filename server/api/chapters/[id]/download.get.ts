@@ -29,13 +29,15 @@ export default defineEventHandler(async (event) => {
   setHeader(event, 'Content-Type', 'application/epub+zip')
   setHeader(event, 'Content-Disposition', `attachment; filename="${safeName}"`)
 
-  await db
-    .insert(chapterStats)
-    .values({ chapterId: id, viewsCount: 0, downloadsCount: 1 })
-    .onConflictDoUpdate({
-      target: chapterStats.chapterId,
-      set: { downloadsCount: sql`downloads_count + 1` },
-    })
+  if (!isBotRequest(event)) {
+    await db
+      .insert(chapterStats)
+      .values({ chapterId: id, viewsCount: 0, downloadsCount: 1 })
+      .onConflictDoUpdate({
+        target: chapterStats.chapterId,
+        set: { downloadsCount: sql`downloads_count + 1` },
+      })
+  }
 
   return file
 })
