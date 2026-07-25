@@ -12,6 +12,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
       color: [/.*/],
       'font-style': [/italic/],
       'font-weight': [/bold/, /[6-9]\d\d/, /1000/],
+      'font-size': [/^\d(\.\d+)?(em|rem)$/, /^([1-9]\d?|[1-4]\d\d|500)(\.\d+)?%$/, /^\d{1,3}px$/],
     },
   },
 }

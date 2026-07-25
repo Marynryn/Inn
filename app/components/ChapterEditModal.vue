@@ -2,6 +2,7 @@
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { TextStyle } from '@tiptap/extension-text-style'
+import { FontSize } from '@tiptap/extension-text-style/font-size'
 import Color from '@tiptap/extension-color'
 
 const props = defineProps<{
@@ -39,6 +40,7 @@ const editor = useEditor({
     }),
     TextStyle,
     Color,
+    FontSize,
   ],
 })
 
