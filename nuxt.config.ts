@@ -22,6 +22,9 @@ export default defineNuxtConfig({
  
   runtimeConfig: {
     sessionPassword: process.env.NUXT_SESSION_PASSWORD,
+    session: {
+      maxAge: 60 * 60 * 24 * 30, // 30 дней — не разлогинивать при каждом закрытии браузера
+    },
     notifySecret: process.env.NOTIFY_SECRET,
     telegram: {
       botToken: process.env.TELEGRAM_BOT_TOKEN,

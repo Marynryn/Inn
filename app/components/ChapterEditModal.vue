@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { FontSize } from '@tiptap/extension-text-style/font-size'
 import Color from '@tiptap/extension-color'
+import { Fragment } from '@tiptap/pm/model'
 
 const props = defineProps<{
   chapterId: string
@@ -42,6 +43,32 @@ const editor = useEditor({
     Color,
     FontSize,
   ],
+  editorProps: {
+    // ProseMirror вставляет скопированный внутри редактора фрагмент через
+    // свой служебный формат (data-pm-slice), и когда вставка разрывает
+    // существующий абзац, он иногда добавляет лишние пустые переносы строк
+    // вокруг вставленного текста. Вставляем как обычный текст (с текущим
+    // форматированием курсора) в обход этой логики — так и артефакта нет.
+    handlePaste: (view, event) => {
+      const text = event.clipboardData?.getData('text/plain')
+      if (!text) return false
+      event.preventDefault()
+
+      const { state, dispatch } = view
+      const { schema, selection } = state
+      const marks = state.storedMarks || selection.$to.marks()
+      const lines = text.split(/\r\n|\r|\n/)
+
+      const content = lines.length === 1
+        ? schema.text(lines[0], marks)
+        : Fragment.fromArray(lines.map(line =>
+          schema.nodes.paragraph.create(null, line ? schema.text(line, marks) : undefined),
+        ))
+
+      dispatch(state.tr.replaceWith(selection.from, selection.to, content).scrollIntoView())
+      return true
+    },
+  },
 })
 
 // Цвет текста там, где сейчас курсор/выделение — у разных фрагментов он разный,

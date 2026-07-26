@@ -23,8 +23,18 @@ const volumeGroups = computed(() => {
 })
 
 const openVolumes = ref(new Set<number>())
+const knownVolumes = ref(new Set<number>())
 watch(chapterList, (list) => {
-  openVolumes.value = new Set(list.map(c => c.volume))
+  const vols = new Set(list.map(c => c.volume))
+  const next = new Set(openVolumes.value)
+  for (const vol of vols) {
+    if (!knownVolumes.value.has(vol)) next.add(vol)
+  }
+  for (const vol of next) {
+    if (!vols.has(vol)) next.delete(vol)
+  }
+  knownVolumes.value = vols
+  openVolumes.value = next
 }, { immediate: true })
 const toggleVolume = (vol: number) => {
   const s = new Set(openVolumes.value)
