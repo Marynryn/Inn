@@ -40,7 +40,7 @@ const toggleVolume = (vol: number) => {
 }
 
 const openChapter = (id: string) => {
-  navigateTo(`/chapter/${encodeURIComponent(id.replace('.', '-'))}`)
+  navigateTo(`/chapter/${encodeURIComponent(slugifyChapterId(id))}`)
 }
 
 const siteUrl = useRuntimeConfig().public.siteUrl

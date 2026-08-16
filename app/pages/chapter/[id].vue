@@ -1,11 +1,16 @@
 <script setup lang="ts">
 const route = useRoute()
-const chapterId = (route.params.id as string).replace('-', '.')
-const encodedId = computed(() => encodeURIComponent(route.params.id as string))
+const rawParam = route.params.id as string
 
-const { data: chapter, error } = await useFetch(`/api/chapters/${chapterId}`)
+const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURIComponent(rawParam)}`)
 const { data: allChapters } = await useFetch('/api/chapters')
 const { data: settings } = useFetch('/api/settings')
+
+// Источник истины по id — ответ API (он резолвит слаг в реальный id главы),
+// а не сырой параметр роута, иначе локальный прогресс чтения/пометки
+// прочитанного разъедутся при переходе по нормализованной ссылке.
+const chapterId = chapter.value?.id ?? rawParam.replace('-', '.')
+const slug = computed(() => encodeURIComponent(slugifyChapterId(chapter.value?.id ?? rawParam)))
 
 const auth = useAuthStore()
 const { load } = useReadProgress()
@@ -63,7 +68,7 @@ const siteUrl = useRuntimeConfig().public.siteUrl
 useHead(() => ({
   title: chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : 'Загрузка...',
   link: [
-    { rel: 'canonical', href: `${siteUrl}/chapter/${encodedId.value}` },
+    { rel: 'canonical', href: `${siteUrl}/chapter/${slug.value}` },
   ],
 }))
 
@@ -76,7 +81,7 @@ useSeoMeta({
     ? `Читать главу ${chapter.value.id} «${chapter.value.title}» The Wandering Inn на русском. Бесплатный фанатский перевод — taverna-book.com.`
     : undefined,
   ogImage: `${siteUrl}/hero.png`,
-  ogUrl: () => `${siteUrl}/chapter/${encodedId.value}`,
+  ogUrl: () => `${siteUrl}/chapter/${slug.value}`,
   ogType: 'article',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
@@ -97,7 +102,7 @@ useHead(() => ({
             '@type': 'Article',
             headline: chapter.value.title,
             inLanguage: 'ru',
-            url: `${siteUrl}/chapter/${encodedId.value}`,
+            url: `${siteUrl}/chapter/${slug.value}`,
             image: `${siteUrl}/hero.png`,
             datePublished: chapter.value.publishedAt,
             isPartOf: {
@@ -137,7 +142,7 @@ useHead(() => ({
       :telegram-url="settings?.telegram_url"
       :boosty-url="settings?.boosty_url"
       :tribute-url="settings?.tribute_url"
-      :comments-href="`/chapter/${encodedId}/comments`"
+      :comments-href="`/chapter/${slug}/comments`"
       :comments-label="chapter ? `Обсуждение главы ${chapter.id}` : 'Обсуждение главы'"
     />
 
@@ -169,7 +174,7 @@ useHead(() => ({
       <div class="reader-nav">
         <NuxtLink
           v-if="prevChapter"
-          :href="`/chapter/${encodeURIComponent(prevChapter.id.replace('.', '-'))}`"
+          :href="`/chapter/${encodeURIComponent(slugifyChapterId(prevChapter.id))}`"
         >
           ← {{ prevChapter.id }}
         </NuxtLink>
@@ -190,7 +195,7 @@ useHead(() => ({
 
         <NuxtLink
           v-if="nextChapter"
-          :href="`/chapter/${encodeURIComponent(nextChapter.id.replace('.', '-'))}`"
+          :href="`/chapter/${encodeURIComponent(slugifyChapterId(nextChapter.id))}`"
         >
           {{ nextChapter.id }} →
         </NuxtLink>
@@ -209,7 +214,7 @@ useHead(() => ({
     <!-- КНОПКА КОММЕНТАРИЕВ -->
     <div class="comments-cta">
       <NuxtLink
-        :href="`/chapter/${encodedId}/comments`"
+        :href="`/chapter/${slug}/comments`"
         class="comments-cta-btn"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">

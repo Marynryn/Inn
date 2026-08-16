@@ -5,8 +5,11 @@ import { readFile } from 'fs/promises'
 import { resolve } from 'path'
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')!
+  const param = getRouterParam(event, 'id')!
   const db = useDb()
+
+  const id = await resolveChapterId(db, param)
+  if (!id) throw createError({ statusCode: 404, message: 'Глава не найдена' })
 
   const [chapter] = await db
     .select({ id: chapters.id, title: chapters.title, epubPath: chapters.epubPath, isPublished: chapters.isPublished })
@@ -25,7 +28,7 @@ export default defineEventHandler(async (event) => {
   const filePath = resolve(chapter.epubPath)
   const file = await readFile(filePath)
 
-  const safeName = `chapter-${id.replace('.', '-')}.epub`
+  const safeName = `chapter-${slugifyChapterId(id)}.epub`
   setHeader(event, 'Content-Type', 'application/epub+zip')
   setHeader(event, 'Content-Disposition', `attachment; filename="${safeName}"`)
 

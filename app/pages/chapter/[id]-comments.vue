@@ -3,16 +3,20 @@ definePageMeta({ path: '/chapter/:id/comments' })
 
 const route = useRoute()
 const rawId = route.params.id as string
-const chapterId = rawId.replace('-', '.')
 
 const auth = useAuthStore()
-const { data: chapter } = await useFetch(`/api/chapters/${chapterId}`)
+const { data: chapter } = await useFetch(`/api/chapters/${encodeURIComponent(rawId)}`)
 const { data: settings } = useFetch('/api/settings')
+
+// Как и на странице главы: id для комментариев берём из ответа API
+// (реальный id главы), а не из сырого параметра роута.
+const chapterId = chapter.value?.id ?? rawId.replace('-', '.')
 
 onMounted(() => auth.fetchMe())
 
 const siteUrl = useRuntimeConfig().public.siteUrl
-const pageUrl = computed(() => `${siteUrl}/chapter/${encodeURIComponent(rawId)}/comments`)
+const slug = computed(() => encodeURIComponent(slugifyChapterId(chapter.value?.id ?? rawId)))
+const pageUrl = computed(() => `${siteUrl}/chapter/${slug.value}/comments`)
 const pageTitle = computed(() => chapter.value
   ? `Обсуждение ${chapter.value.id} «${chapter.value.title}» · Странствующая Таверна`
   : 'Обсуждение')
@@ -56,7 +60,7 @@ useSeoMeta({
 
 
     <div class="comments-wrap">
-      <NuxtLink :href="`/chapter/${encodeURIComponent(rawId)}`" class="back-btn">
+      <NuxtLink :href="`/chapter/${slug}`" class="back-btn">
         <span class="back-chevron">‹</span> Глава {{ chapter?.id }}
       </NuxtLink>
   

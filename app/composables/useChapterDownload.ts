@@ -6,7 +6,7 @@ export const useChapterDownload = (chapterId: string) => {
     state.value = 'loading'
     try {
       const a = document.createElement('a')
-      a.href = `/api/chapters/${chapterId}/download`
+      a.href = `/api/chapters/${encodeURIComponent(chapterId)}/download`
       a.click()
       await new Promise(r => setTimeout(r, 800))
       state.value = 'done'
@@ -29,7 +29,7 @@ export const useChapterDownloadList = () => {
     downloading.value = new Set([...downloading.value, id])
     try {
       const a = document.createElement('a')
-      a.href = `/api/chapters/${id}/download`
+      a.href = `/api/chapters/${encodeURIComponent(id)}/download`
       a.click()
       await new Promise(r => setTimeout(r, 800))
       downloaded.value = new Set([...downloaded.value, id])

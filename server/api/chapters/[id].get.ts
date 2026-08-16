@@ -3,8 +3,11 @@ import { chapters, chapterStats } from '../../database/schema'
 import { eq, sql } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')!
+  const param = getRouterParam(event, 'id')!
   const db = useDb()
+
+  const id = await resolveChapterId(db, param)
+  if (!id) throw createError({ statusCode: 404, message: 'Глава не найдена' })
 
   const [chapter] = await db.select().from(chapters).where(eq(chapters.id, id))
   if (!chapter) throw createError({ statusCode: 404, message: 'Глава не найдена' })

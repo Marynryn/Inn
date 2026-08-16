@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
   // Сохранить epub-файл
   const epubDir = resolve(getStorageDir(), 'epubs')
   await mkdir(epubDir, { recursive: true })
-  const safeName = id.replace('.', '-')
+  const safeName = slugifyChapterId(id)
   const epubPath = resolve(epubDir, `${safeName}.epub`)
   await writeFile(epubPath, epubField.data)
 

@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
   // (иначе он остаётся тем, что был загружен изначально, и расходится с правкой).
   const epubDir = resolve(getStorageDir(), 'epubs')
   await mkdir(epubDir, { recursive: true })
-  const safeName = id.replace('.', '-')
+  const safeName = slugifyChapterId(id)
   const epubPath = existing.epubPath || resolve(epubDir, `${safeName}.epub`)
   const epubBuffer = await buildEpub({ id, title, contentHtml })
   await writeFile(epubPath, epubBuffer)
