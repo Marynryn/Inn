@@ -12,39 +12,42 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  open: [id: string]
   download: [event: MouseEvent, id: string]
 }>()
+
+const href = computed(() => `/chapter/${encodeURIComponent(slugifyChapterId(props.chapter.id))}`)
 </script>
 
 <template>
-  <div class="row" @click="emit('open', chapter.id)">
-    <div
-      class="seal display"
-      :class="{
-        'is-new': badge === 'new',
-        'is-read': badge === 'read',
-        'seal-wide': chapter.id.length > 6,
-      }"
-    >
-      {{ chapter.id }}
-    </div>
-
-    <div class="row-body">
-      <p class="row-title">{{ chapter.title }}</p>
-      <div class="row-meta">
-        <span v-if="badge === 'new'" class="tag tag-new">новая</span>
-        <span v-else-if="badge === 'read'" class="tag tag-read">прочитано</span>
-        <span>{{ new Date(chapter.publishedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) }}</span>
+  <div class="row">
+    <NuxtLink class="row-link" :href="href">
+      <div
+        class="seal display"
+        :class="{
+          'is-new': badge === 'new',
+          'is-read': badge === 'read',
+          'seal-wide': chapter.id.length > 6,
+        }"
+      >
+        {{ chapter.id }}
       </div>
-    </div>
+
+      <div class="row-body">
+        <p class="row-title">{{ chapter.title }}</p>
+        <div class="row-meta">
+          <span v-if="badge === 'new'" class="tag tag-new">новая</span>
+          <span v-else-if="badge === 'read'" class="tag tag-read">прочитано</span>
+          <span>{{ new Date(chapter.publishedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) }}</span>
+        </div>
+      </div>
+    </NuxtLink>
 
     <div class="row-actions">
       <button
         class="icon-btn"
         title="Скачать epub"
         :class="{ 'is-loading': downloading, 'is-done': downloaded }"
-        @click.stop="emit('download', $event, chapter.id)"
+        @click="emit('download', $event, chapter.id)"
       >
         <span v-if="downloading" class="spin" />
         <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -60,10 +63,9 @@ const emit = defineEmits<{
 .row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   padding: 14px 0;
   border-bottom: 1px solid rgba(43, 30, 22, .08);
-  cursor: pointer;
   transition: background .15s;
 }
 
@@ -71,8 +73,17 @@ const emit = defineEmits<{
   border-bottom: none;
 }
 
-.row:hover {
+.row:has(.row-link:hover) {
   background: rgba(214, 136, 62, .04);
+}
+
+.row-link {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
 }
 
 .seal {

@@ -11,7 +11,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   toggle: []
-  openChapter: [id: string]
   download: [event: MouseEvent, id: string]
 }>()
 </script>
@@ -35,7 +34,6 @@ const emit = defineEmits<{
           :badge="getBadge(ch)"
           :downloading="downloading.has(ch.id)"
           :downloaded="downloaded.has(ch.id)"
-          @open="emit('openChapter', $event)"
           @download="(e, id) => emit('download', e, id)"
         />
       </div>

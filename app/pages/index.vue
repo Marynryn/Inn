@@ -39,10 +39,6 @@ const toggleVolume = (vol: number) => {
   openVolume.value = openVolume.value === vol ? null : vol
 }
 
-const openChapter = (id: string) => {
-  navigateTo(`/chapter/${encodeURIComponent(slugifyChapterId(id))}`)
-}
-
 const siteUrl = useRuntimeConfig().public.siteUrl
 
 useHead({
@@ -142,7 +138,6 @@ useSeoMeta({
         :downloaded="downloaded"
         :get-badge="getBadge"
         @toggle="toggleVolume(vol)"
-        @open-chapter="openChapter"
         @download="download"
       />
     </div>
