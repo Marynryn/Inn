@@ -11,14 +11,15 @@ export default defineEventHandler(async (event) => {
     .orderBy(desc(chapters.publishedAt))
 
   const base = useRuntimeConfig(event).public.siteUrl
+  const latestLastmod = rows[0]?.publishedAt ? rows[0].publishedAt.slice(0, 10) : ''
 
   const urls = [
-    `<url><loc>${base}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>`,
-    `<url><loc>${base}/about</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>`,
+    `<url><loc>${base}/</loc>${latestLastmod ? `<lastmod>${latestLastmod}</lastmod>` : ''}<changefreq>weekly</changefreq><priority>1.0</priority></url>`,
+    `<url><loc>${base}/about</loc>${latestLastmod ? `<lastmod>${latestLastmod}</lastmod>` : ''}<changefreq>monthly</changefreq><priority>0.5</priority></url>`,
     ...rows.map(c => {
       const slug = encodeURIComponent(c.id.replace('.', '-'))
       const lastmod = c.publishedAt ? c.publishedAt.slice(0, 10) : ''
-      return `<url><loc>${base}/chapter/${slug}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}<changefreq>never</changefreq><priority>0.8</priority></url>`
+      return `<url><loc>${base}/chapter/${slug}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}<changefreq>monthly</changefreq><priority>0.8</priority></url>`
     }),
   ]
 
