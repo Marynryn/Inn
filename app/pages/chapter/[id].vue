@@ -65,6 +65,13 @@ onMounted(() => {
 
 const siteUrl = useRuntimeConfig().public.siteUrl
 
+// У обычных глав TWI нет настоящих названий — title в базе это просто
+// «Глава N», так что description строим из текста самой главы, а не из title,
+// иначе на каждой странице номер главы дублируется дважды.
+const description = computed(() => chapter.value
+  ? buildChapterDescription(chapter.value.id, chapter.value.contentHtml)
+  : undefined)
+
 useHead(() => ({
   title: chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : 'Загрузка...',
   link: [
@@ -73,22 +80,16 @@ useHead(() => ({
 }))
 
 useSeoMeta({
-  description: () => chapter.value
-    ? `Читать главу ${chapter.value.id} «${chapter.value.title}» The Wandering Inn на русском. Бесплатный фанатский перевод — taverna-book.com.`
-    : undefined,
+  description: () => description.value,
   ogTitle: () => chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : undefined,
-  ogDescription: () => chapter.value
-    ? `Читать главу ${chapter.value.id} «${chapter.value.title}» The Wandering Inn на русском. Бесплатный фанатский перевод — taverna-book.com.`
-    : undefined,
+  ogDescription: () => description.value,
   ogImage: `${siteUrl}/hero.png`,
   ogUrl: () => `${siteUrl}/chapter/${slug.value}`,
   ogType: 'article',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
   twitterTitle: () => chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : undefined,
-  twitterDescription: () => chapter.value
-    ? `Читать главу ${chapter.value.id} «${chapter.value.title}» The Wandering Inn на русском. Бесплатный фанатский перевод — taverna-book.com.`
-    : undefined,
+  twitterDescription: () => description.value,
   twitterImage: `${siteUrl}/hero.png`,
 })
 
