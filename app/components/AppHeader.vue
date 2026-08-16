@@ -80,13 +80,13 @@ onUnmounted(() => {
     <div class="h-left">
       <!-- страница комментариев: иконка таверны слева -->
       <NuxtLink v-if="burgerLeft" href="/" class="brand-icon" @click="scrollTop">
-        <NuxtImg src="/header.png" width="30" height="30" format="webp" alt="Странствующая Таверна" />
+        <NuxtImg src="/fav.png" width="30" height="30" format="webp" alt="Странствующая Таверна" />
       </NuxtLink>
       <NuxtLink v-else-if="backHref" :href="backHref" class="back-link">
         {{ backLabel ?? '← Назад' }}
       </NuxtLink>
       <NuxtLink v-else-if="showNavLinks" href="/" class="brand" @click="scrollTop">
-        <NuxtImg src="/header.png" class="brand-logo" width="32" height="32" format="webp" alt="" />
+        <NuxtImg src="/fav.png" class="brand-logo" width="32" height="32" format="webp" alt="" />
         <span class="brand-name">Странствующая Таверна</span>
       </NuxtLink>
     </div>
@@ -94,7 +94,7 @@ onUnmounted(() => {
     <!-- CENTER -->
     <div class="h-center">
       <template v-if="showBrand">
-        <NuxtImg src="/header.png" class="brand-logo" width="32" height="32" format="webp" alt="" />
+        <NuxtImg src="/fav.png" class="brand-logo" width="32" height="32" format="webp" alt="" />
         <span class="brand-name display">Странствующая Таверна</span>
       </template>
       <template v-else-if="chapterId && !burgerLeft">
