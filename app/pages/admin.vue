@@ -490,7 +490,7 @@ useHead({
               <div class="log-meta">
                 <span class="log-time">{{ c.createdAt?.slice(0, 16).replace('T', ' ') }}</span>
                 <span v-if="c.isSpoiler" class="log-spoiler">спойлер</span>
-                <NuxtLink v-if="c.chapterId" :href="`/chapter/${c.chapterId.replace('.', '-')}/comments`" class="log-link" target="_blank">гл. {{ c.chapterId }} ↗</NuxtLink>
+                <NuxtLink v-if="c.chapterId" :href="`/chapter/${encodeURIComponent(c.chapterId.replace('.', '-'))}/comments`" class="log-link" target="_blank">гл. {{ c.chapterId }} ↗</NuxtLink>
                 <NuxtLink v-else href="/" class="log-link" target="_blank">отзыв о сайте ↗</NuxtLink>
               </div>
               <div class="log-body">{{ c.body }}</div>

@@ -12,7 +12,7 @@ const { data: settings } = useFetch('/api/settings')
 onMounted(() => auth.fetchMe())
 
 const siteUrl = useRuntimeConfig().public.siteUrl
-const pageUrl = computed(() => `${siteUrl}/chapter/${rawId}/comments`)
+const pageUrl = computed(() => `${siteUrl}/chapter/${encodeURIComponent(rawId)}/comments`)
 const pageTitle = computed(() => chapter.value
   ? `Обсуждение ${chapter.value.id} «${chapter.value.title}» · Странствующая Таверна`
   : 'Обсуждение')
@@ -56,7 +56,7 @@ useSeoMeta({
 
 
     <div class="comments-wrap">
-      <NuxtLink :href="`/chapter/${rawId}`" class="back-btn">
+      <NuxtLink :href="`/chapter/${encodeURIComponent(rawId)}`" class="back-btn">
         <span class="back-chevron">‹</span> Глава {{ chapter?.id }}
       </NuxtLink>
   

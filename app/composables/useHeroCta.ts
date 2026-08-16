@@ -2,9 +2,9 @@ export const useHeroCta = (chapters: Ref<any[] | null>) => {
   const { lastRead } = useReadProgress()
 
   const ctaHref = computed(() => {
-    if(lastRead.value){return `/chapter/${lastRead.value.id.replace('.', '-')}`}
+    if(lastRead.value){return `/chapter/${encodeURIComponent(lastRead.value.id.replace('.', '-'))}`}
     const first = [...(chapters.value ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))[0]
-    return first ? `/chapter/${first.id.replace('.', '-')}` : '#'
+    return first ? `/chapter/${encodeURIComponent(first.id.replace('.', '-'))}` : '#'
   })
 
   const ctaText = computed(() =>
