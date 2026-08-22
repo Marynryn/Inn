@@ -196,6 +196,8 @@ const form = reactive({
   about_text: '',
   error_404_sub: '',
   update_schedule: '',
+  tg_cta_title: '',
+  tg_cta_text: '',
 })
 watch(settings, (s) => { if (s) Object.assign(form, s) }, { immediate: true })
 
@@ -529,6 +531,14 @@ useHead({
           <div class="field-row">
             <label>Ссылка Telegram</label>
             <input v-model="form.telegram_url" type="url">
+          </div>
+          <div class="field-row">
+            <label>Блок про телеграм — заголовок</label>
+            <input v-model="form.tg_cta_title" type="text" placeholder="Не пропусти новую главу">
+          </div>
+          <div class="field-row">
+            <label>Блок про телеграм — текст</label>
+            <textarea v-model="form.tg_cta_text" rows="2" placeholder="Бот в телеграм-канале присылает уведомление о каждой новой главе сразу после публикации." />
           </div>
           <div class="field-row">
             <label>Ссылка Boosty</label>

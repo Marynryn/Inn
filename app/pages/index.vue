@@ -142,6 +142,14 @@ useSeoMeta({
       />
     </div>
 
+    <div class="tg-wrap">
+      <TelegramCta
+        :url="settings?.telegram_url"
+        :title="settings?.tg_cta_title"
+        :text="settings?.tg_cta_text"
+      />
+    </div>
+
     <!-- <AdSlot id="index-mid" /> -->
 
     <!-- КОММЕНТАРИИ -->
@@ -298,7 +306,7 @@ useSeoMeta({
 .ledger {
   max-width: 760px;
   margin: 0 auto;
-  padding: 56px 20px 80px;
+  padding: 56px 20px 36px;
 }
 
 .ledger-head {
@@ -326,6 +334,12 @@ useSeoMeta({
   height: 1px;
   background: linear-gradient(to right, var(--gold), transparent);
   margin: 18px 0 8px;
+}
+
+.tg-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 20px 56px;
 }
 
 .comments-wrap {

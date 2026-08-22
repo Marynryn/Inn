@@ -109,6 +109,8 @@ export async function runMigrations() {
     boosty_url: 'https://boosty.to/',
     tribute_url: '',
     error_404_sub: 'Козёл добрался до этой страницы раньше тебя.',
+    tg_cta_title: 'Не пропусти новую главу',
+    tg_cta_text: 'Бот в телеграм-канале присылает уведомление о каждой новой главе сразу после публикации.',
     update_schedule: '2–3',
   }
 

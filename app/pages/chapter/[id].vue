@@ -221,6 +221,13 @@ useHead(() => ({
 
     <!-- КНОПКА КОММЕНТАРИЕВ -->
     <div class="comments-cta">
+      <TelegramCta
+        :url="settings?.telegram_url"
+        :title="settings?.tg_cta_title"
+        :text="settings?.tg_cta_text"
+        on-dark
+      />
+
       <NuxtLink
         :href="`/chapter/${slug}/comments`"
         class="comments-cta-btn"
@@ -403,8 +410,12 @@ useHead(() => ({
 .comments-cta {
   max-width: 960px;
   margin: 0 auto;
-  padding: 40px 48px 80px;
+  padding: 20px 48px 64px;
   background: var(--bg-dark-2);
+}
+
+.comments-cta > :deep(.tg-cta) {
+  margin: 0 0 18px;
 }
 
 .comments-cta-btn {
