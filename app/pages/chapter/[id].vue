@@ -3,6 +3,18 @@ const route = useRoute()
 const rawParam = route.params.id as string
 
 const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURIComponent(rawParam)}`)
+
+// Отдаём настоящую ошибку, а не заглушку внутри страницы: иначе несуществующая
+// глава открывается с кодом 200 (для поисковиков это «мягкий 404» — они считают
+// такую страницу существующей) и вместо оформленной 404 показывается голая строчка.
+if (error.value) {
+  throw createError({
+    statusCode: error.value.statusCode ?? 404,
+    message: error.value.data?.message || 'Глава не найдена',
+    fatal: true,
+  })
+}
+
 const { data: allChapters } = await useFetch('/api/chapters')
 const { data: settings } = useFetch('/api/settings')
 
@@ -124,12 +136,7 @@ useHead(() => ({
 </script>
 
 <template>
-  <div v-if="error" class="not-found">
-    Глава не найдена.
-    <NuxtLink href="/">← На главную</NuxtLink>
-  </div>
-
-  <div v-else-if="chapter" class="page-wrap">
+  <div v-if="chapter" class="page-wrap">
     <ProgressModal
       v-if="showProgressModal && lastRead"
       :current-id="chapter.id"
@@ -228,11 +235,6 @@ useHead(() => ({
 </template>
 
 <style scoped>
-.not-found {
-  padding: 80px 24px;
-  text-align: center;
-}
-
 .page-wrap {
   background: var(--bg-dark-2);
   min-height: 100vh;

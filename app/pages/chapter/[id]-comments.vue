@@ -5,7 +5,16 @@ const route = useRoute()
 const rawId = route.params.id as string
 
 const auth = useAuthStore()
-const { data: chapter } = await useFetch(`/api/chapters/${encodeURIComponent(rawId)}`)
+const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURIComponent(rawId)}`)
+
+// Как и на странице главы — настоящий код ответа вместо пустой страницы с кодом 200.
+if (error.value) {
+  throw createError({
+    statusCode: error.value.statusCode ?? 404,
+    message: error.value.data?.message || 'Глава не найдена',
+    fatal: true,
+  })
+}
 const { data: settings } = useFetch('/api/settings')
 
 // Как и на странице главы: id для комментариев берём из ответа API
