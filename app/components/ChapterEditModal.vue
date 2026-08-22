@@ -24,6 +24,22 @@ const saveError = ref('')
 const saved = ref(false)
 const isPublished = ref(true)
 const title = ref(props.chapterTitle)
+const publishedAt = ref('')
+
+const today = () => {
+  // Локальная дата, а не UTC: у ISO-строки вечером уже завтрашнее число.
+  const d = new Date()
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 10)
+}
+
+// Черновик, который сейчас публикуют, должен выйти сегодняшним числом: дата у него
+// осталась с момента загрузки, и в списке глава уехала бы в прошлое, а бот сообщил бы
+// о ней задним числом. Дату можно тут же поправить вручную, если нужна другая.
+const wasDraft = ref(false)
+watch(isPublished, (nowPublished) => {
+  if (nowPublished && wasDraft.value) publishedAt.value = today()
+})
 
 const editor = useEditor({
   content: '',
@@ -77,9 +93,11 @@ const currentColor = computed(() => editor.value?.getAttributes('textStyle').col
 
 onMounted(async () => {
   try {
-    const chapter = await $fetch<{ contentHtml: string, isPublished: boolean }>(`/api/chapters/${props.chapterId}`)
+    const chapter = await $fetch<{ contentHtml: string, isPublished: boolean, publishedAt: string }>(`/api/chapters/${props.chapterId}`)
     editor.value?.commands.setContent(chapter.contentHtml || '')
     isPublished.value = chapter.isPublished
+    publishedAt.value = (chapter.publishedAt || '').slice(0, 10)
+    wasDraft.value = !chapter.isPublished
   } catch {
     saveError.value = 'Не удалось загрузить текст главы'
   } finally {
@@ -184,7 +202,12 @@ const save = async () => {
   try {
     await $fetch(`/api/admin/chapters/${props.chapterId}`, {
       method: 'PUT',
-      body: { title: title.value, contentHtml: editor.value.getHTML(), isPublished: isPublished.value },
+      body: {
+        title: title.value,
+        contentHtml: editor.value.getHTML(),
+        isPublished: isPublished.value,
+        publishedAt: publishedAt.value,
+      },
     })
     saved.value = true
     emit('saved')
@@ -211,6 +234,12 @@ const save = async () => {
           <input v-model="isPublished" type="checkbox">
           <span>Опубликовано (видно всем читателям)</span>
         </label>
+
+        <div v-if="!loading" class="date-row">
+          <label :for="`pub-date-${chapterId}`">Дата публикации</label>
+          <input :id="`pub-date-${chapterId}`" v-model="publishedAt" type="date" class="date-input">
+          <button type="button" class="btn-cancel btn-xs" @click="publishedAt = today()">Сегодня</button>
+        </div>
 
         <div v-if="loading" class="loading-hint">Загрузка текста главы...</div>
 
@@ -400,6 +429,32 @@ const save = async () => {
 
 .checkbox-row input {
   flex-shrink: 0;
+}
+
+.date-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--parchment-2);
+  margin: 0 0 16px;
+}
+
+.date-input {
+  background: rgba(241, 230, 210, .05);
+  border: 1px solid rgba(241, 230, 210, .18);
+  border-radius: var(--radius-sm);
+  color: var(--parchment);
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  color-scheme: dark;
+}
+
+.date-input:focus-visible {
+  outline: none;
+  border-color: var(--ember-soft);
 }
 
 .loading-hint {

@@ -1,6 +1,6 @@
 import { useDb } from '../../utils/db'
 import { chapters, siteSettings } from '../../database/schema'
-import { eq, gt } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { sendTelegramMessage } from '../../utils/telegram'
 
 const LAST_NOTIFY_KEY = 'last_chapter_notify_at'
@@ -21,15 +21,13 @@ export default defineEventHandler(async (event) => {
     return { ok: true, notified: false, reason: 'rate-limited' }
   }
 
-  const since = lastNotifyAt ?? new Date(Date.now() - 24 * 60 * 60 * 1000)
-  const sinceStr = since.toISOString().slice(0, 19).replace('T', ' ')
-
-  const newChapters = await db
-    .select({ id: chapters.id, title: chapters.title, isPublished: chapters.isPublished })
+  // Берём главы по факту публикации, а не по дате загрузки: черновик мог пролежать
+  // в базе неделями, и уведомить о нём нужно тогда, когда его открыли читателям.
+  const published = await db
+    .select({ id: chapters.id, title: chapters.title })
     .from(chapters)
-    .where(gt(chapters.createdAt, sinceStr))
+    .where(and(eq(chapters.isPublished, true), isNull(chapters.notifiedAt)))
 
-  const published = newChapters.filter(c => c.isPublished)
   if (published.length === 0) return { ok: true, notified: false }
 
   const byNumber = [...published].sort((a, b) => {
@@ -67,6 +65,11 @@ export default defineEventHandler(async (event) => {
   await sendTelegramMessage(message)
 
   const now = new Date().toISOString()
+  await db
+    .update(chapters)
+    .set({ notifiedAt: now })
+    .where(inArray(chapters.id, byNumber.map(c => c.id)))
+
   await db
     .insert(siteSettings)
     .values({ key: LAST_NOTIFY_KEY, value: now })

@@ -10,6 +10,7 @@ export const chapters = sqliteTable('chapters', {
   publishedAt: text('published_at').notNull(), // ISO date string
   sortOrder: integer('sort_order').notNull().default(0),
   isPublished: integer('is_published', { mode: 'boolean' }).notNull().default(true),
+  notifiedAt: text('notified_at'), // когда про главу отправили уведомление в телеграм; NULL = ещё не отправляли
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 

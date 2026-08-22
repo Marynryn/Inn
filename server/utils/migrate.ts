@@ -81,6 +81,17 @@ export async function runMigrations() {
     // Столбец уже существует — это нормально
   }
 
+  // Отметка о том, что про главу уже уведомляли в телеграме. При первом
+  // добавлении столбца проставляем её всем уже опубликованным главам, чтобы бот
+  // не разослал разом уведомления про весь архив. У черновиков она остаётся
+  // пустой — про них уведомим тогда, когда их опубликуют.
+  try {
+    await client.execute('ALTER TABLE chapters ADD COLUMN notified_at TEXT')
+    await client.execute('UPDATE chapters SET notified_at = created_at WHERE is_published = 1')
+  } catch {
+    // Столбец уже существует — это нормально
+  }
+
   // Всегда исправлять главы с sort_order = 0 по published_at
   await client.execute(`
     UPDATE chapters SET sort_order = (

@@ -27,6 +27,14 @@ export default defineEventHandler(async (event) => {
   const isPublished = typeof body.isPublished === 'boolean' ? body.isPublished : undefined
   const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : existing.title
 
+  let publishedAt: string | undefined
+  if (typeof body.publishedAt === 'string' && body.publishedAt.trim()) {
+    publishedAt = body.publishedAt.trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(publishedAt)) {
+      throw createError({ statusCode: 400, message: 'Дата публикации должна быть в формате ГГГГ-ММ-ДД' })
+    }
+  }
+
   // Перегенерировать epub-файл, чтобы скачиваемая версия совпадала с текстом на сайте
   // (иначе он остаётся тем, что был загружен изначально, и расходится с правкой).
   const epubDir = resolve(getStorageDir(), 'epubs')
@@ -36,7 +44,13 @@ export default defineEventHandler(async (event) => {
   const epubBuffer = await buildEpub({ id, title, contentHtml })
   await writeFile(epubPath, epubBuffer)
 
-  await db.update(chapters).set({ title, contentHtml, epubPath, ...(isPublished !== undefined && { isPublished }) }).where(eq(chapters.id, id))
+  await db.update(chapters).set({
+    title,
+    contentHtml,
+    epubPath,
+    ...(isPublished !== undefined && { isPublished }),
+    ...(publishedAt !== undefined && { publishedAt }),
+  }).where(eq(chapters.id, id))
 
   return { ok: true }
 })
