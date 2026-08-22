@@ -126,7 +126,10 @@ useSeoMeta({
         <h2 class="display">Оглавление</h2>
         <span>{{ settings?.ledger_note }}</span>
       </div>
-      <div class="ledger-rule" />
+      <div class="ledger-rule-row">
+        <div class="ledger-rule" />
+        <div class="ledger-bee"><BeeApista /></div>
+      </div>
 
       <VolumeAccordion
         v-for="[vol, chs] in volumes"
@@ -310,12 +313,7 @@ useSeoMeta({
 }
 
 .ledger-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
   margin-bottom: 6px;
-  gap: 12px;
-  flex-wrap: wrap;
 }
 
 .ledger-head h2 {
@@ -325,15 +323,30 @@ useSeoMeta({
 }
 
 .ledger-head span {
+  display: block;
+  margin-top: 4px;
   font-size: 12px;
   color: var(--ink-soft);
   letter-spacing: .06em;
 }
 
+/* Аписта валяется на линейке, поэтому под заголовком оставлен зазор
+   по её росту — иначе она наезжает на подпись справа. */
+.ledger-rule-row {
+  position: relative;
+  margin: 64px 0 8px;
+}
+
 .ledger-rule {
   height: 1px;
   background: linear-gradient(to right, var(--gold), transparent);
-  margin: 18px 0 8px;
+}
+
+.ledger-bee {
+  position: absolute;
+  right: -4px;
+  bottom: -5px;
+  line-height: 0;
 }
 
 .tg-wrap {
@@ -377,6 +390,20 @@ useSeoMeta({
 
   .hero-title {
     font-size: 30px;
+  }
+
+  /* Оглавление на телефоне узкое — пчела мельче, и зазор под ней меньше. */
+  .ledger-rule-row {
+    margin-top: 40px;
+  }
+
+  .ledger-bee {
+    --bee-w: 72px;
+  }
+
+  /* Подпись переносим раньше, чтобы строка не подлезала под пчелу справа. */
+  .ledger-head span {
+    max-width: 200px;
   }
 }
 </style>
