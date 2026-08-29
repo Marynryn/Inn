@@ -125,14 +125,27 @@ const fadeId = `bee-fade-${uid}`
   }
 }
 
+/* «Меньше движения» — просьба про движение, а не про то, чтобы убрать рисунок:
+   вместо трёх всплывающих клубов остаётся один неподвижный. Дым виден, но не
+   шевелится — иначе на устройстве с этой настройкой сигарета просто не дымит. */
 @media (prefers-reduced-motion: reduce) {
   .bee-ember {
     animation: none;
     opacity: .8;
   }
 
-  .bee-smoke {
+  .puff {
+    animation: none;
+  }
+
+  .puff-1,
+  .puff-3 {
     display: none;
+  }
+
+  .puff-2 {
+    opacity: .5;
+    transform: translate(2px, -26px) scale(1.5);
   }
 }
 </style>
