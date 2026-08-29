@@ -260,11 +260,52 @@ const uploadChapter = async () => {
   }
 }
 
+// --- Уведомления в телеграм ---
+const runtimeConfig = useRuntimeConfig()
+const { data: notifyData, refresh: refreshNotify } = await useFetch('/api/admin/notify')
+const selectedNotifyIds = ref<string[]>([])
+const sendingNotify = ref(false)
+const notifyResult = ref('')
+const notifyError = ref('')
+
+const pendingChapters = computed(() => notifyData.value?.chapters ?? [])
+
+// После загрузки и после отправки список сам отмечает то, про что ещё не писали.
+watch(notifyData, () => {
+  selectedNotifyIds.value = pendingChapters.value.map(c => c.id)
+}, { immediate: true })
+
+const notifyPreview = computed(() => {
+  const byId = new Map((notifyData.value?.chapters ?? []).map(c => [c.id, c]))
+  const picked = selectedNotifyIds.value.map(id => byId.get(id)).filter(Boolean) as { id: string; title: string }[]
+  return buildChapterNotification(picked, runtimeConfig.public.siteUrl)
+})
+
+const formatNotifyDate = (iso?: string | null) => iso ? iso.slice(0, 16).replace('T', ' ') : '—'
+
+const sendNotify = async () => {
+  notifyError.value = ''
+  notifyResult.value = ''
+  sendingNotify.value = true
+  try {
+    const res = await $fetch('/api/admin/notify', {
+      method: 'POST',
+      body: { chapterIds: selectedNotifyIds.value },
+    })
+    notifyResult.value = `✓ Отправлено в телеграм: ${res.count} гл.`
+    await refreshNotify()
+  } catch (e: any) {
+    notifyError.value = e?.data?.message || 'Не удалось отправить'
+  } finally {
+    sendingNotify.value = false
+  }
+}
+
 // --- Статистика ---
 const { data: stats } = await useFetch('/api/admin/stats')
 const { data: commentLogs, refresh: refreshLogs } = await useFetch('/api/admin/comments')
 
-const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'stats' | 'comments'>('upload')
+const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'notify' | 'stats' | 'comments'>('upload')
 const appHeader = ref()
 const switchTab = (tab: typeof activeTab.value) => {
   activeTab.value = tab
@@ -288,6 +329,7 @@ useHead({
           <button class="adm-menu-link" :class="{ active: activeTab === 'upload' }" @click="switchTab('upload')">Добавить главу</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'chapters' }" @click="switchTab('chapters')">Список глав</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'settings' }" @click="switchTab('settings')">Настройки сайта</button>
+          <button class="adm-menu-link" :class="{ active: activeTab === 'notify' }" @click="switchTab('notify')">Уведомления</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'stats' }" @click="switchTab('stats')">Статистика</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'comments' }" @click="switchTab('comments')">Комментарии</button>
           <button class="adm-menu-link adm-logout" @click="auth.logout().then(() => navigateTo('/login'))">Выйти</button>
@@ -560,6 +602,41 @@ useHead({
             {{ settingsSaved ? '✓ Сохранено' : savingSettings ? 'Сохраняем...' : 'Сохранить' }}
           </button>
         </section>
+
+        <!-- Уведомления -->
+        <section v-if="activeTab === 'notify'" class="card">
+          <h2>Уведомления в Telegram</h2>
+          <p class="notify-hint">
+            Отправляет сообщение прямо сейчас — в любое время и сколько угодно раз.
+            Расписание автоматической рассылки от этого не сдвигается: она уходит около 12:00 МСК
+            и никогда не приходит читателям ночью.
+          </p>
+
+          <p v-if="notifyData && !notifyData.configured" class="form-error">
+            Бот не настроен: нет TELEGRAM_BOT_TOKEN или TELEGRAM_CHANNEL_ID.
+          </p>
+          <p class="notify-last">Автоматическая рассылка последний раз: {{ formatNotifyDate(notifyData?.lastNotifyAt) }}</p>
+
+          <h3 class="notify-sub">Ещё не отправляли ({{ pendingChapters.length }})</h3>
+          <div v-if="pendingChapters.length" class="notify-list">
+            <label v-for="ch in pendingChapters" :key="ch.id" class="notify-row">
+              <input v-model="selectedNotifyIds" type="checkbox" :value="ch.id">
+              <span class="chapter-row-id">{{ ch.id }}</span>
+              <span class="chapter-row-title">{{ ch.title }}</span>
+            </label>
+          </div>
+
+          <div v-if="notifyPreview" class="notify-preview">
+            <div class="notify-preview-label">Текст сообщения</div>
+            <pre class="notify-preview-text">{{ notifyPreview }}</pre>
+          </div>
+
+          <div v-if="notifyError" class="form-error">{{ notifyError }}</div>
+          <button class="btn-action" :disabled="sendingNotify || !selectedNotifyIds.length" @click="sendNotify">
+            {{ sendingNotify ? 'Отправляем...' : `Отправить в Telegram (${selectedNotifyIds.length})` }}
+          </button>
+          <p v-if="notifyResult" class="result-msg">{{ notifyResult }}</p>
+        </section>
       </main>
 
       <!-- САЙДБАР -->
@@ -584,6 +661,10 @@ useHead({
           <button class="sb-tab" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">
             <span class="sb-icon">⚙</span>
             Настройки сайта
+          </button>
+          <button class="sb-tab" :class="{ active: activeTab === 'notify' }" @click="activeTab = 'notify'">
+            <span class="sb-icon">✈</span>
+            Уведомления
           </button>
           <button class="sb-tab" :class="{ active: activeTab === 'stats' }" @click="activeTab = 'stats'">
             <span class="sb-icon">📊</span>
@@ -1354,5 +1435,70 @@ useHead({
   .card--fill {
     height: calc(100dvh - 56px - 32px);
   }
+}
+
+/* Уведомления */
+.notify-hint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 0 0 14px;
+}
+
+.notify-last {
+  font-size: 12.5px;
+  color: var(--parchment-2);
+  margin: 0 0 18px;
+}
+
+.notify-sub {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--parchment-2);
+  margin: 0 0 8px;
+}
+
+.notify-list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 14px;
+}
+
+.notify-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.notify-row:hover {
+  background: rgba(241, 230, 210, .04);
+}
+
+.notify-preview {
+  border: 1px solid rgba(241, 230, 210, .12);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.notify-preview-label {
+  font-size: 11px;
+  color: var(--ink-soft);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.notify-preview-text {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--parchment-2);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

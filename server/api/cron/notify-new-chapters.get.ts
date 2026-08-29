@@ -1,10 +1,18 @@
-import { useDb } from '../../utils/db'
-import { chapters, siteSettings } from '../../database/schema'
-import { and, eq, inArray, isNull } from 'drizzle-orm'
-import { sendTelegramMessage } from '../../utils/telegram'
+import { getLastNotifyAt, notifyChapters } from '../../utils/notify-chapters'
 
-const LAST_NOTIFY_KEY = 'last_chapter_notify_at'
-const MIN_INTERVAL_MS = 20 * 60 * 60 * 1000 // не чаще раза в ~сутки, даже если крон дёрнет чаще
+// Защита только от двойного срабатывания (два запуска крона одновременно).
+// От повторов про одну и ту же главу защищает notifiedAt, поэтому длинное окно
+// здесь не нужно: раньше 20-часовой лимит съедал следующий законный запуск,
+// стоило GitHub'у один раз опоздать, и время рассылки уезжало день ото дня.
+const MIN_INTERVAL_MS = 10 * 60 * 1000
+
+// Расписание GitHub Actions — «по возможности»: запуск может опоздать на часы.
+// Опоздавший запуск не должен будить читателей ночью, поэтому шлём только в окно
+// по Москве; пропущенную главу подхватит следующая попытка. Ручная отправка из
+// админки идёт мимо окна — там время выбирает админ.
+const MSK_OFFSET_MS = 3 * 60 * 60 * 1000
+const WINDOW_START_HOUR = 9
+const WINDOW_END_HOUR = 22
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -13,67 +21,17 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, message: 'Forbidden' })
   }
 
-  const db = useDb()
-  const [lastNotify] = await db.select().from(siteSettings).where(eq(siteSettings.key, LAST_NOTIFY_KEY))
-  const lastNotifyAt = lastNotify?.value ? new Date(lastNotify.value) : null
-
-  if (lastNotifyAt && Date.now() - lastNotifyAt.getTime() < MIN_INTERVAL_MS) {
-    return { ok: true, notified: false, reason: 'rate-limited' }
+  const mskHour = new Date(Date.now() + MSK_OFFSET_MS).getUTCHours()
+  if (mskHour < WINDOW_START_HOUR || mskHour >= WINDOW_END_HOUR) {
+    return { ok: true, notified: false, reason: 'outside-window', mskHour }
   }
 
-  // Берём главы по факту публикации, а не по дате загрузки: черновик мог пролежать
-  // в базе неделями, и уведомить о нём нужно тогда, когда его открыли читателям.
-  const published = await db
-    .select({ id: chapters.id, title: chapters.title })
-    .from(chapters)
-    .where(and(eq(chapters.isPublished, true), isNull(chapters.notifiedAt)))
-
-  if (published.length === 0) return { ok: true, notified: false }
-
-  const byNumber = [...published].sort((a, b) => {
-    const [av, ac] = a.id.split('.').map(Number)
-    const [bv, bc] = b.id.split('.').map(Number)
-    return av - bv || ac - bc
-  })
-
-  const siteUrl = config.public.siteUrl
-
-  let message: string
-  if (byNumber.length === 1) {
-    message = `Добавлена новая глава — ${byNumber[0].id} «${byNumber[0].title}»\n${siteUrl}`
-  } else {
-    const volumes = new Map<number, typeof byNumber>()
-    for (const ch of byNumber) {
-      const vol = Number(ch.id.split('.')[0])
-      if (!volumes.has(vol)) volumes.set(vol, [])
-      volumes.get(vol)!.push(ch)
-    }
-
-    const ranges = [...volumes.values()].map((group) => {
-      const first = group[0].id
-      const last = group[group.length - 1].id
-      return first === last ? first : `${first}-${last}`
-    })
-
-    const joined = ranges.length > 1
-      ? `${ranges.slice(0, -1).join(', ')} и ${ranges[ranges.length - 1]}`
-      : ranges[0]
-
-    message = `Добавлены новые главы: ${joined}\n${siteUrl}`
+  const lastNotifyAt = await getLastNotifyAt()
+  if (lastNotifyAt && Date.now() - new Date(lastNotifyAt).getTime() < MIN_INTERVAL_MS) {
+    return { ok: true, notified: false, reason: 'just-sent' }
   }
 
-  await sendTelegramMessage(message)
+  const result = await notifyChapters({ touchLastNotify: true })
 
-  const now = new Date().toISOString()
-  await db
-    .update(chapters)
-    .set({ notifiedAt: now })
-    .where(inArray(chapters.id, byNumber.map(c => c.id)))
-
-  await db
-    .insert(siteSettings)
-    .values({ key: LAST_NOTIFY_KEY, value: now })
-    .onConflictDoUpdate({ target: siteSettings.key, set: { value: now } })
-
-  return { ok: true, notified: true, count: published.length }
+  return { ok: true, notified: result.notified, count: result.count, reason: result.reason }
 })

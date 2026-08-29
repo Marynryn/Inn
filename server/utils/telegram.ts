@@ -1,7 +1,8 @@
-export async function sendTelegramMessage(text: string) {
+/** Шлёт сообщение в канал. Возвращает false, если бот не настроен — тогда главы нельзя считать оповещёнными. */
+export async function sendTelegramMessage(text: string): Promise<boolean> {
   const config = useRuntimeConfig()
   const { botToken, chatId, threadId } = config.telegram
-  if (!botToken || !chatId) return
+  if (!botToken || !chatId) return false
 
   await $fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
@@ -11,4 +12,6 @@ export async function sendTelegramMessage(text: string) {
       text,
     },
   })
+
+  return true
 }
