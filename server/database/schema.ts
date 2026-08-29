@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export const chapters = sqliteTable('chapters', {
   id: text('id').primaryKey(), // '4.20'
@@ -48,14 +48,13 @@ export const commentReactions = sqliteTable('comment_reactions', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
-// Кто какую главу уже открывал сегодня. Нужна только для дедупликации: один
-// просмотр с адреса в сутки. Старые строки чистятся при старте (см. migrate).
-export const chapterViews = sqliteTable('chapter_views', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+// Просмотры по дням: строка на главу за день, а не на каждого читателя.
+// Нужна только для счётчика «за сегодня»; общий итог живёт в chapter_stats.
+export const chapterViewDays = sqliteTable('chapter_view_days', {
   chapterId: text('chapter_id').notNull(),
-  ip: text('ip').notNull(),
-  day: text('day').notNull(), // '2026-08-29', по UTC
-})
+  day: text('day').notNull(), // '2026-08-29', по Москве
+  count: integer('count').notNull().default(0),
+}, t => [primaryKey({ columns: [t.chapterId, t.day] })])
 
 export const siteSettings = sqliteTable('site_settings', {
   key: text('key').primaryKey(),

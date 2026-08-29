@@ -92,22 +92,22 @@ export async function runMigrations() {
     // Столбец уже существует — это нормально
   }
 
-  // Журнал просмотров для дедупликации. Уникальный индекс и есть само правило
-  // «один просмотр с адреса за сутки»: повторная вставка просто не проходит.
+  // Просмотры по дням — одна строка на главу за день, для счётчика «за сегодня».
   await client.executeMultiple(`
-    CREATE TABLE IF NOT EXISTS chapter_views (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+    CREATE TABLE IF NOT EXISTS chapter_view_days (
       chapter_id TEXT NOT NULL,
-      ip TEXT NOT NULL,
-      day TEXT NOT NULL
+      day TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (chapter_id, day)
     );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS chapter_views_uniq
-      ON chapter_views (chapter_id, ip, day);
   `)
 
-  // Журнал нужен только «на сегодня», всё старше недели — мусор.
-  await client.execute("DELETE FROM chapter_views WHERE day < date('now', '-7 day')")
+  // Прежний журнал хранил строку на каждый адрес ради дедупликации — от неё
+  // отказались, адреса больше не пишем.
+  try { await client.execute('DROP TABLE chapter_views') } catch {}
+
+  // Хранить историю по дням незачем: показывается только сегодняшний день.
+  await client.execute("DELETE FROM chapter_view_days WHERE day < date('now', '-7 day')")
 
   // Всегда исправлять главы с sort_order = 0 по published_at
   await client.execute(`

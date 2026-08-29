@@ -51,7 +51,9 @@ onMounted(() => {
 
   // Просмотр засчитывается отсюда, а не при рендере на сервере: до этой строки
   // доходит только тот, у кого страница действительно открылась в браузере.
-  $fetch(`/api/chapters/${encodeURIComponent(rawParam)}/view`, { method: 'POST' }).catch(() => {})
+  // Шлём уже разрешённый id, а не слаг из адреса: по нему сервер найдёт главу
+  // сразу по ключу, без перебора всех глав ради сопоставления слагов.
+  $fetch(`/api/chapters/${encodeURIComponent(chapterId)}/view`, { method: 'POST' }).catch(() => {})
 
   const saved = getSaved()
   if (saved && saved > 0.02) {

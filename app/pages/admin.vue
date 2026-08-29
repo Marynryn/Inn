@@ -529,6 +529,10 @@ useHead({
               <div class="stat-value">{{ stats?.totalViews?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Просмотров глав</div>
             </div>
+            <div class="stat-card stat-card--today">
+              <div class="stat-value">{{ stats?.viewsToday?.toLocaleString('ru') ?? 0 }}</div>
+              <div class="stat-label">Просмотров сегодня</div>
+            </div>
             <div class="stat-card">
               <div class="stat-value">{{ stats?.totalDownloads?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Скачиваний epub</div>
@@ -1215,6 +1219,13 @@ useHead({
   border: 1px solid rgba(241, 230, 210, .1);
   border-radius: var(--radius-md);
   padding: 16px 20px;
+}
+
+/* Сегодняшний счётчик — единственный живой на этом экране, остальные копятся
+   годами. Подсвечен рамкой, чтобы глаз находил его первым. */
+.stat-card--today {
+  border-color: rgba(214, 136, 62, .35);
+  background: rgba(214, 136, 62, .07);
 }
 
 .stat-value {

@@ -1,5 +1,5 @@
 import { useDb } from '../../utils/db'
-import { chapters, chapterStats, comments } from '../../database/schema'
+import { chapters, chapterStats, chapterViewDays, comments } from '../../database/schema'
 import { eq, desc, sum, count } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -19,6 +19,11 @@ export default defineEventHandler(async (event) => {
 
   const [commentCount] = await db.select({ total: count() }).from(comments)
 
+  const [today] = await db
+    .select({ total: sum(chapterViewDays.count) })
+    .from(chapterViewDays)
+    .where(eq(chapterViewDays.day, mskDay()))
+
   const topChapters = await db
     .select({
       id: chapters.id,
@@ -34,6 +39,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     totalViews: Number(totals?.totalViews ?? 0),
+    viewsToday: Number(today?.total ?? 0),
     totalDownloads: Number(totals?.totalDownloads ?? 0),
     totalComments: commentCount?.total ?? 0,
     topChapters,

@@ -1,11 +1,12 @@
 import { useDb } from '../../../utils/db'
-import { chapters, chapterStats, chapterViews } from '../../../database/schema'
-import { and, eq, sql } from 'drizzle-orm'
+import { chapters, chapterStats, chapterViewDays } from '../../../database/schema'
+import { eq, sql } from 'drizzle-orm'
 
 /**
  * Просмотр главы. Его дёргает уже загруженная страница, а не серверный рендер:
  * скрапер, который просто скачал HTML и не выполняет JS, сюда не приходит.
- * Сверху — отсев ботов по user-agent и один просмотр с адреса в сутки.
+ * Плюс отсев ботов по user-agent. Повторные заходы одного читателя считаются
+ * заново — дедупликации по адресу нет, адреса мы не храним.
  */
 export default defineEventHandler(async (event) => {
   const param = getRouterParam(event, 'id')!
@@ -24,26 +25,23 @@ export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (session.user?.role === 'admin' || isBotRequest(event)) return { ok: true, counted: false }
 
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
-  const day = new Date().toISOString().slice(0, 10)
-
-  const [seen] = await db
-    .select({ id: chapterViews.id })
-    .from(chapterViews)
-    .where(and(eq(chapterViews.chapterId, id), eq(chapterViews.ip, ip), eq(chapterViews.day, day)))
-
-  if (seen) return { ok: true, counted: false }
-
-  // Уникальный индекс подстрахует, если две вкладки откроют главу одновременно.
-  await db.insert(chapterViews).values({ chapterId: id, ip, day }).onConflictDoNothing()
-
-  await db
-    .insert(chapterStats)
-    .values({ chapterId: id, viewsCount: 1, downloadsCount: 0 })
-    .onConflictDoUpdate({
-      target: chapterStats.chapterId,
-      set: { viewsCount: sql`views_count + 1` },
-    })
+  // Обе записи одной транзакцией: порознь это два сброса на диск вместо одного.
+  await db.batch([
+    db
+      .insert(chapterViewDays)
+      .values({ chapterId: id, day: mskDay(), count: 1 })
+      .onConflictDoUpdate({
+        target: [chapterViewDays.chapterId, chapterViewDays.day],
+        set: { count: sql`count + 1` },
+      }),
+    db
+      .insert(chapterStats)
+      .values({ chapterId: id, viewsCount: 1, downloadsCount: 0 })
+      .onConflictDoUpdate({
+        target: chapterStats.chapterId,
+        set: { viewsCount: sql`views_count + 1` },
+      }),
+  ])
 
   return { ok: true, counted: true }
 })
