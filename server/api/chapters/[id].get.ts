@@ -1,6 +1,6 @@
 import { useDb } from '../../utils/db'
-import { chapters, chapterStats } from '../../database/schema'
-import { eq, sql } from 'drizzle-orm'
+import { chapters } from '../../database/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   const param = getRouterParam(event, 'id')!
@@ -17,15 +17,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Глава не найдена' })
   }
 
-  if (session.user?.role !== 'admin' && !isBotRequest(event)) {
-    await db
-      .insert(chapterStats)
-      .values({ chapterId: id, viewsCount: 1, downloadsCount: 0 })
-      .onConflictDoUpdate({
-        target: chapterStats.chapterId,
-        set: { viewsCount: sql`views_count + 1` },
-      })
-  }
-
+  // Просмотр здесь больше не считается: этот обработчик отвечает и на серверный
+  // рендер, то есть на любой скачанный HTML. Считает /api/chapters/[id]/view,
+  // который дёргает уже загруженная страница.
   return chapter
 })

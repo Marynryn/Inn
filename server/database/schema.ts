@@ -48,6 +48,15 @@ export const commentReactions = sqliteTable('comment_reactions', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
+// Кто какую главу уже открывал сегодня. Нужна только для дедупликации: один
+// просмотр с адреса в сутки. Старые строки чистятся при старте (см. migrate).
+export const chapterViews = sqliteTable('chapter_views', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  chapterId: text('chapter_id').notNull(),
+  ip: text('ip').notNull(),
+  day: text('day').notNull(), // '2026-08-29', по UTC
+})
+
 export const siteSettings = sqliteTable('site_settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull().default(''),

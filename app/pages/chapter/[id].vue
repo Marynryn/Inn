@@ -49,6 +49,10 @@ onMounted(() => {
   load()
   auth.fetchMe()
 
+  // Просмотр засчитывается отсюда, а не при рендере на сервере: до этой строки
+  // доходит только тот, у кого страница действительно открылась в браузере.
+  $fetch(`/api/chapters/${encodeURIComponent(rawParam)}/view`, { method: 'POST' }).catch(() => {})
+
   const saved = getSaved()
   if (saved && saved > 0.02) {
     document.fonts.ready.then(() => {
