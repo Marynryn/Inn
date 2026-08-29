@@ -23,6 +23,8 @@ export default defineEventHandler(async (event) => {
     .select({
       id: chapters.id,
       title: chapters.title,
+      publishedAt: chapters.publishedAt,
+      sortOrder: chapters.sortOrder,
       views: chapterStats.viewsCount,
       downloads: chapterStats.downloadsCount,
     })

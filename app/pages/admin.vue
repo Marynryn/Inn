@@ -303,6 +303,41 @@ const sendNotify = async () => {
 
 // --- Статистика ---
 const { data: stats } = await useFetch('/api/admin/stats')
+type StatsSortKey = 'order' | 'date' | 'views' | 'downloads'
+const statsSort = ref<{ key: StatsSortKey; dir: 'asc' | 'desc' }>({ key: 'views', dir: 'desc' })
+
+const toggleStatsSort = (key: StatsSortKey) => {
+  // Повторный клик по той же колонке переворачивает порядок. У новой колонки
+  // направление по умолчанию своё: главы читают сверху вниз, числа — от большего.
+  statsSort.value = statsSort.value.key === key
+    ? { key, dir: statsSort.value.dir === 'desc' ? 'asc' : 'desc' }
+    : { key, dir: key === 'views' || key === 'downloads' ? 'desc' : 'asc' }
+}
+
+const statsSortClass = (key: StatsSortKey) => ({
+  active: statsSort.value.key === key,
+  asc: statsSort.value.key === key && statsSort.value.dir === 'asc',
+})
+
+const statsQuery = ref('')
+
+const visibleStats = computed(() => {
+  const q = statsQuery.value.trim().toLowerCase()
+  const rows = (stats.value?.topChapters ?? []).filter(ch =>
+    !q || ch.id.toLowerCase().includes(q) || ch.title.toLowerCase().includes(q))
+  const { key, dir } = statsSort.value
+  const sign = dir === 'asc' ? 1 : -1
+  return rows.sort((a, b) => {
+    // «По номеру» — это порядок глав на сайте, тот самый, что задан перетаскиванием.
+    if (key === 'order') return (a.sortOrder - b.sortOrder) * sign
+    if (key === 'date') return (a.publishedAt ?? '').localeCompare(b.publishedAt ?? '') * sign
+    return ((a[key] ?? 0) - (b[key] ?? 0)) * sign
+  })
+})
+
+const formatStatsDate = (iso?: string | null) =>
+  iso ? iso.slice(0, 10).split('-').reverse().join('.') : '—'
+
 const { data: commentLogs, refresh: refreshLogs } = await useFetch('/api/admin/comments')
 
 const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'notify' | 'stats' | 'comments'>('upload')
@@ -487,7 +522,7 @@ useHead({
         </section>
 
         <!-- Статистика -->
-        <section v-if="activeTab === 'stats'" class="card">
+        <section v-if="activeTab === 'stats'" class="card card--wide">
           <h2>Статистика сайта</h2>
           <div class="stats-totals">
             <div class="stat-card">
@@ -504,11 +539,22 @@ useHead({
             </div>
           </div>
 
-          <h3 class="stats-sub">Главы по просмотрам</h3>
+          <div class="stats-tablehead">
+            <h3 class="stats-sub">Главы<span v-if="statsQuery" class="stats-found"> · найдено {{ visibleStats.length }}</span></h3>
+            <input v-model="statsQuery" class="stats-search" type="search" placeholder="Номер или название">
+          </div>
           <div class="stats-table">
-            <div v-for="ch in stats?.topChapters" :key="ch.id" class="stats-row">
+            <div class="stats-row stats-head">
+              <button class="stats-sort" :class="statsSortClass('order')" @click="toggleStatsSort('order')">Глава</button>
+              <span></span>
+              <button class="stats-sort stats-sort--date" :class="statsSortClass('date')" @click="toggleStatsSort('date')">Дата</button>
+              <button class="stats-sort stats-sort--num" :class="statsSortClass('views')" @click="toggleStatsSort('views')">Просмотры</button>
+              <button class="stats-sort stats-sort--num" :class="statsSortClass('downloads')" @click="toggleStatsSort('downloads')">Скачивания</button>
+            </div>
+            <div v-for="ch in visibleStats" :key="ch.id" class="stats-row">
               <span class="stats-id">{{ ch.id }}</span>
               <span class="stats-title">{{ ch.title }}</span>
+              <span class="stats-date">{{ formatStatsDate(ch.publishedAt) }}</span>
               <span class="stats-views">
                 <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 2C3 2 1 5.5 1 5.5S3 9 5.5 9 10 5.5 10 5.5 8 2 5.5 2z" stroke="currentColor" stroke-width="1"/><circle cx="5.5" cy="5.5" r="1.5" fill="currentColor"/></svg>
                 {{ ch.views?.toLocaleString('ru') }}
@@ -518,7 +564,9 @@ useHead({
                 {{ ch.downloads?.toLocaleString('ru') }}
               </span>
             </div>
-            <div v-if="!stats?.topChapters?.length" class="empty-hint">Нет данных</div>
+            <div v-if="!visibleStats.length" class="empty-hint">
+              {{ statsQuery ? 'Ничего не нашлось' : 'Нет данных' }}
+            </div>
           </div>
 
         </section>
@@ -1193,11 +1241,52 @@ useHead({
   letter-spacing: .06em;
 }
 
+.stats-tablehead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.stats-tablehead .stats-sub {
+  margin: 0;
+}
+
+.stats-found {
+  color: var(--ink-soft);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.stats-search {
+  background: rgba(241, 230, 210, .05);
+  border: 1px solid rgba(241, 230, 210, .18);
+  border-radius: var(--radius-md);
+  color: var(--parchment);
+  padding: 7px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  width: 240px;
+  max-width: 100%;
+}
+
+.stats-search::placeholder {
+  color: var(--ink-soft);
+}
+
+.stats-search:focus-visible {
+  outline: none;
+  border-color: var(--ember-soft);
+}
+
 .stats-table {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  max-height: 320px;
+  max-height: 560px;
   overflow-y: auto;
   border: 1px solid rgba(241, 230, 210, .07);
   border-radius: 6px;
@@ -1224,12 +1313,66 @@ useHead({
 
 .stats-row {
   display: grid;
-  grid-template-columns: 48px 1fr auto auto;
+  grid-template-columns: 52px minmax(0, 1fr) 78px 84px 92px;
   gap: 10px;
   align-items: center;
   padding: 8px 12px;
   border-bottom: 1px solid rgba(241, 230, 210, .06);
   font-size: 13px;
+}
+
+.stats-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-dark-2);
+  border-bottom: 1px solid rgba(241, 230, 210, .12);
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.stats-sort {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  transition: color .15s;
+}
+
+.stats-sort--num {
+  text-align: right;
+}
+
+.stats-sort:hover {
+  color: var(--parchment-2);
+}
+
+.stats-sort.active {
+  color: var(--ember-soft);
+}
+
+/* Стрелка только у активной колонки: ▼ по убыванию, ▲ по возрастанию. */
+.stats-sort.active::after {
+  content: ' ▼';
+  font-size: 8px;
+}
+
+.stats-sort.active.asc::after {
+  content: ' ▲';
+}
+
+.stats-date {
+  color: var(--ink-soft);
+  font-size: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .stats-id {
@@ -1249,6 +1392,7 @@ useHead({
 .stats-dl {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
   color: var(--parchment);
   font-size: 12px;
@@ -1260,6 +1404,10 @@ useHead({
 .stats-dl svg {
   opacity: .5;
   flex-shrink: 0;
+}
+
+.card--wide {
+  max-width: 1040px;
 }
 
 .card--fill {
@@ -1434,6 +1582,60 @@ useHead({
 
   .card--fill {
     height: calc(100dvh - 56px - 32px);
+  }
+
+  /* Пять колонок в телефон не влезают: название сжимается в многоточие, а
+     подписи счётчиков шире своих ячеек. Строка разворачивается в две линии —
+     сверху глава, снизу дата и счётчики. */
+  .stats-row {
+    grid-template-columns: 46px minmax(0, 1fr) auto auto;
+    column-gap: 10px;
+    row-gap: 3px;
+  }
+
+  .stats-id {
+    grid-area: 1 / 1;
+  }
+
+  .stats-title {
+    grid-area: 1 / 2 / 2 / -1;
+    white-space: normal;
+  }
+
+  .stats-date {
+    grid-area: 2 / 1 / 3 / 3;
+  }
+
+  .stats-views {
+    grid-area: 2 / 3;
+  }
+
+  .stats-dl {
+    grid-area: 2 / 4;
+  }
+
+  /* Шапка превращается в строку переключателей: сеткой её колонки не совпадут
+     с двухэтажными строками ниже. */
+  .stats-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+  }
+
+  .stats-head > span {
+    display: none;
+  }
+
+  .stats-sort--num {
+    text-align: left;
+  }
+
+  .stats-search {
+    width: 100%;
+  }
+
+  .stats-table {
+    max-height: 60dvh;
   }
 }
 
