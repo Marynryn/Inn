@@ -52,6 +52,14 @@ export default defineNuxtConfig({
     experimental: {
       database: false,
       websocket: true,
+      tasks: true,
+    },
+    // Время в UTC: контейнер Railway живёт по UTC, МСК = UTC+3. Ставить
+    // TZ=Europe/Moscow нельзя — msk.ts прибавляет три часа к UTC вручную,
+    // и смена пояса перекосит счётчики «за сегодня».
+    scheduledTasks: {
+      '7 9 * * *': ['notify-chapters'], // 12:07 МСК — основной звонок
+      '7 12 * * *': ['notify-chapters'], // 15:07 МСК — на случай деплоя в момент первого
     },
   },
 
