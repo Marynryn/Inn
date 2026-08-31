@@ -367,6 +367,7 @@ useHead({
           <button class="adm-menu-link" :class="{ active: activeTab === 'notify' }" @click="switchTab('notify')">Уведомления</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'stats' }" @click="switchTab('stats')">Статистика</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'comments' }" @click="switchTab('comments')">Комментарии</button>
+          <NuxtLink href="/game" class="adm-menu-link">Игра (обкатка)</NuxtLink>
           <button class="adm-menu-link adm-logout" @click="auth.logout().then(() => navigateTo('/login'))">Выйти</button>
         </template>
       </AppHeader>
@@ -726,6 +727,12 @@ useHead({
             <span class="sb-icon">💬</span>
             Комментарии
           </button>
+          <!-- Игра пока на обкатке: ссылки на неё нет ни в шапке сайта, ни в карте
+               сайта — попасть можно только отсюда или по прямому адресу. -->
+          <NuxtLink href="/game" class="sb-tab">
+            <span class="sb-icon">🎲</span>
+            Игра (обкатка)
+          </NuxtLink>
         </nav>
 
         <div class="sb-bottom">

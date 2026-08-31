@@ -109,6 +109,39 @@ export async function runMigrations() {
   // Хранить историю по дням незачем: показывается только сегодняшний день.
   await client.execute("DELETE FROM chapter_view_days WHERE day < date('now', '-7 day')")
 
+  // Игра «Кто из таверны»: партии игроков и сводка по персонажу дня.
+  // Уникальный индекс частичный — партия дня одна на игрока, свободных сколько угодно.
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS game_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      player TEXT NOT NULL,
+      mode TEXT NOT NULL CHECK(mode IN ('daily','endless')),
+      pool TEXT NOT NULL CHECK(pool IN ('known','all')),
+      day TEXT NOT NULL,
+      answer_id TEXT NOT NULL,
+      guesses TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL DEFAULT 'playing' CHECK(status IN ('playing','won','revealed')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      finished_at TEXT
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS game_sessions_daily
+      ON game_sessions (player, day) WHERE mode = 'daily';
+
+    CREATE INDEX IF NOT EXISTS game_sessions_player
+      ON game_sessions (player, mode, id);
+
+    CREATE TABLE IF NOT EXISTS game_daily_stats (
+      day TEXT PRIMARY KEY,
+      played INTEGER NOT NULL DEFAULT 0,
+      won INTEGER NOT NULL DEFAULT 0,
+      guesses INTEGER NOT NULL DEFAULT 0
+    );
+  `)
+
+  // Старые партии не нужны: страница показывает только сегодняшнюю и текущую свободную.
+  await client.execute("DELETE FROM game_sessions WHERE day < date('now', '-30 day')")
+
   // Всегда исправлять главы с sort_order = 0 по published_at
   await client.execute(`
     UPDATE chapters SET sort_order = (

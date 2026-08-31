@@ -56,6 +56,29 @@ export const chapterViewDays = sqliteTable('chapter_view_days', {
   count: integer('count').notNull().default(0),
 }, t => [primaryKey({ columns: [t.chapterId, t.day] })])
 
+// Партия в игре «Кто из таверны». Ответ и список попыток живут здесь, а не у
+// игрока: браузер знает только разбор своих догадок.
+export const gameSessions = sqliteTable('game_sessions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  player: text('player').notNull(), // анонимный ключ из куки
+  mode: text('mode', { enum: ['daily', 'endless'] }).notNull(),
+  pool: text('pool', { enum: ['known', 'all'] }).notNull(),
+  day: text('day').notNull(), // '2026-08-31', по Москве
+  answerId: text('answer_id').notNull(),
+  guesses: text('guesses').notNull().default('[]'), // JSON-массив id персонажей
+  status: text('status', { enum: ['playing', 'won', 'revealed'] }).notNull().default('playing'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  finishedAt: text('finished_at'),
+})
+
+// Сводка по персонажу дня — для строчки «сегодня угадали N игроков».
+export const gameDailyStats = sqliteTable('game_daily_stats', {
+  day: text('day').primaryKey(),
+  played: integer('played').notNull().default(0),
+  won: integer('won').notNull().default(0),
+  guesses: integer('guesses').notNull().default(0), // сумма попыток победителей
+})
+
 export const siteSettings = sqliteTable('site_settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull().default(''),

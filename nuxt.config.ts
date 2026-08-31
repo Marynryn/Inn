@@ -26,6 +26,9 @@ export default defineNuxtConfig({
       maxAge: 60 * 60 * 24 * 30, // 30 дней — не разлогинивать при каждом закрытии браузера
     },
     notifySecret: process.env.NOTIFY_SECRET,
+    // Семя для персонажа дня. Без него порядок вычисляется по паролю сессии —
+    // работает, но при смене пароля порядок дней перетасуется.
+    gameSecret: process.env.GAME_SECRET,
     telegram: {
       botToken: process.env.TELEGRAM_BOT_TOKEN,
       chatId: process.env.TELEGRAM_CHANNEL_ID,
