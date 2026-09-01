@@ -300,21 +300,41 @@ const shareText = computed(() => {
   return `${head}\n${result}\n\n${grid}\n\n${siteUrl}/game`
 })
 
+const toClipboard = async (text: string) => {
+  await navigator.clipboard.writeText(text)
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
+}
+
 /**
- * Системное окно «Поделиться» (на телефоне ведёт прямо в телеграм), иначе буфер
- * обмена. Оба API живут только на https или localhost — по локальной сети в
- * разработке не сработает ни одно, на бою работают оба.
+ * На телефоне — системное окно «Поделиться»: оттуда результат уходит прямо в
+ * телеграм. На компьютере такое окно только мешает (там делятся копипастой),
+ * поэтому просто кладём в буфер. Различаем по типу указателя, а не по наличию
+ * navigator.share: в десктопном Chrome он тоже есть.
+ *
+ * Оба способа работают только на https или localhost.
  */
 const share = async () => {
+  const text = shareText.value
+  const touch = window.matchMedia?.('(pointer: coarse)').matches ?? false
+
   try {
-    if (navigator.share) {
-      await navigator.share({ text: shareText.value })
+    if (touch && navigator.share) {
+      await navigator.share({ text })
       return
     }
 
-    await navigator.clipboard.writeText(shareText.value)
-    copied.value = true
-    setTimeout(() => { copied.value = false }, 2000)
+    if (navigator.clipboard) {
+      await toClipboard(text)
+      return
+    }
+
+    if (navigator.share) {
+      await navigator.share({ text })
+      return
+    }
+
+    error.value = 'Не получилось поделиться.'
   } catch (e: any) {
     // Закрыл системное окно сам — это не ошибка, молчим.
     if (e?.name === 'AbortError') return
