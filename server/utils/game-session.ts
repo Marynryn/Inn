@@ -73,24 +73,40 @@ async function translatedVolume(): Promise<number> {
  * оттуда. Иначе публикация главы нового тома посреди дня выдала бы опоздавшим
  * игрокам другого персонажа, чем тем, кто сыграл утром.
  */
-export async function dailyMaxVolume(day = mskDay()): Promise<number> {
+const DAY_CAP_KEY = 'game_day_cap' // значение вида '2026-09-01:4'
+
+const setting = async (key: string) => {
   const db = useDb()
-
-  const [started] = await db
-    .select({ maxVolume: gameSessions.maxVolume })
-    .from(gameSessions)
-    .where(and(eq(gameSessions.mode, 'daily'), eq(gameSessions.day, day)))
-    .limit(1)
-
-  if (started) return clampVolume(started.maxVolume)
-
   const [row] = await db
     .select({ value: siteSettings.value })
     .from(siteSettings)
-    .where(eq(siteSettings.key, 'game_max_volume'))
+    .where(eq(siteSettings.key, key))
 
-  const manual = Number(row?.value)
+  return row?.value ?? ''
+}
+
+export async function dailyMaxVolume(day = mskDay()): Promise<number> {
+  // Потолок дня, если он уже зафиксирован. Держим его отдельной записью, а не
+  // вычитываем из начатых партий: у старых партий столбца потолка не было вовсе,
+  // и одна такая строка задавала бы всему дню неверное значение.
+  const [frozenDay, frozenCap] = (await setting(DAY_CAP_KEY)).split(':')
+  if (frozenDay === day && Number(frozenCap) >= 1) return clampVolume(frozenCap)
+
+  const manual = Number(await setting('game_max_volume'))
   return manual >= 1 ? clampVolume(manual) : translatedVolume()
+}
+
+/**
+ * Фиксирует потолок за днём — вызывается, когда заводится первая партия дня.
+ * Дальше он не меняется, даже если выложить главу нового тома в обед: иначе
+ * опоздавшие получили бы другого персонажа, чем те, кто сыграл утром.
+ */
+async function freezeDailyCap(day: string, cap: number) {
+  const db = useDb()
+  await db
+    .insert(siteSettings)
+    .values({ key: DAY_CAP_KEY, value: `${day}:${cap}` })
+    .onConflictDoUpdate({ target: siteSettings.key, set: { value: `${day}:${cap}` } })
 }
 
 /**
@@ -124,7 +140,9 @@ async function bumpStats(
 
 async function createDaily(player: string, day: string, isAdmin: boolean): Promise<SessionRow> {
   const db = useDb()
-  const maxVolume = await dailyMaxVolume()
+  const maxVolume = await dailyMaxVolume(day)
+  await freezeDailyCap(day, maxVolume)
+
   const answer = await dailyCharacter(day, maxVolume)
 
   await db

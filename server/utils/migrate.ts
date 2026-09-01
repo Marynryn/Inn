@@ -154,6 +154,17 @@ export async function runMigrations() {
     // Столбец уже существует — это нормально
   }
 
+  // Партии, заведённые до появления потолка тома, получили при ALTER значение по
+  // умолчанию — десятый том. Такая партия показывает спойлерные колонки и
+  // персонажей из непереведённых томов, поэтому разово их выбрасываем. Метка в
+  // настройках следит, чтобы уборка случилась один раз и не сносила потом
+  // партии живых игроков.
+  const reset = await client.execute("SELECT value FROM site_settings WHERE key = 'game_sessions_reset'")
+  if (reset.rows.length === 0) {
+    await client.execute('DELETE FROM game_sessions')
+    await client.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('game_sessions_reset', '1')")
+  }
+
   // Старые партии не нужны: страница показывает только сегодняшнюю и текущую свободную.
   await client.execute("DELETE FROM game_sessions WHERE day < date('now', '-30 day')")
 
