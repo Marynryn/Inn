@@ -354,19 +354,45 @@ function plural(n: number) {
 const gameDescription = 'Угадай персонажа The Wandering Inn по признакам: вид, занятие, том появления. '
   + 'Новый персонаж каждый день, без спойлеров дальше переведённых томов.'
 
+const gameTitle = 'Кто из таверны · Странствующая Таверна — игра по The Wandering Inn'
+
 useHead({
-  title: 'Кто из таверны — игра по The Wandering Inn',
+  title: gameTitle,
   link: [{ rel: 'canonical', href: `${siteUrl}/game` }],
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'Game',
+        name: 'Кто из таверны',
+        url: `${siteUrl}/game`,
+        description: gameDescription,
+        inLanguage: 'ru',
+        genre: 'Викторина',
+        gamePlatform: 'Веб-браузер',
+        isPartOf: {
+          '@type': 'WebSite',
+          name: 'Странствующая Таверна',
+          url: siteUrl,
+        },
+      }),
+    },
+  ],
 })
 
 useSeoMeta({
   description: gameDescription,
-  ogTitle: 'Кто из таверны — игра по The Wandering Inn',
+  ogTitle: gameTitle,
   ogDescription: gameDescription,
   ogUrl: `${siteUrl}/game`,
   ogType: 'website',
   ogLocale: 'ru_RU',
-  twitterCard: 'summary',
+  ogImage: `${siteUrl}/hero.png`,
+  twitterCard: 'summary_large_image',
+  twitterTitle: gameTitle,
+  twitterDescription: gameDescription,
+  twitterImage: `${siteUrl}/hero.png`,
 })
 </script>
 
@@ -536,8 +562,18 @@ useSeoMeta({
           <span><i class="sw partial" /> совпало частично</span>
           <span><i class="sw miss" /> мимо</span>
           <span><i class="sw miss"><span class="arrow up" /></i> у загаданного больше</span>
-          <button v-if="!finished && state.guesses.length >= 5" class="giveup" @click="giveUp">Сдаться</button>
         </div>
+
+        <!-- Отдельной строкой, а не в ряду легенды: там кнопка терялась среди
+             пояснений, особенно на телефоне, где ряд переносится. -->
+        <button
+          v-if="!finished && state.guesses.length >= 5"
+          class="btn btn-ghost giveup"
+          :disabled="sending"
+          @click="giveUp"
+        >
+          Сдаться и посмотреть ответ
+        </button>
 
       </template>
     </main>
@@ -1033,14 +1069,8 @@ useSeoMeta({
 .sw.miss { background: #3a2f27; color: var(--text-muted); }
 
 .giveup {
-  margin-left: auto;
-  font-family: var(--font-body);
-  font-size: 12px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  text-decoration: underline;
-  cursor: pointer;
+  display: block;
+  margin: 20px auto 0;
 }
 
 .giveup:hover {

@@ -99,15 +99,30 @@ const unescapeXml = s => s
   .replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, d) => String.fromCharCode(+d))
   .replace(/&amp;/g, '&')
 
-function sheetRows(xml) {
+/**
+ * Текст ячейки xlsx хранится двумя способами, и оба нам попадались: прямо в
+ * ячейке (inlineStr — так отдаёт Excel) или ссылкой в общую таблицу строк
+ * (t="s" — так выгружает Google Sheets). Разбираем и то, и другое.
+ */
+function sharedStrings(xml) {
+  if (!xml) return []
+  return [...xml.matchAll(/<si>([\s\S]*?)<\/si>/g)].map(m =>
+    [...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(t => unescapeXml(t[1])).join(''),
+  )
+}
+
+function sheetRows(xml, strings = []) {
   const rows = []
   for (const rowXml of xml.match(/<row[\s\S]*?<\/row>/g) ?? []) {
     const cells = []
     for (const cell of rowXml.match(/<c [\s\S]*?(?:\/>|<\/c>)/g) ?? []) {
       const ref = cell.match(/r="([A-Z]+)\d+"/)?.[1] ?? ''
       const col = [...ref].reduce((acc, ch) => acc * 26 + (ch.charCodeAt(0) - 64), 0) - 1
-      const text = [...cell.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(m => unescapeXml(m[1])).join('')
-      cells[col] = text
+
+      const inline = [...cell.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(m => unescapeXml(m[1])).join('')
+      const shared = cell.includes('t="s"') ? strings[Number(cell.match(/<v>(\d+)<\/v>/)?.[1])] : null
+
+      cells[col] = inline || shared || ''
     }
     rows.push(Array.from(cells, v => (v ?? '').trim()))
   }
@@ -129,7 +144,13 @@ const key = s => s
   .toLowerCase()
 
 const zip = await JSZip.loadAsync(readFileSync(SRC))
-const rows = sheetRows(await zip.file('xl/worksheets/sheet1.xml').async('string'))
+const strings = sharedStrings(await zip.file('xl/sharedStrings.xml')?.async('string'))
+const rows = sheetRows(await zip.file('xl/worksheets/sheet1.xml').async('string'), strings)
+
+if (rows.length < 2) {
+  console.error(`В листе не нашлось строк. Проверь, что ${SRC} — это глоссарий, а не другой файл.`)
+  process.exit(1)
+}
 
 const dictionary = new Map()
 for (const [en, ru] of rows.slice(1)) {
