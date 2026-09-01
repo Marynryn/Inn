@@ -120,6 +120,14 @@ useSeoMeta({
 
     <!-- <AdSlot id="index-top" /> -->
 
+    <div class="game-wrap">
+      <GameCta
+        :title="settings?.game_cta_title"
+        :text="settings?.game_cta_text"
+        :max-volume="settings?.game_volume_effective"
+      />
+    </div>
+
     <!-- ОГЛАВЛЕНИЕ -->
     <div class="ledger" id="ledger">
       <div class="ledger-head">
@@ -347,6 +355,13 @@ useSeoMeta({
   right: -4px;
   bottom: -5px;
   line-height: 0;
+}
+
+/* Плашка игры стоит перед оглавлением и повторяет его ширину. */
+.game-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 20px 0;
 }
 
 .tg-wrap {

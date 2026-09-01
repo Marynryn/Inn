@@ -123,6 +123,7 @@ onUnmounted(() => {
       <!-- обычный режим: ссылки + бургер справа -->
       <template v-else-if="showNavLinks">
         <a href="/#ledger" class="nav-link hide-mobile" @click="goToChapters">Главы</a>
+        <NuxtLink href="/game" class="nav-link hide-mobile">Игра</NuxtLink>
         <NuxtLink v-if="commentsHref" :href="commentsHref" class="nav-link hide-mobile">Обсуждение</NuxtLink>
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
           Telegram <span class="ext">↗</span>
@@ -148,6 +149,7 @@ onUnmounted(() => {
           {{ backToChapterLabel || '← К главе' }}
         </NuxtLink>
         <a href="/#ledger" class="menu-link" @click="goToChapters">Главы</a>
+        <NuxtLink href="/game" class="menu-link" @click="menuOpen = false">Игра</NuxtLink>
         <NuxtLink v-if="commentsHref" :href="commentsHref" class="menu-link" @click="menuOpen = false">
           {{ commentsLabel || 'Обсуждение главы' }}
         </NuxtLink>

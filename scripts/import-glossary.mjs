@@ -12,7 +12,7 @@
 import JSZip from 'jszip'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { unpackCharacters } from '../server/utils/game-pack.ts'
+import { fullNameOf, unpackCharacters } from '../server/utils/game-pack.ts'
 
 const SRC = resolve(process.argv[2] ?? '.data/game/glossary.xlsx')
 const PACK = resolve('server/assets/game/characters.pack')
@@ -191,16 +191,22 @@ function translate(value) {
 const characters = unpackCharacters(readFileSync(PACK, 'utf8'))
 
 const names = {}
+const fullNames = {}
 const missingNames = []
 
 for (const c of characters) {
-  // Сначала само имя, потом полное имя из псевдонимов («Erin» → «Erin Solstice»):
-  // прозвища не берём, иначе в списке окажется титул вместо имени.
-  const candidates = [c.name, ...c.aliases.filter(a => a.startsWith(`${c.name} `))]
-  const hit = candidates.map(translate).find(Boolean)
+  const full = fullNameOf(c)
 
-  if (hit) names[c.name] = hit
-  else missingNames.push(c.name)
+  // Имя и фамилия переводятся порознь: в игре показываем полное имя, если оно
+  // есть в глоссарии, а по короткому всё равно ищем.
+  const short = translate(c.name)
+  const whole = full !== c.name ? translate(full) : null
+
+  if (short) names[c.name] = short
+  if (whole && whole !== short) fullNames[c.name] = whole
+
+  if (!short && !whole) missingNames.push(c.name)
+  else if (!short && whole) names[c.name] = whole
 }
 
 const terms = {}
@@ -230,10 +236,12 @@ writeFileSync(OUT, `${JSON.stringify({
     'Словарь игры «Кто из таверны». Собирается из рабочего глоссария перевода:',
     'node scripts/import-glossary.mjs [путь-к-xlsx]. Правки руками переживут только',
     'до следующего запуска импорта — лучше править сам глоссарий.',
-    'names — имена персонажей, terms — виды, организации, континенты, занятия, классы.',
+    'names — короткие имена, fullNames — имя с фамилией (показываем его, если есть),',
+    'terms — виды, организации, континенты, занятия, классы.',
     'Чего здесь нет, то показывается по-английски. Сервер читает файл на лету.',
   ],
   names: sorted(names),
+  fullNames: sorted(fullNames),
   terms: sorted(terms),
 }, null, 2)}\n`, 'utf8')
 
@@ -241,6 +249,7 @@ const pct = (n, total) => `${Math.round((n / total) * 100)}%`
 
 console.log(`Строк в глоссарии: ${dictionary.size}`)
 console.log(`Имена: ${Object.keys(names).length} из ${characters.length} (${pct(Object.keys(names).length, characters.length)})`)
+console.log(`Имена с фамилией: ${Object.keys(fullNames).length}`)
 console.log(`Термины: ${Object.keys(terms).length} (из них ${fromFallback} служебных, не из глоссария), без перевода осталось ${missingTerms.size}`)
 console.log(`Без перевода (примеры имён): ${missingNames.slice(0, 8).join(', ')}`)
 console.log(`Без перевода (примеры терминов): ${[...missingTerms].slice(0, 8).join(', ')}`)

@@ -3,6 +3,5 @@ Allow: /
 Disallow: /admin
 Disallow: /login
 Disallow: /api/
-Disallow: /game
 
 Sitemap: https://taverna-book.com/sitemap.xml

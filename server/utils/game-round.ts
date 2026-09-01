@@ -7,6 +7,7 @@ import {
   type GameGuessRow,
 } from '#shared/utils/gameColumns'
 import { ruName, ruTerm, useGlossary, type GameCharacter } from './game-data'
+import { fullNameOf } from './game-pack'
 
 /**
  * Разбор одной попытки. Наружу уходит только то, что игрок и так уже назвал:
@@ -95,7 +96,7 @@ export async function buildAnswerCard(answer: GameCharacter, maxVolume: number) 
   return {
     id: answer.id,
     name: ruName(answer, glossary),
-    original: answer.name,
+    original: fullNameOf(answer),
     image: answer.image,
     row: await buildGuessRow(answer, answer, maxVolume),
   }

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, max, sql } from 'drizzle-orm'
 import { GAME_LAST_VOLUME, type GameMode, type GameStatus } from '#shared/utils/gameColumns'
-import { gameDailyStats, gameSessions, siteSettings } from '../database/schema'
+import { chapters, gameSessions, gameStats, siteSettings } from '../database/schema'
 import { useDb } from './db'
 import { MSK_OFFSET_MS, mskDay } from './msk'
 import { DAILY_POOL, clampVolume, dailyCharacter, findAnyCharacter, findCharacter, poolCharacters, randomCharacter, type Pool } from './game-data'
@@ -50,35 +50,89 @@ export const nextDailyAt = (day: string) =>
   new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000 - MSK_OFFSET_MS).toISOString()
 
 /**
- * Потолок тома для персонажа дня. Он один на всех и задаётся в админке: держать
- * его на границе перевода — единственный способ не спойлерить тем, кто читает
- * только нас. В свободной игре потолок выбирает сам игрок.
+ * Граница перевода: самый поздний том среди опубликованных глав. Пока настройка
+ * пуста, игра держится за неё сама — дошёл перевод до пятого тома, и персонаж
+ * дня начинает брать оттуда же. Глав нет вовсе (пустой сайт) — прятать не от
+ * кого, отдаём весь диапазон.
  */
-export async function dailyMaxVolume(): Promise<number> {
+async function translatedVolume(): Promise<number> {
   const db = useDb()
+  const [row] = await db
+    .select({ volume: max(chapters.volume) })
+    .from(chapters)
+    .where(eq(chapters.isPublished, true))
+
+  return row?.volume ? clampVolume(row.volume) : GAME_LAST_VOLUME
+}
+
+/**
+ * Потолок тома для персонажа дня — один на всех. Пустая настройка означает «по
+ * переводу», число — ручной потолок.
+ *
+ * Внутри дня потолок не меняется: если партии на сегодня уже заводили, берём его
+ * оттуда. Иначе публикация главы нового тома посреди дня выдала бы опоздавшим
+ * игрокам другого персонажа, чем тем, кто сыграл утром.
+ */
+export async function dailyMaxVolume(day = mskDay()): Promise<number> {
+  const db = useDb()
+
+  const [started] = await db
+    .select({ maxVolume: gameSessions.maxVolume })
+    .from(gameSessions)
+    .where(and(eq(gameSessions.mode, 'daily'), eq(gameSessions.day, day)))
+    .limit(1)
+
+  if (started) return clampVolume(started.maxVolume)
+
   const [row] = await db
     .select({ value: siteSettings.value })
     .from(siteSettings)
     .where(eq(siteSettings.key, 'game_max_volume'))
 
-  return clampVolume(row?.value ?? GAME_LAST_VOLUME)
+  const manual = Number(row?.value)
+  return manual >= 1 ? clampVolume(manual) : translatedVolume()
 }
 
-async function createDaily(player: string, day: string): Promise<SessionRow> {
+/**
+ * Плюс к счётчикам за день. Партии администраторов не считаем вовсе: игру гоняем
+ * мы сами чаще всех, и в статистике это только шум.
+ */
+async function bumpStats(
+  day: string,
+  mode: GameMode,
+  isAdmin: boolean,
+  add: Partial<Record<'played' | 'won' | 'guesses' | 'winGuesses', number>>,
+) {
+  if (isAdmin) return
+
+  const db = useDb()
+  const { played = 0, won = 0, guesses = 0, winGuesses = 0 } = add
+
+  await db
+    .insert(gameStats)
+    .values({ day, mode, played, won, guesses, winGuesses })
+    .onConflictDoUpdate({
+      target: [gameStats.day, gameStats.mode],
+      set: {
+        played: sql`played + ${played}`,
+        won: sql`won + ${won}`,
+        guesses: sql`guesses + ${guesses}`,
+        winGuesses: sql`win_guesses + ${winGuesses}`,
+      },
+    })
+}
+
+async function createDaily(player: string, day: string, isAdmin: boolean): Promise<SessionRow> {
   const db = useDb()
   const maxVolume = await dailyMaxVolume()
   const answer = await dailyCharacter(day, maxVolume)
 
-  await db.batch([
-    db
-      .insert(gameSessions)
-      .values({ player, mode: 'daily', pool: DAILY_POOL, maxVolume, day, answerId: answer.id })
-      .onConflictDoNothing(),
-    db
-      .insert(gameDailyStats)
-      .values({ day, played: 1, won: 0, guesses: 0 })
-      .onConflictDoUpdate({ target: gameDailyStats.day, set: { played: sql`played + 1` } }),
-  ])
+  await db
+    .insert(gameSessions)
+    .values({ player, mode: 'daily', pool: DAILY_POOL, maxVolume, day, answerId: answer.id })
+    .onConflictDoNothing()
+
+  await bumpStats(day, 'daily', isAdmin, { played: 1 })
 
   const [row] = await db
     .select()
@@ -88,10 +142,18 @@ async function createDaily(player: string, day: string): Promise<SessionRow> {
   return row!
 }
 
-async function createEndless(player: string, pool: Pool, maxVolume: number): Promise<SessionRow> {
+async function createEndless(
+  player: string,
+  pool: Pool,
+  maxVolume: number,
+  isAdmin = false,
+): Promise<SessionRow> {
   const db = useDb()
   const cap = clampVolume(maxVolume)
   const answer = await randomCharacter(pool, cap)
+  const day = mskDay()
+
+  await bumpStats(day, 'endless', isAdmin, { played: 1 })
 
   // Прошлые свободные партии не храним: их незачем показывать и незачем возвращать.
   await db
@@ -100,7 +162,7 @@ async function createEndless(player: string, pool: Pool, maxVolume: number): Pro
 
   const [row] = await db
     .insert(gameSessions)
-    .values({ player, mode: 'endless', pool, maxVolume: cap, day: mskDay(), answerId: answer.id })
+    .values({ player, mode: 'endless', pool, maxVolume: cap, day, answerId: answer.id })
     .returning()
 
   return row!
@@ -112,6 +174,7 @@ export async function currentSession(
   mode: GameMode,
   pool: Pool,
   maxVolume = GAME_LAST_VOLUME,
+  isAdmin = false,
 ): Promise<SessionRow> {
   const db = useDb()
 
@@ -122,7 +185,7 @@ export async function currentSession(
       .from(gameSessions)
       .where(and(eq(gameSessions.player, player), eq(gameSessions.mode, 'daily'), eq(gameSessions.day, day)))
 
-    return row ?? await createDaily(player, day)
+    return row ?? await createDaily(player, day, isAdmin)
   }
 
   const [row] = await db
@@ -132,19 +195,24 @@ export async function currentSession(
     .orderBy(desc(gameSessions.id))
     .limit(1)
 
-  return row ?? await createEndless(player, pool, maxVolume)
+  return row ?? await createEndless(player, pool, maxVolume, isAdmin)
 }
 
 export const startEndless = createEndless
 
+/** Строчка «сегодня угадали N игроков» — только про персонажа дня. */
 async function dailySummary(day: string) {
   const db = useDb()
-  const [row] = await db.select().from(gameDailyStats).where(eq(gameDailyStats.day, day))
+  const [row] = await db
+    .select()
+    .from(gameStats)
+    .where(and(eq(gameStats.day, day), eq(gameStats.mode, 'daily')))
 
   return {
     played: row?.played ?? 0,
     won: row?.won ?? 0,
-    averageGuesses: row?.won ? Math.round((row.guesses / row.won) * 10) / 10 : 0,
+    // Среднее считаем по победителям: попытки проигравших сюда мешать нельзя.
+    averageGuesses: row?.won ? Math.round((row.winGuesses / row.won) * 10) / 10 : 0,
   }
 }
 
@@ -182,7 +250,7 @@ export async function sessionState(row: SessionRow) {
 }
 
 /** Записывает попытку и, если угадали, закрывает партию. */
-export async function applyGuess(row: SessionRow, guessId: string) {
+export async function applyGuess(row: SessionRow, guessId: string, isAdmin = false) {
   const db = useDb()
 
   if (row.status !== 'playing') {
@@ -215,15 +283,10 @@ export async function applyGuess(row: SessionRow, guessId: string) {
     })
     .where(eq(gameSessions.id, row.id))
 
-  if (won && row.mode === 'daily') {
-    await db
-      .insert(gameDailyStats)
-      .values({ day: row.day, played: 1, won: 1, guesses: guesses.length })
-      .onConflictDoUpdate({
-        target: gameDailyStats.day,
-        set: { won: sql`won + 1`, guesses: sql`guesses + ${guesses.length}` },
-      })
-  }
+  await bumpStats(row.day, row.mode as GameMode, isAdmin, {
+    guesses: 1,
+    ...(won ? { won: 1, winGuesses: guesses.length } : {}),
+  })
 
   return {
     row: await buildGuessRow(guess, answer, row.maxVolume),

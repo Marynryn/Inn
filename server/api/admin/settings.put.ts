@@ -5,7 +5,8 @@ const ALLOWED_KEYS = [
   'hero_title', 'hero_subtitle', 'ledger_note', 'footer_text',
   'telegram_url', 'boosty_url', 'tribute_url',
   'about_title', 'about_text',
-  'error_404_sub', 'update_schedule', 'game_max_volume',
+  'error_404_sub', 'update_schedule',
+  'game_max_volume', 'game_cta_title', 'game_cta_text',
   'tg_cta_title', 'tg_cta_text',
 ]
 

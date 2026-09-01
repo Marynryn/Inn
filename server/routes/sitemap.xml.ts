@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
   const urls = [
     `<url><loc>${base}/</loc>${latestLastmod ? `<lastmod>${latestLastmod}</lastmod>` : ''}<changefreq>weekly</changefreq><priority>1.0</priority></url>`,
     `<url><loc>${base}/about</loc>${latestLastmod ? `<lastmod>${latestLastmod}</lastmod>` : ''}<changefreq>monthly</changefreq><priority>0.5</priority></url>`,
+    `<url><loc>${base}/game</loc><changefreq>daily</changefreq><priority>0.6</priority></url>`,
     ...rows.map(c => {
       const slug = encodeURIComponent(slugifyChapterId(c.id))
       const lastmod = c.publishedAt ? c.publishedAt.slice(0, 10) : ''

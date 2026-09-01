@@ -197,6 +197,8 @@ const form = reactive({
   error_404_sub: '',
   update_schedule: '',
   game_max_volume: '',
+  game_cta_title: '',
+  game_cta_text: '',
   tg_cta_title: '',
   tg_cta_text: '',
 })
@@ -368,7 +370,7 @@ useHead({
           <button class="adm-menu-link" :class="{ active: activeTab === 'notify' }" @click="switchTab('notify')">Уведомления</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'stats' }" @click="switchTab('stats')">Статистика</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'comments' }" @click="switchTab('comments')">Комментарии</button>
-          <NuxtLink href="/game" class="adm-menu-link">Игра (обкатка)</NuxtLink>
+          <NuxtLink href="/game" class="adm-menu-link">Игра</NuxtLink>
           <button class="adm-menu-link adm-logout" @click="auth.logout().then(() => navigateTo('/login'))">Выйти</button>
         </template>
       </AppHeader>
@@ -545,6 +547,30 @@ useHead({
             </div>
           </div>
 
+          <h3 class="stats-sub">Игра «Кто из таверны»</h3>
+          <div class="game-stats">
+            <div class="game-stats-row game-stats-head">
+              <span></span>
+              <span>Сегодня</span>
+              <span>За всё время</span>
+            </div>
+            <div class="game-stats-row">
+              <span>Партий</span>
+              <span>{{ (stats?.game?.today?.played ?? 0).toLocaleString('ru') }}</span>
+              <span>{{ (stats?.game?.total?.played ?? 0).toLocaleString('ru') }}</span>
+            </div>
+            <div class="game-stats-row">
+              <span>Угадано</span>
+              <span>{{ (stats?.game?.today?.won ?? 0).toLocaleString('ru') }}</span>
+              <span>{{ (stats?.game?.total?.won ?? 0).toLocaleString('ru') }}</span>
+            </div>
+            <div class="game-stats-row">
+              <span>Попыток</span>
+              <span>{{ (stats?.game?.today?.guesses ?? 0).toLocaleString('ru') }}</span>
+              <span>{{ (stats?.game?.total?.guesses ?? 0).toLocaleString('ru') }}</span>
+            </div>
+          </div>
+
           <div class="stats-tablehead">
             <h3 class="stats-sub">Главы<span v-if="statsQuery" class="stats-found"> · найдено {{ visibleStats.length }}</span></h3>
             <input v-model="statsQuery" class="stats-search" type="search" placeholder="Номер или название">
@@ -654,11 +680,24 @@ useHead({
           </div>
           <div class="field-row">
             <label>Игра: до какого тома</label>
-            <input v-model="form.game_max_volume" type="number" min="1" max="10" placeholder="4">
+            <input v-model="form.game_max_volume" type="number" min="1" max="10" placeholder="пусто — по переводу">
             <span class="field-hint">
-              Персонаж дня берётся из персонажей, появившихся до этого тома, а спойлерные
-              признаки скрываются. Держи на границе перевода: тогда игра не выдаст того,
-              до чего читатель ещё не дошёл. В свободной игре том выбирает сам игрок.
+              Оставь пустым — потолок держится за границу перевода сам: берётся самый поздний
+              том среди опубликованных глав. Число ставь, только если нужно открыть игру шире
+              или, наоборот, придержать. Персонаж дня берётся из тех, кто появился до этого
+              тома, спойлерные признаки скрываются; в свободной игре том выбирает сам игрок.
+            </span>
+          </div>
+          <div class="field-row">
+            <label>Игра: заголовок баннера</label>
+            <input v-model="form.game_cta_title" type="text" placeholder="Кто из таверны?">
+          </div>
+          <div class="field-row">
+            <label>Игра: текст баннера</label>
+            <textarea v-model="form.game_cta_text" rows="3" />
+            <span class="field-hint">
+              Плашка на главной, перед оглавлением. Вместо <b>{том}</b> подставится номер
+              из поля выше — так обещание «без спойлеров» не устареет, когда перевод уйдёт дальше.
             </span>
           </div>
           <button class="btn-action" :disabled="savingSettings" @click="saveSettings">
@@ -737,11 +776,9 @@ useHead({
             <span class="sb-icon">💬</span>
             Комментарии
           </button>
-          <!-- Игра пока на обкатке: ссылки на неё нет ни в шапке сайта, ни в карте
-               сайта — попасть можно только отсюда или по прямому адресу. -->
           <NuxtLink href="/game" class="sb-tab">
             <span class="sb-icon">🎲</span>
-            Игра (обкатка)
+            Игра
           </NuxtLink>
         </nav>
 
@@ -1673,6 +1710,34 @@ useHead({
   line-height: 1.5;
   color: var(--ink-soft);
   margin: 0 0 14px;
+}
+
+/* ── Счётчики игры ──────────────────────────── */
+.game-stats {
+  max-width: 460px;
+  margin-bottom: 8px;
+}
+
+.game-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 110px 110px;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(42, 30, 22, .08);
+  font-size: 13.5px;
+}
+
+/* Числа стоят по центру своей колонки — ровно под подписью «Сегодня» и «За всё время». */
+.game-stats-row span:not(:first-child) {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-stats-head {
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
 }
 
 /* Пояснение под полем настройки — там, где одного названия мало. */

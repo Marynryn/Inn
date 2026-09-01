@@ -9,12 +9,14 @@ export default defineEventHandler(async (event) => {
   const { mode, pool, maxVolume } = getQuery(event)
   const daily = mode !== 'endless'
 
+  const isAdmin = (await getUserSession(event)).user?.role === 'admin'
   const player = playerKey(event)
   const row = await currentSession(
     player,
     daily ? 'daily' : 'endless',
     isPool(pool) ? pool : 'known',
     daily ? await dailyMaxVolume() : clampVolume(maxVolume),
+    isAdmin,
   )
 
   return sessionState(row)

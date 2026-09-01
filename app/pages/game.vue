@@ -51,6 +51,7 @@ const query = ref('')
 const highlighted = ref(0)
 const open = ref(false)
 const inputEl = ref<HTMLInputElement | null>(null)
+const listEl = ref<HTMLElement | null>(null)
 
 const pool = computed<Pool>(() => state.value?.pool ?? 'known')
 const maxVolume = computed(() => state.value?.maxVolume ?? GAME_LAST_VOLUME)
@@ -125,6 +126,8 @@ const suggestions = computed(() => {
   const q = normalize(query.value)
   if (!q) return []
 
+  // Список не обрезаем: показываем всех подходящих, а сам список прокручивается.
+  // Сначала те, у кого совпало начало имени или фамилии, потом совпадения внутри.
   const found: NameEntry[] = []
   const loose: NameEntry[] = []
 
@@ -136,14 +139,17 @@ const suggestions = computed(() => {
 
     if (name.startsWith(q) || original.startsWith(q)) found.push(entry)
     else if (name.includes(q) || original.includes(q)) loose.push(entry)
-
-    if (found.length >= 8) break
   }
 
-  return [...found, ...loose].slice(0, 8)
+  return [...found, ...loose]
 })
 
 watch(suggestions, () => { highlighted.value = 0 })
+
+// Список прокручиваемый: стрелками можно уйти за его край, тянем строку в видимую часть.
+watch(highlighted, (i) => {
+  nextTick(() => (listEl.value?.children[i] as HTMLElement | undefined)?.scrollIntoView({ block: 'nearest' }))
+})
 
 const onInput = () => {
   open.value = true
@@ -325,11 +331,22 @@ function plural(n: number) {
 }
 
 
+const gameDescription = 'Угадай персонажа The Wandering Inn по признакам: вид, занятие, том появления. '
+  + 'Новый персонаж каждый день, без спойлеров дальше переведённых томов.'
+
 useHead({
   title: 'Кто из таверны — игра по The Wandering Inn',
-  // Игра на обкатке: ссылки на неё есть только в админке, поисковикам её не показываем.
-  // Когда откроем для всех — снять noindex, вернуть ссылку в шапку и строку в sitemap.
-  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+  link: [{ rel: 'canonical', href: `${siteUrl}/game` }],
+})
+
+useSeoMeta({
+  description: gameDescription,
+  ogTitle: 'Кто из таверны — игра по The Wandering Inn',
+  ogDescription: gameDescription,
+  ogUrl: `${siteUrl}/game`,
+  ogType: 'website',
+  ogLocale: 'ru_RU',
+  twitterCard: 'summary',
 })
 </script>
 
@@ -411,7 +428,7 @@ useHead({
             @focus="open = true"
             @blur="open = false"
           >
-          <ul v-if="open && suggestions.length" class="suggest">
+          <ul v-if="open && suggestions.length" ref="listEl" class="suggest">
             <li
               v-for="(entry, i) in suggestions"
               :key="entry.id"
@@ -750,6 +767,37 @@ useHead({
   border: 1px solid rgba(241, 230, 210, .16);
   border-radius: var(--radius-sm);
   box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .9);
+  /* Совпадений может быть много — список прокручивается сам, а не растёт на весь экран. */
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Тонкая полупрозрачная полоса вместо системной: та на тёмном фоне выглядит
+     чужеродной серой плашкой. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(241, 230, 210, .22) transparent;
+}
+
+.suggest::-webkit-scrollbar {
+  width: 6px;
+}
+
+.suggest::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.suggest::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: rgba(241, 230, 210, .18);
+}
+
+.suggest::-webkit-scrollbar-thumb:hover {
+  background: rgba(241, 230, 210, .32);
+}
+
+@media (max-width: 620px) {
+  .suggest {
+    max-height: 250px;
+  }
 }
 
 .suggest-item {

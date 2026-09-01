@@ -14,11 +14,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<{ pool?: string; maxVolume?: number }>(event)
+  const isAdmin = (await getUserSession(event)).user?.role === 'admin'
   const player = playerKey(event)
   const row = await startEndless(
     player,
     isPool(body?.pool) ? body.pool : 'known',
     clampVolume(body?.maxVolume),
+    isAdmin,
   )
 
   return sessionState(row)

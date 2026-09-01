@@ -72,13 +72,16 @@ export const gameSessions = sqliteTable('game_sessions', {
   finishedAt: text('finished_at'),
 })
 
-// Сводка по персонажу дня — для строчки «сегодня угадали N игроков».
-export const gameDailyStats = sqliteTable('game_daily_stats', {
-  day: text('day').primaryKey(),
+// Счётчики игры по дням и режимам. Партии администраторов сюда не попадают:
+// мы сами гоняем игру чаще всех, и в статистике это только мешает.
+export const gameStats = sqliteTable('game_stats', {
+  day: text('day').notNull(), // '2026-09-01', по Москве
+  mode: text('mode', { enum: ['daily', 'endless'] }).notNull(),
   played: integer('played').notNull().default(0),
   won: integer('won').notNull().default(0),
-  guesses: integer('guesses').notNull().default(0), // сумма попыток победителей
-})
+  guesses: integer('guesses').notNull().default(0), // все попытки, включая проигранные партии
+  winGuesses: integer('win_guesses').notNull().default(0), // попытки только победителей
+}, t => [primaryKey({ columns: [t.day, t.mode] })])
 
 export const siteSettings = sqliteTable('site_settings', {
   key: text('key').primaryKey(),

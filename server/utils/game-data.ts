@@ -2,7 +2,7 @@ import { createHash, createHmac } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { GAME_LAST_VOLUME } from '#shared/utils/gameColumns'
-import { unpackCharacters, type PackedCharacter } from './game-pack'
+import { fullNameOf, unpackCharacters, type PackedCharacter } from './game-pack'
 
 /**
  * База персонажей для игры. Живёт только на сервере: файл лежит в server/assets,
@@ -26,7 +26,11 @@ export const DAILY_POOL: Pool = 'known'
 
 export const isPool = (v: unknown): v is Pool => v === 'known' || v === 'all'
 
-type Glossary = { names: Record<string, string>; terms: Record<string, string> }
+type Glossary = {
+  names: Record<string, string>
+  fullNames: Record<string, string>
+  terms: Record<string, string>
+}
 
 let charactersCache: GameCharacter[] | null = null
 let glossaryCache: Glossary | null = null
@@ -69,12 +73,21 @@ export async function useGlossary(): Promise<Glossary> {
   const plainObject = typeof raw === 'object' && raw !== null && !(raw instanceof Uint8Array) && !(raw instanceof ArrayBuffer)
   const parsed = (plainObject ? raw : JSON.parse(asText(raw))) as Partial<Glossary>
 
-  glossaryCache = { names: parsed.names ?? {}, terms: parsed.terms ?? {} }
+  glossaryCache = {
+    names: parsed.names ?? {},
+    fullNames: parsed.fullNames ?? {},
+    terms: parsed.terms ?? {},
+  }
   return glossaryCache
 }
 
-/** Имя персонажа по-русски; нет в глоссарии — показываем оригинал. */
-export const ruName = (c: GameCharacter, g: Glossary) => g.names[c.name] ?? c.name
+/**
+ * Имя персонажа по-русски — с фамилией, если она есть в глоссарии: искать по
+ * «Весностранница» нужно не меньше, чем по «Сирия». Нет перевода — показываем
+ * оригинал, тоже полным именем.
+ */
+export const ruName = (c: GameCharacter, g: Glossary) =>
+  g.fullNames[c.name] ?? g.names[c.name] ?? fullNameOf(c)
 
 /** Значение признака по-русски; нет в глоссарии — показываем оригинал. */
 export const ruTerm = (value: string, g: Glossary) => g.terms[value] ?? value

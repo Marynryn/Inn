@@ -15,6 +15,7 @@ export default defineEventHandler(async (event) => {
   const id = String(body?.id ?? '').trim()
   if (!id) throw createError({ statusCode: 400, message: 'Не выбран персонаж' })
 
+  const isAdmin = (await getUserSession(event)).user?.role === 'admin'
   const daily = body?.mode !== 'endless'
   const player = playerKey(event)
   const row = await currentSession(
@@ -22,7 +23,8 @@ export default defineEventHandler(async (event) => {
     daily ? 'daily' : 'endless',
     'known',
     daily ? await dailyMaxVolume() : undefined,
+    isAdmin,
   )
 
-  return applyGuess(row, id)
+  return applyGuess(row, id, isAdmin)
 })

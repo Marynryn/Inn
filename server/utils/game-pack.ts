@@ -35,6 +35,26 @@ export type PackedCharacter = {
 const MAGIC = 'WIP1:'
 const SEED = 'wanderdle:pack:v1'
 
+/** Служебные слова титулов: «Klbkch the Slayer» — не фамилия. */
+const TITLE_WORDS = new Set(['the', 'of', 'du', 'de', 'von', 'van', 'val', 'sor', 'soth', 'and'])
+
+/**
+ * Полное имя персонажа среди псевдонимов: «Erin» → «Erin Solstice». Берём только
+ * то, где после имени идёт слово с большой буквы, — так отсеиваются титулы
+ * («Ksmvr of Chandrar»), которые фамилией не являются. Нет такого псевдонима —
+ * возвращаем само имя.
+ *
+ * Живёт рядом с форматом данных: этим пользуются и сервер, и импорт глоссария.
+ */
+export function fullNameOf(c: Pick<PackedCharacter, 'name' | 'aliases'>): string {
+  const found = c.aliases.find((a) => {
+    if (!a.startsWith(`${c.name} `)) return false
+    const next = a.slice(c.name.length + 1).split(' ')[0] ?? ''
+    return Boolean(next) && !TITLE_WORDS.has(next.toLowerCase()) && next[0] === next[0]!.toUpperCase()
+  })
+  return found ?? c.name
+}
+
 function keystream(length: number): Buffer {
   const out = Buffer.alloc(length)
   let block = createHash('sha256').update(SEED).digest()

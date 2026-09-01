@@ -132,13 +132,20 @@ export async function runMigrations() {
     CREATE INDEX IF NOT EXISTS game_sessions_player
       ON game_sessions (player, mode, id);
 
-    CREATE TABLE IF NOT EXISTS game_daily_stats (
-      day TEXT PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS game_stats (
+      day TEXT NOT NULL,
+      mode TEXT NOT NULL CHECK(mode IN ('daily','endless')),
       played INTEGER NOT NULL DEFAULT 0,
       won INTEGER NOT NULL DEFAULT 0,
-      guesses INTEGER NOT NULL DEFAULT 0
+      guesses INTEGER NOT NULL DEFAULT 0,
+      win_guesses INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (day, mode)
     );
   `)
+
+  // Прежние счётчики знали только про персонажа дня и считали заодно нас самих.
+  // Игра ещё скрыта, терять нечего — просто выбрасываем старую таблицу.
+  try { await client.execute('DROP TABLE game_daily_stats') } catch {}
 
   // Потолок тома появился позже самой игры — дописываем столбец в уже созданные базы.
   try {
@@ -170,9 +177,11 @@ export async function runMigrations() {
     tg_cta_title: 'Не пропусти новую главу',
     tg_cta_text: 'Бот в телеграм-канале присылает уведомление о каждой новой главе сразу после публикации.',
     update_schedule: '2–3',
-    // До какого тома берётся персонаж дня. Держим на границе перевода, иначе
-    // игра начнёт спойлерить тем, кто читает только нас.
-    game_max_volume: '4',
+    // Пусто — потолок тома для персонажа дня считается по границе перевода.
+    // Число здесь означает ручной потолок и границу перевода перебивает.
+    game_max_volume: '',
+    game_cta_title: 'Кто из таверны?',
+    game_cta_text: 'Угадай персонажа по признакам: вид, занятие, том появления. Новый — каждый день, и только те, кто встречался до {том} тома.',
   }
 
   for (const [key, value] of Object.entries(defaults)) {

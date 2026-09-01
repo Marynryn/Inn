@@ -1,4 +1,5 @@
 import { clampVolume, isPool, poolCharacters, ruName, useGlossary } from '../../utils/game-data'
+import { fullNameOf } from '../../utils/game-pack'
 
 /**
  * Список имён для подсказок ввода — единственное, что игра отдаёт наружу целиком.
@@ -20,7 +21,7 @@ export default defineEventHandler(async (event) => {
     pool: chosen,
     maxVolume: cap,
     characters: list
-      .map(c => ({ id: c.id, name: ruName(c, glossary), original: c.name }))
+      .map(c => ({ id: c.id, name: ruName(c, glossary), original: fullNameOf(c) }))
       .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
   }
 })
