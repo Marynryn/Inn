@@ -117,6 +117,7 @@ export async function runMigrations() {
       player TEXT NOT NULL,
       mode TEXT NOT NULL CHECK(mode IN ('daily','endless')),
       pool TEXT NOT NULL CHECK(pool IN ('known','all')),
+      max_volume INTEGER NOT NULL DEFAULT 10,
       day TEXT NOT NULL,
       answer_id TEXT NOT NULL,
       guesses TEXT NOT NULL DEFAULT '[]',
@@ -138,6 +139,13 @@ export async function runMigrations() {
       guesses INTEGER NOT NULL DEFAULT 0
     );
   `)
+
+  // Потолок тома появился позже самой игры — дописываем столбец в уже созданные базы.
+  try {
+    await client.execute('ALTER TABLE game_sessions ADD COLUMN max_volume INTEGER NOT NULL DEFAULT 10')
+  } catch {
+    // Столбец уже существует — это нормально
+  }
 
   // Старые партии не нужны: страница показывает только сегодняшнюю и текущую свободную.
   await client.execute("DELETE FROM game_sessions WHERE day < date('now', '-30 day')")
@@ -162,6 +170,9 @@ export async function runMigrations() {
     tg_cta_title: 'Не пропусти новую главу',
     tg_cta_text: 'Бот в телеграм-канале присылает уведомление о каждой новой главе сразу после публикации.',
     update_schedule: '2–3',
+    // До какого тома берётся персонаж дня. Держим на границе перевода, иначе
+    // игра начнёт спойлерить тем, кто читает только нас.
+    game_max_volume: '4',
   }
 
   for (const [key, value] of Object.entries(defaults)) {

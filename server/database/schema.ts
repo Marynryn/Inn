@@ -63,6 +63,7 @@ export const gameSessions = sqliteTable('game_sessions', {
   player: text('player').notNull(), // анонимный ключ из куки
   mode: text('mode', { enum: ['daily', 'endless'] }).notNull(),
   pool: text('pool', { enum: ['known', 'all'] }).notNull(),
+  maxVolume: integer('max_volume').notNull().default(10), // потолок тома: защита от спойлеров
   day: text('day').notNull(), // '2026-08-31', по Москве
   answerId: text('answer_id').notNull(),
   guesses: text('guesses').notNull().default('[]'), // JSON-массив id персонажей

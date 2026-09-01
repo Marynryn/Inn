@@ -1,4 +1,11 @@
-import type { GameCell, GameGuessRow } from '#shared/utils/gameColumns'
+import {
+  GAME_COLUMNS,
+  GAME_LAST_VOLUME,
+  GAME_SPOILER_COLUMNS,
+  type GameCell,
+  type GameColumnKey,
+  type GameGuessRow,
+} from '#shared/utils/gameColumns'
 import { ruName, ruTerm, useGlossary, type GameCharacter } from './game-data'
 
 /**
@@ -25,37 +32,64 @@ function singleCell(guess: string, answer: string, ru: (v: string) => string): G
   }
 }
 
-function volumeCell(guess: number, answer: number): GameCell {
-  if (!guess || !answer) return { values: guess ? [String(guess)] : [], verdict: 'miss' }
-  if (guess === answer) return { values: [String(guess)], verdict: 'hit' }
+/** Числовая клетка: точное совпадение или промах со стрелкой в сторону ответа. */
+function numberCell(guess: number, answer: number, format = String): GameCell {
+  if (!guess || !answer) return { values: guess ? [format(guess)] : [], verdict: 'miss' }
+  if (guess === answer) return { values: [format(guess)], verdict: 'hit' }
 
-  return { values: [String(guess)], verdict: 'miss', hint: answer > guess ? 'up' : 'down' }
+  return { values: [format(guess)], verdict: 'miss', hint: answer > guess ? 'up' : 'down' }
 }
 
-export async function buildGuessRow(guess: GameCharacter, answer: GameCharacter): Promise<GameGuessRow> {
+// Упоминаний бывает и девять, и шестьдесят тысяч — читается только с разрядами.
+const thousands = (n: number) => n.toLocaleString('ru-RU')
+
+/**
+ * Колонки, которые вообще уйдут в ответ. Спойлерные вырезаются на сервере, а не
+ * прячутся на странице: иначе «Мёртв» приехал бы в браузер и лежал в отладчике.
+ */
+export function visibleColumns(maxVolume: number): GameColumnKey[] {
+  const keys = GAME_COLUMNS.map(c => c.key)
+  return maxVolume >= GAME_LAST_VOLUME ? keys : keys.filter(k => !GAME_SPOILER_COLUMNS.includes(k))
+}
+
+export async function buildGuessRow(
+  guess: GameCharacter,
+  answer: GameCharacter,
+  maxVolume: number,
+): Promise<GameGuessRow> {
   const glossary = await useGlossary()
   const ru = (v: string) => ruTerm(v, glossary)
+
+  const all = {
+    gender: () => singleCell(guess.gender, answer.gender, ru),
+    species: () => multiCell(guess.species, answer.species, ru),
+    status: () => singleCell(guess.status, answer.status, ru),
+    affiliation: () => multiCell(guess.affiliation, answer.affiliation, ru),
+    continent: () => multiCell(guess.continent, answer.continent, ru),
+    occupation: () => multiCell(guess.occupation, answer.occupation, ru),
+    cls: () => multiCell(guess.cls, answer.cls, ru),
+    volume: () => numberCell(guess.volume, answer.volume),
+    mentions: () => numberCell(guess.mentions, answer.mentions, thousands),
+  } satisfies Record<GameColumnKey, () => GameCell>
+
+  const cells: GameGuessRow['cells'] = {}
+  for (const key of visibleColumns(maxVolume)) cells[key] = all[key]()
 
   return {
     id: guess.id,
     name: ruName(guess, glossary),
     image: guess.image,
     correct: guess.id === answer.id,
-    cells: {
-      gender: singleCell(guess.gender, answer.gender, ru),
-      species: multiCell(guess.species, answer.species, ru),
-      status: singleCell(guess.status, answer.status, ru),
-      affiliation: multiCell(guess.affiliation, answer.affiliation, ru),
-      continent: multiCell(guess.continent, answer.continent, ru),
-      occupation: multiCell(guess.occupation, answer.occupation, ru),
-      cls: multiCell(guess.cls, answer.cls, ru),
-      volume: volumeCell(guess.volume, answer.volume),
-    },
+    cells,
   }
 }
 
-/** Карточка разгаданного персонажа — показывается только после победы или сдачи. */
-export async function buildAnswerCard(answer: GameCharacter) {
+/**
+ * Карточка разгаданного персонажа — показывается только после победы или сдачи.
+ * Спойлерные колонки вырезаны и здесь: узнать имя — не то же самое, что узнать,
+ * что персонаж погибнет через четыре тома.
+ */
+export async function buildAnswerCard(answer: GameCharacter, maxVolume: number) {
   const glossary = await useGlossary()
 
   return {
@@ -63,6 +97,6 @@ export async function buildAnswerCard(answer: GameCharacter) {
     name: ruName(answer, glossary),
     original: answer.name,
     image: answer.image,
-    row: await buildGuessRow(answer, answer),
+    row: await buildGuessRow(answer, answer, maxVolume),
   }
 }

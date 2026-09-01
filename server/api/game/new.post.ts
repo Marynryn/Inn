@@ -1,10 +1,11 @@
-import { isPool } from '../../utils/game-data'
+import { clampVolume, isPool } from '../../utils/game-data'
 import { checkRateLimit } from '../../utils/rate-limit'
 import { playerKey, sessionState, startEndless } from '../../utils/game-session'
 
 /**
- * Новая партия в свободном режиме. Персонаж дня так не перезапускается: он один
- * на сутки для всех, иначе смысл теряется.
+ * Новая партия в свободном режиме: тут игрок сам выбирает и набор, и потолок
+ * тома. Персонаж дня так не перезапускается — он один на сутки для всех, и
+ * потолок ему задаёт админка.
  */
 export default defineEventHandler(async (event) => {
   const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
@@ -12,9 +13,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 429, message: 'Слишком часто. Подожди минуту.' })
   }
 
-  const body = await readBody<{ pool?: string }>(event)
+  const body = await readBody<{ pool?: string; maxVolume?: number }>(event)
   const player = playerKey(event)
-  const row = await startEndless(player, isPool(body?.pool) ? body.pool : 'known')
+  const row = await startEndless(
+    player,
+    isPool(body?.pool) ? body.pool : 'known',
+    clampVolume(body?.maxVolume),
+  )
 
   return sessionState(row)
 })

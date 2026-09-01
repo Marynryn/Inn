@@ -196,6 +196,7 @@ const form = reactive({
   about_text: '',
   error_404_sub: '',
   update_schedule: '',
+  game_max_volume: '',
   tg_cta_title: '',
   tg_cta_text: '',
 })
@@ -650,6 +651,15 @@ useHead({
           <div class="field-row">
             <label>Глав в неделю</label>
             <input v-model="form.update_schedule" type="text" placeholder="2–3">
+          </div>
+          <div class="field-row">
+            <label>Игра: до какого тома</label>
+            <input v-model="form.game_max_volume" type="number" min="1" max="10" placeholder="4">
+            <span class="field-hint">
+              Персонаж дня берётся из персонажей, появившихся до этого тома, а спойлерные
+              признаки скрываются. Держи на границе перевода: тогда игра не выдаст того,
+              до чего читатель ещё не дошёл. В свободной игре том выбирает сам игрок.
+            </span>
           </div>
           <button class="btn-action" :disabled="savingSettings" @click="saveSettings">
             {{ settingsSaved ? '✓ Сохранено' : savingSettings ? 'Сохраняем...' : 'Сохранить' }}
@@ -1663,6 +1673,14 @@ useHead({
   line-height: 1.5;
   color: var(--ink-soft);
   margin: 0 0 14px;
+}
+
+/* Пояснение под полем настройки — там, где одного названия мало. */
+.field-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  opacity: .8;
 }
 
 .notify-last {

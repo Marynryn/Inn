@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { and, desc, eq, sql } from 'drizzle-orm'
-import type { GameMode, GameStatus } from '#shared/utils/gameColumns'
-import { gameDailyStats, gameSessions } from '../database/schema'
+import { GAME_LAST_VOLUME, type GameMode, type GameStatus } from '#shared/utils/gameColumns'
+import { gameDailyStats, gameSessions, siteSettings } from '../database/schema'
 import { useDb } from './db'
 import { MSK_OFFSET_MS, mskDay } from './msk'
-import { DAILY_POOL, dailyCharacter, findAnyCharacter, findCharacter, poolCharacters, randomCharacter, type Pool } from './game-data'
-import { buildAnswerCard, buildGuessRow } from './game-round'
+import { DAILY_POOL, clampVolume, dailyCharacter, findAnyCharacter, findCharacter, poolCharacters, randomCharacter, type Pool } from './game-data'
+import { buildAnswerCard, buildGuessRow, visibleColumns } from './game-round'
 
 /**
  * Партии игры. Ответ, список попыток и статус лежат в базе; браузер держит
@@ -49,14 +49,30 @@ const parseGuesses = (row: SessionRow): string[] => {
 export const nextDailyAt = (day: string) =>
   new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000 - MSK_OFFSET_MS).toISOString()
 
+/**
+ * Потолок тома для персонажа дня. Он один на всех и задаётся в админке: держать
+ * его на границе перевода — единственный способ не спойлерить тем, кто читает
+ * только нас. В свободной игре потолок выбирает сам игрок.
+ */
+export async function dailyMaxVolume(): Promise<number> {
+  const db = useDb()
+  const [row] = await db
+    .select({ value: siteSettings.value })
+    .from(siteSettings)
+    .where(eq(siteSettings.key, 'game_max_volume'))
+
+  return clampVolume(row?.value ?? GAME_LAST_VOLUME)
+}
+
 async function createDaily(player: string, day: string): Promise<SessionRow> {
   const db = useDb()
-  const answer = await dailyCharacter(day)
+  const maxVolume = await dailyMaxVolume()
+  const answer = await dailyCharacter(day, maxVolume)
 
   await db.batch([
     db
       .insert(gameSessions)
-      .values({ player, mode: 'daily', pool: DAILY_POOL, day, answerId: answer.id })
+      .values({ player, mode: 'daily', pool: DAILY_POOL, maxVolume, day, answerId: answer.id })
       .onConflictDoNothing(),
     db
       .insert(gameDailyStats)
@@ -72,9 +88,10 @@ async function createDaily(player: string, day: string): Promise<SessionRow> {
   return row!
 }
 
-async function createEndless(player: string, pool: Pool): Promise<SessionRow> {
+async function createEndless(player: string, pool: Pool, maxVolume: number): Promise<SessionRow> {
   const db = useDb()
-  const answer = await randomCharacter(pool)
+  const cap = clampVolume(maxVolume)
+  const answer = await randomCharacter(pool, cap)
 
   // Прошлые свободные партии не храним: их незачем показывать и незачем возвращать.
   await db
@@ -83,14 +100,19 @@ async function createEndless(player: string, pool: Pool): Promise<SessionRow> {
 
   const [row] = await db
     .insert(gameSessions)
-    .values({ player, mode: 'endless', pool, day: mskDay(), answerId: answer.id })
+    .values({ player, mode: 'endless', pool, maxVolume: cap, day: mskDay(), answerId: answer.id })
     .returning()
 
   return row!
 }
 
 /** Текущая партия игрока: находит начатую или заводит новую. */
-export async function currentSession(player: string, mode: GameMode, pool: Pool): Promise<SessionRow> {
+export async function currentSession(
+  player: string,
+  mode: GameMode,
+  pool: Pool,
+  maxVolume = GAME_LAST_VOLUME,
+): Promise<SessionRow> {
   const db = useDb()
 
   if (mode === 'daily') {
@@ -110,7 +132,7 @@ export async function currentSession(player: string, mode: GameMode, pool: Pool)
     .orderBy(desc(gameSessions.id))
     .limit(1)
 
-  return row ?? await createEndless(player, pool)
+  return row ?? await createEndless(player, pool, maxVolume)
 }
 
 export const startEndless = createEndless
@@ -141,17 +163,19 @@ export async function sessionState(row: SessionRow) {
   const rows = []
   for (const id of guessIds) {
     const guess = await findAnyCharacter(id)
-    if (guess) rows.push(await buildGuessRow(guess, answer))
+    if (guess) rows.push(await buildGuessRow(guess, answer, row.maxVolume))
   }
 
   return {
     mode: row.mode as GameMode,
     pool: row.pool as Pool,
+    maxVolume: row.maxVolume,
+    columns: visibleColumns(row.maxVolume),
     status: row.status as GameStatus,
     day: row.day,
     guesses: rows.reverse(), // свежая попытка сверху
-    poolSize: (await poolCharacters(row.pool)).length,
-    answer: finished ? await buildAnswerCard(answer) : null,
+    poolSize: (await poolCharacters(row.pool, row.maxVolume)).length,
+    answer: finished ? await buildAnswerCard(answer, row.maxVolume) : null,
     nextDailyAt: row.mode === 'daily' ? nextDailyAt(row.day) : null,
     daily: row.mode === 'daily' ? await dailySummary(row.day) : null,
   }
@@ -173,7 +197,9 @@ export async function applyGuess(row: SessionRow, guessId: string) {
     throw createError({ statusCode: 429, message: 'Слишком много попыток в одной партии' })
   }
 
-  const guess = await findCharacter(guessId, row.pool)
+  // Потолок тома проверяем и здесь: подсказки его учитывают, но запрос можно
+  // послать и мимо страницы, а через ответ по чужому персонажу утекли бы признаки.
+  const guess = await findCharacter(guessId, row.pool, row.maxVolume)
   if (!guess) throw createError({ statusCode: 404, message: 'Такого персонажа нет в наборе' })
 
   const answer = await sessionAnswer(row)
@@ -200,9 +226,9 @@ export async function applyGuess(row: SessionRow, guessId: string) {
   }
 
   return {
-    row: await buildGuessRow(guess, answer),
+    row: await buildGuessRow(guess, answer, row.maxVolume),
     status: (won ? 'won' : 'playing') as GameStatus,
-    answer: won ? await buildAnswerCard(answer) : null,
+    answer: won ? await buildAnswerCard(answer, row.maxVolume) : null,
     daily: row.mode === 'daily' ? await dailySummary(row.day) : null,
   }
 }

@@ -1,5 +1,16 @@
 <script setup lang="ts">
-import type { GameGuessRow, GameMode, GameStatus } from '#shared/utils/gameColumns'
+// Импортируем явно, а не через автоимпорт: новый экспорт из shared/ попадает в
+// сгенерированный список не сразу, и в шаблоне он оказывается undefined.
+import {
+  GAME_COLUMNS,
+  GAME_LAST_VOLUME,
+  GAME_NUMBER_COLUMNS,
+  GAME_VOLUMES,
+  type GameColumnKey,
+  type GameGuessRow,
+  type GameMode,
+  type GameStatus,
+} from '#shared/utils/gameColumns'
 
 type Pool = 'known' | 'all'
 
@@ -14,6 +25,8 @@ type AnswerCard = {
 type State = {
   mode: GameMode
   pool: Pool
+  maxVolume: number
+  columns: GameColumnKey[]
   status: GameStatus
   day: string
   guesses: GameGuessRow[]
@@ -40,6 +53,15 @@ const open = ref(false)
 const inputEl = ref<HTMLInputElement | null>(null)
 
 const pool = computed<Pool>(() => state.value?.pool ?? 'known')
+const maxVolume = computed(() => state.value?.maxVolume ?? GAME_LAST_VOLUME)
+
+/**
+ * Колонки приходят с сервера: при ограничении по тому спойлерных среди них
+ * просто нет — ни в таблице, ни в ответе.
+ */
+const columns = computed(() =>
+  GAME_COLUMNS.filter(c => state.value?.columns.includes(c.key) ?? true),
+)
 
 /** Сдавшемуся дописываем сверху строку загаданного — чтобы видеть, где промахнулся. */
 const boardRows = computed(() => {
@@ -53,25 +75,33 @@ const finished = computed(() => state.value ? state.value.status !== 'playing' :
 const guessedIds = computed(() => new Set(state.value?.guesses.map(g => g.id) ?? []))
 
 // ── Загрузка ───────────────────────────────────────────────
-const loadNames = async (forPool: Pool) => {
-  const res = await $fetch<{ pool: Pool; characters: NameEntry[] }>('/api/game/names', {
-    query: { pool: forPool },
+// Набор имён зависит и от сложности, и от потолка тома — перезагружаем, только
+// когда меняется одно из двух.
+let namesKey = ''
+
+const loadNames = async (forPool: Pool, cap: number) => {
+  const key = `${forPool}:${cap}`
+  if (key === namesKey && names.value.length) return
+
+  const res = await $fetch<{ characters: NameEntry[] }>('/api/game/names', {
+    query: { pool: forPool, maxVolume: cap },
   })
   names.value = res.characters
+  namesKey = key
 }
 
 const applyState = async (next: State) => {
   state.value = next
-  if (names.value.length === 0 || next.poolSize !== names.value.length) {
-    await loadNames(next.pool)
-  }
+  await loadNames(next.pool, next.maxVolume)
 }
 
 const loadState = async (nextMode: GameMode) => {
   loading.value = true
   error.value = ''
   try {
-    await applyState(await $fetch<State>('/api/game/state', { query: { mode: nextMode } }))
+    await applyState(await $fetch<State>('/api/game/state', {
+      query: { mode: nextMode, pool: pool.value, maxVolume: maxVolume.value },
+    }))
   } catch {
     error.value = 'Не получилось открыть игру. Обнови страницу.'
   } finally {
@@ -171,11 +201,14 @@ const guess = async (entry: NameEntry) => {
   }
 }
 
-const newGame = async (nextPool: Pool = pool.value) => {
+const newGame = async (nextPool: Pool = pool.value, nextVolume: number = maxVolume.value) => {
   sending.value = true
   error.value = ''
   try {
-    await applyState(await $fetch<State>('/api/game/new', { method: 'POST', body: { pool: nextPool } }))
+    await applyState(await $fetch<State>('/api/game/new', {
+      method: 'POST',
+      body: { pool: nextPool, maxVolume: nextVolume },
+    }))
     query.value = ''
   } catch {
     error.value = 'Не получилось начать новую партию.'
@@ -198,6 +231,13 @@ const giveUp = async () => {
 const switchPool = (next: Pool) => {
   if (next === pool.value) return
   newGame(next)
+}
+
+/** Смена потолка тома меняет набор персонажей, поэтому начинаем партию заново. */
+const switchVolume = (e: Event) => {
+  const next = Number((e.target as HTMLSelectElement).value)
+  if (next === maxVolume.value) return
+  newGame(pool.value, next)
 }
 
 // ── Часы до нового персонажа дня ───────────────────────────
@@ -240,7 +280,7 @@ const shareText = computed(() => {
 
   const grid = [...state.value.guesses]
     .reverse()
-    .map(row => GAME_COLUMNS.map(c => MARKS[row.cells[c.key].verdict]).join(''))
+    .map(row => columns.value.map(c => MARKS[row.cells[c.key]?.verdict ?? 'miss']).join(''))
     .join('\n')
 
   const head = state.value.mode === 'daily'
@@ -254,13 +294,25 @@ const shareText = computed(() => {
   return `${head}\n${result}\n\n${grid}\n\n${siteUrl}/game`
 })
 
+/**
+ * Системное окно «Поделиться» (на телефоне ведёт прямо в телеграм), иначе буфер
+ * обмена. Оба API живут только на https или localhost — по локальной сети в
+ * разработке не сработает ни одно, на бою работают оба.
+ */
 const share = async () => {
   try {
+    if (navigator.share) {
+      await navigator.share({ text: shareText.value })
+      return
+    }
+
     await navigator.clipboard.writeText(shareText.value)
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
-  } catch {
-    error.value = 'Браузер не дал скопировать. Выдели текст руками.'
+  } catch (e: any) {
+    // Закрыл системное окно сам — это не ошибка, молчим.
+    if (e?.name === 'AbortError') return
+    error.value = 'Не получилось поделиться.'
   }
 }
 
@@ -316,6 +368,9 @@ useHead({
           <div class="bar-left">
             <span class="chip">Попыток: {{ state.guesses.length }}</span>
             <span class="chip">Персонажей в наборе: {{ state.poolSize }}</span>
+            <span class="chip">
+              До {{ state.maxVolume }} тома<template v-if="mode === 'daily'"> · как в переводе</template>
+            </span>
             <span v-if="mode === 'daily' && state.daily?.won" class="chip">
               Сегодня угадали: {{ state.daily.won }}
               <template v-if="state.daily.averageGuesses">
@@ -330,6 +385,13 @@ useHead({
               <button class="pool" :class="{ active: pool === 'known' }" @click="switchPool('known')">Известные</button>
               <button class="pool" :class="{ active: pool === 'all' }" @click="switchPool('all')">Все</button>
             </div>
+            <label class="volume">
+              <span>Читаю до</span>
+              <select :value="state.maxVolume" :disabled="sending" @change="switchVolume">
+                <option v-for="v in GAME_VOLUMES" :key="v" :value="v">{{ v }}</option>
+              </select>
+              <span>тома</span>
+            </label>
             <button class="btn btn-ghost" :disabled="sending" @click="newGame()">Другой персонаж</button>
           </div>
         </div>
@@ -368,18 +430,6 @@ useHead({
 
         <!-- Итог -->
         <div v-if="finished && state.answer" class="result" :class="{ won: state.status === 'won' }">
-          <!-- Картинки лежат на вики оригинала, поэтому обычный img: гонять их
-               через оптимизатор картинок сайта незачем. -->
-          <img
-            v-if="state.answer.image"
-            :src="state.answer.image"
-            class="result-art"
-            width="96"
-            height="96"
-            loading="lazy"
-            referrerpolicy="no-referrer"
-            alt=""
-          >
           <div class="result-text">
             <div class="result-head display">
               {{ state.status === 'won' ? 'Угадано!' : 'Это был' }} {{ state.answer.name }}
@@ -405,10 +455,10 @@ useHead({
 
         <!-- Таблица попыток -->
         <div v-if="boardRows.length" class="board-wrap">
-          <div class="board" :style="{ '--cols': GAME_COLUMNS.length }">
+          <div class="board" :style="{ '--cols': columns.length }">
             <div class="row head">
               <div class="cell name">Персонаж</div>
-              <div v-for="col in GAME_COLUMNS" :key="col.key" class="cell">{{ col.label }}</div>
+              <div v-for="col in columns" :key="col.key" class="cell">{{ col.label }}</div>
             </div>
 
             <div
@@ -418,29 +468,23 @@ useHead({
               :class="{ hit: row.correct }"
             >
               <div class="cell name">
-                <img
-                  v-if="row.image"
-                  :src="row.image"
-                  class="avatar"
-                  width="34"
-                  height="34"
-                  loading="lazy"
-                  referrerpolicy="no-referrer"
-                  alt=""
-                >
                 <span>{{ row.name }}</span>
               </div>
               <div
-                v-for="col in GAME_COLUMNS"
+                v-for="col in columns"
                 :key="col.key"
                 class="cell mark"
-                :class="[row.cells[col.key].verdict, { 'cell--inline': col.key === 'volume' }]"
+                :class="[row.cells[col.key]!.verdict, { 'cell--inline': GAME_NUMBER_COLUMNS.includes(col.key) }]"
+                :data-label="col.label"
               >
-                <span v-if="!row.cells[col.key].values.length">—</span>
-                <span v-for="v in row.cells[col.key].values" :key="v">{{ v }}</span>
-                <span v-if="row.cells[col.key].hint" class="arrow">
-                  {{ row.cells[col.key].hint === 'up' ? '↑' : '↓' }}
-                </span>
+                <span v-if="!row.cells[col.key]!.values.length">—</span>
+                <span v-for="v in row.cells[col.key]!.values" :key="v">{{ v }}</span>
+                <span
+                  v-if="row.cells[col.key]!.hint"
+                  class="arrow"
+                  :class="row.cells[col.key]!.hint"
+                  :aria-label="row.cells[col.key]!.hint === 'up' ? 'у загаданного больше' : 'у загаданного меньше'"
+                />
               </div>
             </div>
           </div>
@@ -454,9 +498,10 @@ useHead({
           <span><i class="sw hit" /> совпало полностью</span>
           <span><i class="sw partial" /> совпало частично</span>
           <span><i class="sw miss" /> мимо</span>
-          <span><i class="sw miss">↑</i> том загаданного больше</span>
+          <span><i class="sw miss"><span class="arrow up" /></i> у загаданного больше</span>
           <button v-if="!finished && state.guesses.length >= 5" class="giveup" @click="giveUp">Сдаться</button>
         </div>
+
       </template>
     </main>
 
@@ -471,6 +516,10 @@ useHead({
   color: var(--parchment);
   display: flex;
   flex-direction: column;
+  /* Chrome на Android сам раздувает шрифт в блоках — в таблице из мелких клеток
+     это ломает вёрстку, размеры тут выставлены осознанно. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .game {
@@ -586,6 +635,42 @@ useHead({
 .pool.active {
   background: rgba(214, 136, 62, .18);
   color: var(--ember-soft);
+}
+
+/* ── Потолок тома ───────────────────────────── */
+.volume {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Системный вид селекта на телефоне занимает пол-экрана, поэтому рисуем свой:
+   в поле только номер тома и галочка, слова «Читаю до … тома» стоят рядом
+   обычным текстом. Список раскрытия остаётся родным — это на мобильных удобнее
+   любого самодельного. */
+.volume select {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 20px 6px 9px;
+  border: 1px solid rgba(241, 230, 210, .18);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-dark-2);
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23e8dac0' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 9px;
+  color: var(--parchment-2);
+  cursor: pointer;
+}
+
+.volume select:disabled {
+  opacity: .5;
+  cursor: default;
 }
 
 .btn {
@@ -705,14 +790,6 @@ useHead({
   box-shadow: 0 0 40px -18px rgba(214, 136, 62, .8);
 }
 
-.result-art {
-  width: 96px;
-  height: 96px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  flex: none;
-}
-
 .result-head {
   font-size: 22px;
   font-weight: 600;
@@ -743,12 +820,12 @@ useHead({
 }
 
 .board {
-  min-width: 860px;
+  min-width: 800px;
 }
 
 .row {
   display: grid;
-  grid-template-columns: 190px repeat(var(--cols), 1fr);
+  grid-template-columns: 130px repeat(var(--cols), 1fr);
   gap: 6px;
   margin-bottom: 6px;
 }
@@ -780,27 +857,23 @@ useHead({
   border: 1px solid rgba(241, 230, 210, .08);
 }
 
+/* Имя набрано заголовочным шрифтом и тёплым цветом: в таблице из одинаковых
+   клеток взгляд должен цепляться за него первым. */
 .cell.name {
   flex-direction: row;
   justify-content: flex-start;
-  gap: 10px;
   text-align: left;
+  font-family: var(--font-display);
   font-size: 14px;
   font-weight: 500;
+  color: var(--ember-soft);
   padding-left: 10px;
 }
 
 .row.hit .cell.name {
   border-color: rgba(214, 136, 62, .6);
-  color: var(--ember-soft);
-}
-
-.avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex: none;
+  color: var(--ember);
+  font-weight: 600;
 }
 
 .mark.hit {
@@ -824,12 +897,27 @@ useHead({
 /* Том — одно число, стрелка идёт рядом с ним, а не под ним. */
 .cell--inline {
   flex-direction: row;
-  gap: 4px;
+  align-items: center;
+  gap: 5px;
 }
 
+/* Стрелка нарисована рамкой, а не символом ↑: у глифа своя посадка в строке,
+   и с числом он никогда не встаёт вровень — что и было видно в ячейке тома.
+   Треугольник же центруется по своей коробке точно. */
 .arrow {
-  font-size: 16px;
-  line-height: 1;
+  width: 0;
+  height: 0;
+  flex: none;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+}
+
+.arrow.up {
+  border-bottom: 6px solid currentColor;
+}
+
+.arrow.down {
+  border-top: 6px solid currentColor;
 }
 
 /* ── Мелочи ─────────────────────────────────── */
@@ -900,17 +988,111 @@ useHead({
     font-size: 30px;
   }
 
-  .board {
-    min-width: 760px;
-  }
-
-  .row {
-    grid-template-columns: 150px repeat(var(--cols), 1fr);
-  }
-
   .result {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+/* ── Телефон: попытка становится карточкой ────────────────────
+   Восемь колонок в строку на узком экране не влезают, а возить доску вбок,
+   сравнивая признаки, невозможно. Поэтому строка разворачивается в карточку:
+   имя в шапке, признаки по три в ряд, подпись каждого берётся из data-label —
+   шапка таблицы там не нужна. Разметка та же, меняется только раскладка. */
+@media (max-width: 620px) {
+  .board-wrap {
+    overflow-x: visible;
+  }
+
+  .board {
+    min-width: 0;
+  }
+
+  .row.head {
+    display: none;
+  }
+
+  /* Шесть колонок — чтобы в одном ряду помещались и три обычных признака
+     (по две колонки), и два числовых (по три). minmax(0, 1fr), а не 1fr:
+     иначе колонка не сможет стать уже своего слова («Полугэйзер») и карточка
+     вылезет за экран. */
+  .row {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 4px;
+    margin-bottom: 12px;
+    padding: 8px;
+    border: 1px solid rgba(241, 230, 210, .1);
+    border-radius: var(--radius-md);
+    background: rgba(241, 230, 210, .03);
+  }
+
+  .row.hit {
+    border-color: rgba(214, 136, 62, .5);
+    background: rgba(214, 136, 62, .07);
+  }
+
+  .cell {
+    grid-column: span 2; /* три признака в ряд */
+    min-height: 56px;
+    padding: 6px 4px;
+    font-size: 11.5px;
+    /* Длинное слово переносим, а не раздвигаем им клетку. */
+    overflow-wrap: anywhere;
+  }
+
+  /* Имя — шапка карточки во всю ширину. */
+  .cell.name {
+    grid-column: 1 / -1;
+    min-height: 0;
+    padding: 4px 6px 8px;
+    background: transparent;
+    border: none;
+    font-size: 16px;
+  }
+
+  .volume {
+    gap: 6px;
+    font-size: 11.5px;
+  }
+
+  .volume select {
+    padding: 5px 18px 5px 8px;
+    background-position: right 6px center;
+    background-size: 8px;
+  }
+
+  .row.hit .cell.name {
+    border: none;
+  }
+
+  /* Подпись признака: в таблице её давала шапка, в карточке — сама клетка. */
+  .cell.mark::before {
+    content: attr(data-label);
+    font-size: 8.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    opacity: .55;
+    margin-bottom: 1px;
+  }
+
+  .cell.mark.hit::before,
+  .cell.mark.partial::before {
+    opacity: .75;
+  }
+
+  /* Числам столько места не нужно: том и упоминания делят один ряд пополам,
+     подпись, число и стрелка стоят в строку. */
+  .cell--inline {
+    grid-column: span 3;
+    flex-direction: row;
+    justify-content: center;
+    gap: 6px;
+    min-height: 0;
+    padding: 9px 6px;
+  }
+
+  .cell--inline::before {
+    margin-bottom: 0;
   }
 }
 </style>

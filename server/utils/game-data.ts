@@ -1,6 +1,7 @@
 import { createHash, createHmac } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { GAME_LAST_VOLUME } from '#shared/utils/gameColumns'
 import { unpackCharacters, type PackedCharacter } from './game-pack'
 
 /**
@@ -78,16 +79,27 @@ export const ruName = (c: GameCharacter, g: Glossary) => g.names[c.name] ?? c.na
 /** Значение признака по-русски; нет в глоссарии — показываем оригинал. */
 export const ruTerm = (value: string, g: Glossary) => g.terms[value] ?? value
 
-/**
- * Играем всей базой. Имена, которых нет в глоссарии, остаются в оригинале —
- * их и показываем латиницей, и ищем по ней же: поиск разбирает оба написания.
- */
-export async function poolCharacters(pool: Pool): Promise<GameCharacter[]> {
-  return (await allCharacters()).filter(POOLS[pool])
+/** Потолок тома: 1..10, что угодно кривое — последний том. */
+export const clampVolume = (value: unknown) => {
+  const n = Math.trunc(Number(value))
+  return n >= 1 && n <= GAME_LAST_VOLUME ? n : GAME_LAST_VOLUME
 }
 
-export async function findCharacter(id: string, pool: Pool): Promise<GameCharacter | null> {
-  return (await poolCharacters(pool)).find(c => c.id === id) ?? null
+/**
+ * Набор персонажей: сложность плюс потолок тома. Том — это защита от спойлеров,
+ * поэтому он режет не только загадываемого, но и подсказки ввода: назвать того,
+ * кто появится позже прочитанного, нельзя — иначе игрок сам себе всё раскроет.
+ *
+ * Имена, которых нет в глоссарии, остаются в оригинале: их показываем латиницей
+ * и по ней же ищем, поиск разбирает оба написания.
+ */
+export async function poolCharacters(pool: Pool, maxVolume = GAME_LAST_VOLUME): Promise<GameCharacter[]> {
+  const cap = clampVolume(maxVolume)
+  return (await allCharacters()).filter(c => c.volume <= cap && POOLS[pool](c))
+}
+
+export async function findCharacter(id: string, pool: Pool, maxVolume?: number): Promise<GameCharacter | null> {
+  return (await poolCharacters(pool, maxVolume)).find(c => c.id === id) ?? null
 }
 
 /**
@@ -100,8 +112,8 @@ export async function findAnyCharacter(id: string): Promise<GameCharacter | null
 }
 
 /** Случайный персонаж пула — для свободного режима. */
-export async function randomCharacter(pool: Pool): Promise<GameCharacter> {
-  const list = await poolCharacters(pool)
+export async function randomCharacter(pool: Pool, maxVolume?: number): Promise<GameCharacter> {
+  const list = await poolCharacters(pool, maxVolume)
   return list[Math.floor(Math.random() * list.length)]!
 }
 
@@ -132,14 +144,15 @@ const dayNumber = (day: string) => Math.floor(Date.parse(`${day}T00:00:00Z`) / 8
  * порядку — так внутри круга (это ~200 дней) никто не повторяется, а вычислить
  * завтрашнего снаружи нельзя: семя замешано на серверном секрете.
  */
-export async function dailyCharacter(day: string): Promise<GameCharacter> {
-  const list = await poolCharacters(DAILY_POOL)
+export async function dailyCharacter(day: string, maxVolume: number): Promise<GameCharacter> {
+  const cap = clampVolume(maxVolume)
+  const list = await poolCharacters(DAILY_POOL, cap)
   const index = dayNumber(day)
   const cycle = Math.floor(index / list.length)
 
   const order = list.map(c => c.id)
   const random = seededRandom(
-    createHmac('sha256', gameSecret()).update(`${DAILY_POOL}:${cycle}`).digest('hex'),
+    createHmac('sha256', gameSecret()).update(`${DAILY_POOL}:${cap}:${cycle}`).digest('hex'),
   )
   for (let i = order.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1))
