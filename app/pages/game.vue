@@ -578,7 +578,7 @@ useSeoMeta({
       </template>
     </main>
 
-    <AppFooter :settings="settings as any" />
+    <AppFooter on-dark :settings="settings as any" />
   </div>
 </template>
 

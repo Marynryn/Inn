@@ -1,6 +1,8 @@
 <script setup lang="ts">
 defineProps<{
   settings: Record<string, string> | null
+  /** Вариант для тёмной подложки — страница игры. По умолчанию светлая, как главная. */
+  onDark?: boolean
 }>()
 
 const route = useRoute()
@@ -18,7 +20,7 @@ const goToChapters = (e: Event) => {
 </script>
 
 <template>
-  <footer class="site-footer">
+  <footer class="site-footer" :class="{ 'on-dark': onDark }">
     <div class="footer-links">
       <a href="/#ledger" @click="goToChapters">Главы</a>
       <NuxtLink v-if="route.path !== '/about'" href="/about">О проекте</NuxtLink>
@@ -102,5 +104,24 @@ gap:4px;
   font-size: 12px;
   color: var(--ink-soft);
   line-height: 1.7;
+}
+
+/* На тёмной подложке страницы игры. Пергаментные цвета там сливаются с фоном
+   насмерть: --ink по --bg-dark это почти чёрный по почти чёрному. */
+.site-footer.on-dark {
+  border-top-color: rgba(241, 230, 210, .12);
+  color: var(--text-muted);
+}
+
+.on-dark .footer-links {
+  color: var(--parchment-2);
+}
+
+.on-dark .footer-rule {
+  background: rgba(241, 230, 210, .12);
+}
+
+.on-dark .footer-text {
+  color: var(--text-muted);
 }
 </style>
