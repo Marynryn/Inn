@@ -100,6 +100,19 @@ const spineColor = computed(() => {
       rgba(0, 0, 0, .30) 100%),
     var(--spine);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .26);
+  /* Ось вращения — по нижней кромке: книга поворачивается на том углу,
+     которым стоит на полке, а не вокруг своей середины. */
+  transform-origin: 50% 100%;
+  transition: transform .32s cubic-bezier(.2, .7, .3, 1), box-shadow .32s ease;
+}
+
+/* Открытый том вынимают с полки: корешок кренится в зал и ловит уголь по канту */
+.volume.open .spine {
+  transform: rotate(-9deg) translateY(-2px);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, .26),
+    0 0 0 1px rgba(214, 136, 62, .5),
+    3px 5px 8px -4px rgba(31, 24, 19, .55);
 }
 
 /* Золотые накатки, как на переплёте */
