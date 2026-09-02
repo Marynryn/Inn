@@ -27,7 +27,7 @@ const body = computed(() => props.text || 'Бот в телеграм-канал
     </div>
 
     <a :href="url" target="_blank" rel="noopener" class="tg-btn">
-      Подписаться <span class="tg-ext">↗</span>
+      Подписаться
     </a>
   </aside>
 </template>
@@ -101,11 +101,6 @@ const body = computed(() => props.text || 'Бот в телеграм-канал
   .tg-btn {
     animation: none;
   }
-}
-
-.tg-ext {
-  font-size: 11px;
-  opacity: .7;
 }
 
 /* На тёмной подложке страницы главы */
