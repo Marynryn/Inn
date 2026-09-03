@@ -25,6 +25,8 @@ const body = computed(() => {
 
 <template>
   <aside class="game-cta">
+    <CornerLeaves />
+
     <span class="game-mark display" aria-hidden="true">!</span>
 
     <div class="game-body">
@@ -40,6 +42,9 @@ const body = computed(() => {
 /* Держим форму телеграм-плашки из оглавления: два одинаковых по смыслу блока
    на одной странице не должны выглядеть по-разному. */
 .game-cta {
+  /* Листья свисают за верхний край и подрезаются им */
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -82,6 +87,9 @@ const body = computed(() => {
 }
 
 .game-btn {
+  /* над листьями: горсть заходит под кнопку, а не на неё */
+  position: relative;
+  z-index: 1;
   flex: none;
   padding: 10px 18px;
   border-radius: var(--radius-sm);

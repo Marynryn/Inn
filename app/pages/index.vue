@@ -120,13 +120,17 @@ useSeoMeta({
 
     <!-- <AdSlot id="index-top" /> -->
 
-    <div class="game-wrap">
-      <GameCta
-        :title="settings?.game_cta_title"
-        :text="settings?.game_cta_text"
-        :max-volume="settings?.game_volume_effective"
-      />
-    </div>
+    <!-- Светлая полоса целиком: плашка игры, оглавление, Телеграм.
+         Обёртка держит систему координат для украшений, которые идут
+         вдоль всей полосы, — сейчас отключённых. -->
+    <div class="parchment-band">
+      <div class="game-wrap">
+        <GameCta
+          :title="settings?.game_cta_title"
+          :text="settings?.game_cta_text"
+          :max-volume="settings?.game_volume_effective"
+        />
+      </div>
 
     <!-- ОГЛАВЛЕНИЕ -->
     <div class="ledger" id="ledger">
@@ -153,12 +157,13 @@ useSeoMeta({
       />
     </div>
 
-    <div class="tg-wrap">
-      <TelegramCta
-        :url="settings?.telegram_url"
-        :title="settings?.tg_cta_title"
-        :text="settings?.tg_cta_text"
-      />
+      <div class="tg-wrap">
+        <TelegramCta
+          :url="settings?.telegram_url"
+          :title="settings?.tg_cta_title"
+          :text="settings?.tg_cta_text"
+        />
+      </div>
     </div>
 
     <!-- <AdSlot id="index-mid" /> -->
@@ -312,6 +317,12 @@ useSeoMeta({
   font-weight: 600;
   display: block;
   font-size: 18px;
+}
+
+/* Светлая полоса: от плашки игры до Телеграма. Листопад отмеряет по ней
+   и высоту падения, и ширину полей по бокам. */
+.parchment-band {
+  position: relative;
 }
 
 .ledger {

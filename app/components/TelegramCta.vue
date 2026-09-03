@@ -14,6 +14,8 @@ const body = computed(() => props.text || 'Бот в телеграм-канал
 
 <template>
   <aside v-if="url" class="tg-cta" :class="{ 'on-dark': onDark }">
+    <CornerLeaves :on-dark="onDark" />
+
     <span class="tg-icon" aria-hidden="true">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M21.5 3.5 2.8 10.7c-.9.35-.88 1.63.03 1.95l4.6 1.6 1.77 5.35c.26.78 1.26.98 1.8.36l2.5-2.85 4.62 3.4c.6.44 1.46.11 1.62-.62l3.2-14.8c.17-.8-.62-1.47-1.44-1.6z" fill="currentColor" opacity=".9"/>
@@ -34,6 +36,9 @@ const body = computed(() => props.text || 'Бот в телеграм-канал
 
 <style scoped>
 .tg-cta {
+  /* Листья свисают за верхний край и подрезаются им */
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -70,6 +75,9 @@ const body = computed(() => props.text || 'Бот в телеграм-канал
 }
 
 .tg-btn {
+  /* над листьями: горсть заходит под кнопку, а не на неё */
+  position: relative;
+  z-index: 1;
   flex-shrink: 0;
   padding: 10px 18px;
   border-radius: var(--radius-sm);
