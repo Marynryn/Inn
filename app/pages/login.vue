@@ -1,7 +1,6 @@
 <script setup lang="ts">
 const auth = useAuthStore()
 const route = useRoute()
-const origin = useRequestURL().origin
 
 const { data: providers } = await useFetch('/api/auth/providers')
 
@@ -15,18 +14,11 @@ const next = computed(() => {
 const googleHref = computed(() => `/auth/google?next=${encodeURIComponent(next.value)}`)
 
 // Своя ссылка вместо виджета телеграма: их скрипт рисует кнопку с собственной
-// подписью и оформлением, которые не поменять. Адрес тот же, что виджет
-// открывает внутри себя, — телеграм вернётся к нам с подписанными полями.
-const telegramHref = computed(() => {
-  const botId = providers.value?.telegramBotId
-  if (!providers.value?.telegram || !botId) return null
-
-  const returnTo = `${origin}/auth/telegram?next=${encodeURIComponent(next.value)}`
-  return 'https://oauth.telegram.org/auth'
-    + `?bot_id=${botId}`
-    + `&origin=${encodeURIComponent(origin)}`
-    + `&return_to=${encodeURIComponent(returnTo)}`
-})
+// подписью и оформлением, которые не поменять. Ведёт на наш же адрес — он и
+// отправляет к телеграму, зная свой origin точнее, чем браузер.
+const telegramHref = computed(() =>
+  providers.value?.telegram ? `/auth/telegram?next=${encodeURIComponent(next.value)}` : null
+)
 
 // Вход по паролю остался ради панели, но с глаз убран: читателю он не нужен,
 // а администратор попадает на него по /login?pw=1.

@@ -1,4 +1,4 @@
-import { telegramBotId, telegramLoginAvailable } from '../../utils/telegram'
+import { telegramLoginAvailable } from '../../utils/telegram'
 
 /**
  * Какие способы входа доступны с этого адреса. Страница рисует только рабочие
@@ -12,6 +12,5 @@ export default defineEventHandler(async (event) => {
   return {
     google: Boolean(config.oauth?.google?.clientId && config.oauth?.google?.clientSecret),
     telegram: await telegramLoginAvailable(origin),
-    telegramBotId: telegramBotId(),
   }
 })
