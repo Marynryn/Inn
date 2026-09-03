@@ -26,11 +26,9 @@ export default defineEventHandler(async (event) => {
 
   const filePart = form.find(f => f.name === 'avatar' && f.data?.length)
   if (filePart) {
-    // Формат проверяется по сигнатуре файла внутри saveAvatar — имени,
-    // присланному клиентом, верить нельзя.
-    updates.avatarUrl = await saveAvatar(sessionUser.id, filePart.data).catch(() => {
-      throw createError({ statusCode: 400, message: 'Не похоже на картинку' })
-    })
+    // saveAvatar проверяет сигнатуру, вес и размеры сам — имени, присланному
+    // клиентом, верить нельзя. Его ошибку не переписываем: она точнее нашей.
+    updates.avatarUrl = await saveAvatar(sessionUser.id, filePart.data)
   }
 
   if (form.find(f => f.name === 'removeAvatar')) updates.avatarUrl = null
