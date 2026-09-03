@@ -26,7 +26,7 @@ const { data: settings } = useFetch('/api/settings')
 const chapterId = chapter.value?.id ?? rawParam.replace('-', '.')
 const slug = computed(() => encodeURIComponent(slugifyChapterId(chapter.value?.id ?? rawParam)))
 
-const { load } = useReadProgress()
+const { load, serverScroll, saveScroll: pushScroll } = useReadProgress()
 const { prevChapter, nextChapter } = useChapterNav(chapterId, allChapters)
 const { dlState, download } = useChapterDownload(chapterId)
 const { showReadMarker } = useReadMarker(chapterId)
@@ -44,6 +44,9 @@ let leavingChapter = false
 onBeforeRouteLeave(() => {
   leavingChapter = true
   saveScroll()
+  // На сервер место в главе шлём раз за посещение, а не на каждый тик прокрутки:
+  // закладке хватает, а запросов на порядок меньше.
+  pushScroll(chapterId, getSaved() ?? 0)
 })
 
 onMounted(() => {
@@ -55,15 +58,29 @@ onMounted(() => {
   // сразу по ключу, без перебора всех глав ради сопоставления слагов.
   $fetch(`/api/chapters/${encodeURIComponent(chapterId)}/view`, { method: 'POST' }).catch(() => {})
 
-  const saved = getSaved()
-  if (saved && saved > 0.02) {
+  const restoreTo = (value: number) => {
     document.fonts.ready.then(() => {
       const h = document.documentElement.scrollHeight - window.innerHeight
-      window.scrollTo({ top: saved * h, behavior: 'instant' })
+      window.scrollTo({ top: value * h, behavior: 'instant' })
       scrollRestored.value = true
       setTimeout(() => { scrollRestored.value = false }, 3000)
     })
   }
+
+  const saved = getSaved()
+  if (saved && saved > 0.02) restoreTo(saved)
+
+  // Закладка с сервера приходит позже локальной — этот браузер мог главу и не
+  // открывать вовсе, а с другого устройства она была прочитана до середины.
+  // Прыгаем только пока страницу не тронули: рывок посреди чтения хуже, чем
+  // потерянное место.
+  const stopServerScroll = watch(() => serverScroll.value[chapterId], (fromServer) => {
+    if (!fromServer || fromServer <= 0.02) return
+    if (getSaved() || window.scrollY > 40) return stopServerScroll()
+
+    restoreTo(fromServer)
+    stopServerScroll()
+  })
 
   let timer: ReturnType<typeof setTimeout>
   const onScroll = () => {

@@ -4,5 +4,10 @@
  * Без await: шапка дорисует аватарку тиком позже, зато гидрация не ждёт запроса.
  */
 export default defineNuxtPlugin(() => {
-  useAuthStore().fetchMe()
+  const auth = useAuthStore()
+
+  auth.fetchMe().then(() => {
+    // Закладку с сервера забираем только после того, как узнали, кто вошёл.
+    if (auth.isAuthed) useReadProgress().syncFromServer()
+  })
 })

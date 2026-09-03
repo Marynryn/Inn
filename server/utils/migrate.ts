@@ -223,6 +223,23 @@ export async function runMigrations() {
       ON user_identities (user_id);
   `)
 
+  // Закладка вошедшего читателя: прочитанные главы и место в каждой. У гостей
+  // всё это лежит в localStorage и там же остаётся — таблица только для тех,
+  // кто вошёл, ради того чтобы закладка совпадала на телефоне и на ноутбуке.
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS reading_progress (
+      user_id INTEGER NOT NULL,
+      chapter_id TEXT NOT NULL,
+      scroll REAL NOT NULL DEFAULT 0,
+      is_read INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, chapter_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS reading_progress_recent
+      ON reading_progress (user_id, updated_at);
+  `)
+
   // Дефолтные настройки сайта
   const defaults: Record<string, string> = {
     hero_title: 'Истории трактира,\nрассказанные заново',

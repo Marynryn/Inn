@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export const chapters = sqliteTable('chapters', {
   id: text('id').primaryKey(), // '4.20'
@@ -46,6 +46,16 @@ export const comments = sqliteTable('comments', {
   userId: integer('user_id'), // NULL = гость, иначе — залогиненный пользователь
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
+
+// Закладка вошедшего читателя. Строка на главу: дочитал ли и где остановился.
+// Последняя глава — та, чья строка обновлялась позже всех.
+export const readingProgress = sqliteTable('reading_progress', {
+  userId: integer('user_id').notNull(),
+  chapterId: text('chapter_id').notNull(),
+  scroll: real('scroll').notNull().default(0), // доля прокрутки, 0..1
+  isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+}, t => [primaryKey({ columns: [t.userId, t.chapterId] })])
 
 export const chapterStats = sqliteTable('chapter_stats', {
   chapterId: text('chapter_id').primaryKey(),
