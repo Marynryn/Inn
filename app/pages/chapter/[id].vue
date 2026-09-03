@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import titleLeaf from '~/assets/leaves/maple-lime.svg'
+
 const route = useRoute()
 const rawParam = route.params.id as string
 
@@ -160,11 +162,16 @@ useHead(() => ({
       :comments-label="chapter ? `Обсуждение главы ${chapter.id}` : 'Обсуждение главы'"
     />
 
+    <FaintLeaves />
+
     <!-- READER -->
     <div class="reader">
       <div class="reader-title-row">
         <div>
-          <div class="reader-eyebrow">Том {{ chapter.volume }} · Глава {{ chapter.id }}</div>
+          <div class="reader-eyebrow">
+            <img class="eyebrow-leaf" :src="titleLeaf" alt="" width="18" height="18">
+            Том {{ chapter.volume }} · Глава {{ chapter.id }}
+          </div>
           <h1 class="display">{{ chapter.title }}</h1>
         </div>
         <button
@@ -303,10 +310,12 @@ useHead(() => ({
 }
 
 .reader {
+  /* Над фоном, но без заливки: листья просвечивают сквозь колонку */
+  position: relative;
+  z-index: 1;
   max-width: 960px;
   margin: 0 auto;
   padding: 56px 48px 0;
-  background: var(--bg-dark-2);
   color: var(--parchment);
 }
 
@@ -324,6 +333,9 @@ useHead(() => ({
 }
 
 .reader-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   font-size: 12px;
   letter-spacing: .18em;
   text-transform: uppercase;
@@ -358,7 +370,6 @@ useHead(() => ({
   padding: 32px 0;
   border-top: 1px solid rgba(241, 230, 210, .1);
   font-size: 18px;
-  background: var(--bg-dark-2);
 }
 
 .reader-nav a {
@@ -410,14 +421,12 @@ useHead(() => ({
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-dark-2);
 }
 
 .comments-cta {
   max-width: 960px;
   margin: 0 auto;
   padding: 20px 48px 64px;
-  background: var(--bg-dark-2);
 }
 
 .comments-cta > :deep(.tg-cta) {
