@@ -26,8 +26,8 @@ export default defineEventHandler(async (event) => {
 
   const filePart = form.find(f => f.name === 'avatar' && f.data?.length)
   if (filePart) {
-    // Формат не проверяем по расширению: sharp всё равно читает содержимое и
-    // сам откажется от того, что картинкой не является.
+    // Формат проверяется по сигнатуре файла внутри saveAvatar — имени,
+    // присланному клиентом, верить нельзя.
     updates.avatarUrl = await saveAvatar(sessionUser.id, filePart.data).catch(() => {
       throw createError({ statusCode: 400, message: 'Не похоже на картинку' })
     })

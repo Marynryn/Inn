@@ -29,13 +29,13 @@
     "nuxt-auth-utils": "^0.5.29",
     "pinia": "^3.0.4",
     "sanitize-html": "^2.17.5",
-    "sharp": "^0.35.2",
     "vue": "^3.5.35",
     "vue-router": "^5.1.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/sanitize-html": "^2.16.1",
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.10",
+    "sharp": "^0.35.2"
   }
 }
