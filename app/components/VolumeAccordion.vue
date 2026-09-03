@@ -22,6 +22,31 @@ const SPINE_COLORS = [
   '#5d6034', '#7a3b34', '#51694f', '#4a3a5c',
 ]
 
+// Римская нумерация на корешке. До L с запасом: томов в переводе десяток,
+// но правило не должно ломаться, если их станет заметно больше.
+const ROMAN: [number, string][] = [
+  [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+]
+
+const roman = computed(() => {
+  let left = Math.trunc(props.volume)
+  if (!Number.isFinite(left) || left < 1) return ''
+  let out = ''
+  for (const [value, sign] of ROMAN) {
+    while (left >= value) { out += sign; left -= value }
+  }
+  return out
+})
+
+// Кегль зависит от длины номера: «II» и «VIII» поперёк корешка занимают
+// вдвое разную ширину, и на одном размере длинный вылез бы за края.
+const numSize = computed(() => {
+  const n = roman.value.length
+  if (n <= 2) return 10
+  if (n === 3) return 8.5
+  return 7
+})
+
 const spineColor = computed(() => {
   const i = Math.trunc(props.volume) % SPINE_COLORS.length
   return SPINE_COLORS[(i + SPINE_COLORS.length) % SPINE_COLORS.length]
@@ -31,7 +56,9 @@ const spineColor = computed(() => {
 <template>
   <div class="volume" :class="{ open: isOpen }">
     <button class="volume-head" @click="emit('toggle')">
-      <span class="spine" :style="{ '--spine': spineColor }" aria-hidden="true" />
+      <span class="spine" :style="{ '--spine': spineColor }" aria-hidden="true">
+        <span class="spine-num" :style="{ fontSize: `${numSize}px` }">{{ roman }}</span>
+      </span>
       <span class="vol-name">
         Том {{ volume }}
         <span class="vol-sub">· {{ chapters.length }} {{ pluralize(chapters.length, 'глава', 'главы', 'глав') }}</span>
@@ -88,8 +115,8 @@ const spineColor = computed(() => {
    на этом перепаде он и читается объёмным, без единой картинки. */
 .spine {
   flex: 0 0 auto;
-  width: 13px;
-  height: 42px;
+  width: 24px;
+  height: 46px;
   border-radius: 2px 2px 1px 1px;
   position: relative;
   background:
@@ -120,19 +147,37 @@ const spineColor = computed(() => {
 .spine::after {
   content: "";
   position: absolute;
-  left: 2px;
-  right: 2px;
+  left: 4px;
+  right: 4px;
   height: 3px;
   border-top: 1px solid rgba(201, 160, 46, .62);
   border-bottom: 1px solid rgba(201, 160, 46, .32);
 }
 
 .spine::before {
-  top: 5px;
+  top: 4px;
 }
 
 .spine::after {
-  bottom: 5px;
+  bottom: 4px;
+}
+
+/* Номер лежит поперёк корешка, поэтому корешок и расширен до 24 пикселей:
+   в прежние девятнадцать «VIII» не помещалось. */
+.spine-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: .2px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  color: var(--gold);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .6);
 }
 
 .vol-name {
