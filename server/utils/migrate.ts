@@ -175,6 +175,54 @@ export async function runMigrations() {
     ) WHERE sort_order = 0
   `)
 
+  // Вход через Google и телеграм. У таких аккаунтов нет ни почты, ни пароля, а
+  // прежняя таблица объявляла оба столбца NOT NULL — снять это ALTER'ом SQLite
+  // не умеет, поэтому таблицу разово пересобираем. Метка в настройках следит,
+  // чтобы пересборка случилась один раз и не тронула живые строки повторно.
+  const usersRebuilt = await client.execute("SELECT value FROM site_settings WHERE key = 'users_nullable_rebuild'")
+  if (usersRebuilt.rows.length === 0) {
+    // Одной транзакцией вместе с меткой: оборвись процесс между DROP и
+    // переименованием — база осталась бы без таблицы пользователей, а метка
+    // непоставленной, и следующий запуск падал бы на том же месте. Либо всё,
+    // либо ничего.
+    await client.batch([
+      `CREATE TABLE users_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE,
+        password_hash TEXT,
+        role TEXT NOT NULL DEFAULT 'reader' CHECK(role IN ('admin','reader')),
+        avatar_url TEXT,
+        display_name TEXT,
+        is_banned INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO users_new (id, email, password_hash, role, avatar_url, display_name)
+        SELECT id, email, password_hash, role, avatar_url, display_name FROM users`,
+      'DROP TABLE users',
+      'ALTER TABLE users_new RENAME TO users',
+      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('users_nullable_rebuild', '1')",
+    ], 'write')
+  }
+
+  // Способы входа: один аккаунт — сколько угодно провайдеров. Отдельная таблица,
+  // а не столбцы в users: иначе третий провайдер потребует новой миграции, а
+  // привязать два входа к одному человеку будет нечем.
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS user_identities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      provider TEXT NOT NULL CHECK(provider IN ('google','telegram')),
+      provider_user_id TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS user_identities_provider
+      ON user_identities (provider, provider_user_id);
+
+    CREATE INDEX IF NOT EXISTS user_identities_user
+      ON user_identities (user_id);
+  `)
+
   // Дефолтные настройки сайта
   const defaults: Record<string, string> = {
     hero_title: 'Истории трактира,\nрассказанные заново',

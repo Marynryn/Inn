@@ -3,6 +3,7 @@ import { comments, users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import { checkRateLimit } from '../../utils/rate-limit'
 import { wsBroadcast } from '../../utils/ws-rooms'
+import { readerName } from '../../utils/identity'
 
 export default defineEventHandler(async (event) => {
   const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
@@ -23,7 +24,7 @@ export default defineEventHandler(async (event) => {
     const [user] = await db.select().from(users).where(eq(users.id, sessionUser.id))
     if(user){
       userId = user.id
-      authorName = user.displayName || user.email.split('@')[0]
+      authorName = readerName(user)
     }
   }
 

@@ -31,6 +31,7 @@ useSeoMeta({
   <div class="about-page">
     <AppHeader
       show-nav-links
+      show-auth
       :telegram-url="settings?.telegram_url"
       :boosty-url="settings?.boosty_url"
       :tribute-url="settings?.tribute_url"

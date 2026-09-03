@@ -1,6 +1,20 @@
+export type SessionUser = {
+  id: number
+  email: string | null
+  role: 'admin' | 'reader'
+  displayName: string | null
+  avatarUrl: string | null
+}
+
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<{ id: number; email: string; role: string } | null>(null)
+  const user = ref<SessionUser | null>(null)
   const isAdmin = computed(() => user.value?.role === 'admin')
+  const isAuthed = computed(() => Boolean(user.value))
+
+  /** Имя для показа: ник, часть почты до собаки или безликое «Читатель». */
+  const name = computed(() =>
+    user.value ? (user.value.displayName || user.value.email?.split('@')[0] || 'Читатель') : ''
+  )
 
   async function fetchMe() {
     try {
@@ -20,5 +34,5 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
   }
 
-  return { user, isAdmin, fetchMe, login, logout }
+  return { user, isAdmin, isAuthed, name, fetchMe, login, logout }
 })

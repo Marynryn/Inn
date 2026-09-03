@@ -2,7 +2,7 @@
 const { data: settings } = await useFetch('/api/settings')
 const { data: chapters } = await useFetch('/api/chapters')
 
-const auth = useAuthStore()
+
 const { load } = useReadProgress()
 const { volumes, totalChapters, chaptersLabel, chapterRange, getBadge } = useVolumes(chapters)
 const { ctaHref, ctaText } = useHeroCta(chapters)
@@ -18,7 +18,6 @@ const scrollToLedger = () => {
 
 onMounted(() => {
   load()
-  auth.fetchMe()
 })
 
 const { lastRead } = useReadProgress()

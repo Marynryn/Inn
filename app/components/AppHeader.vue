@@ -17,10 +17,16 @@ const props = defineProps<{
   backToChapterHref?: string
   backToChapterLabel?: string
   transparentTop?: boolean
+  showAuth?: boolean
 }>()
 
 const menuOpen = ref(false)
 const route = useRoute()
+const auth = useAuthStore()
+
+// Вход возвращает туда, откуда позвали: читателю незачем терять место в главе
+// ради того, чтобы подписать комментарий своим именем.
+const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
 const slots = useSlots()
 const scrolled = ref(false)
 
@@ -111,6 +117,13 @@ onUnmounted(() => {
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
           Telegram        </a>
         <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-link nav-support hide-mobile" />
+        <template v-if="showAuth">
+          <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip hide-mobile" :title="auth.name">
+            <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" class="user-pic" alt="Профиль">
+            <span v-else class="user-pic user-pic--letter display">{{ auth.name[0]?.toUpperCase() }}</span>
+          </NuxtLink>
+          <NuxtLink v-else :to="loginHref" class="nav-link hide-mobile">Войти</NuxtLink>
+        </template>
         <button
           class="burger"
           :class="{ open: menuOpen }"
@@ -129,6 +142,13 @@ onUnmounted(() => {
           Telegram <span class="ext">↗</span>
         </a>
         <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-link nav-support" />
+        <template v-if="showAuth">
+          <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip hide-mobile" :title="auth.name">
+            <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" class="user-pic" alt="Профиль">
+            <span v-else class="user-pic user-pic--letter display">{{ auth.name[0]?.toUpperCase() }}</span>
+          </NuxtLink>
+          <NuxtLink v-else :to="loginHref" class="nav-link hide-mobile">Войти</NuxtLink>
+        </template>
         <button
           class="burger"
           :class="{ open: menuOpen }"
@@ -154,6 +174,10 @@ onUnmounted(() => {
           {{ commentsLabel || 'Обсуждение главы' }}
         </NuxtLink>
         <NuxtLink v-if="route.path !== '/about'" href="/about" class="menu-link" @click="menuOpen = false">О проекте</NuxtLink>
+        <template v-if="showAuth">
+          <NuxtLink v-if="auth.isAuthed" href="/profile" class="menu-link" @click="menuOpen = false">Профиль</NuxtLink>
+          <NuxtLink v-else :href="loginHref" class="menu-link" @click="menuOpen = false">Войти</NuxtLink>
+        </template>
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="menu-link" @click="menuOpen = false">
           Telegram <span class="ext">↗</span>
         </a>
@@ -458,4 +482,29 @@ onUnmounted(() => {
     gap: 12px;
   }
 }
+/* ── Аватарка вошедшего ─────────────────────── */
+.user-chip {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.user-pic {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(241, 230, 210, .25);
+  display: block;
+}
+
+.user-pic--letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--parchment);
+  background: rgba(241, 230, 210, .08);
+}
+
 </style>

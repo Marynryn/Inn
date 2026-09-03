@@ -5,9 +5,12 @@ const props = defineProps<{
   placeholder?: string
   spoilerNote?: string
   limit?: number
+  showLogin?: boolean
 }>()
 
 const auth = useAuthStore()
+const route = useRoute()
+const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
 
 const url = computed(() =>
   props.chapterId ? `/api/comments?chapterId=${props.chapterId}` : '/api/comments?siteWide=1'
@@ -149,12 +152,15 @@ onMounted(() => {
 
     <div class="comment-form">
       <input
-        v-if="!auth.isAdmin"
+        v-if="!auth.isAuthed"
         v-model="authorName"
         type="text"
         placeholder="Твоё имя"
         maxlength="40"
       >
+      <NuxtLink v-if="showLogin && !auth.isAuthed" :to="loginHref" class="comment-login-hint">
+        Войти, чтобы подписывать комментарии своим именем
+      </NuxtLink>
       <div class="textarea-wrap">
         <textarea
           ref="textareaRef"
@@ -287,6 +293,19 @@ onMounted(() => {
   font-size: 13px;
   margin-bottom: 10px;
   display: block;
+}
+
+.comment-login-hint {
+  align-self: flex-start;
+  font-size: 12px;
+  color: var(--ember-soft);
+  opacity: .75;
+  text-decoration: none;
+}
+
+.comment-login-hint:hover {
+  opacity: 1;
+  text-decoration: underline;
 }
 
 .textarea-wrap {

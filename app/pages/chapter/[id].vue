@@ -26,7 +26,6 @@ const { data: settings } = useFetch('/api/settings')
 const chapterId = chapter.value?.id ?? rawParam.replace('-', '.')
 const slug = computed(() => encodeURIComponent(slugifyChapterId(chapter.value?.id ?? rawParam)))
 
-const auth = useAuthStore()
 const { load } = useReadProgress()
 const { prevChapter, nextChapter } = useChapterNav(chapterId, allChapters)
 const { dlState, download } = useChapterDownload(chapterId)
@@ -49,7 +48,6 @@ onBeforeRouteLeave(() => {
 
 onMounted(() => {
   load()
-  auth.fetchMe()
 
   // Просмотр засчитывается отсюда, а не при рендере на сервере: до этой строки
   // доходит только тот, у кого страница действительно открылась в браузере.

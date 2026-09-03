@@ -14,13 +14,27 @@ export const chapters = sqliteTable('chapters', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
+// Почта и пароль необязательны: у входа через Google почта есть, у телеграма её
+// нет вовсе, а пароль заводится только у тех, кого создаёт админ.
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  email: text('email').notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
+  email: text('email').unique(),
+  passwordHash: text('password_hash'),
   role: text('role', { enum: ['admin', 'reader'] }).notNull().default('reader'),
   avatarUrl: text('avatar_url'),
   displayName: text('display_name'),
+  isBanned: integer('is_banned', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+})
+
+// Привязка аккаунта к способу входа. Один пользователь может держать и Google, и
+// телеграм — вход любым из них приводит в тот же профиль.
+export const userIdentities = sqliteTable('user_identities', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  provider: text('provider', { enum: ['google', 'telegram'] }).notNull(),
+  providerUserId: text('provider_user_id').notNull(),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
 export const comments = sqliteTable('comments', {

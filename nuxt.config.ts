@@ -26,6 +26,13 @@ export default defineNuxtConfig({
       maxAge: 60 * 60 * 24 * 30, // 30 дней — не разлогинивать при каждом закрытии браузера
     },
     notifySecret: process.env.NOTIFY_SECRET,
+    // Ключи входа через Google. Пустые — кнопка на странице входа не появится.
+    oauth: {
+      google: {
+        clientId: process.env.NUXT_OAUTH_GOOGLE_CLIENT_ID,
+        clientSecret: process.env.NUXT_OAUTH_GOOGLE_CLIENT_SECRET,
+      },
+    },
     // Семя для персонажа дня. Без него порядок вычисляется по паролю сессии —
     // работает, но при смене пароля порядок дней перетасуется.
     gameSecret: process.env.GAME_SECRET,

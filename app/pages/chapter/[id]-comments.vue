@@ -4,7 +4,7 @@ definePageMeta({ path: '/chapter/:id/comments' })
 const route = useRoute()
 const rawId = route.params.id as string
 
-const auth = useAuthStore()
+
 const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURIComponent(rawId)}`)
 
 // Как и на странице главы — настоящий код ответа вместо пустой страницы с кодом 200.
@@ -21,7 +21,6 @@ const { data: settings } = useFetch('/api/settings')
 // (реальный id главы), а не из сырого параметра роута.
 const chapterId = chapter.value?.id ?? rawId.replace('-', '.')
 
-onMounted(() => auth.fetchMe())
 
 const siteUrl = useRuntimeConfig().public.siteUrl
 const slug = computed(() => encodeURIComponent(slugifyChapterId(chapter.value?.id ?? rawId)))
