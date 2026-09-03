@@ -1,6 +1,6 @@
 import { clampVolume, isPool } from '../../utils/game-data'
 import { checkRateLimit } from '../../utils/rate-limit'
-import { playerKey, sessionState, startEndless } from '../../utils/game-session'
+import { playerIdentity, sessionState, startEndless } from '../../utils/game-session'
 
 /**
  * Новая партия в свободном режиме: тут игрок сам выбирает и набор, и потолок
@@ -14,13 +14,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<{ pool?: string; maxVolume?: number }>(event)
-  const isAdmin = (await getUserSession(event)).user?.role === 'admin'
-  const player = playerKey(event)
+  const { player, userId, isAdmin } = await playerIdentity(event)
   const row = await startEndless(
     player,
     isPool(body?.pool) ? body.pool : 'known',
     clampVolume(body?.maxVolume),
     isAdmin,
+    userId,
   )
 
   return sessionState(row)

@@ -85,6 +85,7 @@ export const chapterViewDays = sqliteTable('chapter_view_days', {
 export const gameSessions = sqliteTable('game_sessions', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   player: text('player').notNull(), // анонимный ключ из куки
+  userId: integer('user_id'), // NULL = играет не входя; проставляется при первом запросе после входа
   mode: text('mode', { enum: ['daily', 'endless'] }).notNull(),
   pool: text('pool', { enum: ['known', 'all'] }).notNull(),
   maxVolume: integer('max_volume').notNull().default(10), // потолок тома: защита от спойлеров
@@ -106,6 +107,20 @@ export const gameStats = sqliteTable('game_stats', {
   guesses: integer('guesses').notNull().default(0), // все попытки, включая проигранные партии
   winGuesses: integer('win_guesses').notNull().default(0), // попытки только победителей
 }, t => [primaryKey({ columns: [t.day, t.mode] })])
+
+// Завершённая партия вошедшего игрока — то, из чего считается рейтинг. Живёт
+// отдельно от game_sessions: те удаляются и чистятся, а достижения должны
+// остаться. Партий дня у человека не больше одной в сутки — иначе рейтинг
+// накручивался бы перезаходом.
+export const gameResults = sqliteTable('game_results', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  day: text('day').notNull(), // '2026-09-04', по Москве
+  mode: text('mode', { enum: ['daily', 'endless'] }).notNull(),
+  guesses: integer('guesses').notNull().default(0),
+  won: integer('won', { mode: 'boolean' }).notNull().default(false),
+  finishedAt: text('finished_at').notNull().default(sql`(datetime('now'))`),
+})
 
 export const siteSettings = sqliteTable('site_settings', {
   key: text('key').primaryKey(),

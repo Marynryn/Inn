@@ -223,6 +223,38 @@ export async function runMigrations() {
       ON user_identities (user_id);
   `)
 
+  // Достижения в игре. Отдельная таблица, а не выборка по партиям: свободные
+  // партии удаляются при старте следующей, а всё старше месяца вычищается —
+  // истории игрока в game_sessions не остаётся вовсе. Здесь строка на
+  // завершённую партию, и она переживает обе чистки.
+  //
+  // Партий дня у человека не может быть больше одной в сутки: без этого рейтинг
+  // накручивался бы перезаходом.
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS game_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      day TEXT NOT NULL,
+      mode TEXT NOT NULL CHECK(mode IN ('daily','endless')),
+      guesses INTEGER NOT NULL DEFAULT 0,
+      won INTEGER NOT NULL DEFAULT 0,
+      finished_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS game_results_daily
+      ON game_results (user_id, day) WHERE mode = 'daily';
+
+    CREATE INDEX IF NOT EXISTS game_results_user
+      ON game_results (user_id, finished_at);
+  `)
+
+  // Партия, начатая до входа, должна засчитаться тому, кто потом вошёл.
+  try {
+    await client.execute('ALTER TABLE game_sessions ADD COLUMN user_id INTEGER')
+  } catch {
+    // Столбец уже существует — это нормально
+  }
+
   // Закладка вошедшего читателя: прочитанные главы и место в каждой. У гостей
   // всё это лежит в localStorage и там же остаётся — таблица только для тех,
   // кто вошёл, ради того чтобы закладка совпадала на телефоне и на ноутбуке.

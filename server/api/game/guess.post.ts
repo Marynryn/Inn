@@ -1,5 +1,5 @@
 import { checkRateLimit } from '../../utils/rate-limit'
-import { applyGuess, currentSession, dailyMaxVolume, playerKey } from '../../utils/game-session'
+import { applyGuess, currentSession, dailyMaxVolume, playerIdentity } from '../../utils/game-session'
 
 /**
  * Попытка. Сравнение целиком на сервере: наружу уходит разбор названного
@@ -15,15 +15,15 @@ export default defineEventHandler(async (event) => {
   const id = String(body?.id ?? '').trim()
   if (!id) throw createError({ statusCode: 400, message: 'Не выбран персонаж' })
 
-  const isAdmin = (await getUserSession(event)).user?.role === 'admin'
   const daily = body?.mode !== 'endless'
-  const player = playerKey(event)
+  const { player, userId, isAdmin } = await playerIdentity(event)
   const row = await currentSession(
     player,
     daily ? 'daily' : 'endless',
     'known',
     daily ? await dailyMaxVolume() : undefined,
     isAdmin,
+    userId,
   )
 
   return applyGuess(row, id, isAdmin)

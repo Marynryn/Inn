@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { and, desc, eq, max, sql } from 'drizzle-orm'
 import { GAME_LAST_VOLUME, type GameMode, type GameStatus } from '#shared/utils/gameColumns'
-import { chapters, gameSessions, gameStats, siteSettings } from '../database/schema'
+import { chapters, gameResults, gameSessions, gameStats, siteSettings } from '../database/schema'
 import { useDb } from './db'
 import { MSK_OFFSET_MS, mskDay } from './msk'
 import { DAILY_POOL, clampVolume, dailyCharacter, findAnyCharacter, findCharacter, poolCharacters, randomCharacter, type Pool } from './game-data'
@@ -34,6 +34,37 @@ export function playerKey(event: H3Event): string {
     maxAge: 60 * 60 * 24 * 365,
   })
   return key
+}
+
+/**
+ * Кто играет. Кука отвечает за партию, аккаунт — за достижения: без входа
+ * ранжировать некого, анонимный ключ живёт в одном браузере и меняется вместе
+ * с ним.
+ */
+export async function playerIdentity(event: H3Event) {
+  const session = await getUserSession(event)
+  const user = session.user as { id?: number; role?: string } | undefined
+
+  return {
+    player: playerKey(event),
+    userId: user?.id ?? null,
+    isAdmin: user?.role === 'admin',
+  }
+}
+
+/**
+ * Записывает завершённую партию в достижения. Партии без аккаунта пропускаем:
+ * приписать их некому. Партия дня одна на сутки — повторную вставку база
+ * отклоняет сама, и это ровно то поведение, которое нужно.
+ */
+async function recordResult(row: SessionRow, won: boolean, guesses: number) {
+  if (!row.userId) return
+
+  const db = useDb()
+  await db
+    .insert(gameResults)
+    .values({ userId: row.userId, day: row.day, mode: row.mode as GameMode, guesses, won })
+    .onConflictDoNothing()
 }
 
 const parseGuesses = (row: SessionRow): string[] => {
@@ -138,7 +169,7 @@ async function bumpStats(
     })
 }
 
-async function createDaily(player: string, day: string, isAdmin: boolean): Promise<SessionRow> {
+async function createDaily(player: string, day: string, isAdmin: boolean, userId: number | null): Promise<SessionRow> {
   const db = useDb()
   const maxVolume = await dailyMaxVolume(day)
   await freezeDailyCap(day, maxVolume)
@@ -147,7 +178,7 @@ async function createDaily(player: string, day: string, isAdmin: boolean): Promi
 
   await db
     .insert(gameSessions)
-    .values({ player, mode: 'daily', pool: DAILY_POOL, maxVolume, day, answerId: answer.id })
+    .values({ player, userId, mode: 'daily', pool: DAILY_POOL, maxVolume, day, answerId: answer.id })
     .onConflictDoNothing()
 
   await bumpStats(day, 'daily', isAdmin, { played: 1 })
@@ -165,6 +196,7 @@ async function createEndless(
   pool: Pool,
   maxVolume: number,
   isAdmin = false,
+  userId: number | null = null,
 ): Promise<SessionRow> {
   const db = useDb()
   const cap = clampVolume(maxVolume)
@@ -180,10 +212,24 @@ async function createEndless(
 
   const [row] = await db
     .insert(gameSessions)
-    .values({ player, mode: 'endless', pool, maxVolume: cap, day, answerId: answer.id })
+    .values({ player, userId, mode: 'endless', pool, maxVolume: cap, day, answerId: answer.id })
     .returning()
 
   return row!
+}
+
+/**
+ * Партия, начатая до входа, аккаунта не знает. Пришёл человек, вошёл и вернулся
+ * в игру — приписываем ей его: иначе сегодняшняя партия не попала бы в
+ * достижения только из-за того, что войти догадались в середине дня.
+ */
+async function claimSession(row: SessionRow, userId: number | null): Promise<SessionRow> {
+  if (!userId || row.userId) return row
+
+  const db = useDb()
+  await db.update(gameSessions).set({ userId }).where(eq(gameSessions.id, row.id))
+
+  return { ...row, userId }
 }
 
 /** Текущая партия игрока: находит начатую или заводит новую. */
@@ -193,6 +239,7 @@ export async function currentSession(
   pool: Pool,
   maxVolume = GAME_LAST_VOLUME,
   isAdmin = false,
+  userId: number | null = null,
 ): Promise<SessionRow> {
   const db = useDb()
 
@@ -203,7 +250,7 @@ export async function currentSession(
       .from(gameSessions)
       .where(and(eq(gameSessions.player, player), eq(gameSessions.mode, 'daily'), eq(gameSessions.day, day)))
 
-    return row ?? await createDaily(player, day, isAdmin)
+    return row ? claimSession(row, userId) : createDaily(player, day, isAdmin, userId)
   }
 
   const [row] = await db
@@ -213,7 +260,7 @@ export async function currentSession(
     .orderBy(desc(gameSessions.id))
     .limit(1)
 
-  return row ?? await createEndless(player, pool, maxVolume, isAdmin)
+  return row ? claimSession(row, userId) : createEndless(player, pool, maxVolume, isAdmin, userId)
 }
 
 export const startEndless = createEndless
@@ -306,6 +353,8 @@ export async function applyGuess(row: SessionRow, guessId: string, isAdmin = fal
     ...(won ? { won: 1, winGuesses: guesses.length } : {}),
   })
 
+  if (won) await recordResult(row, true, guesses.length)
+
   return {
     row: await buildGuessRow(guess, answer, row.maxVolume),
     status: (won ? 'won' : 'playing') as GameStatus,
@@ -323,6 +372,10 @@ export async function revealAnswer(row: SessionRow) {
       .update(gameSessions)
       .set({ status: 'revealed', finishedAt: new Date().toISOString() })
       .where(eq(gameSessions.id, row.id))
+
+    // Сдача — тоже сыгранная партия: в рейтинге она считается попыткой без
+    // победы, иначе процент угадываний считался бы только по удачным дням.
+    await recordResult(row, false, parseGuesses(row).length)
   }
 
   return { ...row, status: 'revealed' as const }
