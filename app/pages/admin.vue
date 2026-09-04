@@ -547,6 +547,15 @@ useHead({
             </div>
           </div>
 
+          <!-- Читатели — строкой, а не пятой плиткой: на этом экране их уже
+               четыре, и ещё одна ничего не прибавила бы к пониманию. -->
+          <p class="readers-line">
+            <span>Читателей <b>{{ stats?.readers?.total?.toLocaleString('ru') ?? 0 }}</b></span>
+            <span v-if="stats?.readers?.week" class="readers-new">+{{ stats.readers.week }} за неделю</span>
+            <span>Google {{ stats?.readers?.google ?? 0 }} · Telegram {{ stats?.readers?.telegram ?? 0 }}</span>
+            <span>пишут или играют {{ stats?.readers?.active ?? 0 }}</span>
+          </p>
+
           <h3 class="stats-sub">Игра «Кто из таверны»</h3>
           <div class="game-stats">
             <div class="game-stats-row game-stats-head">
@@ -1295,6 +1304,33 @@ useHead({
   margin-top: 4px;
   text-transform: uppercase;
   letter-spacing: .06em;
+}
+
+/* Строка про читателей идёт сразу под плитками и держится к ним ближе, чем к
+   следующему заголовку: это подпись к ним, а не отдельный раздел. */
+.readers-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: -18px 0 28px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.readers-line b {
+  color: var(--ember-soft);
+  font-weight: 600;
+}
+
+.readers-line span + span::before {
+  content: '·';
+  margin-right: 12px;
+  opacity: .45;
+}
+
+.readers-new {
+  color: var(--moss);
 }
 
 .stats-sub {
