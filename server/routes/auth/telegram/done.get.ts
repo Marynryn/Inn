@@ -1,5 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
-import { loginWithProvider, takeNext } from '../../../utils/identity'
+import { afterLogin, loginWithProvider } from '../../../utils/identity'
 
 /**
  * Возврат от телеграма. Поля профиля приходят подписанными: HMAC-SHA256 от
@@ -80,11 +80,11 @@ export default defineEventHandler(async (event) => {
 
   const name = [query.first_name, query.last_name].filter(Boolean).join(' ').trim()
 
-  await loginWithProvider(event, 'telegram', {
+  const { created } = await loginWithProvider(event, 'telegram', {
     id: String(query.id),
     displayName: name || query.username || null,
     photoUrl: query.photo_url ?? null,
   })
 
-  return sendRedirect(event, takeNext(event))
+  return sendRedirect(event, afterLogin(event, created))
 })

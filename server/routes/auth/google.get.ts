@@ -1,4 +1,4 @@
-import { loginWithProvider, rememberNext, takeNext } from '../../utils/identity'
+import { afterLogin, loginWithProvider, rememberNext } from '../../utils/identity'
 
 /**
  * Вход через Google. Обмен кода на токен и запрос профиля делает сам
@@ -13,7 +13,7 @@ const handler = defineOAuthGoogleEventHandler({
   },
 
   async onSuccess(event, { user }) {
-    await loginWithProvider(event, 'google', {
+    const { created } = await loginWithProvider(event, 'google', {
       id: String(user.sub),
       email: user.email ?? null,
       emailVerified: user.email_verified === true,
@@ -21,7 +21,7 @@ const handler = defineOAuthGoogleEventHandler({
       photoUrl: user.picture ?? null,
     })
 
-    return sendRedirect(event, takeNext(event))
+    return sendRedirect(event, afterLogin(event, created))
   },
 
   onError(event, error) {

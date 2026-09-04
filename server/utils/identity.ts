@@ -73,6 +73,19 @@ export function takeNext(event: H3Event): string {
 }
 
 /**
+ * Куда вести после входа. Новичка — на профиль: аккаунт только что завёлся, и
+ * это единственный момент, когда человеку есть смысл показать, где меняются имя
+ * и аватарка. Всех остальных — туда, откуда позвали: дёргать на профиль при
+ * каждом входе незачем.
+ *
+ * Куку с адресом возврата гасим в обоих случаях: она нужна на один вход.
+ */
+export function afterLogin(event: H3Event, created: boolean): string {
+  const next = takeNext(event)
+  return created ? '/profile' : next
+}
+
+/**
  * Вход через провайдера: находит аккаунт по привязке, узнаёт по подтверждённой
  * почте или заводит новый — и ставит сессию.
  *
@@ -85,7 +98,7 @@ export async function loginWithProvider(
   event: H3Event,
   provider: Provider,
   profile: ProviderProfile,
-): Promise<UserRow> {
+): Promise<{ user: UserRow; created: boolean }> {
   const db = useDb()
   const byId = async (id: number) => (await db.select().from(users).where(eq(users.id, id)))[0]
 
@@ -120,8 +133,12 @@ export async function loginWithProvider(
     throw createError({ statusCode: 403, message: 'Аккаунт заблокирован' })
   }
 
+  // Первый вход и есть регистрация — отличать её важно: новичка стоит завести на
+  // профиль, а всех прочих незачем дёргать туда при каждом входе.
+  let created = false
+
   if (!user) {
-    const [created] = await db
+    const [fresh] = await db
       .insert(users)
       .values({
         email,
@@ -130,7 +147,8 @@ export async function loginWithProvider(
       })
       .returning()
 
-    user = created!
+    user = fresh!
+    created = true
   }
 
   if (!link) {
@@ -152,5 +170,5 @@ export async function loginWithProvider(
   }
 
   await setUserSession(event, { user: toSessionUser(user) })
-  return user
+  return { user, created }
 }
