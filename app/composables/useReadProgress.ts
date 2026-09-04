@@ -1,6 +1,5 @@
 const LS_LAST = 'tavern:lastReadChapter'
 const LS_LIST = 'tavern:readChapters'
-const LS_MERGED = 'tavern:progressMerged'
 
 /** Тот же префикс, которым useScrollProgress помечает свои ключи. */
 const LS_SCROLL = 'tavern:scroll:'
@@ -58,7 +57,7 @@ export const useReadProgress = () => {
     if (scroll > 0) push({ chapterId, scroll })
   }
 
-  /** Всё, что накопилось в браузере, — для переноса на сервер при первом входе. */
+  /** Всё, что накопилось в браузере, — чтобы сравнить с тем, что знает сервер. */
   const localPayload = () => {
     const scroll: Record<string, number> = {}
     for (let i = 0; i < localStorage.length; i++) {
@@ -71,22 +70,18 @@ export const useReadProgress = () => {
   }
 
   /**
-   * Забирает закладку с сервера. Первым делом — разовый перенос того, что
-   * человек начитал гостем: до появления аккаунтов вся история жила только в
-   * браузере, и терять её при входе было бы обидно.
+   * Сводит закладку браузера с серверной. Сначала спрашиваем сервер, потом
+   * досылаем то, чего у него нет.
+   *
+   * Раньше перенос делался один раз на браузер, под меткой, — и всё, что человек
+   * читал разлогиненным после первого входа, до сервера уже не доезжало.
+   * Сравнение вместо метки закрывает это: лишнего запроса не будет, если
+   * досылать нечего, а дырки не останется, если есть.
    */
   const syncFromServer = async () => {
     if (!import.meta.client || !auth.isAuthed) return
 
     load()
-    const mergedKey = `${LS_MERGED}:${auth.user!.id}`
-
-    try {
-      if (!localStorage.getItem(mergedKey)) {
-        await $fetch('/api/progress/merge', { method: 'POST', body: localPayload() })
-        localStorage.setItem(mergedKey, '1')
-      }
-    } catch {}
 
     const server = await $fetch<{
       lastRead: Chapter | null
@@ -96,9 +91,30 @@ export const useReadProgress = () => {
 
     if (!server) return
 
+    const local = localPayload()
+    const newRead = local.read.filter(id => !server.read.includes(id))
+    const newScroll = Object.fromEntries(
+      Object.entries(local.scroll).filter(([id, value]) => value > (server.scroll[id] ?? 0)),
+    )
+
+    if (newRead.length || Object.keys(newScroll).length) {
+      const touched = new Set([...newRead, ...Object.keys(newScroll)])
+
+      await $fetch('/api/progress/merge', {
+        method: 'POST',
+        body: {
+          read: newRead,
+          scroll: newScroll,
+          // Закладку двигаем, только если она указывает на то, что мы как раз
+          // досылаем: иначе местная, застоявшаяся, откатила бы серверную назад.
+          lastReadId: local.lastReadId && touched.has(local.lastReadId) ? local.lastReadId : null,
+        },
+      }).catch(() => {})
+    }
+
     readChapters.value = [...new Set([...readChapters.value, ...server.read])]
-    if (server.lastRead) lastRead.value = server.lastRead
-    serverScroll.value = server.scroll
+    if (server.lastRead && !newRead.length) lastRead.value = server.lastRead
+    serverScroll.value = { ...server.scroll, ...newScroll }
 
     // Список прочитанного пригодится и до следующего ответа сервера.
     try { localStorage.setItem(LS_LIST, JSON.stringify(readChapters.value)) } catch {}
