@@ -282,10 +282,16 @@ export async function runMigrations() {
   if (nameKeys.rows.length === 0) {
     try { await client.execute('ALTER TABLE users ADD COLUMN display_name_key TEXT') } catch {}
 
+    // Имя, выбранное руками, старше выведенного из почты: раздаём сперва тем,
+    // кто называл себя сам, и только потом остальным. Иначе служебный
+    // admin@tavern.local — он заводится сам при пустой базе и имени никогда не
+    // выбирал — отобрал бы «admin» у живого человека.
     const rows = await client.execute('SELECT id, display_name, email FROM users ORDER BY id')
+    const ordered = [...rows.rows].sort((a, b) =>
+      Number(Boolean(b.display_name)) - Number(Boolean(a.display_name)))
     const taken = new Set<string>()
 
-    for (const row of rows.rows as unknown as { id: number, display_name: string | null, email: string | null }[]) {
+    for (const row of ordered as unknown as { id: number, display_name: string | null, email: string | null }[]) {
       const base = normalizeDisplayName(row.display_name) || nameFromEmail(row.email)
       if (!base) continue
 
@@ -307,6 +313,55 @@ export async function runMigrations() {
         ON users (display_name_key) WHERE display_name_key IS NOT NULL;
     `)
     await client.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('display_name_keys', '1')")
+  }
+
+  // Разбор выше уже прошёл по боевой базе в прежнем порядке — по одному
+  // старшинству id, — и служебный admin@tavern.local успел отобрать «admin» у
+  // хозяйки сайта: ей осталось «admin 2». Возвращаем имя тому, кто его
+  // выбирал: у кого имя лишь выведено из почты, тот уступает его владельцу
+  // номерного двойника, а сам получает двойника взамен.
+  const nameOwners = await client.execute("SELECT value FROM site_settings WHERE key = 'display_name_owner_fix'")
+  if (nameOwners.rows.length === 0) {
+    type NameRow = { id: number, email: string | null, role: string, display_name: string | null, display_name_key: string | null }
+    const all = await client.execute('SELECT id, email, role, display_name, display_name_key FROM users ORDER BY id')
+    const rows = all.rows as unknown as NameRow[]
+
+    for (const holder of rows) {
+      const key = holder.display_name_key
+      if (!key) continue
+
+      // Имя выбрано руками — оно и так у своего человека.
+      const fromMail = nameFromEmail(holder.email)
+      if (!fromMail || displayNameKey(fromMail) !== key) continue
+
+      // Тот, кому это же имя досталось с номером, и есть тот, кто его выбирал.
+      // Только хозяйка сайта: чужие профили разово не переставляем, а если
+      // номерное имя досталось постороннему — имя тем более остаётся здесь.
+      const claimant = rows.find(r => r.id !== holder.id
+        && r.role === 'admin'
+        && /^ \d+$/.test((r.display_name_key ?? '').slice(key.length))
+        && (r.display_name_key ?? '').startsWith(`${key} `))
+      if (!claimant) continue
+
+      const wanted = normalizeDisplayName((claimant.display_name ?? '').replace(/ \d+$/, ''))
+      const given = claimant.display_name!
+      if (!wanted) continue
+
+      // По одному шагу: уникальный индекс не даст двум строкам сойтись на одном
+      // ключе даже на миг, поэтому сначала освобождаем имя, а потом раздаём.
+      await client.batch([
+        { sql: 'UPDATE users SET display_name = NULL, display_name_key = NULL WHERE id = ?', args: [holder.id] },
+        { sql: 'UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?', args: [wanted, displayNameKey(wanted), claimant.id] },
+        { sql: 'UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?', args: [given, displayNameKey(given), holder.id] },
+      ], 'write')
+
+      holder.display_name = given
+      holder.display_name_key = displayNameKey(given)
+      claimant.display_name = wanted
+      claimant.display_name_key = displayNameKey(wanted)
+    }
+
+    await client.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('display_name_owner_fix', '1')")
   }
 
   // Дефолтные настройки сайта

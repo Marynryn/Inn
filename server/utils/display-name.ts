@@ -1,5 +1,11 @@
 import { and, eq, ne } from 'drizzle-orm'
-import { DISPLAY_NAME_MAX, displayNameKey, isReservedName, normalizeDisplayName } from '#shared/utils/displayName'
+import {
+  DISPLAY_NAME_MAX,
+  displayNameKey,
+  isGenericName,
+  isStaffName,
+  normalizeDisplayName,
+} from '#shared/utils/displayName'
 import { users } from '../database/schema'
 import { useDb } from './db'
 
@@ -25,30 +31,42 @@ export async function nameOwnerId(key: string, exceptUserId?: number): Promise<n
   return row?.id ?? null
 }
 
-/** Занято ли имя — для гостя, у которого своего аккаунта нет. */
-export const isNameTaken = async (name: string) => Boolean(await nameOwnerId(displayNameKey(name)))
+/**
+ * Можно ли гостю подписаться этим именем. Занятое читателем и служебное —
+ * нельзя; безликие «Гость» и «Читатель» общие, их занимать некому.
+ */
+export async function isNameFreeForGuest(name: string): Promise<boolean> {
+  const key = displayNameKey(name)
+  if (!key || isGenericName(key)) return true
+  if (isStaffName(key)) return false
+
+  return !await nameOwnerId(key)
+}
 
 /**
- * Пропускает дальше только свободное имя. Безликие «Гость» и «Читатель»
- * занимать нельзя вовсе: под ними ходят все неназвавшиеся.
+ * Пропускает дальше только свободное имя. Безликие занимать нельзя вовсе, а
+ * служебные — никому, кроме хозяйки сайта: под ними на сайте говорит она.
  */
-export async function assertNameFree(name: string, exceptUserId?: number) {
+export async function assertNameFree(name: string, owner?: { id: number, role: 'admin' | 'reader' }) {
   const key = displayNameKey(name)
   if (!key) return
 
-  if (isReservedName(key) || await nameOwnerId(key, exceptUserId)) {
-    throw createError({ statusCode: 409, message: 'Имя занято, выбери другое' })
-  }
+  const busy = isGenericName(key)
+    || (isStaffName(key) && owner?.role !== 'admin')
+    || Boolean(await nameOwnerId(key, owner?.id))
+
+  if (busy) throw createError({ statusCode: 409, message: 'Имя занято, выбери другое' })
 }
 
 /**
  * Свободный вариант имени: «Вася», «Вася 2», «Вася 3»… Нужен там, где отказать
  * нельзя — на входе через Google или телеграм, где имя приходит от провайдера, а
- * человек его в этот момент не выбирает.
+ * человек его в этот момент не выбирает. Безликое и служебное имя от провайдера
+ * не берём вовсе: новичок останется без имени и назовётся сам.
  */
 export async function freeDisplayName(base: string): Promise<string | null> {
   const name = normalizeDisplayName(base)
-  if (!name || isReservedName(name)) return null
+  if (!name || isGenericName(name) || isStaffName(name)) return null
 
   for (let n = 1; n <= 50; n++) {
     // Хвост может не влезть в сорок символов — тогда режем само имя, а не хвост.

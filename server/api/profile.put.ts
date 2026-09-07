@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
     // итоге увидят под комментариями, а не у введённого.
     const name = normalizeDisplayName(namePart.data)
     const shown = name || nameFromEmail(me.email)
-    await assertNameFree(shown, me.id)
+    await assertNameFree(shown, me)
 
     updates.displayName = name || null
     updates.displayNameKey = displayNameKey(shown) || null

@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
   if(namePart){
     const name = normalizeDisplayName(namePart.data)
     const shown = name || nameFromEmail(updates.email ?? me.email)
-    await assertNameFree(shown, me.id)
+    await assertNameFree(shown, me)
 
     updates.displayName = name || null
     updates.displayNameKey = displayNameKey(shown) || null

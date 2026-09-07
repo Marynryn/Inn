@@ -22,12 +22,24 @@ export function displayNameKey(raw: unknown): string {
 
 /**
  * Безликие имена, под которыми показываются те, кто своего не назвал. Занять их
- * нельзя: иначе первый же зарегистрировавшийся «Гость» отобрал бы у всех гостей
- * подпись по умолчанию.
+ * нельзя, а подписаться ими может любой гость: иначе первый же
+ * зарегистрировавшийся «Гость» отобрал бы у всех остальных подпись по умолчанию.
  */
-export const RESERVED_NAME_KEYS = ['гость', 'читатель']
+export const GENERIC_NAME_KEYS = ['гость', 'читатель']
 
-export const isReservedName = (raw: unknown) => RESERVED_NAME_KEYS.includes(displayNameKey(raw))
+export const isGenericName = (raw: unknown) => GENERIC_NAME_KEYS.includes(displayNameKey(raw))
+
+/**
+ * Служебные имена. Они не достаются никому, даже если сейчас свободны: назовись
+ * гость «Администратором» — и его слово в комментариях весит как хозяйкино.
+ * Хозяйке сайта они, наоборот, разрешены: роль admin эту проверку проходит.
+ */
+export const STAFF_NAME_KEYS = [
+  'admin', 'админ', 'administrator', 'администратор',
+  'moderator', 'модератор', 'таверна',
+]
+
+export const isStaffName = (raw: unknown) => STAFF_NAME_KEYS.includes(displayNameKey(raw))
 
 /** Имя из почты: до собаки. Им подписан тот, кто своего имени не задавал. */
 export const nameFromEmail = (email: string | null | undefined) =>

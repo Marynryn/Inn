@@ -1,5 +1,5 @@
-import { isReservedName, normalizeDisplayName } from '#shared/utils/displayName'
-import { isNameTaken } from '../../utils/display-name'
+import { normalizeDisplayName } from '#shared/utils/displayName'
+import { isNameFreeForGuest } from '../../utils/display-name'
 import { useDb } from '../../utils/db'
 import { comments, users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
@@ -31,11 +31,11 @@ export default defineEventHandler(async (event) => {
   }
   else {
     // Имя гостя — единственная подпись, которая берётся прямо из формы. Занятое
-    // читателем имя гостю не отдаём: иначе назваться администратором мог бы кто
-    // угодно. Не назвавшийся остаётся «Гостем»: это имя не занято ни за кем.
+    // читателем имя гостю не отдаём, служебное — тем более: иначе назваться
+    // администратором мог бы кто угодно. Не назвавшийся остаётся «Гостем».
     const name = normalizeDisplayName(body.authorName)
 
-    if (name && !isReservedName(name) && await isNameTaken(name)) {
+    if (!await isNameFreeForGuest(name)) {
       throw createError({ statusCode: 409, message: 'Имя занято, выбери другое' })
     }
 
