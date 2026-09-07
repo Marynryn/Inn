@@ -1,7 +1,9 @@
 import { eq } from 'drizzle-orm'
+import { displayNameKey, nameFromEmail, normalizeDisplayName } from '#shared/utils/displayName'
 import { users } from '../database/schema'
 import { saveAvatar } from '../utils/avatar'
 import { useDb } from '../utils/db'
+import { assertNameFree, saveUnique } from '../utils/display-name'
 import { toSessionUser } from '../utils/identity'
 
 /**
@@ -17,11 +19,22 @@ export default defineEventHandler(async (event) => {
   if (!form) throw createError({ statusCode: 400, message: 'Нет данных' })
 
   const db = useDb()
+  const [me] = await db.select().from(users).where(eq(users.id, sessionUser.id))
+  if (!me) throw createError({ statusCode: 404, message: 'Пользователь не найден' })
+
   const updates: Partial<typeof users.$inferInsert> = {}
 
   const namePart = form.find(f => f.name === 'displayName')
   if (namePart) {
-    updates.displayName = String(namePart.data).trim().slice(0, 40) || null
+    // Пустое поле — «имени нет»: подписью снова становится почта, и занятой
+    // считается уже она. Поэтому свободу проверяем у того имени, которое в
+    // итоге увидят под комментариями, а не у введённого.
+    const name = normalizeDisplayName(namePart.data)
+    const shown = name || nameFromEmail(me.email)
+    await assertNameFree(shown, me.id)
+
+    updates.displayName = name || null
+    updates.displayNameKey = displayNameKey(shown) || null
   }
 
   const filePart = form.find(f => f.name === 'avatar' && f.data?.length)
@@ -37,7 +50,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Нечего сохранять' })
   }
 
-  const [updated] = await db.update(users).set(updates).where(eq(users.id, sessionUser.id)).returning()
+  const [updated] = await saveUnique(() =>
+    db.update(users).set(updates).where(eq(users.id, sessionUser.id)).returning())
 
   // Шапка и комментарии берут имя с аватаркой из сессии — обновляем и её,
   // иначе новый ник появится только после следующего входа.

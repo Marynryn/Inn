@@ -23,6 +23,7 @@ export const users = sqliteTable('users', {
   role: text('role', { enum: ['admin', 'reader'] }).notNull().default('reader'),
   avatarUrl: text('avatar_url'),
   displayName: text('display_name'),
+  displayNameKey: text('display_name_key'), // имя в одном написании: по нему имена и считаются занятыми
   isBanned: integer('is_banned', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })

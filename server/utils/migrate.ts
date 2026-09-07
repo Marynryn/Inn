@@ -1,5 +1,6 @@
 import { createClient } from '@libsql/client'
 import bcrypt from 'bcryptjs'
+import { DISPLAY_NAME_MAX, displayNameKey, nameFromEmail, normalizeDisplayName } from '#shared/utils/displayName'
 
 export async function runMigrations() {
   const storageDir = process.env.STORAGE_DIR || 'storage'
@@ -272,6 +273,42 @@ export async function runMigrations() {
       ON reading_progress (user_id, updated_at);
   `)
 
+  // Имя под комментариями — одно на всех. Рядом с самим именем теперь лежит его
+  // ключ (написание, приведённое к одному виду), а уникальный индекс по ключу и
+  // держит правило. Тем, кто подписывался почтой, имя проставляем явно: пока оно
+  // только выводилось из почты, занятым оно не считалось и его мог взять кто-то
+  // ещё. Совпавшие имена разводим номером — прежнее остаётся тому, кто раньше.
+  const nameKeys = await client.execute("SELECT value FROM site_settings WHERE key = 'display_name_keys'")
+  if (nameKeys.rows.length === 0) {
+    try { await client.execute('ALTER TABLE users ADD COLUMN display_name_key TEXT') } catch {}
+
+    const rows = await client.execute('SELECT id, display_name, email FROM users ORDER BY id')
+    const taken = new Set<string>()
+
+    for (const row of rows.rows as unknown as { id: number, display_name: string | null, email: string | null }[]) {
+      const base = normalizeDisplayName(row.display_name) || nameFromEmail(row.email)
+      if (!base) continue
+
+      let name = base
+      for (let n = 2; taken.has(displayNameKey(name)); n++) {
+        const suffix = ` ${n}`
+        name = normalizeDisplayName(base.slice(0, DISPLAY_NAME_MAX - suffix.length) + suffix)
+      }
+      taken.add(displayNameKey(name))
+
+      await client.execute({
+        sql: 'UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?',
+        args: [name, displayNameKey(name), row.id],
+      })
+    }
+
+    await client.executeMultiple(`
+      CREATE UNIQUE INDEX IF NOT EXISTS users_display_name_key
+        ON users (display_name_key) WHERE display_name_key IS NOT NULL;
+    `)
+    await client.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('display_name_keys', '1')")
+  }
+
   // Дефолтные настройки сайта
   const defaults: Record<string, string> = {
     hero_title: 'Истории трактира,\nрассказанные заново',
@@ -305,8 +342,8 @@ export async function runMigrations() {
   if (count === 0) {
     const hash = await bcrypt.hash('admin123', 12)
     await client.execute({
-      sql: "INSERT INTO users (email, password_hash, role) VALUES (?, ?, 'admin')",
-      args: ['admin@tavern.local', hash],
+      sql: "INSERT INTO users (email, password_hash, role, display_name, display_name_key) VALUES (?, ?, 'admin', ?, ?)",
+      args: ['admin@tavern.local', hash, 'admin', 'admin'],
     })
     console.log('[migrate] Admin created: admin@tavern.local / admin123 — смени пароль!')
   }

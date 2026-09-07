@@ -1,3 +1,5 @@
+import { displayNameKey, nameFromEmail } from '#shared/utils/displayName'
+import { freeDisplayName } from '../../utils/display-name'
 import { useDb } from '../../utils/db'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
@@ -20,7 +22,19 @@ export default defineEventHandler(async (event) => {
   if(existing) throw createError({ statusCode: 409, message: 'Пользователь с таким email уже существует' })
 
   const hash = await bcrypt.hash(password, 12)
-  await db.insert(users).values({ email: email.trim().toLowerCase(), passwordHash: hash, role })
+
+  // Подписью такому аккаунту служит почта до собаки — значит, и занимать имя
+  // надо ею, иначе под этой подписью сможет отметиться кто-то ещё. Совпало с
+  // чужим — берём ближайшее свободное; поправить можно в профиле.
+  const name = await freeDisplayName(nameFromEmail(String(email).trim().toLowerCase()))
+
+  await db.insert(users).values({
+    email: email.trim().toLowerCase(),
+    passwordHash: hash,
+    role,
+    displayName: name,
+    displayNameKey: displayNameKey(name) || null,
+  })
 
   return { ok: true }
 })

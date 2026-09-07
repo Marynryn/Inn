@@ -1,3 +1,5 @@
+import { isReservedName, normalizeDisplayName } from '#shared/utils/displayName'
+import { isNameTaken } from '../../utils/display-name'
 import { useDb } from '../../utils/db'
 import { comments, users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
@@ -17,15 +19,27 @@ export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   const sessionUser = session.user as { id: number; email: string } | undefined
 
-  let authorName = String(body.authorName ?? 'Гость').trim().slice(0, 40) || 'Гость'
+  let authorName = 'Гость'
   let userId: number | null = null
 
-  if(sessionUser?.id){
+  if (sessionUser?.id) {
     const [user] = await db.select().from(users).where(eq(users.id, sessionUser.id))
-    if(user){
+    if (user) {
       userId = user.id
       authorName = readerName(user)
     }
+  }
+  else {
+    // Имя гостя — единственная подпись, которая берётся прямо из формы. Занятое
+    // читателем имя гостю не отдаём: иначе назваться администратором мог бы кто
+    // угодно. Не назвавшийся остаётся «Гостем»: это имя не занято ни за кем.
+    const name = normalizeDisplayName(body.authorName)
+
+    if (name && !isReservedName(name) && await isNameTaken(name)) {
+      throw createError({ statusCode: 409, message: 'Имя занято, выбери другое' })
+    }
+
+    authorName = name || 'Гость'
   }
 
   const text = String(body.body ?? '').trim().slice(0, 500)

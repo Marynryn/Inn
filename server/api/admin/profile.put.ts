@@ -1,3 +1,5 @@
+import { displayNameKey, nameFromEmail, normalizeDisplayName } from '#shared/utils/displayName'
+import { assertNameFree, saveUnique } from '../../utils/display-name'
 import { useDb } from '../../utils/db'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
@@ -17,16 +19,29 @@ export default defineEventHandler(async (event) => {
   if(!form){throw createError({ statusCode: 400, message: 'Нет данных' })}
 
   const db = useDb()
-  const updates: Record<string, string> = {}
+  const [me] = await db.select().from(users).where(eq(users.id, sessionUser.id))
+  if(!me) throw createError({ statusCode: 404, message: 'Пользователь не найден' })
 
-  const namePart = form.find(f => f.name === 'displayName')
-  if(namePart) updates.displayName = String(namePart.data).trim().slice(0, 40)
+  const updates: Partial<typeof users.$inferInsert> = {}
 
   const emailPart = form.find(f => f.name === 'email')
   if(emailPart){
     const email = String(emailPart.data).trim().toLowerCase()
     if(!email.includes('@')) throw createError({ statusCode: 400, message: 'Некорректный email' })
     updates.email = email
+  }
+
+  // Имя администратора занято наравне со всеми: подписаться «Админом» больше
+  // никто не сможет. Стёртое имя возвращает подпись к почте — на занятость
+  // проверяем именно то имя, которое в итоге увидят под комментариями.
+  const namePart = form.find(f => f.name === 'displayName')
+  if(namePart){
+    const name = normalizeDisplayName(namePart.data)
+    const shown = name || nameFromEmail(updates.email ?? me.email)
+    await assertNameFree(shown, me.id)
+
+    updates.displayName = name || null
+    updates.displayNameKey = displayNameKey(shown) || null
   }
 
   const pwPart = form.find(f => f.name === 'newPassword')
@@ -50,7 +65,7 @@ export default defineEventHandler(async (event) => {
 
   if(!Object.keys(updates).length) throw createError({ statusCode: 400, message: 'Нет данных для обновления' })
 
-  await db.update(users).set(updates).where(eq(users.id, sessionUser.id))
+  await saveUnique(() => db.update(users).set(updates).where(eq(users.id, sessionUser.id)))
 
   if(updates.email || updates.passwordHash){
     await replaceUserSession(event, {

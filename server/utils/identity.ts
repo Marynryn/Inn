@@ -1,8 +1,10 @@
 import type { H3Event } from 'h3'
 import { and, eq } from 'drizzle-orm'
+import { displayNameKey, nameFromEmail } from '#shared/utils/displayName'
 import { userIdentities, users } from '../database/schema'
 import { saveRemoteAvatar } from './avatar'
 import { useDb } from './db'
+import { freeDisplayName } from './display-name'
 
 export type Provider = 'google' | 'telegram'
 
@@ -35,7 +37,7 @@ export const toSessionUser = (u: UserRow): SessionUser => ({
 
 /** Имя для показа: ник, часть почты до собаки или безликое «Читатель». */
 export const readerName = (u: Pick<UserRow, 'displayName' | 'email'>) =>
-  u.displayName || u.email?.split('@')[0] || 'Читатель'
+  u.displayName || nameFromEmail(u.email) || 'Читатель'
 
 const AUTH_NEXT_COOKIE = 'auth_next'
 
@@ -138,11 +140,17 @@ export async function loginWithProvider(
   let created = false
 
   if (!user) {
+    // Имя от провайдера может оказаться занятым, а отказать во входе за это
+    // нельзя: человек его сейчас не выбирает. Поэтому берём ближайшее свободное
+    // — «Вася 2», — а поправить его можно в профиле.
+    const name = await freeDisplayName(profile.displayName ?? '')
+
     const [fresh] = await db
       .insert(users)
       .values({
         email,
-        displayName: (profile.displayName ?? '').trim().slice(0, 40) || null,
+        displayName: name,
+        displayNameKey: displayNameKey(name) || null,
         role: 'reader',
       })
       .returning()
