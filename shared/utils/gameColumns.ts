@@ -54,9 +54,9 @@ export const GAME_SPOILER_COLUMNS: GameColumnKey[] = ['status']
 
 export const GAME_COLUMNS: { key: GameColumnKey; label: string }[] = [
   { key: 'gender', label: 'Пол' },
-  { key: 'species', label: 'Вид' },
+  { key: 'species', label: 'Раса' },
   { key: 'status', label: 'Статус' },
-  { key: 'affiliation', label: 'Принадлежность' },
+  { key: 'affiliation', label: 'Связи' },
   { key: 'continent', label: 'Континент' },
   { key: 'occupation', label: 'Занятие' },
   { key: 'cls', label: 'Класс' },
