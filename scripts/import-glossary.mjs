@@ -91,6 +91,51 @@ const FALLBACK = {
   Stategist: 'Стратег', // опечатка в исходных данных вики
   Vassal: 'Вассал',
   Witch: 'Ведьма',
+  // связи: служебное значение вики, не название организации
+  Unaffiliated: 'Без связей',
+  // виды: звери и общефэнтезийные слова, названий книги здесь нет
+  Cat: 'Кошка',
+  Rodent: 'Грызун',
+  Eagle: 'Орёл',
+  Wolf: 'Волк',
+  Horse: 'Лошадь',
+  Camel: 'Верблюд',
+  Orangutan: 'Орангутан',
+  Pegasus: 'Пегас',
+  Gorgon: 'Горгона',
+  Mimic: 'Мимик',
+  Djinn: 'Джинн',
+  Merman: 'Тритон',
+  Halfling: 'Полурослик',
+  Lamia: 'Ламия',
+  'Star Lamia': 'Звёздная ламия',
+  Mind: 'Разум',
+  'The Minds': 'Разумы',
+  // континенты и края: обычные слова, а не имена собственные
+  Sea: 'Море',
+  Isles: 'Острова',
+  'North America': 'Северная Америка',
+  // те, кого вики зовёт общим словом
+  Earthers: 'Земляне',
+  Immortals: 'Бессмертные',
+  Witches: 'Ведьмы',
+  'United Nations': 'ООН',
+  // описательные названия вики: гильдии, стража, школа — не имена собственные
+  "Liscor's City Watch": 'Городская стража Лискора',
+  "Liscor's Dungeon": 'Подземелье Лискора',
+  "Liscor's Adventurer Guild": 'Гильдия авантюристов Лискора',
+  "Liscor's Adventurer's Guild": 'Гильдия авантюристов Лискора',
+  "Liscor's Second Army": 'Вторая армия Лискора',
+  "Alchemist's Guild": 'Гильдия алхимиков',
+  "Blacksmith's Guild": 'Гильдия кузнецов',
+  'Guild of Smiths': 'Гильдия кузнецов',
+  "Runner Guild's": 'Гильдия бегунов',
+  'Wistram News Network': 'Новостная сеть Вистрама',
+  'Wistram Earthers': 'Земляне Вистрама',
+  "Titan's School": 'Школа Титана',
+  'Demon Kingdom': 'Королевство Демонов',
+  'Isle of Goblins': 'Остров гоблинов',
+  'House Welfar': 'Дом Веллфар', // опечатка в исходных данных вики
 }
 
 // ── Чтение xlsx ────────────────────────────────────────────
@@ -192,7 +237,7 @@ const SINGULAR = {
  * записаны в скобках ([Innkeeper]), виды — во множественном числе (Minotaurs),
  * названия иногда без артикля. Ничего не выдумываем — только другие написания.
  */
-function translate(value) {
+function plain(value) {
   const bare = value.replace(/^\[|\]$/g, '')
   const variants = [
     value,
@@ -202,6 +247,11 @@ function translate(value) {
     `${bare}es`,
     bare.replace(/^The\s+/i, ''),
     `The ${bare}`,
+    // Вики зовёт вид одним человеком, глоссарий — народом: «Drowned Person» и
+    // «Drowned Man» — одни и те же утопшие.
+    bare.replace(/\bPerson$/, 'Man'),
+    bare.replace(/\bPerson$/, 'People'),
+    bare.replace(/\bPeople$/, 'Person'),
   ]
 
   for (const variant of variants) {
@@ -210,6 +260,62 @@ function translate(value) {
 
     const clean = found.replace(/^\[|\]$/g, '').trim()
     return SINGULAR[clean] ?? clean
+  }
+  return null
+}
+
+/**
+ * Фамилия, известная глоссарию только в паре с именем: там записана «Bethal
+ * Walchais», а вики пишет «House Walchais». Берём последнее слово перевода —
+ * это и есть фамилия. Годится лишь для домов и семей: у ордена или королевства
+ * за тем же словом стоит вовсе не человек.
+ */
+function surname(word) {
+  if (/\s/.test(word)) return null
+
+  const tail = ` ${key(word)}`
+  for (const [en, ru] of dictionary) {
+    if (!en.endsWith(tail) || en.split(' ').length > 3) continue
+
+    // Отбрасываем ровно столько первых слов перевода, сколько слов стоит перед
+    // фамилией в оригинале: у «Bealt Gemscale» это имя, и остаётся вся фамилия
+    // целиком — «Самоцветная Чешуя», а не одно последнее слово.
+    const words = ru.trim().split(/\s+/)
+    // Перевод бывает короче оригинала («Isles of Minos» — «Острова Миноса»):
+    // тогда фамилией остаётся последнее слово.
+    const found = words.slice(en.split(' ').length - 1).join(' ') || words.at(-1)
+    if (found) return found
+  }
+  return null
+}
+
+/**
+ * Составные названия вики: «House Veltras», «Plain's Eye Tribe», «Kingdom of
+ * Hellios». Глоссарий знает только саму фамилию или племя — русское слово
+ * ставим по образцу, а имя собственное берём из глоссария. Не нашлась часть —
+ * не выдумываем и уходим ни с чем.
+ */
+const COMPOUNDS = [
+  [/^House of (.+)$/i, 'Дом', true],
+  [/^House (.+)$/i, 'Дом', true],
+  [/^(.+) [Ff]amily$/, 'Семья', true],
+  [/^(.+) Clan$/, 'Клан', true],
+  [/^(.+) Tribe$/, 'Племя', false],
+  [/^Kingdom of (.+)$/i, 'Королевство', false],
+  [/^Order of the (.+)$/i, 'Орден', false],
+  [/^Order of (.+)$/i, 'Орден', false],
+]
+
+function translate(value) {
+  const direct = plain(value)
+  if (direct) return direct
+
+  for (const [pattern, word, byPerson] of COMPOUNDS) {
+    const inner = pattern.exec(value)?.[1]
+    if (!inner) continue
+
+    const ru = plain(inner) ?? (byPerson ? surname(inner) : null)
+    if (ru) return `${word} ${ru}`
   }
   return null
 }
@@ -280,4 +386,11 @@ console.log(`Имена с фамилией: ${Object.keys(fullNames).length}`)
 console.log(`Термины: ${Object.keys(terms).length} (из них ${fromFallback} служебных, не из глоссария), без перевода осталось ${missingTerms.size}`)
 console.log(`Без перевода (примеры имён): ${missingNames.slice(0, 8).join(', ')}`)
 console.log(`Без перевода (примеры терминов): ${[...missingTerms].slice(0, 8).join(', ')}`)
+
+// Список того, что осталось по-английски, — рядом с самим глоссарием: это
+// готовый перечень строк, которые стоит завести в рабочем файле перевода.
+const TODO = resolve('.data/game/to-translate-terms.txt')
+writeFileSync(TODO, `${[...missingTerms].sort((a, b) => a.localeCompare(b)).join('\n')}\n`, 'utf8')
+
 console.log(`Записано: ${OUT}`)
+console.log(`Список без перевода: ${TODO}`)
