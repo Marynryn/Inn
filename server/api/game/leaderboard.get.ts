@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ne } from 'drizzle-orm'
+import { and, desc, eq, gte } from 'drizzle-orm'
 import type { GameMode } from '#shared/utils/gameColumns'
 import { gameResults, users } from '../../database/schema'
 import { useDb } from '../../utils/db'
@@ -10,9 +10,8 @@ import { mskDay } from '../../utils/msk'
  * только партии вошедших: партию без входа приписать некому, анонимный ключ
  * живёт в одном браузере.
  *
- * Партии администраторов не показываем — мы гоняем игру чаще всех, и первое
- * место досталось бы нам по построению, а не по заслугам. В базе они остаются:
- * это вопрос показа, а не учёта.
+ * Играют все на равных, администраторы в том числе: таблица показывает, кто
+ * сколько угадал, и вычёркивать из неё людей по должности незачем.
  */
 
 /** Глубина, на которую смотрим назад. Серия длиннее полугода — уже легенда. */
@@ -76,9 +75,7 @@ export default defineEventHandler(async (event) => {
     .where(and(
       eq(gameResults.mode, mode),
       gte(gameResults.day, dayBefore(WINDOW_DAYS)),
-      ne(users.role, 'admin'),
     ))
-    .orderBy(desc(gameResults.day))
     .orderBy(desc(gameResults.day))
 
   type Player = {
