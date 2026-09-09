@@ -266,9 +266,9 @@ useHead({
   }
 
   .sheet {
-    left: 14%;
-    width: 43%;
-    top: 30%;
+    left: 16.5%;
+    width: 37%;
+    top: 30.5%;
     height: 43%;
   }
 
