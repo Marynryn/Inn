@@ -70,14 +70,14 @@ useSeoMeta({
   description: seoDescription,
   ogTitle: () => socialTitle.value,
   ogDescription: seoDescription,
-  ogImage: `${siteUrl}/hero.png`,
+  ogImage: `${siteUrl}/og.jpg`,
   ogUrl: siteUrl,
   ogType: 'website',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
   twitterTitle: () => socialTitle.value,
   twitterDescription: seoDescription,
-  twitterImage: `${siteUrl}/hero.png`,
+  twitterImage: `${siteUrl}/og.jpg`,
 })
 </script>
 
@@ -95,7 +95,7 @@ useSeoMeta({
     <div class="hero">
       <div class="lantern" />
       <div class="hero-art">
-        <NuxtImg src="/hero.png" alt="" />
+        <NuxtImg src="/hero.webp" alt="" />
       </div>
 
       <div class="hero-content">

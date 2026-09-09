@@ -389,11 +389,11 @@ useSeoMeta({
   ogUrl: `${siteUrl}/game`,
   ogType: 'website',
   ogLocale: 'ru_RU',
-  ogImage: `${siteUrl}/hero.png`,
+  ogImage: `${siteUrl}/og.jpg`,
   twitterCard: 'summary_large_image',
   twitterTitle: gameTitle,
   twitterDescription: gameDescription,
-  twitterImage: `${siteUrl}/hero.png`,
+  twitterImage: `${siteUrl}/og.jpg`,
 })
 </script>
 

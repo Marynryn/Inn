@@ -9,7 +9,7 @@ const fadeId = `bee-fade-${uid}`
 
 <template>
   <div class="bee">
-    <NuxtImg src="/bee.png" alt="Аписта" title="Аписта" width="232" height="161" format="webp" loading="lazy" />
+    <NuxtImg src="/bee.webp" alt="Аписта" title="Аписта" width="232" height="161" loading="lazy" />
 
     <span class="bee-ember" aria-hidden="true" />
 

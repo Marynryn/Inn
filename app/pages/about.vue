@@ -19,11 +19,11 @@ useSeoMeta({
   ogUrl: `${siteUrl}/about`,
   ogType: 'website',
   ogLocale: 'ru_RU',
-  ogImage: `${siteUrl}/hero.png`,
+  ogImage: `${siteUrl}/og.jpg`,
   twitterCard: 'summary_large_image',
   twitterTitle: () => `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
   twitterDescription: aboutDescription,
-  twitterImage: `${siteUrl}/hero.png`,
+  twitterImage: `${siteUrl}/og.jpg`,
 })
 </script>
 
@@ -31,7 +31,6 @@ useSeoMeta({
   <div class="about-page">
     <AppHeader
       show-nav-links
-      show-auth
       :telegram-url="settings?.telegram_url"
       :boosty-url="settings?.boosty_url"
       :tribute-url="settings?.tribute_url"

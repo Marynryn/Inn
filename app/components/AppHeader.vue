@@ -17,13 +17,15 @@ const props = defineProps<{
   backToChapterHref?: string
   backToChapterLabel?: string
   transparentTop?: boolean
-  showAuth?: boolean
 }>()
 
 const menuOpen = ref(false)
 const route = useRoute()
 const auth = useAuthStore()
 
+// Вход и профиль стоят в шапке на каждой странице: решение войти приходит там,
+// где человека застала мысль, а не там, где мы положили ссылку.
+//
 // Вход возвращает туда, откуда позвали: читателю незачем терять место в главе
 // ради того, чтобы подписать комментарий своим именем.
 const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
@@ -86,13 +88,13 @@ onUnmounted(() => {
     <div class="h-left">
       <!-- страница комментариев: иконка таверны слева -->
       <NuxtLink v-if="burgerLeft" href="/" class="brand-icon" @click="scrollTop">
-        <NuxtImg src="/hearth.png" width="30" height="30" format="webp" alt="Странствующая Таверна" />
+        <NuxtImg src="/hearth.webp" width="30" height="30" alt="Странствующая Таверна" />
       </NuxtLink>
       <NuxtLink v-else-if="backHref" :href="backHref" class="back-link">
         {{ backLabel ?? '← Назад' }}
       </NuxtLink>
       <NuxtLink v-else-if="showNavLinks" href="/" class="brand" @click="scrollTop">
-        <NuxtImg src="/hearth.png" class="brand-logo" width="32" height="32" format="webp" alt="" />
+        <NuxtImg src="/hearth.webp" class="brand-logo" width="32" height="32" alt="" />
         <span class="brand-name">Странствующая Таверна</span>
       </NuxtLink>
     </div>
@@ -100,7 +102,7 @@ onUnmounted(() => {
     <!-- CENTER -->
     <div class="h-center">
       <template v-if="showBrand">
-        <NuxtImg src="/hearth.png" class="brand-logo" width="32" height="32" format="webp" alt="" />
+        <NuxtImg src="/hearth.webp" class="brand-logo" width="32" height="32" alt="" />
         <span class="brand-name display">Странствующая Таверна</span>
       </template>
       <template v-else-if="chapterId && !burgerLeft">
@@ -117,13 +119,11 @@ onUnmounted(() => {
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
           Telegram        </a>
         <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-link nav-support hide-mobile" />
-        <template v-if="showAuth">
-          <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip hide-mobile" :title="auth.name">
-            <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" class="user-pic" alt="Профиль">
-            <span v-else class="user-pic user-pic--letter display">{{ auth.name[0]?.toUpperCase() }}</span>
-          </NuxtLink>
-          <NuxtLink v-else :to="loginHref" class="nav-link hide-mobile">Войти</NuxtLink>
-        </template>
+        <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip hide-mobile" :title="auth.name">
+          <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" class="user-pic" alt="Профиль">
+          <span v-else class="user-pic user-pic--letter display">{{ auth.name[0]?.toUpperCase() }}</span>
+        </NuxtLink>
+        <NuxtLink v-else :to="loginHref" class="nav-link hide-mobile">Войти</NuxtLink>
         <button
           class="burger"
           :class="{ open: menuOpen }"
@@ -142,13 +142,11 @@ onUnmounted(() => {
           Telegram <span class="ext">↗</span>
         </a>
         <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-link nav-support" />
-        <template v-if="showAuth">
-          <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip hide-mobile" :title="auth.name">
-            <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" class="user-pic" alt="Профиль">
-            <span v-else class="user-pic user-pic--letter display">{{ auth.name[0]?.toUpperCase() }}</span>
-          </NuxtLink>
-          <NuxtLink v-else :to="loginHref" class="nav-link hide-mobile">Войти</NuxtLink>
-        </template>
+        <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip hide-mobile" :title="auth.name">
+          <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" class="user-pic" alt="Профиль">
+          <span v-else class="user-pic user-pic--letter display">{{ auth.name[0]?.toUpperCase() }}</span>
+        </NuxtLink>
+        <NuxtLink v-else :to="loginHref" class="nav-link hide-mobile">Войти</NuxtLink>
         <button
           class="burger"
           :class="{ open: menuOpen }"
@@ -174,10 +172,8 @@ onUnmounted(() => {
           {{ commentsLabel || 'Обсуждение главы' }}
         </NuxtLink>
         <NuxtLink v-if="route.path !== '/about'" href="/about" class="menu-link" @click="menuOpen = false">О проекте</NuxtLink>
-        <template v-if="showAuth">
-          <NuxtLink v-if="auth.isAuthed" href="/profile" class="menu-link" @click="menuOpen = false">Профиль</NuxtLink>
-          <NuxtLink v-else :href="loginHref" class="menu-link" @click="menuOpen = false">Войти</NuxtLink>
-        </template>
+        <NuxtLink v-if="auth.isAuthed" href="/profile" class="menu-link" @click="menuOpen = false">Профиль</NuxtLink>
+        <NuxtLink v-else :href="loginHref" class="menu-link" @click="menuOpen = false">Войти</NuxtLink>
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="menu-link" @click="menuOpen = false">
           Telegram <span class="ext">↗</span>
         </a>
@@ -450,7 +446,35 @@ onUnmounted(() => {
   border: 1.5px solid var(--gold);
 }
 
+/* ── Аватарка вошедшего ─────────────────────── */
+.user-chip {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.user-pic {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(241, 230, 210, .25);
+  display: block;
+}
+
+.user-pic--letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--parchment);
+  background: rgba(241, 230, 210, .08);
+}
+
 /* ── Responsive ─────────────────────────────── */
+/* Держим адаптив последним в файле. Правила здесь того же веса, что и обычные,
+   так что решает порядок: стоило .user-chip оказаться ниже — и аватарка
+   перебивала .hide-mobile, вылезая в мобильную шапку рядом с бургером. */
 @media (max-width: 600px) {
   .hide-mobile,
   :deep(.hide-mobile) {
@@ -482,29 +506,4 @@ onUnmounted(() => {
     gap: 12px;
   }
 }
-/* ── Аватарка вошедшего ─────────────────────── */
-.user-chip {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
-}
-
-.user-pic {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid rgba(241, 230, 210, .25);
-  display: block;
-}
-
-.user-pic--letter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  color: var(--parchment);
-  background: rgba(241, 230, 210, .08);
-}
-
 </style>

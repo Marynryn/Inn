@@ -118,14 +118,14 @@ useSeoMeta({
   description: () => description.value,
   ogTitle: () => chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : undefined,
   ogDescription: () => description.value,
-  ogImage: `${siteUrl}/hero.png`,
+  ogImage: `${siteUrl}/og.jpg`,
   ogUrl: () => `${siteUrl}/chapter/${slug.value}`,
   ogType: 'article',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
   twitterTitle: () => chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : undefined,
   twitterDescription: () => description.value,
-  twitterImage: `${siteUrl}/hero.png`,
+  twitterImage: `${siteUrl}/og.jpg`,
 })
 
 useHead(() => ({
@@ -139,7 +139,7 @@ useHead(() => ({
             headline: chapter.value.title,
             inLanguage: 'ru',
             url: `${siteUrl}/chapter/${slug.value}`,
-            image: `${siteUrl}/hero.png`,
+            image: `${siteUrl}/og.jpg`,
             datePublished: chapter.value.publishedAt,
             isPartOf: {
               '@type': 'Book',

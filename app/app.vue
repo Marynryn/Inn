@@ -18,13 +18,13 @@ useSeoMeta({
   ogSiteName: 'Странствующая Таверна',
   ogTitle: 'Странствующая Таверна',
   ogDescription: 'Фанатский перевод The Wandering Inn на русский язык.',
-  ogImage: `${siteUrl}/hero.png`,
+  ogImage: `${siteUrl}/og.jpg`,
   ogType: 'website',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
   twitterTitle: 'Странствующая Таверна',
   twitterDescription: 'Фанатский перевод The Wandering Inn на русский язык.',
-  twitterImage: `${siteUrl}/hero.png`,
+  twitterImage: `${siteUrl}/og.jpg`,
 })
 </script>
 

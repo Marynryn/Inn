@@ -44,14 +44,14 @@ useSeoMeta({
   description: () => pageDescription.value,
   ogTitle: () => pageTitle.value,
   ogDescription: () => pageDescription.value,
-  ogImage: `${siteUrl}/hero.png`,
+  ogImage: `${siteUrl}/og.jpg`,
   ogUrl: () => pageUrl.value,
   ogType: 'website',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
   twitterTitle: () => pageTitle.value,
   twitterDescription: () => pageDescription.value,
-  twitterImage: `${siteUrl}/hero.png`,
+  twitterImage: `${siteUrl}/og.jpg`,
 })
 </script>
 
