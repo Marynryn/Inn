@@ -367,8 +367,14 @@ useScrollLock()
    сверху не даёт ей читаться двадцать первым местом. */
 .apart td { padding-top: 18px; }
 
-/* Аватарка стоит вплотную к имени: свой отступ ей даёт уже ячейка имени. */
-.col-avatar { padding-right: 0; }
+/* Аватарка не липнет к имени, а крайние колонки — к рамке таблицы. */
+.col-avatar { padding-right: 7px; }
+
+.table th:first-child,
+.table td:first-child { padding-left: 12px; }
+
+.table th:last-child,
+.table td:last-child { padding-right: 14px; }
 
 .avatar {
   display: block;
@@ -428,6 +434,8 @@ useScrollLock()
   .tab { padding: 7px 11px; font-size: 12px; }
   .table { font-size: 13px; }
   .table th, .table td { padding: 8px 6px; }
+  .table th:first-child, .table td:first-child { padding-left: 9px; }
+  .table th:last-child, .table td:last-child { padding-right: 10px; }
   /* Узкий экран: колонки поджимаем, лишнее рядом с победами прячем. */
   .c-place { width: 44px; }
   .c-num { width: 56px; }
