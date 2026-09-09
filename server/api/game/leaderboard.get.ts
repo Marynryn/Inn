@@ -1,12 +1,14 @@
 import { and, desc, eq, gte, ne } from 'drizzle-orm'
+import type { GameMode } from '#shared/utils/gameColumns'
 import { gameResults, users } from '../../database/schema'
 import { useDb } from '../../utils/db'
 import { readerName } from '../../utils/identity'
 import { mskDay } from '../../utils/msk'
 
 /**
- * Рейтинг по персонажу дня. Свободные партии сюда не идут: их можно перезапускать
- * сколько угодно, и мерить ими нечего.
+ * Рейтинг игроков, отдельно по персонажу дня и по свободной игре. Считаются
+ * только партии вошедших: партию без входа приписать некому, анонимный ключ
+ * живёт в одном браузере.
  *
  * Партии администраторов не показываем — мы гоняем игру чаще всех, и первое
  * место досталось бы нам по построению, а не по заслугам. В базе они остаются:
@@ -48,8 +50,16 @@ function streakOf(winDays: string[]): number {
   return streak
 }
 
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
+  // Два рейтинга, а не один: персонаж дня у всех общий и партия там одна в
+  // сутки, а свободных партий человек играет сколько захочет — мерить их одной
+  // таблицей нечестно.
+  const mode: GameMode = getQuery(event).mode === 'endless' ? 'endless' : 'daily'
   const db = useDb()
+
+  // Кто смотрит: свою строку в таблице отмечаем, чтобы её было видно сразу.
+  const session = await getUserSession(event)
+  const myId = (session.user as { id?: number } | undefined)?.id ?? null
 
   const rows = await db
     .select({
@@ -64,10 +74,11 @@ export default defineEventHandler(async () => {
     .from(gameResults)
     .innerJoin(users, eq(users.id, gameResults.userId))
     .where(and(
-      eq(gameResults.mode, 'daily'),
+      eq(gameResults.mode, mode),
       gte(gameResults.day, dayBefore(WINDOW_DAYS)),
       ne(users.role, 'admin'),
     ))
+    .orderBy(desc(gameResults.day))
     .orderBy(desc(gameResults.day))
 
   type Player = {
@@ -105,8 +116,9 @@ export default defineEventHandler(async () => {
     }
   }
 
-  return [...players.values()]
+  const ranked = [...players.values()]
     .map(p => ({
+      me: p.userId === myId,
       name: p.name,
       avatarUrl: p.avatarUrl,
       played: p.played,
@@ -118,5 +130,12 @@ export default defineEventHandler(async () => {
     // Побед больше — выше. Поровну — выигрывает тот, кто угадывал с меньшего
     // числа попыток: иначе таблица зависела бы только от усидчивости.
     .sort((a, b) => b.wins - a.wins || a.averageGuesses - b.averageGuesses || b.streak - a.streak)
-    .slice(0, LIMIT)
+    .map((row, i) => ({ place: i + 1, ...row }))
+
+  const top = ranked.slice(0, LIMIT)
+  const mine = ranked.find(r => r.me)
+
+  // Свою строку человек должен видеть всегда: не попал в двадцатку — дописываем
+  // её последней, вместе с настоящим местом.
+  return mine && mine.place > LIMIT ? [...top, mine] : top
 })

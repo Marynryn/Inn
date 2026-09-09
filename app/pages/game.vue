@@ -46,6 +46,7 @@ const names = ref<NameEntry[]>([])
 const loading = ref(true)
 const sending = ref(false)
 const error = ref('')
+const showBoard = ref(false)
 
 const query = ref('')
 const highlighted = ref(0)
@@ -422,7 +423,12 @@ useSeoMeta({
         <button class="mode" :class="{ active: mode === 'endless' }" @click="switchMode('endless')">
           Свободная игра
         </button>
+        <button class="mode mode-board" @click="showBoard = true">
+          Рейтинг
+        </button>
       </div>
+
+      <GameLeaderboard v-if="showBoard" @close="showBoard = false" />
 
       <p v-if="loading" class="note">В таверне тасуют карточки…</p>
 
@@ -659,6 +665,12 @@ useSeoMeta({
   border-color: var(--ember);
   color: var(--bg-dark);
   font-weight: 500;
+}
+
+/* Не режим, а действие: отодвигаем вправо, чтобы не читалась третьей вкладкой. */
+.mode-board {
+  margin-left: auto;
+  border-style: dashed;
 }
 
 /* ── Строка состояния ───────────────────────── */
