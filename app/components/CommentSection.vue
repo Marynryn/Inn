@@ -308,8 +308,14 @@ onMounted(() => {
         class="comment-item"
         :class="{ 'is-reply': c.parentId != null }"
       >
-        <img v-if="c.avatarUrl" :src="c.avatarUrl" class="comment-avatar comment-avatar--img" :alt="c.authorName">
-        <div v-else class="comment-avatar display">{{ c.authorName[0].toUpperCase() }}</div>
+        <UserAvatar
+          class="comment-avatar"
+          :src="c.avatarUrl"
+          :name="c.authorName"
+          :frame="c.avatarFrame"
+          :size="c.parentId != null ? 24 : 32"
+          alt=""
+        />
         <div class="comment-content">
           <span class="comment-name">{{ c.authorName }}</span>
           <span v-if="answeredName(c)" class="in-reply">в ответ {{ answeredName(c) }}</span>
@@ -604,23 +610,11 @@ onMounted(() => {
   border-bottom: 1px solid rgba(241, 230, 210, .07);
 }
 
+/* Фон и цвет — для буквы, которая показывается вместо картинки: сам
+   компонент заглушку не красит, оставляя это месту, где он стоит. */
 .comment-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  flex: 0 0 auto;
   background: linear-gradient(135deg, var(--ember-soft), var(--moss));
-  font-size: 13px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   color: var(--bg-dark);
-}
-
-.comment-avatar--img {
-  object-fit: cover;
-  background: none;
 }
 
 .comment-content {
@@ -736,12 +730,6 @@ onMounted(() => {
   margin-left: 44px;
   padding-top: 0;
   padding-bottom: 12px;
-}
-
-.comment-item.is-reply .comment-avatar {
-  width: 24px;
-  height: 24px;
-  font-size: 11px;
 }
 
 /* «в ответ Имя» — приглушённой строчкой рядом с подписью: это уточнение к

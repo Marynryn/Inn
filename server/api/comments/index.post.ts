@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm'
 import { checkRateLimit } from '../../utils/rate-limit'
 import { wsBroadcast, wsToUser } from '../../utils/ws-rooms'
 import { readerName } from '../../utils/identity'
+import { frameById } from '../../utils/frames'
 
 export default defineEventHandler(async (event) => {
   const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
@@ -95,11 +96,19 @@ export default defineEventHandler(async (event) => {
     wsToUser(parent.userId, { type: 'notification' })
   }
 
-  const avatarUrl = userId
-    ? (await db.select({ avatarUrl: users.avatarUrl }).from(users).where(eq(users.id, userId)))[0]?.avatarUrl ?? null
+  // Аватарка с рамкой — тем, кто читает главу прямо сейчас: комментарий
+  // приходит им сокетом и мимо выборки, которая всё это собирает.
+  const author = userId
+    ? (await db
+        .select({ avatarUrl: users.avatarUrl, avatarFrameId: users.avatarFrameId })
+        .from(users)
+        .where(eq(users.id, userId)))[0]
     : null
 
-  const payload = { type: 'new_comment', comment: { ...created, avatarUrl, likes: 0, dislikes: 0, myReaction: null } }
+  const avatarUrl = author?.avatarUrl ?? null
+  const avatarFrame = await frameById(author?.avatarFrameId)
+
+  const payload = { type: 'new_comment', comment: { ...created, avatarUrl, avatarFrame, likes: 0, dislikes: 0, myReaction: null } }
   wsBroadcast(chapterId, payload)
 
   return created

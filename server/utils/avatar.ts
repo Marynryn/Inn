@@ -22,10 +22,11 @@ export const MAX_AVATAR_BYTES = 300 * 1024
  *  является: правило должно звучать «это аватарка», а не «это мелкий файл». */
 export const MAX_AVATAR_SIDE = 1024
 
-const EXTENSIONS = ['webp', 'png', 'jpg', 'gif'] as const
+export const IMAGE_EXTENSIONS = ['webp', 'png', 'jpg', 'gif'] as const
+export type ImageExtension = typeof IMAGE_EXTENSIONS[number]
 
 /** Тип картинки — по сигнатуре файла, а не по имени: имя присылает клиент. */
-function imageExtension(data: Uint8Array): typeof EXTENSIONS[number] | null {
+function imageExtension(data: Uint8Array): ImageExtension | null {
   const b = data
   if (b.length < 12) return null
 
@@ -93,22 +94,32 @@ function imageSize(b: Uint8Array, ext: string): { width: number; height: number 
 }
 
 /**
- * Кладёт аватарку на диск. Имя файла зависит только от пользователя, поэтому к
- * ссылке дописывается отметка времени: раздача кэшируется на год, и без неё
- * браузер этот год показывал бы старую картинку.
+ * Картинка ли это, не тяжелее ли потолка и не крупнее ли стороны. Возвращает
+ * расширение по сигнатуре файла — им и называется файл на диске.
  */
-export async function saveAvatar(userId: number, data: Buffer | Uint8Array): Promise<string> {
-  if (data.byteLength > MAX_AVATAR_BYTES) {
-    throw createError({ statusCode: 413, message: 'Картинка больше 300 КБ' })
+export function checkImage(data: Buffer | Uint8Array, maxBytes: number, maxSide: number): ImageExtension {
+  if (data.byteLength > maxBytes) {
+    throw createError({ statusCode: 413, message: `Картинка больше ${Math.round(maxBytes / 1024)} КБ` })
   }
 
   const ext = imageExtension(data)
   if (!ext) throw createError({ statusCode: 400, message: 'Не похоже на картинку' })
 
   const size = imageSize(data, ext)
-  if (size && (size.width > MAX_AVATAR_SIDE || size.height > MAX_AVATAR_SIDE)) {
-    throw createError({ statusCode: 400, message: `Картинка больше ${MAX_AVATAR_SIDE}×${MAX_AVATAR_SIDE}` })
+  if (size && (size.width > maxSide || size.height > maxSide)) {
+    throw createError({ statusCode: 400, message: `Картинка больше ${maxSide}×${maxSide}` })
   }
+
+  return ext
+}
+
+/**
+ * Кладёт аватарку на диск. Имя файла зависит только от пользователя, поэтому к
+ * ссылке дописывается отметка времени: раздача кэшируется на год, и без неё
+ * браузер этот год показывал бы старую картинку.
+ */
+export async function saveAvatar(userId: number, data: Buffer | Uint8Array): Promise<string> {
+  const ext = checkImage(data, MAX_AVATAR_BYTES, MAX_AVATAR_SIDE)
 
   const dir = join(getStorageDir(), 'avatars')
   await mkdir(dir, { recursive: true })
@@ -116,7 +127,7 @@ export async function saveAvatar(userId: number, data: Buffer | Uint8Array): Pro
 
   // Прежняя аватарка могла быть другого формата — она больше не нужна и по
   // ссылке недостижима, но место занимала бы до скончания века.
-  for (const old of EXTENSIONS) {
+  for (const old of IMAGE_EXTENSIONS) {
     if (old !== ext) await unlink(join(dir, `avatar-${userId}.${old}`)).catch(() => {})
   }
 

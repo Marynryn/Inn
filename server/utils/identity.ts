@@ -2,7 +2,9 @@ import type { H3Event } from 'h3'
 import { and, eq } from 'drizzle-orm'
 import { displayNameKey, nameFromEmail } from '#shared/utils/displayName'
 import { userIdentities, users } from '../database/schema'
+import type { AvatarFrame } from '#shared/utils/avatarFrames'
 import { saveRemoteAvatar } from './avatar'
+import { frameById } from './frames'
 import { useDb } from './db'
 import { freeDisplayName } from './display-name'
 
@@ -23,16 +25,20 @@ export type SessionUser = {
   role: 'admin' | 'reader'
   displayName: string | null
   avatarUrl: string | null
+  // Рамка целиком, а не её id: шапка рисует аватарку из одной сессии и лезть
+  // за картинкой отдельным запросом на каждой странице ей незачем.
+  avatarFrame: AvatarFrame | null
 }
 
 type UserRow = typeof users.$inferSelect
 
-export const toSessionUser = (u: UserRow): SessionUser => ({
+export const toSessionUser = async (u: UserRow): Promise<SessionUser> => ({
   id: u.id,
   email: u.email,
   role: u.role,
   displayName: u.displayName,
   avatarUrl: u.avatarUrl,
+  avatarFrame: await frameById(u.avatarFrameId),
 })
 
 /** Имя для показа: ник, часть почты до собаки или безликое «Читатель». */
@@ -177,6 +183,6 @@ export async function loginWithProvider(
     }
   }
 
-  await setUserSession(event, { user: toSessionUser(user) })
+  await setUserSession(event, { user: await toSessionUser(user) })
   return { user, created }
 }

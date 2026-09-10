@@ -1,6 +1,7 @@
 import { useDb } from '../../utils/db'
 import { comments, users, commentReactions } from '../../database/schema'
 import { eq, isNull, desc, and } from 'drizzle-orm'
+import { framesByIds } from '../../utils/frames'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -20,11 +21,21 @@ export default defineEventHandler(async (event) => {
 
   const userIds = [...new Set(rows.map(r => r.userId).filter(Boolean))] as number[]
   const avatarMap = new Map<number, string | null>()
+  const frameIdMap = new Map<number, number | null>()
 
   if (userIds.length) {
-    const userRows = await db.select({ id: users.id, avatarUrl: users.avatarUrl }).from(users)
-    for (const u of userRows) avatarMap.set(u.id, u.avatarUrl ?? null)
+    const userRows = await db
+      .select({ id: users.id, avatarUrl: users.avatarUrl, avatarFrameId: users.avatarFrameId })
+      .from(users)
+    for (const u of userRows) {
+      avatarMap.set(u.id, u.avatarUrl ?? null)
+      frameIdMap.set(u.id, u.avatarFrameId ?? null)
+    }
   }
+
+  // Рамки одним запросом на всю страницу: их на весь сайт десяток, и тянуть
+  // картинку заново под каждым комментарием ни к чему.
+  const frames = await framesByIds(userIds.map(id => frameIdMap.get(id) ?? null))
 
   const commentIds = rows.map(r => r.id)
   const allReactions = await db.select().from(commentReactions)
@@ -51,6 +62,7 @@ export default defineEventHandler(async (event) => {
   return rows.map(r => ({
     ...r,
     avatarUrl: r.userId ? (avatarMap.get(r.userId) ?? null) : null,
+    avatarFrame: r.userId ? (frames.get(frameIdMap.get(r.userId) ?? 0) ?? null) : null,
     likes: reactionsByComment.get(r.id)!.likes,
     dislikes: reactionsByComment.get(r.id)!.dislikes,
     myReaction: reactionsByComment.get(r.id)!.myReaction,

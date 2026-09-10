@@ -2,6 +2,7 @@ import { and, count, desc, eq } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/sqlite-core'
 import { comments, notifications, users } from '../../database/schema'
 import { useDb } from '../../utils/db'
+import { framesByIds } from '../../utils/frames'
 
 /**
  * Уведомления читателя: кто ответил на его комментарий. Гостю отдаём пустоту —
@@ -52,6 +53,7 @@ export default defineEventHandler(async (event) => {
       body: comments.body,
       isSpoiler: comments.isSpoiler,
       avatarUrl: users.avatarUrl,
+      avatarFrameId: users.avatarFrameId,
       answeredBody: answered.body,
       answeredSpoiler: answered.isSpoiler,
     })
@@ -75,10 +77,13 @@ export default defineEventHandler(async (event) => {
     .innerJoin(comments, eq(comments.id, notifications.commentId))
     .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)))
 
+  const frames = await framesByIds(rows.map(r => r.avatarFrameId))
+
   return {
     unread: unread?.total ?? 0,
-    items: rows.map(r => ({
+    items: rows.map(({ avatarFrameId, ...r }) => ({
       ...r,
+      avatarFrame: frames.get(avatarFrameId ?? 0) ?? null,
       // Спойлер в уведомлении не раскрываем: читатель мог до этой главы не дойти.
       body: r.isSpoiler ? '[спойлер]' : r.body.slice(0, EXCERPT),
       // Свой же текст — коротким напоминанием, о чём был разговор. Спойлер

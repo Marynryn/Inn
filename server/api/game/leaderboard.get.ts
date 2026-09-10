@@ -3,6 +3,7 @@ import type { GameMode } from '#shared/utils/gameColumns'
 import { gameResults, users } from '../../database/schema'
 import { useDb } from '../../utils/db'
 import { readerName } from '../../utils/identity'
+import { framesByIds } from '../../utils/frames'
 import { mskDay } from '../../utils/msk'
 
 /**
@@ -69,6 +70,7 @@ export default defineEventHandler(async (event) => {
       displayName: users.displayName,
       email: users.email,
       avatarUrl: users.avatarUrl,
+      avatarFrameId: users.avatarFrameId,
     })
     .from(gameResults)
     .innerJoin(users, eq(users.id, gameResults.userId))
@@ -82,6 +84,7 @@ export default defineEventHandler(async (event) => {
     userId: number
     name: string
     avatarUrl: string | null
+    avatarFrameId: number | null
     played: number
     wins: number
     winGuesses: number
@@ -97,6 +100,7 @@ export default defineEventHandler(async (event) => {
         userId: row.userId,
         name: readerName(row),
         avatarUrl: row.avatarUrl,
+        avatarFrameId: row.avatarFrameId,
         played: 0,
         wins: 0,
         winGuesses: 0,
@@ -113,11 +117,14 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  const frames = await framesByIds([...players.values()].map(p => p.avatarFrameId))
+
   const ranked = [...players.values()]
     .map(p => ({
       me: p.userId === myId,
       name: p.name,
       avatarUrl: p.avatarUrl,
+      avatarFrame: frames.get(p.avatarFrameId ?? 0) ?? null,
       played: p.played,
       wins: p.wins,
       // Среднее — по выигранным партиям: попытки сдавшихся сюда мешать нельзя.

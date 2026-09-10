@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { userIdentities, users } from '../database/schema'
 import { useDb } from '../utils/db'
+import { frameById, wearableFrames } from '../utils/frames'
 
 /** Профиль читателя вместе со списком привязанных способов входа. */
 export default defineEventHandler(async (event) => {
@@ -23,6 +24,11 @@ export default defineEventHandler(async (event) => {
     role: user.role,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
+    avatarFrame: await frameById(user.avatarFrameId),
+    // Выигранные рамки — из них человек и выбирает; у хозяйки сайта здесь
+    // весь каталог. Пустой список значит, что выбирать не из чего: на странице
+    // тогда стоит объяснение, а не список.
+    frames: await wearableFrames(user.id, user.role === 'admin'),
     hasPassword: Boolean(user.passwordHash),
     providers: links.map(l => l.provider),
   }

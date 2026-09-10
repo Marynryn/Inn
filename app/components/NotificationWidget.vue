@@ -282,10 +282,14 @@ onUnmounted(() => {
         <ul v-else class="list">
           <li v-for="n in items" :key="n.id">
             <button class="item" type="button" @click="openItem(n)">
-              <img v-if="n.avatarUrl" :src="n.avatarUrl" class="item-pic" alt="">
-              <span v-else class="item-pic item-pic--letter display">
-                {{ n.authorName[0]?.toUpperCase() }}
-              </span>
+              <UserAvatar
+                class="item-pic"
+                :src="n.avatarUrl"
+                :name="n.authorName"
+                :frame="n.avatarFrame"
+                :size="28"
+                alt=""
+              />
               <span class="item-text">
                 <span class="item-top">
                   <b>{{ n.authorName }}</b> ответил
@@ -529,20 +533,7 @@ onUnmounted(() => {
 .item:hover { background: rgba(241, 230, 210, .04); }
 
 .item-pic {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex: 0 0 auto;
   background: linear-gradient(135deg, var(--ember-soft), var(--moss));
-}
-
-.item-pic--letter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
   color: var(--bg-dark);
 }
 

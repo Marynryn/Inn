@@ -396,6 +396,37 @@ export async function runMigrations() {
     await client.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('display_name_owner_fix', '1')")
   }
 
+  // Рамки для аватарок. Каталог в базе, картинки на диске: рамки раздаются на
+  // ивентах, и новая рамка не должна требовать выкатки сайта.
+  //
+  // Владение отдельной таблицей, а не флагом у пользователя: выбрать рамкой
+  // можно только выигранную, и список выигранных — это и есть награда.
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS avatar_frames (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      file TEXT NOT NULL,
+      fit REAL NOT NULL DEFAULT 0.72,
+      in_pool INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS user_frames (
+      user_id INTEGER NOT NULL,
+      frame_id INTEGER NOT NULL,
+      granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, frame_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS user_frames_frame ON user_frames (frame_id);
+  `)
+
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN avatar_frame_id INTEGER')
+  } catch {
+    // Столбец уже существует — это нормально
+  }
+
   // Дефолтные настройки сайта
   const defaults: Record<string, string> = {
     hero_title: 'Истории трактира,\nрассказанные заново',

@@ -22,6 +22,9 @@ export const users = sqliteTable('users', {
   passwordHash: text('password_hash'),
   role: text('role', { enum: ['admin', 'reader'] }).notNull().default('reader'),
   avatarUrl: text('avatar_url'),
+  // Выбранная рамка вокруг аватарки. NULL = без рамки. Выбрать можно только из
+  // выигранных — что выиграно, лежит в user_frames.
+  avatarFrameId: integer('avatar_frame_id'),
   displayName: text('display_name'),
   displayNameKey: text('display_name_key'), // имя в одном написании: по нему имена и считаются занятыми
   isBanned: integer('is_banned', { mode: 'boolean' }).notNull().default(false),
@@ -37,6 +40,28 @@ export const userIdentities = sqliteTable('user_identities', {
   providerUserId: text('provider_user_id').notNull(),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
+
+// Каталог рамок для аватарок. Картинки лежат на диске рядом с аватарками, в
+// базе — только имя файла: рамка заводится из админки, и выкатки сайта ради
+// новой картинки быть не должно.
+export const avatarFrames = sqliteTable('avatar_frames', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  file: text('file').notNull(), // frame-3.webp
+  fit: real('fit').notNull().default(0.72), // доля картинки под аватарку
+  // Участвует ли рамка в случайной раздаче на ивентах. Снятая с раздачи рамка
+  // остаётся у тех, кто её уже выиграл: редкость — это и есть смысл рамки.
+  inPool: integer('in_pool', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+})
+
+// Что человек выиграл. Рамкой можно выбрать только строку отсюда — без этой
+// таблицы рамка была бы не наградой, а просто настройкой.
+export const userFrames = sqliteTable('user_frames', {
+  userId: integer('user_id').notNull(),
+  frameId: integer('frame_id').notNull(),
+  grantedAt: text('granted_at').notNull().default(sql`(datetime('now'))`),
+}, t => [primaryKey({ columns: [t.userId, t.frameId] })])
 
 export const comments = sqliteTable('comments', {
   id: integer('id').primaryKey({ autoIncrement: true }),

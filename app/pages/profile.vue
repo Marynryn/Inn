@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { AvatarFrame, OwnedFrame } from '#shared/utils/avatarFrames'
+
 const auth = useAuthStore()
 const { data: settings } = await useFetch('/api/settings')
 
@@ -8,6 +10,8 @@ type Profile = {
   role: string
   displayName: string | null
   avatarUrl: string | null
+  avatarFrame: AvatarFrame | null
+  frames: OwnedFrame[]
   hasPassword: boolean
   providers: ('google' | 'telegram')[]
 }
@@ -26,12 +30,22 @@ const saving = ref(false)
 const message = ref('')
 const error = ref('')
 
+const frameId = ref<number | null>(null)
+
 watchEffect(() => {
   displayName.value = profile.value?.displayName ?? ''
+  frameId.value = profile.value?.avatarFrame?.id ?? null
 })
 
+// Рамка показывается на своей же аватарке сразу при выборе, до сохранения:
+// решить, идёт она или нет, можно только глядя на своё лицо в ней.
+const frames = computed(() => profile.value?.frames ?? [])
+// Хозяйке сайта сервер отдаёт весь каталог, а не только выигранное: рамку надо
+// примерить на живом лице раньше, чем она кому-то достанется.
+const isAdmin = computed(() => profile.value?.role === 'admin')
+const chosenFrame = computed(() => frames.value.find(f => f.id === frameId.value) ?? null)
+
 const avatarSrc = computed(() => preview.value || profile.value?.avatarUrl || null)
-const initial = computed(() => (displayName.value || profile.value?.email || '?')[0]!.toUpperCase())
 
 const pickFile = () => fileInput.value?.click()
 
@@ -86,6 +100,7 @@ const save = async () => {
   try {
     const form = new FormData()
     form.append('displayName', displayName.value)
+    form.append('avatarFrameId', frameId.value ? String(frameId.value) : '')
     const file = fileInput.value?.files?.[0]
     if (file) form.append('avatar', await toSmallSquare(file), 'avatar.webp')
 
@@ -139,8 +154,14 @@ useHead({
       <div v-if="profile" class="profile-card">
         <div class="avatar-row">
           <button class="avatar-btn" type="button" @click="pickFile">
-            <img v-if="avatarSrc" :src="avatarSrc" class="avatar-img" alt="Аватарка">
-            <span v-else class="avatar-letter display">{{ initial }}</span>
+            <UserAvatar
+              class="avatar-face"
+              :src="avatarSrc"
+              :name="displayName || profile.email"
+              :frame="chosenFrame"
+              :size="72"
+              alt="Аватарка"
+            />
             <span class="avatar-hint">Сменить</span>
           </button>
           <input ref="fileInput" type="file" accept="image/*" hidden @change="onFile">
@@ -158,6 +179,61 @@ useHead({
           <span v-if="message" class="ok-msg">{{ message }}</span>
           <span v-if="error" class="err-msg">{{ error }}</span>
         </div>
+
+        <hr class="divider">
+
+        <h2 class="section-title">Рамка</h2>
+
+        <p v-if="!frames.length" class="section-note">
+          <template v-if="isAdmin">В каталоге пока пусто — рамки заводятся в панели.</template>
+          <template v-else>Рамки достаются за участие в ивентах таверны. Как выиграешь — появится здесь.</template>
+        </p>
+
+        <template v-else>
+          <p class="section-note">
+            <template v-if="isAdmin">Тебе показан весь каталог — читатель видит только выигранное.</template>
+            <template v-else>Носить можно любую из выигранных.</template>
+          </p>
+
+          <div class="frame-grid">
+            <button
+              class="frame-pick"
+              type="button"
+              :class="{ active: frameId === null }"
+              @click="frameId = null"
+            >
+              <UserAvatar
+                class="frame-face"
+                :src="avatarSrc"
+                :name="displayName || profile.email"
+                :frame="null"
+                :size="48"
+                alt=""
+              />
+              <span class="frame-name">Без рамки</span>
+            </button>
+
+            <button
+              v-for="f in frames"
+              :key="f.id"
+              class="frame-pick"
+              type="button"
+              :class="{ active: frameId === f.id }"
+              @click="frameId = f.id"
+            >
+              <UserAvatar
+                class="frame-face"
+                :src="avatarSrc"
+                :name="displayName || profile.email"
+                :frame="f"
+                :size="48"
+                alt=""
+              />
+              <span class="frame-name">{{ f.name }}</span>
+              <span v-if="!f.owned" class="frame-tag">примерка</span>
+            </button>
+          </div>
+        </template>
 
         <hr class="divider">
 
@@ -233,38 +309,37 @@ useHead({
   gap: 20px;
 }
 
+/* Кнопка не режет содержимое по кругу: рамка на то и рамка, чтобы выходить
+   за края аватарки. Круглой формой занимаются те, кому она нужна, — сама
+   аватарка и подсказка поверх неё. */
 .avatar-btn {
   position: relative;
   width: 72px;
   height: 72px;
   flex: 0 0 72px;
-  border-radius: 50%;
-  border: 1px solid rgba(241, 230, 210, .18);
-  background: rgba(241, 230, 210, .05);
+  border: none;
+  background: none;
   color: var(--parchment);
   cursor: pointer;
-  overflow: hidden;
   padding: 0;
 }
 
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+.avatar-face {
+  border: 1px solid rgba(241, 230, 210, .18);
+  background: rgba(241, 230, 210, .05);
 }
 
-.avatar-letter {
-  font-size: 28px;
-  line-height: 72px;
-}
-
+/* Подсказка кроет аватарку целиком — иначе полоска понизу торчала бы
+   прямоугольником из-под рамки. Лежит выше рамки: её должно быть видно. */
 .avatar-hint {
   position: absolute;
-  inset: auto 0 0 0;
-  padding: 3px 0;
-  font-size: 10px;
-  background: rgba(31, 24, 19, .82);
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 11px;
+  background: rgba(31, 24, 19, .78);
   opacity: 0;
   transition: opacity .2s ease;
 }
@@ -328,6 +403,64 @@ useHead({
 
 .ok-msg { font-size: 13px; color: var(--moss); }
 .err-msg { font-size: 13px; color: #e07070; }
+
+/* ── Рамка ──────────────────────────────────── */
+/* Просвет между рамками щедрее обычного: рамка вылезает за круг, и на тесной
+   сетке соседки наезжали бы друг на друга. */
+.frame-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+}
+
+.frame-pick {
+  width: 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--parchment);
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.frame-pick:hover {
+  background: rgba(241, 230, 210, .05);
+}
+
+.frame-pick.active {
+  border-color: var(--ember-soft);
+  background: rgba(241, 230, 210, .05);
+}
+
+.frame-face {
+  background: rgba(241, 230, 210, .08);
+}
+
+.frame-name {
+  font-size: 11px;
+  line-height: 1.25;
+  opacity: .6;
+  text-align: center;
+}
+
+.frame-pick.active .frame-name {
+  opacity: .9;
+}
+
+/* Рамка из каталога, но не выигранная: так помечено то, что видно только
+   хозяйке сайта, — чтобы не спутать примерку со своей наградой. */
+.frame-tag {
+  font-size: 9.5px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ember-soft);
+  opacity: .65;
+}
 
 /* ── Способы входа ──────────────────────────── */
 .divider {

@@ -120,8 +120,14 @@ onUnmounted(() => {
           Telegram        </a>
         <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-link nav-support hide-mobile" />
         <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip hide-mobile" :title="auth.name">
-          <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" class="user-pic" alt="Профиль">
-          <span v-else class="user-pic user-pic--letter display">{{ auth.name[0]?.toUpperCase() }}</span>
+          <UserAvatar
+            class="user-pic"
+            :src="auth.user?.avatarUrl"
+            :name="auth.name"
+            :frame="auth.user?.avatarFrame"
+            :size="28"
+            alt="Профиль"
+          />
         </NuxtLink>
         <NuxtLink v-else :to="loginHref" class="nav-link hide-mobile">Войти</NuxtLink>
         <button
@@ -143,8 +149,14 @@ onUnmounted(() => {
         </a>
         <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-link nav-support" />
         <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip hide-mobile" :title="auth.name">
-          <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" class="user-pic" alt="Профиль">
-          <span v-else class="user-pic user-pic--letter display">{{ auth.name[0]?.toUpperCase() }}</span>
+          <UserAvatar
+            class="user-pic"
+            :src="auth.user?.avatarUrl"
+            :name="auth.name"
+            :frame="auth.user?.avatarFrame"
+            :size="28"
+            alt="Профиль"
+          />
         </NuxtLink>
         <NuxtLink v-else :to="loginHref" class="nav-link hide-mobile">Войти</NuxtLink>
         <button
@@ -453,22 +465,15 @@ onUnmounted(() => {
   text-decoration: none;
 }
 
+/* Обводка — на самой картинке, иначе на тёмной шапке тёмная аватарка
+   сливалась бы с фоном. Букве достаётся фон и цвет с самой аватарки. */
 .user-pic {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid rgba(241, 230, 210, .25);
-  display: block;
-}
-
-.user-pic--letter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
   color: var(--parchment);
   background: rgba(241, 230, 210, .08);
+}
+
+.user-pic :deep(.ua-pic) {
+  border: 1px solid rgba(241, 230, 210, .25);
 }
 
 /* ── Responsive ─────────────────────────────── */

@@ -24,6 +24,6 @@ export default defineEventHandler(async (event) => {
 
   if (user.isBanned) throw createError({ statusCode: 403, message: 'Аккаунт заблокирован' })
 
-  await setUserSession(event, { user: toSessionUser(user) })
+  await setUserSession(event, { user: await toSessionUser(user) })
   return { ok: true, role: user.role }
 })

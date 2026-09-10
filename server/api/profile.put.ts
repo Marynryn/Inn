@@ -4,6 +4,7 @@ import { users } from '../database/schema'
 import { saveAvatar } from '../utils/avatar'
 import { useDb } from '../utils/db'
 import { assertNameFree, saveUnique } from '../utils/display-name'
+import { canWearFrame, frameById } from '../utils/frames'
 import { toSessionUser } from '../utils/identity'
 
 /**
@@ -46,6 +47,25 @@ export default defineEventHandler(async (event) => {
 
   if (form.find(f => f.name === 'removeAvatar')) updates.avatarUrl = null
 
+  // Рамка. Пустое значение — «снять рамку», и снять её можно всегда. Надеть —
+  // только выигранную: иначе рамку носил бы любой, кто знает её номер, и
+  // награда перестала бы что-либо значить.
+  const framePart = form.find(f => f.name === 'avatarFrameId')
+  if (framePart) {
+    const raw = framePart.data.toString('utf8').trim()
+    const frameId = raw ? Number(raw) : 0
+
+    if (!Number.isInteger(frameId) || frameId < 0) {
+      throw createError({ statusCode: 400, message: 'Неизвестная рамка' })
+    }
+
+    if (frameId && !(await canWearFrame(sessionUser.id, frameId, me.role === 'admin'))) {
+      throw createError({ statusCode: 403, message: 'Эта рамка не твоя' })
+    }
+
+    updates.avatarFrameId = frameId || null
+  }
+
   if (!Object.keys(updates).length) {
     throw createError({ statusCode: 400, message: 'Нечего сохранять' })
   }
@@ -55,7 +75,12 @@ export default defineEventHandler(async (event) => {
 
   // Шапка и комментарии берут имя с аватаркой из сессии — обновляем и её,
   // иначе новый ник появится только после следующего входа.
-  await replaceUserSession(event, { user: toSessionUser(updated!) })
+  await replaceUserSession(event, { user: await toSessionUser(updated!) })
 
-  return { ok: true, displayName: updated!.displayName, avatarUrl: updated!.avatarUrl }
+  return {
+    ok: true,
+    displayName: updated!.displayName,
+    avatarUrl: updated!.avatarUrl,
+    avatarFrame: await frameById(updated!.avatarFrameId),
+  }
 })

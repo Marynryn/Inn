@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AvatarFrame } from '#shared/utils/avatarFrames'
 import type { GameMode } from '#shared/utils/gameColumns'
 
 /**
@@ -10,6 +11,7 @@ import type { GameMode } from '#shared/utils/gameColumns'
 type Row = {
   name: string
   avatarUrl: string | null
+  avatarFrame: AvatarFrame | null
   played: number
   wins: number
   averageGuesses: number
@@ -132,8 +134,14 @@ useScrollLock()
                   </span>
                 </td>
                 <td class="col-avatar">
-                  <img v-if="row.avatarUrl" :src="row.avatarUrl" class="avatar" alt="">
-                  <span v-else class="avatar avatar-letter">{{ row.name[0]?.toUpperCase() }}</span>
+                  <UserAvatar
+                    class="avatar"
+                    :src="row.avatarUrl"
+                    :name="row.name"
+                    :frame="row.avatarFrame"
+                    :size="26"
+                    alt=""
+                  />
                 </td>
                 <td class="name" :title="row.name">{{ row.name }}</td>
                 <td class="num">{{ row.wins }}<span class="of"> из {{ row.played }}</span></td>
@@ -390,18 +398,12 @@ useScrollLock()
 .table td:last-child { padding-right: 14px; }
 
 .avatar {
-  display: block;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  object-fit: cover;
   background: rgba(241, 230, 210, .08);
 }
 
-.avatar-letter {
-  display: grid;
-  place-items: center;
-  font-size: 12px;
+/* Буква вместо картинки — приглушённая: в таблице она соседствует с числами,
+   и спорить с ними за внимание ей незачем. */
+.avatar :deep(.ua-letter) {
   opacity: .7;
 }
 

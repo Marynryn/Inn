@@ -27,3 +27,4 @@ logs
 storage/db.sqlite
 storage/epubs/
 storage/avatars/
+storage/frames/
