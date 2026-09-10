@@ -64,10 +64,42 @@ export async function runMigrations() {
     'ALTER TABLE users ADD COLUMN display_name TEXT',
     'ALTER TABLE comments ADD COLUMN user_id INTEGER',
     'ALTER TABLE comments ADD COLUMN is_spoiler INTEGER NOT NULL DEFAULT 0',
+    // Ответ на комментарий. Ветка одноуровневая: здесь всегда id корневого.
+    'ALTER TABLE comments ADD COLUMN parent_id INTEGER',
+    // Кому отвечали. У ответов, написанных до этого столбца, останется NULL —
+    // тогда подпись «в ответ» просто не показывается, а ветка цела.
+    'ALTER TABLE comments ADD COLUMN reply_to_id INTEGER',
   ]
   for (const sql of newCols) {
     try { await client.execute(sql) } catch {}
   }
+
+  // Ответы читаются веткой: без индекса каждый показ главы сканировал бы
+  // всю таблицу комментариев ради нескольких строк.
+  await client.execute(
+    'CREATE INDEX IF NOT EXISTS comments_parent ON comments (parent_id)'
+  )
+
+  // Уведомления: «на твой комментарий ответили». Держим только получателя и id
+  // ответа — остальное достаётся из самого комментария при чтении.
+  //
+  // Уникальность по паре (получатель, ответ) — от повторной записи: один ответ
+  // порождает ровно одно уведомление, сколько бы раз обработчик ни сработал.
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      comment_id INTEGER NOT NULL,
+      is_read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS notifications_once
+      ON notifications (user_id, comment_id);
+
+    CREATE INDEX IF NOT EXISTS notifications_unread
+      ON notifications (user_id, is_read);
+  `)
 
   // Добавить sort_order если столбца ещё нет (для уже существующих БД)
   try {

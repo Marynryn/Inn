@@ -24,12 +24,52 @@ const sending = ref(false)
 const sendError = ref('')
 const remainingChars = computed(() => 500 - body.value.length)
 
+// Ветка: корневой комментарий и его ответы. Вложенность одноуровневая, поэтому
+// достаточно разложить ответы по parentId — дерево строить не из чего.
+// Корневые идут от новых к старым (так их отдаёт сервер), а ответы внутри ветки
+// наоборот, от старых к новым: разговор читается сверху вниз.
+const threads = computed(() => {
+  const all = comments.value ?? []
+  const byParent = new Map<number, any[]>()
+
+  for (const c of all) {
+    if (c.parentId == null) continue
+    const list = byParent.get(c.parentId) ?? []
+    list.push(c)
+    byParent.set(c.parentId, list)
+  }
+
+  for (const list of byParent.values()) {
+    list.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+  }
+
+  return all
+    .filter(c => c.parentId == null)
+    .map(root => ({ root, replies: byParent.get(root.id) ?? [] }))
+})
+
+// Кому отвечали. Все реплики ветки уже загружены, поэтому имя ищем по списку, а
+// не отдельным запросом. Подпись нужна только когда отвечали не корню: под самим
+// корнем и так понятно, кому адресован ответ.
+const nameById = computed(() => {
+  const map = new Map<number, string>()
+  for (const c of comments.value ?? []) map.set(c.id, c.authorName)
+  return map
+})
+
+const answeredName = (c: any): string | null =>
+  c.replyToId && c.replyToId !== c.parentId
+    ? nameById.value.get(c.replyToId) ?? null
+    : null
+
+// «Показать ещё» считает ветки, а не строки: иначе кнопка обрывала бы разговор
+// на середине, оставив ответы без их комментария.
 const visibleCount = ref(props.limit ?? Infinity)
-const visibleComments = computed(() =>
-  props.limit ? comments.value?.slice(0, visibleCount.value) : comments.value
+const visibleThreads = computed(() =>
+  props.limit ? threads.value.slice(0, visibleCount.value) : threads.value
 )
 const remaining = computed(() =>
-  props.limit ? Math.max(0, (comments.value?.length ?? 0) - visibleCount.value) : 0
+  props.limit ? Math.max(0, threads.value.length - visibleCount.value) : 0
 )
 const nextBatch = computed(() =>
   Math.min(remaining.value, props.limit!)
@@ -94,6 +134,54 @@ const post = async () => {
   }
 }
 
+// Кому отвечаем. id — тот комментарий, по которому нажали «Ответить» (он уйдёт
+// на сервер, и тот сам приведёт ветку к корню), rootId — под какой веткой
+// раскрыть форму, name — чьё имя показать в подсказке.
+const replyTo = ref<{ id: number, rootId: number, name: string } | null>(null)
+const replyBody = ref('')
+const replyName = ref('')
+const replySending = ref(false)
+const replyError = ref('')
+
+const startReply = (c: any, rootId: number) => {
+  replyTo.value = { id: c.id, rootId, name: c.authorName }
+  replyBody.value = ''
+  replyError.value = ''
+}
+
+const cancelReply = () => {
+  replyTo.value = null
+  replyBody.value = ''
+  replyError.value = ''
+}
+
+const sendReply = async () => {
+  if (!replyTo.value || !replyBody.value.trim()) return
+
+  replySending.value = true
+  replyError.value = ''
+  try {
+    await $fetch('/api/comments', {
+      method: 'POST',
+      body: {
+        authorName: replyName.value || 'Гость',
+        body: replyBody.value,
+        parentId: replyTo.value.id,
+      },
+    })
+    cancelReply()
+  }
+  catch (e: any) {
+    replyError.value = e.data?.message || 'Ошибка при отправке'
+    // Родителя могли удалить, пока писали ответ — перечитываем список, чтобы
+    // человек увидел, что отвечать уже некому.
+    await refresh()
+  }
+  finally {
+    replySending.value = false
+  }
+}
+
 const remove = async (id: number) => {
   await $fetch(`/api/comments/${id}`, { method: 'DELETE' })
   await refresh()
@@ -109,15 +197,6 @@ const reveal = (id: number) => {
   revealedSpoilers.value = new Set([...revealedSpoilers.value, id])
 }
 
-const timeAgo = (iso: string) => {
-  const diff = Date.now() - new Date(iso.replace(' ', 'T') + 'Z').getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'только что'
-  if (m < 60) return `${m} мин. назад`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h} ч. назад`
-  return `${Math.floor(h / 24)} д. назад`
-}
 
 // WebSocket
 onMounted(() => {
@@ -202,36 +281,80 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-for="c in visibleComments" :key="c.id" class="comment-item">
-      <img v-if="c.avatarUrl" :src="c.avatarUrl" class="comment-avatar comment-avatar--img" :alt="c.authorName">
-      <div v-else class="comment-avatar display">{{ c.authorName[0].toUpperCase() }}</div>
-      <div class="comment-content">
-        <span class="comment-name">{{ c.authorName }}</span>
-        <span v-if="c.isSpoiler" class="spoiler-badge">[спойлер]</span>
-        <span class="comment-time">{{ timeAgo(c.createdAt) }}</span>
-        <div
-          class="comment-body"
-          :class="{ 'is-spoiler': c.isSpoiler && !revealedSpoilers.has(c.id) }"
-          @click="c.isSpoiler && !revealedSpoilers.has(c.id) && reveal(c.id)"
-        >
-          {{ c.body }}
+    <!-- Ветка: корневой комментарий и ответы под ним. Разметка у них общая,
+         ответ отличается только отступом — оттого и один v-for на оба. -->
+    <div v-for="t in visibleThreads" :key="t.root.id" class="comment-thread">
+      <div
+        v-for="c in [t.root, ...t.replies]"
+        :key="c.id"
+        class="comment-item"
+        :class="{ 'is-reply': c.parentId != null }"
+      >
+        <img v-if="c.avatarUrl" :src="c.avatarUrl" class="comment-avatar comment-avatar--img" :alt="c.authorName">
+        <div v-else class="comment-avatar display">{{ c.authorName[0].toUpperCase() }}</div>
+        <div class="comment-content">
+          <span class="comment-name">{{ c.authorName }}</span>
+          <span v-if="answeredName(c)" class="in-reply">в ответ {{ answeredName(c) }}</span>
+          <span v-if="c.isSpoiler" class="spoiler-badge">[спойлер]</span>
+          <span class="comment-time">{{ timeAgo(c.createdAt) }}</span>
+          <div
+            class="comment-body"
+            :class="{ 'is-spoiler': c.isSpoiler && !revealedSpoilers.has(c.id) }"
+            @click="c.isSpoiler && !revealedSpoilers.has(c.id) && reveal(c.id)"
+          >
+            {{ c.body }}
+          </div>
+          <div class="comment-actions">
+            <button
+              class="reaction-btn"
+              :class="{ active: c.myReaction === 'like' }"
+              @click="react(c.id, 'like')"
+            >👍 {{ c.likes || '' }}</button>
+            <button
+              class="reaction-btn"
+              :class="{ active: c.myReaction === 'dislike' }"
+              @click="react(c.id, 'dislike')"
+            >👎 {{ c.dislikes || '' }}</button>
+            <button class="comment-reply" @click="startReply(c, t.root.id)">Ответить</button>
+            <button
+              v-if="auth.isAdmin"
+              class="comment-delete"
+              @click="remove(c.id)"
+            >Удалить</button>
+          </div>
         </div>
-        <div class="comment-actions">
+      </div>
+
+      <!-- Форма ответа раскрывается под своей веткой, одна на всю страницу:
+           две открытые формы читались бы как два разных разговора. -->
+      <div v-if="replyTo && replyTo.rootId === t.root.id" class="reply-form">
+        <div class="reply-to">
+          Ответ <b>{{ replyTo.name }}</b>
+          <button class="reply-cancel" type="button" @click="cancelReply">отменить</button>
+        </div>
+        <input
+          v-if="!auth.isAuthed"
+          v-model="replyName"
+          type="text"
+          placeholder="Твоё имя"
+          maxlength="40"
+        >
+        <textarea
+          v-model="replyBody"
+          placeholder="Напиши ответ..."
+          maxlength="500"
+          @keydown.esc="cancelReply"
+        />
+        <div class="reply-footer">
+          <span v-if="replyError" class="comment-error">{{ replyError }}</span>
+          <span v-else class="comment-hint">до 500 символов</span>
           <button
-            class="reaction-btn"
-            :class="{ active: c.myReaction === 'like' }"
-            @click="react(c.id, 'like')"
-          >👍 {{ c.likes || '' }}</button>
-          <button
-            class="reaction-btn"
-            :class="{ active: c.myReaction === 'dislike' }"
-            @click="react(c.id, 'dislike')"
-          >👎 {{ c.dislikes || '' }}</button>
-          <button
-            v-if="auth.isAdmin"
-            class="comment-delete"
-            @click="remove(c.id)"
-          >Удалить</button>
+            class="btn-send"
+            :disabled="!replyBody.trim() || replySending"
+            @click="sendReply"
+          >
+            {{ replySending ? '...' : 'Ответить' }}
+          </button>
         </div>
       </div>
     </div>
@@ -560,6 +683,138 @@ onMounted(() => {
 .comment-delete:hover {
   color: #c66;
   opacity: 1;
+}
+
+/* ── Ветки: комментарий и ответы под ним ────── */
+
+/* Черта отделяет разговор целиком, а не каждую реплику: иначе ответ читается
+   как ещё один самостоятельный комментарий, а не как продолжение. */
+.comment-thread {
+  border-bottom: 1px solid rgba(241, 230, 210, .07);
+}
+
+.comment-thread .comment-item {
+  border-bottom: none;
+}
+
+/* Ответ сдвинут ровно на ширину аватарки с её отступом (32 + 12) — так он
+   встаёт под текстом того, кому отвечают, а не под его картинкой. */
+.comment-item.is-reply {
+  margin-left: 44px;
+  padding-top: 0;
+  padding-bottom: 12px;
+}
+
+.comment-item.is-reply .comment-avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+}
+
+/* «в ответ Имя» — приглушённой строчкой рядом с подписью: это уточнение к
+   имени автора, а не отдельная мысль. */
+.in-reply {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+.comment-reply {
+  background: none;
+  border: none;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color .15s;
+}
+
+.comment-reply:hover {
+  color: var(--ember-soft);
+}
+
+/* ── Форма ответа ───────────────────────────── */
+
+.reply-form {
+  margin: 0 0 16px 44px;
+}
+
+.reply-to {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.reply-to b {
+  color: var(--parchment-2);
+  font-weight: 600;
+}
+
+.reply-cancel {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.reply-cancel:hover {
+  color: var(--ember-soft);
+}
+
+.reply-form input[type="text"] {
+  width: 100%;
+  max-width: 200px;
+  padding: 8px 11px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.reply-form textarea {
+  width: 100%;
+  min-height: 52px;
+  resize: none;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.reply-form input[type="text"],
+.reply-form textarea {
+  display: block;
+  background: rgba(241, 230, 210, .05);
+  border: 1px solid rgba(241, 230, 210, .18);
+  border-radius: 6px;
+  color: var(--parchment);
+  font-family: var(--font-body);
+}
+
+.reply-form input::placeholder,
+.reply-form textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.reply-form input:focus-visible,
+.reply-form textarea:focus-visible {
+  outline: none;
+  border-color: var(--ember-soft);
+}
+
+.reply-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+/* На телефоне отступ ветки режет и без того узкую строку — хватает и половины. */
+@media (max-width: 480px) {
+  .comment-item.is-reply { margin-left: 22px; }
+  .reply-form { margin-left: 22px; }
 }
 
 .show-more-btn {

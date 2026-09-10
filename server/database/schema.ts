@@ -45,6 +45,14 @@ export const comments = sqliteTable('comments', {
   body: text('body').notNull(),
   isSpoiler: integer('is_spoiler', { mode: 'boolean' }).notNull().default(false),
   userId: integer('user_id'), // NULL = гость, иначе — залогиненный пользователь
+  // Ответ на другой комментарий. Ветка одноуровневая: parent_id всегда указывает
+  // на корневой комментарий, и ответ на ответ ложится в ту же ветку — иначе на
+  // телефоне к четвёртому уровню от текста остаётся столбик в пару слов.
+  parentId: integer('parent_id'),
+  // Кому именно отвечали. parent_id держит корень ветки — по нему ответ встаёт
+  // на место, но из него не узнать, к чьей реплике обращались. Для корневого
+  // ответа совпадает с parent_id.
+  replyToId: integer('reply_to_id'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
@@ -121,6 +129,18 @@ export const gameResults = sqliteTable('game_results', {
   guesses: integer('guesses').notNull().default(0),
   won: integer('won', { mode: 'boolean' }).notNull().default(false),
   finishedAt: text('finished_at').notNull().default(sql`(datetime('now'))`),
+})
+
+// Уведомление читателю: на его комментарий ответили. Храним только кому и о
+// каком ответе — имя отвечающего, текст и глава берутся из самого комментария
+// при чтении. Так уведомление не расходится с правленым комментарием, а
+// удалённый ответ выпадает из списка сам, без сверки двух таблиц.
+export const notifications = sqliteTable('notifications', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(), // получатель
+  commentId: integer('comment_id').notNull(), // ответ, о котором уведомляем
+  isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
 export const siteSettings = sqliteTable('site_settings', {
