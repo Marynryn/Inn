@@ -78,9 +78,16 @@ function showMore() {
   visibleCount.value += props.limit!
 }
 
-// Emoji picker
-const showEmoji = ref(false)
+/*
+  Выбор смайлов один на две формы — и на новый комментарий, и на ответ. Держим
+  не «открыт/закрыт», а у какого поля открыт: две панели разом были бы видны обе,
+  а вставлять смайл надо в то поле, у которого её позвали.
+*/
+type EmojiTarget = 'main' | 'reply'
+
+const showEmoji = ref<EmojiTarget | null>(null)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const replyTextareaRef = ref<HTMLTextAreaElement | null>(null)
 
 if (import.meta.client) {
   import('emoji-picker-element')
@@ -89,22 +96,32 @@ if (import.meta.client) {
 function onEmojiClick(e: any) {
   const emoji = e.detail?.emoji?.unicode ?? ''
   if (!emoji) return
-  const el = textareaRef.value
-  if (!el) { body.value += emoji; return }
-  const start = el.selectionStart ?? body.value.length
-  const end = el.selectionEnd ?? body.value.length
-  body.value = body.value.slice(0, start) + emoji + body.value.slice(end)
+
+  const toReply = showEmoji.value === 'reply'
+  const model = toReply ? replyBody : body
+  const el = toReply ? replyTextareaRef.value : textareaRef.value
+
+  showEmoji.value = null
+
+  // Поля может не быть, если панель успели открыть, а форму закрыть: тогда
+  // просто дописываем смайл в конец.
+  if (!el) { model.value += emoji; return }
+
+  const start = el.selectionStart ?? model.value.length
+  const end = el.selectionEnd ?? model.value.length
+  model.value = model.value.slice(0, start) + emoji + model.value.slice(end)
+
   nextTick(() => {
     el.selectionStart = el.selectionEnd = start + emoji.length
     el.focus()
   })
-  showEmoji.value = false
 }
 
-// Закрыть picker при клике вне
+// Закрыть панель при клике вне. Ищем ближайшую обёртку у самого клика, а не
+// первую на странице: обёрток теперь две, и querySelector нашёл бы не ту.
 function onOutsideClick(e: MouseEvent) {
-  const wrap = document.querySelector('.emoji-trigger-wrap')
-  if (wrap && !wrap.contains(e.target as Node)) showEmoji.value = false
+  const target = e.target as HTMLElement | null
+  if (!target?.closest?.('.emoji-trigger-wrap')) showEmoji.value = null
 }
 onMounted(() => document.addEventListener('click', onOutsideClick))
 onUnmounted(() => document.removeEventListener('click', onOutsideClick))
@@ -153,6 +170,7 @@ const cancelReply = () => {
   replyTo.value = null
   replyBody.value = ''
   replyError.value = ''
+  if (showEmoji.value === 'reply') showEmoji.value = null
 }
 
 const sendReply = async () => {
@@ -248,12 +266,12 @@ onMounted(() => {
           maxlength="500"
         />
         <div class="emoji-trigger-wrap">
-          <button class="emoji-trigger" type="button" @click.stop="showEmoji = !showEmoji">
+          <button class="emoji-trigger" type="button" @click.stop="showEmoji = showEmoji === 'main' ? null : 'main'">
             😊
           </button>
           <ClientOnly>
             <emoji-picker
-              v-if="showEmoji"
+              v-if="showEmoji === 'main'"
               class="dark emoji-panel"
               @emoji-click="onEmojiClick"
             />
@@ -339,12 +357,27 @@ onMounted(() => {
           placeholder="Твоё имя"
           maxlength="40"
         >
-        <textarea
-          v-model="replyBody"
-          placeholder="Напиши ответ..."
-          maxlength="500"
-          @keydown.esc="cancelReply"
-        />
+        <div class="textarea-wrap">
+          <textarea
+            ref="replyTextareaRef"
+            v-model="replyBody"
+            placeholder="Напиши ответ..."
+            maxlength="500"
+            @keydown.esc="cancelReply"
+          />
+          <div class="emoji-trigger-wrap">
+            <button class="emoji-trigger" type="button" @click.stop="showEmoji = showEmoji === 'reply' ? null : 'reply'">
+              😊
+            </button>
+            <ClientOnly>
+              <emoji-picker
+                v-if="showEmoji === 'reply'"
+                class="dark emoji-panel"
+                @emoji-click="onEmojiClick"
+              />
+            </ClientOnly>
+          </div>
+        </div>
         <div class="reply-footer">
           <span v-if="replyError" class="comment-error">{{ replyError }}</span>
           <span v-else class="comment-hint">до 500 символов</span>
@@ -777,7 +810,8 @@ onMounted(() => {
   width: 100%;
   min-height: 52px;
   resize: none;
-  padding: 10px 12px;
+  /* Справа место под кнопку смайлов, как в основной форме. */
+  padding: 10px 38px 10px 12px;
   font-size: 13.5px;
   line-height: 1.6;
   margin-bottom: 8px;
