@@ -24,6 +24,14 @@ export default defineNuxtConfig({
     sessionPassword: process.env.NUXT_SESSION_PASSWORD,
     session: {
       maxAge: 60 * 60 * 24 * 30, // 30 дней — не разлогинивать при каждом закрытии браузера
+      cookie: {
+        // Куку сессии по http браузер не примет — и это правильно: боевой сайт
+        // работает по https. Ключ прописан явно, чтобы его можно было снять
+        // переменной NUXT_SESSION_COOKIE_SECURE=false: без неё собранный сайт,
+        // запущенный в домашней сети по адресу вида 192.168.x.x, не пускает
+        // войти вообще. Переменную ставим только там.
+        secure: true,
+      },
     },
     notifySecret: process.env.NOTIFY_SECRET,
     // Ключи входа через Google. Пустые — кнопка на странице входа не появится.
