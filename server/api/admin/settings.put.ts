@@ -2,7 +2,7 @@ import { useDb } from '../../utils/db'
 import { siteSettings } from '../../database/schema'
 
 const ALLOWED_KEYS = [
-  'hero_title', 'hero_subtitle', 'ledger_note', 'footer_text',
+  'hero_title', 'hero_subtitle', 'hero_ticker', 'hero_ticker_on', 'ledger_note', 'footer_text',
   'telegram_url', 'boosty_url', 'tribute_url',
   'about_title', 'about_text',
   'error_404_sub', 'update_schedule',

@@ -187,6 +187,8 @@ const createUser = async () => {
 const form = reactive({
   hero_title: '',
   hero_subtitle: '',
+  hero_ticker: '',
+  hero_ticker_on: '',
   ledger_note: '',
   footer_text: '',
   telegram_url: '',
@@ -203,6 +205,16 @@ const form = reactive({
   tg_cta_text: '',
 })
 watch(settings, (s) => { if (s) Object.assign(form, s) }, { immediate: true })
+
+/*
+  Настройки хранятся строками, а галочке нужно логическое значение — отсюда
+  посредник. Пустая настройка считается включённой: если строка уже написана, а
+  флажка в базе ещё нет, показать её правильнее, чем спрятать.
+*/
+const tickerOn = computed({
+  get: () => form.hero_ticker_on !== '0',
+  set: (v: boolean) => { form.hero_ticker_on = v ? '1' : '0' },
+})
 
 const savingSettings = ref(false)
 const settingsSaved = ref(false)
@@ -643,6 +655,20 @@ useHead({
             <label>Подзаголовок hero</label>
             <textarea v-model="form.hero_subtitle" rows="3" />
           </div>
+          <div class="field-row">
+            <label>Бегущая строка под hero</label>
+            <textarea v-model="form.hero_ticker" rows="4" placeholder="Каждая строка — отдельная фраза" />
+            <span class="field-hint">
+              По фразе на строку — на сайте они пойдут в ряд через точку и будут
+              повторяться по кругу. Скорость подбирается сама по длине текста.
+              Строку видят только незарегистрированные читатели, клик по ней
+              ведёт на вход.
+            </span>
+          </div>
+          <label class="checkbox-row">
+            <input v-model="tickerOn" type="checkbox">
+            <span>Показывать бегущую строку (галочку можно снять, текст сохранится)</span>
+          </label>
           <div class="field-row">
             <label>Текст под оглавлением</label>
             <input v-model="form.ledger_note" type="text">

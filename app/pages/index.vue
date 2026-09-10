@@ -62,6 +62,56 @@ useHead({
   ],
 })
 
+/*
+  Бегущая строка под hero. Настройка — по фразе на строку; пустая настройка
+  означает «строки нет», отдельный выключатель для этого не нужен.
+*/
+const tickerItems = computed<string[]>(() =>
+  String(settings.value?.hero_ticker ?? '')
+    // Регулярка, а не '\n': из textarea в админке приходит и CRLF.
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+)
+
+/*
+  Список печатаем дважды: лента едет ровно на свою половину и в этот миг вторая
+  копия стоит там, где начиналась первая, — стык не виден. Одной копии хватило бы
+  только на рывок в конце.
+*/
+const tickerLoop = computed(() => [...tickerItems.value, ...tickerItems.value])
+
+/*
+  Строку видят только гости: это зазыв завести аккаунт, и тому, кто его уже
+  завёл, она рассказывала бы про то, что у него и так есть. Отсюда и ссылка одна
+  — на вход, с возвратом на главную.
+
+  Флажок в админке отделён от текста нарочно: снять галочку и не потерять
+  написанное. Пустая настройка флажка считается включённой — иначе строка,
+  написанная до появления галочки, вдруг перестала бы показываться.
+*/
+const auth = useAuthStore()
+
+const showTicker = computed(() =>
+  !auth.isAuthed
+  && tickerItems.value.length > 0
+  && settings.value?.hero_ticker_on !== '0'
+)
+
+/*
+  Время круга считаем от длины текста, а не берём одно на все случаи: короткая
+  фраза при фиксированных 30 секундах ползла бы еле-еле, а длинная пролетала бы
+  быстрее, чем её прочитать.
+
+  Шесть знаков в секунду — около 40 пикселей в секунду при кегле 13px. Это
+  медленнее темпа чтения: фразу видно целиком и есть время решить, нажимать ли.
+  Не меньше 18 секунд, иначе строка из двух слов мелькает.
+*/
+const tickerSeconds = computed(() => {
+  const chars = tickerItems.value.join(' · ').length
+  return Math.max(18, Math.round(chars / 6))
+})
+
 const socialTitle = computed(() => (settings.value?.hero_title || 'Странствующая Таверна').replace(/\n/g, ' '))
 
 const seoDescription = 'Бесплатный фанатский перевод The Wandering Inn (Блуждающий трактир) на русский. Обновляется каждую неделю. Читай онлайн или скачивай epub.'
@@ -115,6 +165,23 @@ useSeoMeta({
           <div><b class="display">{{ settings?.update_schedule || '2–3' }}</b>главы в неделю</div>
         </div>
       </div>
+
+      <!-- Бегущая строка по нижнему краю hero.
+           aria-hidden висит на ленте, а не на ссылке: текст в ней напечатан
+           дважды и вслух прозвучал бы заиканием, а сама ссылка скрытой быть не
+           должна — иначе она фокусируется, но не читается. Читалке отдаём
+           фразы один раз через aria-label. -->
+      <NuxtLink
+        v-if="showTicker"
+        to="/login?next=%2F"
+        class="ticker"
+        :style="{ '--ticker-time': tickerSeconds + 's' }"
+        :aria-label="tickerItems.join('. ')"
+      >
+        <div class="ticker-track" aria-hidden="true">
+          <span v-for="(line, i) in tickerLoop" :key="i" class="ticker-item">{{ line }}</span>
+        </div>
+      </NuxtLink>
     </div>
 
     <!-- <AdSlot id="index-top" /> -->
@@ -232,6 +299,97 @@ useSeoMeta({
   position: relative;
   z-index: 2;
   padding: 48px 24px 0;
+}
+
+/* ── Бегущая строка ─────────────────────────── */
+
+/* Прижата к нижнему краю hero и ложится в его нижний отступ — тот всё равно
+   пустой, поэтому остальная раскладка не сдвигается. */
+.ticker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  overflow: hidden;
+  padding: 9px 0;
+  /* Акцент отдан полосе, а не тексту: цветная бегущая фраза на герое читается
+     как реклама, а тонкая золотая черта — как объявление на доске. Золото уже
+     работает на сайте акцентом, поэтому нового цвета в палитре не появляется. */
+  border-top: 1px solid rgba(201, 160, 46, .35);
+  background: rgba(20, 14, 10, .5);
+  backdrop-filter: blur(2px);
+  display: block;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease;
+  /* Края растворяются, иначе фразы обрубаются ровной вертикалью. */
+  -webkit-mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent);
+}
+
+.ticker-track {
+  display: flex;
+  width: max-content;
+  animation: ticker-run var(--ticker-time, 30s) linear infinite;
+}
+
+/* Навёл курсор — строка останавливается: иначе прочитать фразу на ходу и
+   попасть по ней мышью нельзя. Заодно полоса светлеет, чтобы было видно, что
+   она нажимается. */
+.ticker:hover .ticker-track,
+.ticker:focus-visible .ticker-track {
+  animation-play-state: paused;
+}
+
+.ticker:hover {
+  background: rgba(20, 14, 10, .68);
+  border-top-color: rgba(201, 160, 46, .6);
+}
+
+.ticker:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
+.ticker:hover .ticker-item {
+  opacity: 1;
+  color: var(--parchment);
+}
+
+.ticker-item {
+  white-space: nowrap;
+  font-size: 13px;
+  letter-spacing: .01em;
+  color: var(--parchment-2);
+  opacity: .9;
+}
+
+/*
+  Разделитель рисуем на самой фразе, а не отдельным узлом: так он не попадает в
+  разметку и не сбивает счёт при удвоении списка.
+
+  Поля держим на точке, а не на фразах. Раньше у фраз был padding 18px с двух
+  сторон, и после точки набегало 36px против 18px перед ней — зазор выходил
+  вдвое шире с одной стороны. Теперь по 13px с обеих, и точка стоит ровно
+  посередине между предложениями.
+*/
+.ticker-item::after {
+  content: '·';
+  margin: 0 13px;
+  color: var(--gold);
+  opacity: .75;
+}
+
+@keyframes ticker-run {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* Кому движение мешает — фразы стоят на месте, а прочитать их можно пальцем. */
+@media (prefers-reduced-motion: reduce) {
+  .ticker { overflow-x: auto; }
+  .ticker-track { animation: none; }
 }
 
 .eyebrow {
