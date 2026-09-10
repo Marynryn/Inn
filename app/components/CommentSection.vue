@@ -313,7 +313,7 @@ onMounted(() => {
           :src="c.avatarUrl"
           :name="c.authorName"
           :frame="c.avatarFrame"
-          :size="c.parentId != null ? 24 : 32"
+          :size="c.parentId != null ? 30 : 40"
           alt=""
         />
         <div class="comment-content">
@@ -727,7 +727,7 @@ onMounted(() => {
 /* Ответ сдвинут ровно на ширину аватарки с её отступом (32 + 12) — так он
    встаёт под текстом того, кому отвечают, а не под его картинкой. */
 .comment-item.is-reply {
-  margin-left: 44px;
+  margin-left: 52px;
   padding-top: 0;
   padding-bottom: 12px;
 }
@@ -757,7 +757,7 @@ onMounted(() => {
 /* ── Форма ответа ───────────────────────────── */
 
 .reply-form {
-  margin: 0 0 16px 44px;
+  margin: 0 0 16px 52px;
 }
 
 .reply-to {
