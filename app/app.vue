@@ -31,4 +31,7 @@ useSeoMeta({
 <template>
   <NuxtRouteAnnouncer />
   <NuxtPage />
+  <!-- Значок уведомлений поверх любой страницы: сам решает, показываться ли —
+       у гостя уведомлений нет. -->
+  <NotificationWidget />
 </template>

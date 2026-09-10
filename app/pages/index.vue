@@ -168,7 +168,8 @@ useSeoMeta({
     <!-- <AdSlot id="index-mid" /> -->
 
     <!-- КОММЕНТАРИИ -->
-    <div class="comments-wrap">
+    <!-- id нужен уведомлениям: у отзыва о проекте главы нет, и ссылка ведёт сюда. -->
+    <div id="reviews" class="comments-wrap">
       <div class="comments-inner">
         <h2 class="display" style="margin: 0 0 6px;">Отзывы о проекте</h2>
         <p class="comments-sub">Не привязаны к конкретной главе — впечатления о переводе и сайте в целом.</p>
