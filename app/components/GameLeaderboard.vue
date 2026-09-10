@@ -379,6 +379,11 @@ useScrollLock()
 .me td:first-child { border-left: 1px solid var(--ember-soft); }
 .me td:last-child { border-right: 1px solid var(--ember-soft); }
 
+/* Своя строка на первом месте. Правило выше гасит верхнюю границу у первой
+   строки, чтобы не двоить линию под шапкой, и оно специфичнее обводки — рамка
+   вокруг своей строки оставалась открытой сверху. Возвращаем ей верх. */
+.table tbody tr.me:first-child td { border-top: 1px solid var(--ember-soft); }
+
 /* Строка, оторванная от таблицы: между нею и двадцаткой пропуск, и отступ
    сверху не даёт ей читаться двадцать первым местом. */
 .apart td { padding-top: 18px; }
