@@ -50,6 +50,19 @@ const load = async () => {
   }
 }
 
+/*
+  Уезжает шар только на странице главы — там он висит прямо над текстом. На
+  остальных страницах читать нечего, а исчезающий значок пришлось бы искать.
+
+  Считаем по кускам пути, а не регуляркой: у читалки он /chapter/:id — ровно два
+  куска, — а у комментариев главы /chapter/:id/comments, где их три. Так видно,
+  что именно сравнивается, и не надо escape-ить слэши.
+*/
+const isChapterPage = computed(() => {
+  const parts = route.path.split('/').filter(Boolean)
+  return parts.length === 2 && parts[0] === 'chapter'
+})
+
 /** Куда ведёт уведомление: к комментариям главы или к отзывам на главной. */
 const hrefOf = (n: Item) => n.chapterId ? `/chapter/${n.chapterId}/comments` : '/#reviews'
 
@@ -166,7 +179,12 @@ watch(() => auth.isAuthed, (authed) => {
   if (authed) { closedByUs = false; connect() }
   else disconnect()
 }, { immediate: true })
-watch(() => route.fullPath, () => { if (auth.isAuthed) load() })
+watch(() => route.fullPath, () => {
+  // Ушли со главы спрятанным — на новой странице шар должен быть виден.
+  tucked.value = false
+  lastY = 0
+  if (auth.isAuthed) load()
+})
 
 /*
   Читатель ведёт страницу вниз — шар уезжает за край, ведёт вверх — возвращается.
@@ -191,8 +209,9 @@ const onScroll = () => {
   if (Math.abs(dy) < JITTER) return
   lastY = y
 
-  // Открытую панель не прячем: человек её сейчас читает.
-  if (open.value) { tucked.value = false; return }
+  // Не глава — шар стоит на месте. Открытую панель тоже не прячем: человек её
+  // сейчас читает.
+  if (!isChapterPage.value || open.value) { tucked.value = false; return }
 
   tucked.value = dy > 0 && y > TOP_ZONE
 }
