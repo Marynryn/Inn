@@ -427,6 +427,13 @@ export async function runMigrations() {
     // Столбец уже существует — это нормально
   }
 
+  // Рамка новичка: её выдают при регистрации и сразу надевают.
+  try {
+    await client.execute('ALTER TABLE avatar_frames ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0')
+  } catch {
+    // Столбец уже существует — это нормально
+  }
+
   // Дефолтные настройки сайта
   const defaults: Record<string, string> = {
     hero_title: 'Истории трактира,\nрассказанные заново',

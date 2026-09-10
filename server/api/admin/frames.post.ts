@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
   try {
     const file = await saveFrameImage(created!.id, filePart.data)
     const [saved] = await db.update(avatarFrames).set({ file }).where(eq(avatarFrames.id, created!.id)).returning()
-    return { ok: true, frame: { ...toAvatarFrame(saved!), inPool: saved!.inPool, owners: 0 } }
+    return { ok: true, frame: { ...toAvatarFrame(saved!), inPool: saved!.inPool, isDefault: saved!.isDefault, owners: 0 } }
   } catch (e) {
     await db.delete(avatarFrames).where(eq(avatarFrames.id, created!.id))
     throw e

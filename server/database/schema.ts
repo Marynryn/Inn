@@ -52,6 +52,9 @@ export const avatarFrames = sqliteTable('avatar_frames', {
   // Участвует ли рамка в случайной раздаче на ивентах. Снятая с раздачи рамка
   // остаётся у тех, кто её уже выиграл: редкость — это и есть смысл рамки.
   inPool: integer('in_pool', { mode: 'boolean' }).notNull().default(true),
+  // Рамка новичка: достаётся при регистрации и сразу надевается. Такая рамка
+  // одна на весь сайт — вторая отметка снимает первую.
+  isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 

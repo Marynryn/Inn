@@ -186,7 +186,7 @@ const createUser = async () => {
 }
 
 // --- Рамки для аватарок ---
-type AdminFrame = { id: number; name: string; url: string; fit: number; inPool: boolean; owners: number }
+type AdminFrame = { id: number; name: string; url: string; fit: number; inPool: boolean; isDefault: boolean; owners: number }
 type FrameOwner = {
   id: number
   name: string
@@ -284,12 +284,33 @@ const createFrame = async () => {
   }
 }
 
-const saveFrame = async (frame: AdminFrame, patch: { name?: string; fit?: number; inPool?: boolean }) => {
+const defaultFrame = computed(() => frames.value.find(f => f.isDefault) ?? null)
+const backfilling = ref(false)
+
+/** Раздать рамку новичка тем, кто зарегистрировался до её появления. */
+const backfillDefault = async () => {
+  if (!confirm('Выдать рамку новичка всем, кто уже зарегистрирован? Надета она будет только на тех, кто ходит без рамки.')) return
+
+  backfilling.value = true
+  frameMsg.value = ''
+  try {
+    const res = await $fetch<{ message: string }>('/api/admin/frames/backfill', { method: 'POST' })
+    frameMsg.value = res.message
+    await refreshFrames()
+  } catch (e: any) {
+    frameError.value = e?.data?.message || 'Не вышло'
+  } finally {
+    backfilling.value = false
+  }
+}
+
+const saveFrame = async (frame: AdminFrame, patch: { name?: string; fit?: number; inPool?: boolean; isDefault?: boolean }) => {
   frameError.value = ''
   const fd = new FormData()
   if (patch.name !== undefined) fd.append('name', patch.name)
   if (patch.fit !== undefined) fd.append('fit', String(patch.fit))
   if (patch.inPool !== undefined) fd.append('inPool', patch.inPool ? '1' : '0')
+  if (patch.isDefault !== undefined) fd.append('isDefault', patch.isDefault ? '1' : '0')
 
   try {
     await $fetch(`/api/admin/frames/${frame.id}`, { method: 'PUT', body: fd })
@@ -916,10 +937,42 @@ useHead({
                   <span>в раздаче</span>
                 </label>
 
+                <label class="frame-pool" title="Достаётся при регистрации и сразу надевается. Такая рамка одна на сайт.">
+                  <input
+                    type="checkbox"
+                    :checked="f.isDefault"
+                    @change="saveFrame(f, { isDefault: ($event.target as HTMLInputElement).checked })"
+                  >
+                  <span>новичкам</span>
+                </label>
+
                 <span class="frame-owners">у {{ f.owners }} чел.</span>
                 <button class="frame-del" @click="removeFrame(f)">Удалить</button>
               </div>
             </div>
+          </div>
+
+          <div class="newcomer">
+            <template v-if="defaultFrame">
+              <UserAvatar
+                class="frame-preview"
+                :src="currentAvatar"
+                :name="displayName"
+                :frame="defaultFrame"
+                :size="34"
+                alt=""
+              />
+              <span class="newcomer-text">
+                Новички получают «{{ defaultFrame.name }}» при регистрации и сразу в ней ходят.
+              </span>
+              <button class="btn-action btn-sm" :disabled="backfilling" @click="backfillDefault">
+                {{ backfilling ? '...' : 'Выдать и тем, кто уже есть' }}
+              </button>
+            </template>
+            <span v-else class="newcomer-text">
+              Рамка новичка не выбрана — новые читатели приходят без рамки.
+              Отметь «новичкам» у той, что должна доставаться всем.
+            </span>
           </div>
 
           <hr class="section-divider">
@@ -1597,6 +1650,28 @@ useHead({
 }
 
 .frame-del:hover { text-decoration: underline; }
+
+/* Рамка новичка — не такая же строка каталога, а правило, которое к нему
+   применяется: оттого своя полоса, а не ещё одна карточка. */
+.newcomer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(241, 230, 210, .12);
+  border-radius: var(--radius-md);
+  background: rgba(241, 230, 210, .03);
+}
+
+.newcomer-text {
+  flex: 1;
+  min-width: 220px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  opacity: .65;
+}
 
 /* ── Выдача ─────────────────────────────────── */
 .user-found {

@@ -192,7 +192,7 @@ useHead({
         <template v-else>
           <p class="section-note">
             <template v-if="isAdmin">Тебе показан весь каталог — читатель видит только выигранное.</template>
-            <template v-else>Носить можно любую из выигранных.</template>
+            <template v-else>Носить можно любую из своих — или ходить без рамки.</template>
           </p>
 
           <div class="frame-grid">

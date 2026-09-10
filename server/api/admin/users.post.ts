@@ -4,6 +4,7 @@ import { useDb } from '../../utils/db'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
+import { grantDefaultFrame } from '../../utils/frames'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -28,13 +29,16 @@ export default defineEventHandler(async (event) => {
   // чужим — берём ближайшее свободное; поправить можно в профиле.
   const name = await freeDisplayName(nameFromEmail(String(email).trim().toLowerCase()))
 
-  await db.insert(users).values({
+  const [created] = await db.insert(users).values({
     email: email.trim().toLowerCase(),
     passwordHash: hash,
     role,
     displayName: name,
     displayNameKey: displayNameKey(name) || null,
-  })
+  }).returning({ id: users.id })
+
+  // Заведённый руками — такой же новичок, и рамку новичка получает так же.
+  await grantDefaultFrame(created!.id)
 
   return { ok: true }
 })

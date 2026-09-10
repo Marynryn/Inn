@@ -4,7 +4,7 @@ import { displayNameKey, nameFromEmail } from '#shared/utils/displayName'
 import { userIdentities, users } from '../database/schema'
 import type { AvatarFrame } from '#shared/utils/avatarFrames'
 import { saveRemoteAvatar } from './avatar'
-import { frameById } from './frames'
+import { frameById, grantDefaultFrame } from './frames'
 import { useDb } from './db'
 import { freeDisplayName } from './display-name'
 
@@ -171,6 +171,13 @@ export async function loginWithProvider(
       provider,
       providerUserId: profile.id,
     })
+  }
+
+  // Рамка новичка — сразу на аватарке, а не подарком, который надо найти и
+  // надеть. Поменять её или снять можно тут же, в профиле.
+  if (created) {
+    const frame = await grantDefaultFrame(user.id)
+    if (frame) user = { ...user, avatarFrameId: frame.id }
   }
 
   // Аватарку от провайдера берём, только если своей нет: подменять картинку,

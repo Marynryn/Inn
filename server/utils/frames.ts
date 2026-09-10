@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto'
 import { mkdir, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, isNull, ne } from 'drizzle-orm'
 import type { AvatarFrame, OwnedFrame } from '#shared/utils/avatarFrames'
 import { MAX_FRAME_BYTES, MAX_FRAME_SIDE, clampFit } from '#shared/utils/avatarFrames'
 import { avatarFrames, userFrames, users } from '../database/schema'
@@ -22,9 +22,9 @@ export const toAvatarFrame = (f: FrameRow): AvatarFrame => ({
   fit: clampFit(f.fit),
 })
 
-export async function listFrames(): Promise<(AvatarFrame & { inPool: boolean })[]> {
+export async function listFrames(): Promise<(AvatarFrame & { inPool: boolean; isDefault: boolean })[]> {
   const rows = await useDb().select().from(avatarFrames).orderBy(avatarFrames.id)
-  return rows.map(f => ({ ...toAvatarFrame(f), inPool: f.inPool }))
+  return rows.map(f => ({ ...toAvatarFrame(f), inPool: f.inPool, isDefault: f.isDefault }))
 }
 
 /** Рамки по списку id — тем, кто показывает чужие аватарки списком. Одним
@@ -71,7 +71,7 @@ export async function wearableFrames(userId: number, isAdmin: boolean): Promise<
   const has = new Set(owned.map(f => f.id))
   const rest = (await listFrames())
     .filter(f => !has.has(f.id))
-    .map(({ inPool, ...frame }) => ({ ...frame, grantedAt: null, owned: false }))
+    .map(({ inPool, isDefault, ...frame }) => ({ ...frame, grantedAt: null, owned: false }))
 
   // Свои — первыми: выигранное и примеряемое в одном списке иначе смешается.
   return [...owned, ...rest]
@@ -142,6 +142,87 @@ export async function revokeFrame(userId: number, frameId: number) {
   await db.update(users)
     .set({ avatarFrameId: null })
     .where(and(eq(users.id, userId), eq(users.avatarFrameId, frameId)))
+}
+
+/**
+ * Рамка новичка — та, что достаётся при регистрации. Её нет, пока ни одна не
+ * отмечена: тогда новички приходят без рамки, как и было раньше.
+ */
+export async function defaultFrame(): Promise<AvatarFrame | null> {
+  const [row] = await useDb().select().from(avatarFrames).where(eq(avatarFrames.isDefault, true)).limit(1)
+  return row ? toAvatarFrame(row) : null
+}
+
+/**
+ * Отмечает рамку как рамку новичка. Такая рамка одна на сайт, поэтому со всех
+ * прочих отметка снимается: иначе «рамка по умолчанию» перестала бы означать
+ * что-то одно. Пустой id снимает отметку вовсе.
+ */
+export async function setDefaultFrame(frameId: number | null) {
+  const db = useDb()
+
+  await db.update(avatarFrames)
+    .set({ isDefault: false })
+    .where(frameId ? ne(avatarFrames.id, frameId) : undefined)
+
+  if (frameId) {
+    await db.update(avatarFrames).set({ isDefault: true }).where(eq(avatarFrames.id, frameId))
+  }
+}
+
+/**
+ * Выдаёт новичку рамку по умолчанию и сразу надевает её. Надеваем только если
+ * человек ничего не носит: функция зовётся и при регистрации, где носить ещё
+ * нечего, и вручную из панели, где выбор уже мог быть сделан — переодевать
+ * человека против его воли мы не станем.
+ */
+export async function grantDefaultFrame(userId: number): Promise<AvatarFrame | null> {
+  const frame = await defaultFrame()
+  if (!frame) return null
+
+  const db = useDb()
+  if (!(await ownsFrame(userId, frame.id))) {
+    await db.insert(userFrames).values({ userId, frameId: frame.id })
+  }
+
+  await db.update(users)
+    .set({ avatarFrameId: frame.id })
+    .where(and(eq(users.id, userId), isNull(users.avatarFrameId)))
+
+  return frame
+}
+
+/**
+ * Раздаёт рамку новичка тем, кто зарегистрировался раньше, чем она появилась.
+ * Отдельным действием, а не само собой: это подарок задним числом, и решать,
+ * делать ли его, должна хозяйка сайта. Надевается она только тем, кто ходит
+ * без рамки — чужой выбор не трогаем.
+ */
+export async function grantDefaultToEveryone(): Promise<{ granted: number; dressed: number }> {
+  const frame = await defaultFrame()
+  if (!frame) return { granted: 0, dressed: 0 }
+
+  const db = useDb()
+
+  const owners = await db
+    .select({ userId: userFrames.userId })
+    .from(userFrames)
+    .where(eq(userFrames.frameId, frame.id))
+  const has = new Set(owners.map(o => o.userId))
+
+  const everyone = await db.select({ id: users.id }).from(users)
+  const missing = everyone.filter(u => !has.has(u.id))
+
+  if (missing.length) {
+    await db.insert(userFrames).values(missing.map(u => ({ userId: u.id, frameId: frame.id })))
+  }
+
+  const dressed = await db.update(users)
+    .set({ avatarFrameId: frame.id })
+    .where(isNull(users.avatarFrameId))
+    .returning({ id: users.id })
+
+  return { granted: missing.length, dressed: dressed.length }
 }
 
 /**

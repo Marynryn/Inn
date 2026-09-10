@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { FRAME_NAME_MAX, clampFit } from '#shared/utils/avatarFrames'
 import { avatarFrames } from '../../../database/schema'
 import { useDb } from '../../../utils/db'
-import { deleteFrameImage, saveFrameImage, toAvatarFrame } from '../../../utils/frames'
+import { deleteFrameImage, saveFrameImage, setDefaultFrame, toAvatarFrame } from '../../../utils/frames'
 
 /**
  * Правка рамки: название, посадка аватарки, участие в раздаче и — если
@@ -39,13 +39,24 @@ export default defineEventHandler(async (event) => {
   const imagePart = form.find(f => f.name === 'image' && f.data?.length)
   if (imagePart) updates.file = await saveFrameImage(id, imagePart.data)
 
-  if (!Object.keys(updates).length) throw createError({ statusCode: 400, message: 'Нечего менять' })
+  // Отметка «для новичков» правится не как остальные поля: она одна на сайт,
+  // и включение её здесь снимает её со всех прочих рамок.
+  const defaultPart = part('isDefault')
+  if (defaultPart) {
+    await setDefaultFrame(defaultPart.data.toString('utf8').trim() === '0' ? null : id)
+  }
 
-  const [saved] = await db.update(avatarFrames).set(updates).where(eq(avatarFrames.id, id)).returning()
+  if (!Object.keys(updates).length && !defaultPart) {
+    throw createError({ statusCode: 400, message: 'Нечего менять' })
+  }
+
+  const [saved] = Object.keys(updates).length
+    ? await db.update(avatarFrames).set(updates).where(eq(avatarFrames.id, id)).returning()
+    : await db.select().from(avatarFrames).where(eq(avatarFrames.id, id))
 
   // Старую картинку убираем только после того, как новая записана и строка на
   // неё указывает: иначе неудачная замена оставила бы рамку без вида.
   if (updates.file && frame.file) await deleteFrameImage(frame.file)
 
-  return { ok: true, frame: { ...toAvatarFrame(saved!), inPool: saved!.inPool } }
+  return { ok: true, frame: { ...toAvatarFrame(saved!), inPool: saved!.inPool, isDefault: saved!.isDefault } }
 })
