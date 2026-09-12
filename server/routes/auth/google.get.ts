@@ -3,7 +3,7 @@ import { withQuery } from 'ufo'
 import { sendBrowserRedirect } from '../../utils/browser-redirect'
 import { issueTicket, mirrorFromState, MIRROR_STATE_PREFIX } from '../../utils/handoff'
 import { afterLogin, loginWithProvider, rememberNext } from '../../utils/identity'
-import { isInternalHost, mirrorHosts, publicOrigin } from '../../utils/public-origin'
+import { mirrorHosts, publicOrigin, viaMirror } from '../../utils/public-origin'
 
 const SCOPE = ['openid', 'email', 'profile']
 
@@ -107,7 +107,7 @@ export default defineEventHandler(async (event) => {
   // пропускает длинный код из ответа Google. Основной домен завершит вход и
   // передаст его на зеркало билетом (utils/handoff.ts); какое зеркало —
   // помнит state, Google вернёт его как есть.
-  const mirror = isInternalHost(getRequestURL(event).hostname) ? new URL(origin).hostname : null
+  const mirror = viaMirror(event)
   const callbackOrigin = mirror ? useRuntimeConfig(event).public.siteUrl : origin
 
   return sendBrowserRedirect(event, withQuery('https://accounts.google.com/o/oauth2/v2/auth', {

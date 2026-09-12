@@ -27,7 +27,9 @@ const env = {
   // E2E_OFFLINE не выпускает наружу ни одного запроса (server/plugins/offline-guard.ts).
   // Чтобы прогон не написал живым читателям в канал, даже если в .env что-то есть.
   E2E_OFFLINE: '1',
-  TELEGRAM_BOT_TOKEN: '',
+  // Токен бота выдуманный, без chat id: рассылка по-прежнему «не настроена», а
+  // вход через телеграм можно проверить целиком — подпись считается по токену.
+  TELEGRAM_BOT_TOKEN: '123456:e2e-telegram-token',
   TELEGRAM_CHANNEL_ID: '',
   TELEGRAM_THREAD_ID: '',
   // Ключи Google — выдуманные: с ними видно, куда сервер отправляет к Google и

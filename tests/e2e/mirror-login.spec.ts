@@ -67,3 +67,96 @@ test.describe('Вход через Google с зеркала', () => {
     expect(['', 'null']).toContain(me)
   })
 })
+
+/*
+  Телеграм с зеркала — та же передача билетом. Возврат от телеграма собираем
+  сами: подпись считается по токену бота, который в стенде выдуманный.
+*/
+import { createHash, createHmac } from 'node:crypto'
+
+const TOKEN = '123456:e2e-telegram-token'
+
+/** Подпись по правилам телеграма — считаем сами, независимо от сервера. */
+function telegramSignature(token: string, fields: Record<string, string>) {
+  const check = Object.keys(fields).sort().map(k => `${k}=${fields[k]}`).join('\n')
+  const secret = createHash('sha256').update(token).digest()
+  return createHmac('sha256', secret).update(check).digest('hex')
+}
+
+function telegramReturn(id: string, name: string) {
+  const fields: Record<string, string> = {
+    id, first_name: name, auth_date: String(Math.floor(Date.now() / 1000)),
+  }
+  const hash = telegramSignature(TOKEN, fields)
+  return new URLSearchParams({ ...fields, hash }).toString()
+}
+
+test.describe('Вход через Telegram с зеркала', () => {
+  test('на основном домене всё как было: возврат на свой /auth/telegram/done', async ({ page }) => {
+    const res = await page.request.get('/auth/telegram?next=/game', { maxRedirects: 0 })
+    expect(res.status()).toBe(302)
+    const to = new URL(res.headers()['location']!)
+    expect(to.origin).toBe('https://oauth.telegram.org')
+    expect(to.searchParams.get('bot_id')).toBe('123456')
+    expect(to.searchParams.get('origin')).toBe('http://localhost:3100')
+    expect(to.searchParams.get('return_to')).toBe('http://localhost:3100/auth/telegram/done')
+  })
+
+  test('с зеркала телеграм возвращает на основной домен, с зеркалом в пути', async ({ page }) => {
+    const res = await page.request.get('/auth/telegram?next=/game', {
+      maxRedirects: 0,
+      headers: { host: 'inn-production.up.railway.app' },
+    })
+    expect(res.status()).toBe(200)
+    const target = /location\.replace\("([^"]+)"\)/.exec(await res.text())?.[1]
+    const to = new URL(target!)
+    expect(to.origin).toBe('https://oauth.telegram.org')
+    expect(to.searchParams.get('origin')).toBe('http://localhost:3100')
+    expect(to.searchParams.get('return_to')).toBe('http://localhost:3100/auth/telegram/done/inn.taverna-book.ru')
+  })
+
+  test('возврат на основной домен с подписью телеграма ставит сессию', async ({ page }) => {
+    const res = await page.request.get(`/auth/telegram/done?${telegramReturn('900001', 'Прямой')}`, { maxRedirects: 0 })
+    expect(res.status()).toBe(302)
+    // Новичок — на профиль.
+    expect(res.headers()['location']).toBe('/profile')
+    const me = await (await page.request.get('/api/auth/me')).json()
+    expect(me.displayName).toBe('Прямой')
+  })
+
+  test('возврат для зеркала не ставит сессию здесь, а выдаёт билет, по которому зеркало впускает', async ({ page }) => {
+    const res = await page.request.get(
+      `/auth/telegram/done/inn.taverna-book.ru?${telegramReturn('900002', 'Зеркальный')}`,
+      { maxRedirects: 0 },
+    )
+    expect(res.status()).toBe(302)
+    const location = res.headers()['location']!
+    expect(location).toMatch(/^https:\/\/inn\.taverna-book\.ru\/auth\/handoff\?t=[A-Za-z0-9]{12}$/)
+
+    // Зеркало (тот же сервер, за CDN) забирает билет и впускает.
+    const ticket = new URL(location).searchParams.get('t')!
+    const handoff = await page.request.get(`/auth/handoff?t=${ticket}`, {
+      maxRedirects: 0,
+      headers: { host: 'inn-production.up.railway.app' },
+    })
+    expect(handoff.status()).toBe(200)
+    expect(await handoff.text()).toContain('location.replace("/profile")')
+    const me = await (await page.request.get('/api/auth/me')).json()
+    expect(me.displayName).toBe('Зеркальный')
+
+    // Билет одноразовый.
+    const again = await page.request.get(`/auth/handoff?t=${ticket}`, { maxRedirects: 0 })
+    expect(again.headers()['location']).toBe('/login?error=google&reason=handoff')
+  })
+
+  test('чужое зеркало в пути — 404, подделанная подпись — на вход с причиной', async ({ page }) => {
+    const bad = await page.request.get(`/auth/telegram/done/evil.example?${telegramReturn('900003', 'Чужой')}`, { maxRedirects: 0 })
+    expect(bad.status()).toBe(404)
+
+    const forged = await page.request.get('/auth/telegram/done?id=900004&first_name=X&auth_date=1&hash=' + 'ab'.repeat(32), { maxRedirects: 0 })
+    expect(forged.status()).toBe(302)
+    expect(forged.headers()['location']).toBe('/login?error=telegram&reason=signature')
+    await page.goto(forged.headers()['location']!)
+    await expect(page.locator('.err')).toContainText('Telegram не завершил вход')
+  })
+})

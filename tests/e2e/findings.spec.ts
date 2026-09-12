@@ -118,7 +118,9 @@ test.describe('Находки исследователя', () => {
     await login(page, READER)
     await open(page, chapterUrl(CHAPTERS[0]!.id))
     await open(page, '/')
-    await expect(page.getByRole('link', { name: `Продолжить главу ${CHAPTERS[0]!.id}` })).toBeVisible()
+    // Какая именно глава — неважно (серверная закладка того же читателя могла
+    // остаться от соседнего теста); важно, что закладка есть, а после выхода — нет.
+    await expect(page.getByRole('link', { name: /Продолжить главу/ })).toBeVisible()
 
     await open(page, '/profile')
     await page.getByRole('button', { name: 'Выйти' }).click()

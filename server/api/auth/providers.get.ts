@@ -1,4 +1,4 @@
-import { publicOrigin } from '../../utils/public-origin'
+import { publicOrigin, viaMirror } from '../../utils/public-origin'
 import { telegramLoginAvailable } from '../../utils/telegram'
 
 /**
@@ -8,7 +8,8 @@ import { telegramLoginAvailable } from '../../utils/telegram'
  */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
-  const origin = publicOrigin(event)
+  // С зеркала телеграм работает через основной домен — его и спрашиваем.
+  const origin = viaMirror(event) ? config.public.siteUrl : publicOrigin(event)
 
   return {
     google: Boolean(config.oauth?.google?.clientId && config.oauth?.google?.clientSecret),

@@ -49,3 +49,14 @@ export function publicOrigin(event: H3Event): string {
 
   return seen.origin
 }
+
+/**
+ * Через какое зеркало пришёл запрос — или null, если по своему домену. Зеркало
+ * узнаётся так же, как в publicOrigin; здесь нужен только его хост: провайдеры
+ * входа с зеркала работают через основной домен, и надо знать, куда потом
+ * вернуть человека.
+ */
+export function viaMirror(event: H3Event): string | null {
+  const host = new URL(publicOrigin(event)).hostname
+  return host !== getRequestURL(event).hostname && mirrorHosts().includes(host) ? host : null
+}
