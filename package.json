@@ -11,7 +11,11 @@
     "dev:lan": "nuxt dev --host",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report .data/e2e-report",
+    "test:explore": "playwright test --config playwright.explore.config.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
@@ -34,9 +38,12 @@
     "vue-router": "^5.1.0"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.125.0",
+    "@playwright/test": "^1.63.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/sanitize-html": "^2.16.1",
     "drizzle-kit": "^0.31.10",
-    "sharp": "^0.35.2"
+    "sharp": "^0.35.2",
+    "zod": "^4.6.2"
   }
 }

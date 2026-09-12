@@ -28,3 +28,6 @@ storage/db.sqlite
 storage/epubs/
 storage/avatars/
 storage/frames/
+
+# Личные настройки Claude Code (разрешения этой машины); скиллы в .claude/skills — общие
+.claude/settings.local.json

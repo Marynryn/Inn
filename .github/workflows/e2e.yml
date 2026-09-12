@@ -1,0 +1,34 @@
+name: E2E tests
+
+# Виртуальный тестировщик на каждый пуш и PR: поднимает сайт на пустой базе,
+# прогоняет сценарии из tests/e2e. Отчёт со скриншотами и трейсами упавших
+# тестов лежит в артефактах прогона.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+        env:
+          CI: 'true'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          path: |
+            .data/e2e-report
+            .data/e2e-results
+          retention-days: 14
