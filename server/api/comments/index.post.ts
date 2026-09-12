@@ -1,7 +1,7 @@
 import { normalizeDisplayName } from '#shared/utils/displayName'
 import { isNameFreeForGuest } from '../../utils/display-name'
 import { useDb } from '../../utils/db'
-import { comments, notifications, users } from '../../database/schema'
+import { chapters, comments, notifications, users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import { checkRateLimit } from '../../utils/rate-limit'
 import { wsBroadcast, wsToUser } from '../../utils/ws-rooms'
@@ -72,6 +72,14 @@ export default defineEventHandler(async (event) => {
     parentId = parent.parentId ?? parent.id
     replyToId = parent.id
     chapterId = parent.chapterId
+  }
+
+  // Глава должна существовать: иначе комментарий повисает в пустоте, а в панели
+  // появляется ссылка «гл. 9.99», ведущая на 404. Ответу проверка не нужна —
+  // его глава взята у родителя, который уже прошёл её.
+  if (chapterId && !parent) {
+    const [chapter] = await db.select({ id: chapters.id }).from(chapters).where(eq(chapters.id, chapterId))
+    if (!chapter) throw createError({ statusCode: 404, message: 'Глава не найдена' })
   }
 
   const [created] = await db

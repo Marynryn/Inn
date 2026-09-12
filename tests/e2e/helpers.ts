@@ -13,6 +13,13 @@ export const test = base.extend({
   extraHTTPHeaders: async ({}, use) => {
     await use({ 'x-forwarded-for': fakeIp() })
   },
+  // Браузер тестов в интернет не ходит: внешнее (шрифты Google) получает пустой
+  // ответ. Так прогон не зависит от сети, а служебный заголовок с адресом не
+  // утекает на чужие домены — иначе CORS сыпал бы ошибками в консоль.
+  context: async ({ context }, use) => {
+    await context.route(url => !['localhost', '127.0.0.1'].includes(url.hostname), route => route.fulfill({ status: 204 }))
+    await use(context)
+  },
 })
 
 export { expect }

@@ -26,6 +26,7 @@ type Item = {
 
 const auth = useAuthStore()
 const route = useRoute()
+const now = useNow()
 
 const open = ref(false)
 const items = ref<Item[]>([])
@@ -74,7 +75,13 @@ const isChapterPage = computed(() => {
  *  комментариям главы или к отзывам на главной. */
 const hrefOf = (n: Item) => {
   if (n.type === 'frame') return '/profile'
-  return n.chapterId ? `/chapter/${n.chapterId}/comments` : '/#reviews'
+  // Якорь ведёт к самому ответу: страница обсуждения прокрутит к нему и
+  // подсветит. Адрес главы — чистым slug, как всюду: клиентский переход
+  // серверный редирект не проходит, и сырой id остался бы в строке адреса.
+  const anchor = `#comment-${n.commentId}`
+  return n.chapterId
+    ? `/chapter/${encodeURIComponent(slugifyChapterId(n.chapterId))}/comments${anchor}`
+    : `/${anchor}`
 }
 
 const openItem = async (n: Item) => {
@@ -290,7 +297,8 @@ onUnmounted(() => {
           Пока тихо. Здесь появятся ответы на твои комментарии и новые рамки.
         </p>
 
-        <ul v-else class="list">
+        <!-- Чужие реплики в записях Clarity не показываем. -->
+        <ul v-else class="list" data-clarity-mask="true">
           <li v-for="n in items" :key="n.id">
             <!-- Рамка — на своём же лице читателя: так сразу видно, что именно
                  досталось, а не «какая-то рамка». -->
@@ -306,7 +314,7 @@ onUnmounted(() => {
               <span class="item-text">
                 <span class="item-top">
                   <b>Новая рамка</b>
-                  <span class="item-time">{{ timeAgo(n.createdAt) }}</span>
+                  <span class="item-time">{{ timeAgo(n.createdAt, now) }}</span>
                 </span>
                 <span class="item-body">Тебе досталась «{{ n.frame.name }}»</span>
                 <span class="item-answered">надеть можно в профиле</span>
@@ -325,7 +333,7 @@ onUnmounted(() => {
               <span class="item-text">
                 <span class="item-top">
                   <b>{{ n.authorName }}</b> ответил
-                  <span class="item-time">{{ timeAgo(n.createdAt) }}</span>
+                  <span class="item-time">{{ timeAgo(n.createdAt, now) }}</span>
                 </span>
                 <span class="item-body">{{ n.body }}</span>
                 <!-- Своя реплика — напоминание, о чём был разговор. У ответов,

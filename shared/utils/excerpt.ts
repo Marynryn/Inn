@@ -18,13 +18,17 @@ function htmlToPlainText(html: string): string {
 }
 
 /** Cuts plain text at the last word boundary at or before maxLen, adding an ellipsis if it was cut. */
-export function excerptFromHtml(html: string, maxLen: number): string {
-  const text = htmlToPlainText(html)
+export function excerptText(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text
 
   const cut = text.slice(0, maxLen)
   const lastSpace = cut.lastIndexOf(' ')
   return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trim()}…`
+}
+
+/** Same as excerptText, but for HTML: tags are stripped first. */
+export function excerptFromHtml(html: string, maxLen: number): string {
+  return excerptText(htmlToPlainText(html), maxLen)
 }
 
 /**

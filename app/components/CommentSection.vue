@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const auth = useAuthStore()
 const route = useRoute()
+const now = useNow()
 const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
 
 const url = computed(() =>
@@ -127,7 +128,10 @@ onMounted(() => document.addEventListener('click', onOutsideClick))
 onUnmounted(() => document.removeEventListener('click', onOutsideClick))
 
 const post = async () => {
-  if (!body.value.trim()) { return }
+  // Второй клик, пока первый в пути, — тот же комментарий дважды. На
+  // реактивный disabled не полагаемся: клики, пришедшие до перерисовки, он не
+  // остановит.
+  if (!body.value.trim() || sending.value) { return }
   sending.value = true
   sendError.value = ''
   try {
@@ -174,7 +178,7 @@ const cancelReply = () => {
 }
 
 const sendReply = async () => {
-  if (!replyTo.value || !replyBody.value.trim()) return
+  if (!replyTo.value || !replyBody.value.trim() || replySending.value) return
 
   replySending.value = true
   replyError.value = ''
@@ -215,6 +219,31 @@ const reveal = (id: number) => {
   revealedSpoilers.value = new Set([...revealedSpoilers.value, id])
 }
 
+
+/*
+  Ссылка на конкретный комментарий (#comment-12): из уведомления или из чужого
+  сообщения. Раскрываем ветку, если она спрятана за «показать ещё», прокручиваем
+  к ней и на несколько секунд подсвечиваем — чтобы глаз сразу нашёл её в ленте.
+*/
+const targetId = ref<number | null>(null)
+
+const revealTarget = async () => {
+  const m = /^#comment-(\d+)$/.exec(route.hash)
+  if (!m) return
+  const id = Number(m[1])
+
+  const index = threads.value.findIndex(t => t.root.id === id || t.replies.some(r => r.id === id))
+  if (index < 0) return
+  if (props.limit && index >= visibleCount.value) visibleCount.value = index + 1
+
+  targetId.value = id
+  await nextTick()
+  document.getElementById(`comment-${id}`)?.scrollIntoView({ block: 'center' })
+  setTimeout(() => { if (targetId.value === id) targetId.value = null }, 4000)
+}
+
+onMounted(revealTarget)
+watch(() => route.hash, revealTarget)
 
 // WebSocket
 onMounted(() => {
@@ -300,13 +329,15 @@ onMounted(() => {
     </div>
 
     <!-- Ветка: корневой комментарий и ответы под ним. Разметка у них общая,
-         ответ отличается только отступом — оттого и один v-for на оба. -->
-    <div v-for="t in visibleThreads" :key="t.root.id" class="comment-thread">
+         ответ отличается только отступом — оттого и один v-for на оба.
+         data-clarity-mask: имена и текст в записях сессий Clarity замазаны. -->
+    <div v-for="t in visibleThreads" :key="t.root.id" class="comment-thread" data-clarity-mask="true">
       <div
         v-for="c in [t.root, ...t.replies]"
         :key="c.id"
+        :id="`comment-${c.id}`"
         class="comment-item"
-        :class="{ 'is-reply': c.parentId != null }"
+        :class="{ 'is-reply': c.parentId != null, 'is-target': c.id === targetId }"
       >
         <UserAvatar
           class="comment-avatar"
@@ -320,7 +351,7 @@ onMounted(() => {
           <span class="comment-name">{{ c.authorName }}</span>
           <span v-if="answeredName(c)" class="in-reply">в ответ {{ answeredName(c) }}</span>
           <span v-if="c.isSpoiler" class="spoiler-badge">[спойлер]</span>
-          <span class="comment-time">{{ timeAgo(c.createdAt) }}</span>
+          <span class="comment-time">{{ timeAgo(c.createdAt, now) }}</span>
           <div
             class="comment-body"
             :class="{ 'is-spoiler': c.isSpoiler && !revealedSpoilers.has(c.id) }"
@@ -601,6 +632,18 @@ onMounted(() => {
 .btn-send:disabled {
   opacity: .4;
   cursor: not-allowed;
+}
+
+/* Комментарий, к которому пришли по ссылке: вспышка и плавное угасание. */
+.comment-item.is-target {
+  border-radius: 10px;
+  box-shadow: 0 0 0 2px rgba(214, 154, 74, 0.55);
+  animation: target-fade 4s ease-out forwards;
+}
+
+@keyframes target-fade {
+  0% { background: rgba(214, 154, 74, 0.18); }
+  100% { background: transparent; box-shadow: 0 0 0 2px transparent; }
 }
 
 .comment-item {

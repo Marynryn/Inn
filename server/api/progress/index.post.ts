@@ -1,5 +1,5 @@
-import { sql } from 'drizzle-orm'
-import { readingProgress } from '../../database/schema'
+import { eq, sql } from 'drizzle-orm'
+import { chapters, readingProgress } from '../../database/schema'
 import { useDb } from '../../utils/db'
 
 /**
@@ -23,6 +23,12 @@ export default defineEventHandler(async (event) => {
   const safeScroll = Number.isFinite(scroll) ? Math.min(Math.max(scroll, 0), 1) : 0
 
   const db = useDb()
+
+  // Закладка ставится только в существующей главе: иначе в таблице копились бы
+  // строки про главы, которых нет.
+  const [chapter] = await db.select({ id: chapters.id }).from(chapters).where(eq(chapters.id, chapterId))
+  if (!chapter) throw createError({ statusCode: 404, message: 'Глава не найдена' })
+
   await db
     .insert(readingProgress)
     .values({ userId, chapterId, isRead, scroll: safeScroll })

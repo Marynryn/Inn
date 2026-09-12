@@ -32,6 +32,8 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     await $fetch('/api/auth/logout', { method: 'POST' })
     user.value = null
+    // Закладка вышедшего не должна достаться следующему за этим экраном.
+    useReadProgress().clearLocal()
   }
 
   return { user, isAdmin, isAuthed, name, fetchMe, login, logout }

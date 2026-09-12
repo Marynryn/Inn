@@ -45,6 +45,10 @@ export function createBrowserTools(page: Page, context: BrowserContext, findings
       : head + tree
   }
 
+  // Дать странице дорисоваться после действия, но не ждать вечно: dev-сервер
+  // и devtools шумят запросами, и «тишина в сети» может не наступить.
+  const settle = () => page.waitForLoadState('networkidle', { timeout: 3_000 }).catch(() => {})
+
   const byRef = (ref: string) => page.locator(`aria-ref=${ref.replace(/^\[?ref=|\]$/g, '')}`)
 
   const navigate = betaZodTool({
@@ -52,7 +56,8 @@ export function createBrowserTools(page: Page, context: BrowserContext, findings
     description: 'Открыть страницу сайта по пути (например "/", "/game", "/chapter/1-01/comments"). Возвращает aria-дерево страницы.',
     inputSchema: z.object({ path: z.string().describe('Путь от корня сайта, начинается с /') }),
     run: async ({ path }) => {
-      const res = await page.goto(path, { waitUntil: 'networkidle' }).catch(e => { throw new Error(`goto failed: ${e.message}`) })
+      const res = await page.goto(path).catch(e => { throw new Error(`goto failed: ${e.message}`) })
+      await settle()
       return `HTTP ${res?.status() ?? '?'}\n` + await snapshot()
     },
   })
@@ -96,7 +101,7 @@ export function createBrowserTools(page: Page, context: BrowserContext, findings
       if (count > 1 && nth == null) return `Совпало ${count} элементов — укажи nth или ref.`
       page.once('dialog', d => d.accept())
       await loc.click({ timeout: 5_000 })
-      await page.waitForLoadState('networkidle').catch(() => {})
+      await settle()
       return await snapshot()
     },
   })
@@ -125,7 +130,7 @@ export function createBrowserTools(page: Page, context: BrowserContext, findings
     inputSchema: z.object({ key: z.string() }),
     run: async ({ key }) => {
       await page.keyboard.press(key)
-      await page.waitForLoadState('networkidle').catch(() => {})
+      await settle()
       return await snapshot()
     },
   })
@@ -155,7 +160,8 @@ export function createBrowserTools(page: Page, context: BrowserContext, findings
     run: async ({ as }) => {
       const res = await page.request.post('/api/auth/login', { data: ACCOUNTS[as] })
       if (!res.ok()) return `Вход не удался: ${res.status()} ${await res.text()}`
-      await page.reload({ waitUntil: 'networkidle' })
+      await page.reload()
+      await settle()
       return `Вошёл как ${as} (${ACCOUNTS[as].email}). Страница перезагружена.\n` + await snapshot()
     },
   })
@@ -166,7 +172,8 @@ export function createBrowserTools(page: Page, context: BrowserContext, findings
     inputSchema: z.object({}),
     run: async () => {
       await page.request.post('/api/auth/logout')
-      await page.reload({ waitUntil: 'networkidle' })
+      await page.reload()
+      await settle()
       return 'Вышел. Теперь гость.'
     },
   })

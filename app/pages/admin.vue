@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { FRAME_FIT_DEFAULT, FRAME_FIT_MAX, FRAME_FIT_MIN } from '#shared/utils/avatarFrames'
 
-const auth = useAuthStore()
+// Чужих отсеивает middleware ещё на сервере: каркас панели не рендерится никому,
+// кроме администратора.
+definePageMeta({ middleware: 'admin' })
 
-onMounted(async () => {
-  await auth.fetchMe()
-  if (!auth.isAdmin) navigateTo('/login')
-})
+const auth = useAuthStore()
 
 const { data: settings, refresh: refreshSettings } = await useFetch('/api/settings')
 
@@ -557,6 +556,18 @@ const switchTab = (tab: typeof activeTab.value) => {
   appHeader.value?.close()
 }
 
+/**
+ * Время из базы — UTC без зоны ('YYYY-MM-DD HH:MM:SS'). Хозяйка сайта живёт по
+ * Москве, и «13:33» вместо «16:33» сбивало бы с толку.
+ */
+const fmtMsk = (iso?: string | null) => {
+  if (!iso) return ''
+  const date = new Date(iso.replace(' ', 'T') + 'Z')
+  return new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).format(date)
+}
+
 useHead({
   title: 'Админ · Странствующая Таверна',
   meta: [{ name: 'robots', content: 'noindex, nofollow' }],
@@ -564,7 +575,7 @@ useHead({
 </script>
 
 <template>
-  <div class="admin-wrap">
+  <div class="admin-wrap" data-clarity-mask="true">
     <div class="admin-layout">
 
       <!-- ШАПКА (только мобильная) -->
@@ -829,7 +840,7 @@ useHead({
           <div class="logs-list">
             <div v-for="c in commentLogs" :key="c.id" class="log-item">
               <div class="log-meta">
-                <span class="log-time">{{ c.createdAt?.slice(0, 16).replace('T', ' ') }}</span>
+                <span class="log-time">{{ fmtMsk(c.createdAt) }}</span>
                 <span v-if="c.isSpoiler" class="log-spoiler">спойлер</span>
                 <NuxtLink v-if="c.chapterId" :href="`/chapter/${encodeURIComponent(slugifyChapterId(c.chapterId))}/comments`" class="log-link" target="_blank">гл. {{ c.chapterId }} ↗</NuxtLink>
                 <NuxtLink v-else href="/" class="log-link" target="_blank">отзыв о сайте ↗</NuxtLink>

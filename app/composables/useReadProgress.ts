@@ -120,11 +120,32 @@ export const useReadProgress = () => {
     try { localStorage.setItem(LS_LIST, JSON.stringify(readChapters.value)) } catch {}
   }
 
+  /**
+   * Стереть закладку в этом браузере. Нужна при выходе: иначе на общем
+   * компьютере следующий человек увидел бы, что и докуда читал предыдущий.
+   * На сервере всё уже лежит — при следующем входе вернётся оттуда.
+   */
+  const clearLocal = () => {
+    lastRead.value = null
+    readChapters.value = []
+    serverScroll.value = {}
+    if (!import.meta.client) return
+    try {
+      const keys: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key === LS_LAST || key === LS_LIST || key?.startsWith(LS_SCROLL)) keys.push(key)
+      }
+      for (const key of keys) localStorage.removeItem(key)
+    } catch {}
+  }
+
   return {
     lastRead,
     readChapters,
     serverScroll,
     load,
+    clearLocal,
     setLastRead,
     markRead,
     isRead,

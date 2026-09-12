@@ -1,6 +1,7 @@
 import { and, count, desc, eq, isNotNull, or } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/sqlite-core'
 import { avatarFrames, comments, notifications, users } from '../../database/schema'
+import { excerptText } from '#shared/utils/excerpt'
 import { useDb } from '../../utils/db'
 import { framesByIds, toAvatarFrame } from '../../utils/frames'
 
@@ -101,11 +102,11 @@ export default defineEventHandler(async (event) => {
       // своём же лице читателя.
       frame: grantedFrame ? toAvatarFrame(grantedFrame) : null,
       // Спойлер в уведомлении не раскрываем: читатель мог до этой главы не дойти.
-      body: r.body == null ? null : (r.isSpoiler ? '[спойлер]' : r.body.slice(0, EXCERPT)),
+      body: r.body == null ? null : (r.isSpoiler ? '[спойлер]' : excerptText(r.body, EXCERPT)),
       // Свой же текст — коротким напоминанием, о чём был разговор. Спойлер
       // прячем и здесь: уведомление могут читать через плечо.
       answeredBody: r.answeredBody
-        ? (r.answeredSpoiler ? '[спойлер]' : r.answeredBody.slice(0, ANSWERED_EXCERPT))
+        ? (r.answeredSpoiler ? '[спойлер]' : excerptText(r.answeredBody, ANSWERED_EXCERPT))
         : null,
     })),
   }
