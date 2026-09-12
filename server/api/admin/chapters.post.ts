@@ -5,6 +5,7 @@ import { writeFile, mkdir } from 'fs/promises'
 import { resolve } from 'path'
 import { getStorageDir } from '../../utils/storage'
 import { max } from 'drizzle-orm'
+import { countWords } from '#shared/utils/wordCount'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -53,13 +54,14 @@ export default defineEventHandler(async (event) => {
 
   const [{ maxOrder }] = await db.select({ maxOrder: max(chapters.sortOrder) }).from(chapters)
   const sortOrder = (maxOrder ?? 0) + 1
+  const wordCount = countWords(contentHtml)
 
   await db
     .insert(chapters)
-    .values({ id, volume, title, contentHtml, epubPath, publishedAt, sortOrder, isPublished })
+    .values({ id, volume, title, contentHtml, wordCount, epubPath, publishedAt, sortOrder, isPublished })
     .onConflictDoUpdate({
       target: chapters.id,
-      set: { volume, title, contentHtml, epubPath, publishedAt, isPublished },
+      set: { volume, title, contentHtml, wordCount, epubPath, publishedAt, isPublished },
     })
 
   await db

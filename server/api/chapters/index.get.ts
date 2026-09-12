@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
       title: chapters.title,
       publishedAt: chapters.publishedAt,
       sortOrder: chapters.sortOrder,
+      wordCount: chapters.wordCount,
       isPublished: chapters.isPublished,
       viewsCount: chapterStats.viewsCount,
       downloadsCount: chapterStats.downloadsCount,

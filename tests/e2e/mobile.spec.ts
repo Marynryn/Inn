@@ -23,7 +23,7 @@ test.describe('Телефон', () => {
     await expect(page).toHaveURL(/\/game$/)
   })
 
-  for (const url of ['/', chapterUrl(CHAPTERS[0]!.id), `${chapterUrl(CHAPTERS[0]!.id)}/comments`, '/game', '/login', '/about']) {
+  for (const url of ['/', chapterUrl(CHAPTERS[0]!.id), `${chapterUrl(CHAPTERS[0]!.id)}/comments`, '/game', '/progress', '/login', '/about']) {
     test(`страница ${url} не прокручивается по горизонтали`, async ({ page }) => {
       await open(page, url)
       const overflow = await page.evaluate(

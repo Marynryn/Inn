@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatHours } from '~/composables/useReadingStats'
+
 const { data: settings } = await useFetch('/api/settings')
 const { data: chapters } = await useFetch('/api/chapters')
 
@@ -6,6 +8,9 @@ const { data: chapters } = await useFetch('/api/chapters')
 const { load } = useReadProgress()
 const { volumes, totalChapters, chaptersLabel, chapterRange, getBadge } = useVolumes(chapters)
 const { ctaHref, ctaText } = useHeroCta(chapters)
+// Строка под кнопкой «Продолжить»: докуда дочитано и сколько осталось. Гостю
+// без закладки показывать нечего — она появляется вместе с закладкой.
+const { bookmark, bookmarkStats, loadSettings } = useReadingStats(chapters)
 const { downloading, downloaded, download } = useChapterDownloadList()
 
 const scrollToLedger = () => {
@@ -18,6 +23,7 @@ const scrollToLedger = () => {
 
 onMounted(() => {
   load()
+  loadSettings()
 })
 
 const { lastRead } = useReadProgress()
@@ -159,6 +165,12 @@ useSeoMeta({
           <NuxtLink class="btn btn-primary" :href="ctaHref">{{ ctaText }}</NuxtLink>
           <button class="btn btn-ghost" @click="scrollToLedger">К главам</button>
         </div>
+        <NuxtLink v-if="bookmark" to="/progress" class="hero-progress">
+          Прочитано {{ Math.round(bookmarkStats.percent) }} %
+          <template v-if="bookmarkStats.done"> · вы догнали перевод</template>
+          <template v-else> · ещё {{ formatHours(bookmarkStats.hoursLeft) }} до фронта перевода</template>
+          <span class="hero-progress-arrow">→</span>
+        </NuxtLink>
         <div class="hero-meta">
           <div><b class="display">{{ chaptersLabel }}</b>переведено</div>
           <div><b class="display">{{ chapterRange }}</b>текущий диапазон</div>
@@ -458,6 +470,32 @@ useSeoMeta({
 .btn-ghost:hover {
   border-color: var(--ember-soft);
   color: var(--ember-soft);
+}
+
+/* Ссылка на трекер — тихая строка, а не вторая кнопка: она не зовёт, а
+   отвечает на вопрос, который у читателя уже есть. */
+.hero-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--ember-soft);
+  opacity: .85;
+  text-decoration: none;
+  transition: opacity .15s;
+}
+
+.hero-progress:hover {
+  opacity: 1;
+}
+
+.hero-progress-arrow {
+  transition: transform .15s;
+}
+
+.hero-progress:hover .hero-progress-arrow {
+  transform: translateX(3px);
 }
 
 .hero-meta {

@@ -143,6 +143,7 @@ onUnmounted(() => {
       <template v-else-if="showNavLinks">
         <a href="/#ledger" class="nav-link hide-mobile" @click="goToChapters">Главы</a>
         <NuxtLink href="/game" class="nav-link hide-mobile">Игра</NuxtLink>
+        <NuxtLink href="/progress" class="nav-link nav-progress hide-mobile">Прогресс</NuxtLink>
         <NuxtLink v-if="commentsHref" :href="commentsHref" class="nav-link hide-mobile">Обсуждение</NuxtLink>
         <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
           Telegram <span class="ext">↗</span>
@@ -180,6 +181,7 @@ onUnmounted(() => {
         </NuxtLink>
         <a href="/#ledger" class="menu-link" @click="goToChapters">Главы</a>
         <NuxtLink href="/game" class="menu-link" @click="menuOpen = false">Игра</NuxtLink>
+        <NuxtLink href="/progress" class="menu-link" @click="menuOpen = false">Прогресс</NuxtLink>
         <NuxtLink v-if="commentsHref" :href="commentsHref" class="menu-link" @click="menuOpen = false">
           {{ commentsLabel || 'Обсуждение главы' }}
         </NuxtLink>
@@ -474,6 +476,14 @@ onUnmounted(() => {
 
 .user-pic :deep(.ua-pic) {
   border: 1px solid rgba(241, 230, 210, .25);
+}
+
+/* Прогресс на планшете уходит из шапки: с ним ссылки уже не помещаются в
+   ряд, а бургера в этой ширине ещё нет. Он остаётся в профиле и на главной. */
+@media (max-width: 820px) {
+  .nav-progress {
+    display: none;
+  }
 }
 
 /* ── Responsive ─────────────────────────────── */

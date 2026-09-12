@@ -1,6 +1,7 @@
 import { createClient } from '@libsql/client'
 import bcrypt from 'bcryptjs'
 import { DISPLAY_NAME_MAX, displayNameKey, nameFromEmail, normalizeDisplayName } from '#shared/utils/displayName'
+import { countWords } from '#shared/utils/wordCount'
 
 export async function runMigrations() {
   const storageDir = process.env.STORAGE_DIR || 'storage'
@@ -124,6 +125,24 @@ export async function runMigrations() {
   } catch {
     // Столбец уже существует — это нормально
   }
+
+  // Длина главы в словах — для трекера прогресса. Новые главы считаются при
+  // сохранении, а уже загруженные досчитываем здесь: по одной, чтобы не
+  // поднимать в память весь перевод разом. Глава с нулём слов при пустом
+  // тексте пересчитается на каждом старте — это один дешёвый запрос.
+  try {
+    await client.execute('ALTER TABLE chapters ADD COLUMN word_count INTEGER NOT NULL DEFAULT 0')
+  } catch {
+    // Столбец уже существует — это нормально
+  }
+  const uncounted = await client.execute("SELECT id FROM chapters WHERE word_count = 0 AND content_html != ''")
+  for (const row of uncounted.rows) {
+    const id = (row as any).id as string
+    const chapter = await client.execute({ sql: 'SELECT content_html FROM chapters WHERE id = ?', args: [id] })
+    const html = ((chapter.rows[0] as any)?.content_html ?? '') as string
+    await client.execute({ sql: 'UPDATE chapters SET word_count = ? WHERE id = ?', args: [countWords(html), id] })
+  }
+  if (uncounted.rows.length) console.log(`[migrate] Посчитаны слова в главах: ${uncounted.rows.length}`)
 
   // Просмотры по дням — одна строка на главу за день, для счётчика «за сегодня».
   await client.executeMultiple(`

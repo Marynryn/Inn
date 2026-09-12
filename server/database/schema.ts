@@ -11,6 +11,7 @@ export const chapters = sqliteTable('chapters', {
   sortOrder: integer('sort_order').notNull().default(0),
   isPublished: integer('is_published', { mode: 'boolean' }).notNull().default(true),
   notifiedAt: text('notified_at'), // когда про главу отправили уведомление в телеграм; NULL = ещё не отправляли
+  wordCount: integer('word_count').notNull().default(0), // слов в тексте; считается при сохранении, см. countWords
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 

@@ -6,6 +6,7 @@ import { buildEpub } from '../../../utils/epub-writer'
 import { writeFile, mkdir } from 'fs/promises'
 import { resolve } from 'path'
 import { getStorageDir } from '../../../utils/storage'
+import { countWords } from '#shared/utils/wordCount'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -47,6 +48,7 @@ export default defineEventHandler(async (event) => {
   await db.update(chapters).set({
     title,
     contentHtml,
+    wordCount: countWords(contentHtml),
     epubPath,
     ...(isPublished !== undefined && { isPublished }),
     ...(publishedAt !== undefined && { publishedAt }),
