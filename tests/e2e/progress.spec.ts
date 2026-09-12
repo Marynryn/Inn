@@ -1,5 +1,5 @@
-import { test, expect, open } from './helpers'
-import { CHAPTERS, chapterUrl } from './fixtures'
+import { test, expect, open, apiLogin } from './helpers'
+import { ADMIN, CHAPTERS, chapterUrl } from './fixtures'
 
 /*
   Трекер прогресса. Главы в посеве — 40, 30 и 25 абзацев одинаковой длины,
@@ -68,5 +68,30 @@ test.describe('Прогресс чтения', () => {
     await open(page, '/progress')
     await expect(page.getByRole('button', { name: /Быстро/ })).toHaveClass(/active/)
     await expect(page.getByLabel('Часов в день')).toHaveValue('2')
+  })
+})
+
+test.describe('Прогресс относительно оригинала', () => {
+  test('без числа глав оригинала карточки нет, с числом — считает доли', async ({ page, request }) => {
+    // Стенд без интернета: число из InnWords не приедет, карточка молчит.
+    await open(page, '/progress')
+    await expect(page.getByRole('heading', { name: 'А если считать от всей книги' })).toHaveCount(0)
+
+    // Админ задаёт число руками — 3 переведённых главы из 30.
+    await apiLogin(request, ADMIN)
+    const res = await request.put('/api/admin/settings', { data: { original_chapters_total: '30' } })
+    expect(res.ok()).toBeTruthy()
+
+    await open(page, '/progress')
+    const card = page.locator('.original')
+    await expect(card.getByRole('heading', { name: 'А если считать от всей книги' })).toBeVisible()
+    await expect(card).toContainText('сейчас 30 глав')
+    await expect(card).toContainText('переведено 3 главы — 10 % книги')
+    await expect(card).toContainText('вы прочитали 0 глав — 0 % книги')
+
+    await page.getByLabel('Дочитано до главы').selectOption('1.01')
+    await expect(card).toContainText('вы прочитали 1 главу — 3 % книги')
+
+    await request.put('/api/admin/settings', { data: { original_chapters_total: '' } })
   })
 })

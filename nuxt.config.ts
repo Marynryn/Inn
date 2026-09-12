@@ -81,6 +81,7 @@ export default defineNuxtConfig({
     scheduledTasks: {
       '7 9 * * *': ['notify-chapters'], // 12:07 МСК — основной звонок
       '7 12 * * *': ['notify-chapters'], // 15:07 МСК — на случай деплоя в момент первого
+      '17 3 * * *': ['refresh-original'], // 06:17 МСК — число глав оригинала для трекера
     },
   },
 

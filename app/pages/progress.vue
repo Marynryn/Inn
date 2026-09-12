@@ -58,6 +58,23 @@ const chaptersPercent = computed(() =>
   stats.value.chaptersTotal ? (stats.value.chaptersRead / stats.value.chaptersTotal) * 100 : 0,
 )
 
+/*
+  Оригинал — только в главах. Слова тут не сходятся: русский перевод и
+  английский текст считаются в разных единицах. Число глав оригинала сервер
+  узнаёт сам (см. server/utils/original-toc.ts); пока его нет — карточки нет.
+  Меньше переведённого быть не может: перевод главы и есть её существование.
+*/
+const originalTotal = computed(() => {
+  const n = parseInt(settings.value?.original_chapters_effective ?? '')
+  return n > 0 ? Math.max(n, stats.value.chaptersTotal) : 0
+})
+const translatedShare = computed(() => originalTotal.value ? (stats.value.chaptersTotal / originalTotal.value) * 100 : 0)
+const readShare = computed(() => originalTotal.value ? (stats.value.chaptersRead / originalTotal.value) * 100 : 0)
+const sharePercent = (p: number) => (p > 0 && p < 1 ? '<1' : String(Math.round(p)))
+
+/** Ширина заливки: ненулевая доля видна хотя бы полоской — 3 главы из 824 иначе исчезают. */
+const barWidth = (p: number) => (p > 0 ? `max(4px, ${p}%)` : '0')
+
 const speeds = Object.keys(SPEED_WPM) as Speed[]
 
 const setSpeed = (s: Speed) => {
@@ -150,7 +167,7 @@ useHead({
         <p class="percent-caption">перевода прочитано</p>
 
         <div class="bar" role="progressbar" :aria-valuenow="Math.round(stats.percent)" aria-valuemin="0" aria-valuemax="100">
-          <div class="bar-fill" :style="{ width: `${stats.percent}%` }" />
+          <div class="bar-fill" :style="{ width: barWidth(stats.percent) }" />
         </div>
 
         <p class="cheer">{{ encouragement(stats) }}</p>
@@ -178,12 +195,28 @@ useHead({
         </div>
 
         <div class="bar bar-thin" :title="`${stats.chaptersRead} из ${stats.chaptersTotal} глав`">
-          <div class="bar-fill bar-fill-moss" :style="{ width: `${chaptersPercent}%` }" />
+          <div class="bar-fill bar-fill-moss" :style="{ width: barWidth(chaptersPercent) }" />
         </div>
         <p class="bar-note">
           {{ stats.chaptersRead }} из {{ stats.chaptersTotal }} {{ pluralize(stats.chaptersTotal, 'главы', 'глав', 'глав') }} ·
           всего в переводе {{ formatNumber(stats.wordsTotal) }} {{ pluralize(stats.wordsTotal, 'слово', 'слова', 'слов') }}
         </p>
+      </section>
+
+      <!-- Оригинал: только главы -->
+      <section v-if="originalTotal" class="card original">
+        <h2 class="section-title">А если считать от всей книги</h2>
+        <p class="section-note">В оригинале The Wandering Inn сейчас {{ formatNumber(originalTotal) }} {{ pluralize(originalTotal, 'глава', 'главы', 'глав') }}.</p>
+
+        <div class="bar bar-layered" :title="`Прочитано ${stats.chaptersRead}, переведено ${stats.chaptersTotal} из ${originalTotal}`">
+          <div class="bar-fill bar-fill-translated" :style="{ width: barWidth(translatedShare) }" />
+          <div class="bar-fill" :style="{ width: barWidth(readShare) }" />
+        </div>
+
+        <div class="legend">
+          <span><i class="dot dot-read" />вы прочитали {{ stats.chaptersRead }} {{ pluralize(stats.chaptersRead, 'главу', 'главы', 'глав') }} — {{ sharePercent(readShare) }} % книги</span>
+          <span><i class="dot dot-translated" />переведено {{ stats.chaptersTotal }} {{ pluralize(stats.chaptersTotal, 'глава', 'главы', 'глав') }} — {{ sharePercent(translatedShare) }} % книги</span>
+        </div>
       </section>
 
       <!-- Время -->
@@ -409,6 +442,49 @@ useHead({
   margin: 8px 0 0;
   font-size: 12px;
   opacity: .5;
+}
+
+/* ── Оригинал ────────────────────────────── */
+/* Два слоя в одной полосе: переведённое — подложка, прочитанное — поверх.
+   Так видно и сколько книги вообще есть по-русски, и где в ней читатель. */
+.bar-layered {
+  position: relative;
+  height: 8px;
+}
+
+.bar-layered .bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+}
+
+.bar-fill-translated {
+  background: rgba(241, 230, 210, .28);
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  opacity: .75;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: 1px;
+}
+
+.dot-read {
+  background: var(--ember);
+}
+
+.dot-translated {
+  background: rgba(241, 230, 210, .28);
 }
 
 .cheer {

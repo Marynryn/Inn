@@ -392,6 +392,7 @@ const form = reactive({
   about_text: '',
   error_404_sub: '',
   update_schedule: '',
+  original_chapters_total: '',
   game_max_volume: '',
   game_cta_title: '',
   game_cta_text: '',
@@ -1109,6 +1110,15 @@ useHead({
           <div class="field-row">
             <label>Глав в неделю</label>
             <input v-model="form.update_schedule" type="text" placeholder="2–3">
+          </div>
+          <div class="field-row">
+            <label>Глав в оригинале</label>
+            <input v-model="form.original_chapters_total" type="number" min="1" :placeholder="settings?.original_chapters_auto || 'узнаём сами'">
+            <span class="field-hint">
+              Для трекера прогресса. Оставь пустым — число раз в сутки подтягивается из
+              InnWords само{{ settings?.original_chapters_auto ? ` (сейчас ${settings.original_chapters_auto})` : '' }}.
+              Ставь своё, только если автоматика врёт или отвалилась.
+            </span>
           </div>
           <div class="field-row">
             <label>Игра: до какого тома</label>
