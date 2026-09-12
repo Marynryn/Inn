@@ -25,7 +25,15 @@ const telegramHref = computed(() =>
 const showPassword = ref(route.query.pw === '1')
 const email = ref('')
 const password = ref('')
-const error = ref(route.query.error === 'google' ? 'Google не завершил вход. Попробуй ещё раз.' : '')
+// Причина от сервера — коротким кодом («403:Аккаунт заблокирован»,
+// «400:invalid_grant»): человеку она мало что скажет, зато её можно прислать
+// нам, и станет ясно, где споткнулись.
+const reason = typeof route.query.reason === 'string' ? route.query.reason.slice(0, 80) : ''
+const error = ref(
+  route.query.error === 'google'
+    ? `Google не завершил вход. Попробуй ещё раз.${reason ? ` (${reason})` : ''}`
+    : '',
+)
 const loading = ref(false)
 
 const submit = async () => {

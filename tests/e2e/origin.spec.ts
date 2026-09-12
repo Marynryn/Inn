@@ -38,7 +38,19 @@ test.describe('Адрес сайта за CDN', () => {
   test('без ключей Google вход не падает, а возвращает на страницу входа', async ({ page }) => {
     const res = await page.request.get('/auth/google?next=/game', { maxRedirects: 0 })
     expect(res.status()).toBe(302)
-    expect(res.headers()['location']).toBe('/login?error=google')
+    expect(res.headers()['location']).toMatch(/^\/login\?error=google&reason=/)
+  })
+
+  test('негодный код от Google ведёт на страницу входа с причиной, а не на страницу ошибки', async ({ page }) => {
+    // Ключей в тесте нет — обработчик спотыкается на первом же шаге. Важно, что
+    // не голой страницей ошибки: человек возвращается на вход и видит, что
+    // случилось, а код причины можно прислать разработчику.
+    const res = await page.request.get('/auth/google?code=stale-code&scope=email', { maxRedirects: 0 })
+    expect(res.status()).toBe(302)
+    expect(res.headers()['location']).toMatch(/^\/login\?error=google&reason=/)
+
+    await page.goto(res.headers()['location']!)
+    await expect(page.locator('.err')).toContainText('Google не завершил вход')
   })
 
   test('за CDN переадресацию делает браузер, а не прокси', async ({ page }) => {
@@ -53,7 +65,7 @@ test.describe('Адрес сайта за CDN', () => {
     expect(res.headers()['content-type']).toContain('text/html')
     expect(res.headers()['cache-control']).toBe('no-store')
     const html = await res.text()
-    expect(html).toContain('http-equiv="refresh" content="0;url=/login?error=google"')
-    expect(html).toContain('location.replace("/login?error=google")')
+    expect(html).toMatch(/http-equiv="refresh" content="0;url=\/login\?error=google&reason=/)
+    expect(html).toMatch(/location\.replace\("\/login\?error=google&reason=/)
   })
 })

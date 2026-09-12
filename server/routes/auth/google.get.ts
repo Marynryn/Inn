@@ -1,3 +1,4 @@
+import type { H3Event } from 'h3'
 import { withQuery } from 'ufo'
 import { sendBrowserRedirect } from '../../utils/browser-redirect'
 import { afterLogin, loginWithProvider, rememberNext } from '../../utils/identity'
@@ -40,8 +41,7 @@ const handlerFor = (origin: string) => {
     },
 
     onError(event, error) {
-      console.error('[auth] google:', error)
-      return sendBrowserRedirect(event, '/login?error=google')
+      return failLogin(event, error)
     },
   })
 
@@ -49,12 +49,35 @@ const handlerFor = (origin: string) => {
   return handler
 }
 
-export default defineEventHandler((event) => {
+/**
+ * Вход не удался — на страницу входа с коротким кодом причины, а не голая
+ * страница ошибки. Обменять код на токен, спросить профиль, завести сессию —
+ * любой из шагов может упасть (истёкший код, отказ Google, бан), и человеку
+ * нужно понятное «попробуй ещё раз», а нам в логах — что именно случилось.
+ */
+function failLogin(event: H3Event, error: unknown) {
+  const e = error as { statusCode?: number; status?: number; message?: string; data?: any }
+  const status = e?.statusCode ?? e?.status
+  const detail = e?.data?.error ?? e?.data?.message ?? e?.message ?? 'unknown'
+  console.error('[auth] google:', status, detail, e?.data ?? '')
+
+  const reason = String(status ?? '') + ':' + String(detail).slice(0, 60)
+  return sendBrowserRedirect(event, `/login?error=google&reason=${encodeURIComponent(reason)}`)
+}
+
+export default defineEventHandler(async (event) => {
   const origin = publicOrigin(event)
   const { code } = getQuery(event)
 
   // Возврат от Google: код на токен, профиль, сессия — всё в обработчике.
-  if (code) return handlerFor(origin)(event)
+  // Что он не поймал сам (ответ Google не с тем статусом, бан), ловим здесь.
+  if (code) {
+    try {
+      return await handlerFor(origin)(event)
+    } catch (error) {
+      return failLogin(event, error)
+    }
+  }
 
   // Первый заход. Куда вернуть человека, знает только он — с возврата от Google
   // никакого «откуда пришёл» уже не видно, поэтому запоминаем в куке.
@@ -67,8 +90,7 @@ export default defineEventHandler((event) => {
   // отправить приложение на проверку в Google, а нам этого не нужно.
   const { clientId, clientSecret } = useRuntimeConfig(event).oauth.google
   if (!clientId || !clientSecret) {
-    console.error('[auth] google: нет NUXT_OAUTH_GOOGLE_CLIENT_ID или NUXT_OAUTH_GOOGLE_CLIENT_SECRET')
-    return sendBrowserRedirect(event, '/login?error=google')
+    return failLogin(event, new Error('нет NUXT_OAUTH_GOOGLE_CLIENT_ID или NUXT_OAUTH_GOOGLE_CLIENT_SECRET'))
   }
 
   return sendBrowserRedirect(event, withQuery('https://accounts.google.com/o/oauth2/v2/auth', {
