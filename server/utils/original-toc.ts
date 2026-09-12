@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { inArray } from 'drizzle-orm'
 import { useDb } from './db'
 import { siteSettings } from '../database/schema'
 
@@ -18,32 +18,50 @@ const INNWORDS_URL = 'https://innwords.pallandor.com/components/wordcount?min_ch
 export const ORIGINAL_AUTO_KEY = 'original_chapters_auto'
 export const ORIGINAL_AT_KEY = 'original_chapters_auto_at'
 export const ORIGINAL_MANUAL_KEY = 'original_chapters_total'
+/** Слова каждой главы оригинала по порядку, JSON-массив. В /api/settings не отдаётся — велик. */
+export const ORIGINAL_WORDS_KEY = 'original_chapter_words'
 
 const STALE_MS = 24 * 60 * 60 * 1000
 
-type InnWords = { chapters?: { chapter_name: string }[] }
+type InnWords = { chapters?: { chapter_name: string; wordcount?: number }[] }
 
 export async function refreshOriginalChapters() {
   const data = await $fetch<InnWords>(INNWORDS_URL, { timeout: 20_000 })
   const count = data.chapters?.length ?? 0
   if (!count) throw new Error('InnWords вернул пустой список глав')
 
+  // Слова — по главам, а не одним итогом: трекеру нужно «сколько слов в первых
+  // N главах», чтобы сравнивать переведённое и прочитанное с книгой в её же
+  // единицах. Порядок — порядок оригинала; перевод идёт в том же.
+  const words = data.chapters!.map(c => Math.max(0, Math.round(c.wordcount ?? 0)))
+
   const db = useDb()
-  for (const [key, value] of [[ORIGINAL_AUTO_KEY, String(count)], [ORIGINAL_AT_KEY, new Date().toISOString()]]) {
+  const rows: [string, string][] = [
+    [ORIGINAL_AUTO_KEY, String(count)],
+    [ORIGINAL_WORDS_KEY, JSON.stringify(words)],
+    [ORIGINAL_AT_KEY, new Date().toISOString()],
+  ]
+  for (const [key, value] of rows) {
     await db
       .insert(siteSettings)
-      .values({ key: key!, value: value! })
-      .onConflictDoUpdate({ target: siteSettings.key, set: { value: value! } })
+      .values({ key, value })
+      .onConflictDoUpdate({ target: siteSettings.key, set: { value } })
   }
   return count
 }
 
-/** Обновить, если числа ещё нет или ему больше суток. Ошибку сети только логируем. */
+/**
+ * Обновить, если данных ещё нет или им больше суток. Ошибку сети только логируем.
+ * Слова проверяем отдельно: сервер, который узнал число глав до того, как мы
+ * стали запоминать слова, иначе ждал бы их до следующего будильника.
+ */
 export async function refreshOriginalChaptersIfStale() {
   const db = useDb()
-  const [row] = await db.select().from(siteSettings).where(eq(siteSettings.key, ORIGINAL_AT_KEY))
-  const at = row ? new Date(row.value).getTime() : 0
-  if (at && Date.now() - at < STALE_MS) return
+  const rows = await db.select().from(siteSettings).where(inArray(siteSettings.key, [ORIGINAL_AT_KEY, ORIGINAL_WORDS_KEY]))
+  const atRow = rows.find(r => r.key === ORIGINAL_AT_KEY)
+  const hasWords = rows.some(r => r.key === ORIGINAL_WORDS_KEY && r.value.length > 2)
+  const at = atRow ? new Date(atRow.value).getTime() : 0
+  if (hasWords && at && Date.now() - at < STALE_MS) return
 
   try {
     const count = await refreshOriginalChapters()

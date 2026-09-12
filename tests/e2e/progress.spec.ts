@@ -86,11 +86,14 @@ test.describe('Прогресс относительно оригинала', ()
     const card = page.locator('.original')
     await expect(card.getByRole('heading', { name: 'А если считать от всей книги' })).toBeVisible()
     await expect(card).toContainText('сейчас 30 глав')
-    await expect(card).toContainText('переведено 3 главы — 10 % книги')
-    await expect(card).toContainText('вы прочитали 0 глав — 0 % книги')
+    // Слов оригинала стенд не знает (нет интернета) — колонки слов нет.
+    await expect(card.locator('th', { hasText: 'слов' })).toHaveCount(0)
+    // Ячейки в тексте строки идут без пробела между ними.
+    await expect(card.locator('.row-translated')).toHaveText(/переведено\s*3\s+10 %/)
+    await expect(card.locator('.row-read')).toHaveText(/вы прочитали\s*0\s+0 %/)
 
     await page.getByLabel('Дочитано до главы').selectOption('1.01')
-    await expect(card).toContainText('вы прочитали 1 главу — 3 % книги')
+    await expect(card.locator('.row-read')).toHaveText(/вы прочитали\s*1\s+3 %/)
 
     await request.put('/api/admin/settings', { data: { original_chapters_total: '' } })
   })

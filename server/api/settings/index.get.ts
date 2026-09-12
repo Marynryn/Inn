@@ -1,12 +1,14 @@
 import { useDb } from '../../utils/db'
 import { siteSettings } from '../../database/schema'
 import { dailyMaxVolume } from '../../utils/game-session'
-import { ORIGINAL_AUTO_KEY, ORIGINAL_MANUAL_KEY } from '../../utils/original-toc'
+import { ORIGINAL_AUTO_KEY, ORIGINAL_MANUAL_KEY, ORIGINAL_WORDS_KEY } from '../../utils/original-toc'
 
 export default defineEventHandler(async () => {
   const db = useDb()
   const rows = await db.select().from(siteSettings)
-  const settings = Object.fromEntries(rows.map(r => [r.key, r.value]))
+  // Слова глав оригинала — длинный массив, нужный одной странице; его отдаёт
+  // /api/original, а не каждый запрос настроек с каждой страницы.
+  const settings = Object.fromEntries(rows.filter(r => r.key !== ORIGINAL_WORDS_KEY).map(r => [r.key, r.value]))
 
   return {
     ...settings,

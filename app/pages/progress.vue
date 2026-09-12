@@ -59,18 +59,45 @@ const chaptersPercent = computed(() =>
 )
 
 /*
-  Оригинал — только в главах. Слова тут не сходятся: русский перевод и
-  английский текст считаются в разных единицах. Число глав оригинала сервер
-  узнаёт сам (см. server/utils/original-toc.ts); пока его нет — карточки нет.
-  Меньше переведённого быть не может: перевод главы и есть её существование.
+  Оригинал. Главы — сколько их всего; слова — тоже слова оригинала, а не наши:
+  переведённые и прочитанные главы считаем по их английской длине, иначе
+  русский перевод и английский текст складывались бы в разных единицах.
+  Данные сервер узнаёт сам (см. server/utils/original-toc.ts); пока их нет —
+  карточки нет. Меньше переведённого глав быть не может: перевод главы и есть
+  её существование.
 */
+const { data: original } = await useFetch('/api/original')
+
 const originalTotal = computed(() => {
-  const n = parseInt(settings.value?.original_chapters_effective ?? '')
+  const n = original.value?.chapters ?? 0
   return n > 0 ? Math.max(n, stats.value.chaptersTotal) : 0
 })
-const translatedShare = computed(() => originalTotal.value ? (stats.value.chaptersTotal / originalTotal.value) * 100 : 0)
-const readShare = computed(() => originalTotal.value ? (stats.value.chaptersRead / originalTotal.value) * 100 : 0)
+const originalWords = computed(() => original.value?.words ?? 0)
+
+/** Слов оригинала в первых n главах — плюс доля следующей, если она начата. */
+const originalWordsUpTo = (n: number, fraction = 0) => {
+  const list = original.value?.chapterWords ?? []
+  let sum = 0
+  for (let i = 0; i < Math.min(n, list.length); i++) sum += list[i]!
+  if (fraction > 0 && fraction < 1 && n < list.length) sum += list[n]! * fraction
+  return Math.round(sum)
+}
+
+const translatedWords = computed(() => originalWordsUpTo(stats.value.chaptersTotal))
+const readWords = computed(() => {
+  const fraction = position.value?.fraction ?? 0
+  return originalWordsUpTo(stats.value.chaptersRead, fraction < 1 ? fraction : 0)
+})
+
+const share = (part: number, whole: number) => (whole ? (part / whole) * 100 : 0)
+const translatedShare = computed(() => share(stats.value.chaptersTotal, originalTotal.value))
+const readShare = computed(() => share(stats.value.chaptersRead, originalTotal.value))
+const translatedWordsShare = computed(() => share(translatedWords.value, originalWords.value))
+const readWordsShare = computed(() => share(readWords.value, originalWords.value))
 const sharePercent = (p: number) => (p > 0 && p < 1 ? '<1' : String(Math.round(p)))
+
+/** «17,2 млн» — для подписи; в таблице число целиком. */
+const formatMillions = (n: number) => `${(n / 1_000_000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} млн`
 
 /** Ширина заливки: ненулевая доля видна хотя бы полоской — 3 главы из 824 иначе исчезают. */
 const barWidth = (p: number) => (p > 0 ? `max(4px, ${p}%)` : '0')
@@ -203,20 +230,45 @@ useHead({
         </p>
       </section>
 
-      <!-- Оригинал: только главы -->
+      <!-- Оригинал -->
       <section v-if="originalTotal" class="card original">
         <h2 class="section-title">А если считать от всей книги</h2>
-        <p class="section-note">В оригинале The Wandering Inn сейчас {{ formatNumber(originalTotal) }} {{ pluralize(originalTotal, 'глава', 'главы', 'глав') }}.</p>
+        <p class="section-note">
+          В оригинале The Wandering Inn сейчас {{ formatNumber(originalTotal) }} {{ pluralize(originalTotal, 'глава', 'главы', 'глав') }}<template v-if="originalWords"> и {{ formatMillions(originalWords) }} слов</template>.
+        </p>
 
-        <div class="bar bar-layered" :title="`Прочитано ${stats.chaptersRead}, переведено ${stats.chaptersTotal} из ${originalTotal}`">
-          <div class="bar-fill bar-fill-translated" :style="{ width: barWidth(translatedShare) }" />
-          <div class="bar-fill" :style="{ width: barWidth(readShare) }" />
+        <!-- Полоса — по словам, когда они есть: главы у книги очень разной длины. -->
+        <div class="bar bar-layered" :title="originalWords ? `Прочитано ${formatNumber(readWords)}, переведено ${formatNumber(translatedWords)} из ${formatNumber(originalWords)} слов` : `Прочитано ${stats.chaptersRead}, переведено ${stats.chaptersTotal} из ${originalTotal} глав`">
+          <div class="bar-fill bar-fill-translated" :style="{ width: barWidth(originalWords ? translatedWordsShare : translatedShare) }" />
+          <div class="bar-fill" :style="{ width: barWidth(originalWords ? readWordsShare : readShare) }" />
         </div>
 
-        <div class="legend">
-          <span><i class="dot dot-read" />вы прочитали {{ stats.chaptersRead }} {{ pluralize(stats.chaptersRead, 'главу', 'главы', 'глав') }} — {{ sharePercent(readShare) }} % книги</span>
-          <span><i class="dot dot-translated" />переведено {{ stats.chaptersTotal }} {{ pluralize(stats.chaptersTotal, 'глава', 'главы', 'глав') }} — {{ sharePercent(translatedShare) }} % книги</span>
-        </div>
+        <table class="orig-table">
+          <thead>
+            <tr>
+              <th />
+              <th>глав</th>
+              <th v-if="originalWords">слов оригинала</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="row-read">
+              <td><i class="dot dot-read" />вы прочитали</td>
+              <td>{{ stats.chaptersRead }} <small>{{ sharePercent(readShare) }} %</small></td>
+              <td v-if="originalWords">{{ formatNumber(readWords) }} <small>{{ sharePercent(readWordsShare) }} %</small></td>
+            </tr>
+            <tr class="row-translated">
+              <td><i class="dot dot-translated" />переведено</td>
+              <td>{{ stats.chaptersTotal }} <small>{{ sharePercent(translatedShare) }} %</small></td>
+              <td v-if="originalWords">{{ formatNumber(translatedWords) }} <small>{{ sharePercent(translatedWordsShare) }} %</small></td>
+            </tr>
+            <tr class="row-total">
+              <td>всего в книге</td>
+              <td>{{ formatNumber(originalTotal) }}</td>
+              <td v-if="originalWords">{{ formatNumber(originalWords) }}</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <!-- Время -->
@@ -461,13 +513,44 @@ useHead({
   background: rgba(241, 230, 210, .28);
 }
 
-.legend {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 10px;
-  font-size: 12.5px;
-  opacity: .75;
+.orig-table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.orig-table th {
+  font-weight: 400;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  opacity: .45;
+  text-align: right;
+  padding: 0 0 6px;
+}
+
+.orig-table td {
+  padding: 5px 0;
+  text-align: right;
+  border-top: 1px solid rgba(241, 230, 210, .08);
+  white-space: nowrap;
+}
+
+.orig-table td:first-child,
+.orig-table th:first-child {
+  text-align: left;
+  opacity: .8;
+}
+
+.orig-table small {
+  font-size: 11px;
+  opacity: .5;
+  margin-left: 4px;
+}
+
+.row-total td {
+  opacity: .55;
 }
 
 .dot {
