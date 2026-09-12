@@ -5,16 +5,23 @@
  * только у вошедших — гостю уведомления класть некуда.
  */
 
+import type { AvatarFrame } from '#shared/utils/avatarFrames'
+
+/** Два события: ответили на комментарий или выдали рамку. У ответа заполнены
+ *  поля комментария, у рамки — сама рамка; остальное пустое. */
 type Item = {
   id: number
+  type: 'reply' | 'frame'
   isRead: boolean
   createdAt: string
-  commentId: number
+  commentId: number | null
   chapterId: string | null
-  authorName: string
-  body: string
+  authorName: string | null
+  body: string | null
   avatarUrl: string | null
+  avatarFrame: AvatarFrame | null
   answeredBody: string | null
+  frame: AvatarFrame | null
 }
 
 const auth = useAuthStore()
@@ -63,8 +70,12 @@ const isChapterPage = computed(() => {
   return parts.length === 2 && parts[0] === 'chapter'
 })
 
-/** Куда ведёт уведомление: к комментариям главы или к отзывам на главной. */
-const hrefOf = (n: Item) => n.chapterId ? `/chapter/${n.chapterId}/comments` : '/#reviews'
+/** Куда ведёт уведомление: рамка — в профиль, где её надевают; ответ — к
+ *  комментариям главы или к отзывам на главной. */
+const hrefOf = (n: Item) => {
+  if (n.type === 'frame') return '/profile'
+  return n.chapterId ? `/chapter/${n.chapterId}/comments` : '/#reviews'
+}
 
 const openItem = async (n: Item) => {
   open.value = false
@@ -276,12 +287,33 @@ onUnmounted(() => {
 
         <p v-if="loading && !items.length" class="panel-note">Смотрим…</p>
         <p v-else-if="!items.length" class="panel-note">
-          Пока тихо. Здесь появятся ответы на твои комментарии.
+          Пока тихо. Здесь появятся ответы на твои комментарии и новые рамки.
         </p>
 
         <ul v-else class="list">
           <li v-for="n in items" :key="n.id">
-            <button class="item" type="button" @click="openItem(n)">
+            <!-- Рамка — на своём же лице читателя: так сразу видно, что именно
+                 досталось, а не «какая-то рамка». -->
+            <button v-if="n.type === 'frame' && n.frame" class="item" type="button" @click="openItem(n)">
+              <UserAvatar
+                class="item-pic item-pic--mine"
+                :src="auth.user?.avatarUrl"
+                :name="auth.name"
+                :frame="n.frame"
+                :size="28"
+                alt=""
+              />
+              <span class="item-text">
+                <span class="item-top">
+                  <b>Новая рамка</b>
+                  <span class="item-time">{{ timeAgo(n.createdAt) }}</span>
+                </span>
+                <span class="item-body">Тебе досталась «{{ n.frame.name }}»</span>
+                <span class="item-answered">надеть можно в профиле</span>
+              </span>
+            </button>
+
+            <button v-else class="item" type="button" @click="openItem(n)">
               <UserAvatar
                 class="item-pic"
                 :src="n.avatarUrl"
@@ -535,6 +567,13 @@ onUnmounted(() => {
 .item-pic {
   background: linear-gradient(135deg, var(--ember-soft), var(--moss));
   color: var(--bg-dark);
+}
+
+/* Своё лицо в списке — как в шапке, а не как чужое под комментарием: так
+   уведомление о рамке не путается с ответом. */
+.item-pic--mine {
+  background: rgba(241, 230, 210, .08);
+  color: var(--parchment);
 }
 
 .item-text {

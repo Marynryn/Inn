@@ -163,10 +163,15 @@ export const gameResults = sqliteTable('game_results', {
 // каком ответе — имя отвечающего, текст и глава берутся из самого комментария
 // при чтении. Так уведомление не расходится с правленым комментарием, а
 // удалённый ответ выпадает из списка сам, без сверки двух таблиц.
+// Второе событие — выдали рамку. Устроено так же: храним только id рамки,
+// имя и картинку берём из каталога при чтении, и удалённая рамка выпадает из
+// списка сама.
 export const notifications = sqliteTable('notifications', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(), // получатель
-  commentId: integer('comment_id').notNull(), // ответ, о котором уведомляем
+  type: text('type', { enum: ['reply', 'frame'] }).notNull().default('reply'),
+  commentId: integer('comment_id'), // ответ, о котором уведомляем (type = reply)
+  frameId: integer('frame_id'), // выданная рамка (type = frame)
   isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })

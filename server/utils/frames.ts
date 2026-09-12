@@ -4,10 +4,11 @@ import { join } from 'node:path'
 import { and, eq, inArray, isNull, ne } from 'drizzle-orm'
 import type { AvatarFrame, OwnedFrame } from '#shared/utils/avatarFrames'
 import { MAX_FRAME_BYTES, MAX_FRAME_SIDE, clampFit } from '#shared/utils/avatarFrames'
-import { avatarFrames, userFrames, users } from '../database/schema'
+import { avatarFrames, notifications, userFrames, users } from '../database/schema'
 import { checkImage } from './avatar'
 import { useDb } from './db'
 import { getStorageDir } from './storage'
+import { wsToUser } from './ws-rooms'
 
 type FrameRow = typeof avatarFrames.$inferSelect
 
@@ -93,6 +94,23 @@ export async function ownsFrame(userId: number, frameId: number): Promise<boolea
 }
 
 /**
+ * Сказать человеку, что ему досталась рамка: строка в уведомлениях и толчок в
+ * личную комнату, если он сейчас на сайте. Само уведомление сокетом не шлём —
+ * только «загляни ещё раз», как и с ответами: список собирается в одном месте.
+ * Об одной рамке дважды не говорим — индекс не даст, и это не ошибка.
+ */
+async function tellAboutFrame(userIds: number[], frameId: number) {
+  if (!userIds.length) return
+
+  await useDb()
+    .insert(notifications)
+    .values(userIds.map(userId => ({ userId, type: 'frame' as const, frameId })))
+    .onConflictDoNothing()
+
+  for (const userId of userIds) wsToUser(userId, { type: 'notification' })
+}
+
+/**
  * Выдать рамку. Повторная выдача той же рамки — не ошибка: ивент может задеть
  * человека дважды, и падать на этом незачем. Возвращает рамку, если она новая.
  */
@@ -102,6 +120,7 @@ export async function grantFrame(userId: number, frameId: number): Promise<Avata
   if (await ownsFrame(userId, frameId)) return null
 
   await useDb().insert(userFrames).values({ userId, frameId })
+  await tellAboutFrame([userId], frameId)
   return frame
 }
 
@@ -131,6 +150,7 @@ export async function grantRandomFrame(userId: number): Promise<AvatarFrame | nu
 
   const won = left[randomInt(left.length)]!
   await db.insert(userFrames).values({ userId, frameId: won.id })
+  await tellAboutFrame([userId], won.id)
   return toAvatarFrame(won)
 }
 
@@ -142,6 +162,14 @@ export async function revokeFrame(userId: number, frameId: number) {
   await db.update(users)
     .set({ avatarFrameId: null })
     .where(and(eq(users.id, userId), eq(users.avatarFrameId, frameId)))
+
+  // «Тебе досталась» о рамке, которой больше нет, только запутает. Убираем и
+  // прочитанное: та история закончилась, и если рамку выдадут снова, человек
+  // должен узнать об этом заново — а прочитанная строка не дала бы.
+  await db.delete(notifications).where(and(
+    eq(notifications.userId, userId),
+    eq(notifications.frameId, frameId),
+  ))
 }
 
 /**
@@ -215,6 +243,7 @@ export async function grantDefaultToEveryone(): Promise<{ granted: number; dress
 
   if (missing.length) {
     await db.insert(userFrames).values(missing.map(u => ({ userId: u.id, frameId: frame.id })))
+    await tellAboutFrame(missing.map(u => u.id), frame.id)
   }
 
   const dressed = await db.update(users)

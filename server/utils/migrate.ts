@@ -434,6 +434,41 @@ export async function runMigrations() {
     // Столбец уже существует — это нормально
   }
 
+  // Уведомление о выданной рамке. Таблица уведомлений была привязана к
+  // комментарию намертво — comment_id NOT NULL, — а у рамки комментария нет.
+  // Снять NOT NULL в SQLite можно только перестройкой, поэтому перестраиваем:
+  // тип события, необязательный comment_id и frame_id для рамки. Прежние
+  // строки переезжают как есть, с типом reply.
+  //
+  // Уникальность — своя на каждый тип: об одном ответе не уведомляем дважды,
+  // об одной рамке тоже. Индексы частичные: у ответа пуст frame_id, у рамки —
+  // comment_id, и в общем индексе они бы друг другу не мешали, но частичный
+  // говорит это прямо.
+  const notifRebuilt = await client.execute("SELECT value FROM site_settings WHERE key = 'notifications_frame_rebuild'")
+  if (notifRebuilt.rows.length === 0) {
+    await client.batch([
+      `CREATE TABLE notifications_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        type TEXT NOT NULL DEFAULT 'reply' CHECK(type IN ('reply','frame')),
+        comment_id INTEGER,
+        frame_id INTEGER,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO notifications_new (id, user_id, type, comment_id, is_read, created_at)
+        SELECT id, user_id, 'reply', comment_id, is_read, created_at FROM notifications`,
+      'DROP TABLE notifications',
+      'ALTER TABLE notifications_new RENAME TO notifications',
+      `CREATE UNIQUE INDEX IF NOT EXISTS notifications_once
+        ON notifications (user_id, comment_id) WHERE comment_id IS NOT NULL`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS notifications_frame_once
+        ON notifications (user_id, frame_id) WHERE frame_id IS NOT NULL`,
+      'CREATE INDEX IF NOT EXISTS notifications_unread ON notifications (user_id, is_read)',
+      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('notifications_frame_rebuild', '1')",
+    ], 'write')
+  }
+
   // Дефолтные настройки сайта
   const defaults: Record<string, string> = {
     hero_title: 'Истории трактира,\nрассказанные заново',
