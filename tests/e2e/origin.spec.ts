@@ -35,14 +35,8 @@ test.describe('Адрес сайта за CDN', () => {
     expect(viaCdn.origin).toBe('https://inn.taverna-book.ru')
   })
 
-  test('без ключей Google вход не падает, а возвращает на страницу входа', async ({ page }) => {
-    const res = await page.request.get('/auth/google?next=/game', { maxRedirects: 0 })
-    expect(res.status()).toBe(302)
-    expect(res.headers()['location']).toMatch(/^\/login\?error=google&reason=/)
-  })
-
   test('негодный код от Google ведёт на страницу входа с причиной, а не на страницу ошибки', async ({ page }) => {
-    // Ключей в тесте нет — обработчик спотыкается на первом же шаге. Важно, что
+    // Код негодный, да и Google для сервера недостижим — обработчик спотыкается. Важно, что
     // не голой страницей ошибки: человек возвращается на вход и видит, что
     // случилось, а код причины можно прислать разработчику.
     const res = await page.request.get('/auth/google?code=stale-code&scope=email', { maxRedirects: 0 })
@@ -57,7 +51,8 @@ test.describe('Адрес сайта за CDN', () => {
     // CDN зеркала сам ходит по 302 и приносит чужую страницу под нашим адресом.
     // Поэтому для запросов через него ответ — не редирект, а страница с
     // мгновенным переходом; на своём домене остаётся обычный 302 (тест выше).
-    const res = await page.request.get('/auth/google?next=/game', {
+    // Негодный код — чтобы обработчик споткнулся и ответил переходом на вход.
+    const res = await page.request.get('/auth/google?code=stale', {
       maxRedirects: 0,
       headers: { host: 'inn-production.up.railway.app' },
     })

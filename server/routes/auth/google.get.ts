@@ -1,8 +1,9 @@
 import type { H3Event } from 'h3'
 import { withQuery } from 'ufo'
 import { sendBrowserRedirect } from '../../utils/browser-redirect'
+import { issueTicket, mirrorFromState, MIRROR_STATE_PREFIX } from '../../utils/handoff'
 import { afterLogin, loginWithProvider, rememberNext } from '../../utils/identity'
-import { publicOrigin } from '../../utils/public-origin'
+import { isInternalHost, mirrorHosts, publicOrigin } from '../../utils/public-origin'
 
 const SCOPE = ['openid', 'email', 'profile']
 
@@ -29,13 +30,22 @@ const handlerFor = (origin: string) => {
     },
 
     async onSuccess(event, { user }) {
-      const { created } = await loginWithProvider(event, 'google', {
+      const { user: account, created } = await loginWithProvider(event, 'google', {
         id: String(user.sub),
         email: user.email ?? null,
         emailVerified: user.email_verified === true,
         displayName: user.name ?? user.given_name ?? null,
         photoUrl: user.picture ?? null,
       })
+
+      // Пришли с зеркала — туда и возвращаем, с билетом вместо кода Google:
+      // его CDN не пропустил бы (см. utils/handoff.ts). Сессия на основном
+      // домене при этом тоже поставлена — не страшно, это тот же человек.
+      const mirror = mirrorFromState(getQuery(event).state, mirrorHosts())
+      if (mirror) {
+        const ticket = issueTicket({ userId: account.id, created })
+        return sendBrowserRedirect(event, `https://${mirror}/auth/handoff?t=${ticket}`)
+      }
 
       return sendBrowserRedirect(event, afterLogin(event, created))
     },
@@ -93,11 +103,18 @@ export default defineEventHandler(async (event) => {
     return failLogin(event, new Error('нет NUXT_OAUTH_GOOGLE_CLIENT_ID или NUXT_OAUTH_GOOGLE_CLIENT_SECRET'))
   }
 
+  // С зеркала Google возвращаем не сюда, а на основной домен: CDN зеркала не
+  // пропускает длинный код из ответа Google. Основной домен завершит вход и
+  // передаст его на зеркало билетом (utils/handoff.ts); какое зеркало —
+  // помнит state, Google вернёт его как есть.
+  const mirror = isInternalHost(getRequestURL(event).hostname) ? new URL(origin).hostname : null
+  const callbackOrigin = mirror ? useRuntimeConfig(event).public.siteUrl : origin
+
   return sendBrowserRedirect(event, withQuery('https://accounts.google.com/o/oauth2/v2/auth', {
     response_type: 'code',
     client_id: clientId,
-    redirect_uri: `${origin}/auth/google`,
+    redirect_uri: `${callbackOrigin}/auth/google`,
     scope: SCOPE.join(' '),
-    state: '',
+    state: mirror ? `${MIRROR_STATE_PREFIX}${mirror}` : '',
   }))
 })

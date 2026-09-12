@@ -9,10 +9,15 @@ import { blockExternalFetch } from '../../server/utils/offline-guard'
   которые в бою шлют сообщения, в тесте отвечают «не настроено».
 */
 test.describe('Изоляция от телеграма и внешних сервисов', () => {
-  test('вход через телеграм и Google недоступен', async ({ page }) => {
+  test('вход через телеграм недоступен, а Google для сервера недостижим', async ({ page }) => {
     const providers = await (await page.request.get('/api/auth/providers')).json()
     expect(providers.telegram).toBeFalsy()
-    expect(providers.google).toBeFalsy()
+
+    // Ключи Google в стенде выдуманные: кнопка есть, но возврат с кодом упирается
+    // в заслон — сервер не может обменять код, и человек видит причину.
+    const res = await page.request.get('/auth/google?code=whatever', { maxRedirects: 0 })
+    expect(res.status()).toBe(302)
+    expect(res.headers()['location']).toMatch(/error=google&reason=/)
   })
 
   test('крон рассылки ничего не отправляет', async ({ page }) => {

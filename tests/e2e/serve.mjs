@@ -30,8 +30,11 @@ const env = {
   TELEGRAM_BOT_TOKEN: '',
   TELEGRAM_CHANNEL_ID: '',
   TELEGRAM_THREAD_ID: '',
-  NUXT_OAUTH_GOOGLE_CLIENT_ID: '',
-  NUXT_OAUTH_GOOGLE_CLIENT_SECRET: '',
+  // Ключи Google — выдуманные: с ними видно, куда сервер отправляет к Google и
+  // с каким redirect_uri, а сам Google при этом недостижим (E2E_OFFLINE), и
+  // браузер тестов наружу не ходит.
+  NUXT_OAUTH_GOOGLE_CLIENT_ID: 'e2e-google-client',
+  NUXT_OAUTH_GOOGLE_CLIENT_SECRET: 'e2e-google-secret',
   NOTIFY_SECRET: 'e2e',
   // Dev-сервер Vite отбрасывает запросы с чужим Host. Тесты про зеркало за CDN
   // приходят с именем Railway в Host — пускаем его (в бою этой проверки нет).
