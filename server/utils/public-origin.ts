@@ -25,10 +25,13 @@ export function mirrorHosts(): string[] {
     .filter(Boolean)
 }
 
-/** Служебное имя сервиса на Railway: то, что стоит в Host у запросов от CDN. */
+/**
+ * Служебное имя сервиса на Railway: то, что стоит в Host у запросов от CDN.
+ * Только *.up.railway.app — не RAILWAY_PUBLIC_DOMAIN: при подключённом своём
+ * домене Railway кладёт туда его, и основной сайт принимался бы за зеркало.
+ */
 export function isInternalHost(hostname: string): boolean {
-  const own = process.env.RAILWAY_PUBLIC_DOMAIN?.toLowerCase()
-  return hostname === own || /\.up\.railway\.app$/i.test(hostname)
+  return /\.up\.railway\.app$/i.test(hostname)
 }
 
 export function publicOrigin(event: H3Event): string {

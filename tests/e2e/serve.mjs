@@ -36,6 +36,9 @@ const env = {
   NUXT_OAUTH_GOOGLE_CLIENT_ID: 'e2e-google-client',
   NUXT_OAUTH_GOOGLE_CLIENT_SECRET: 'e2e-google-secret',
   NOTIFY_SECRET: 'e2e',
+  // Так делает Railway при подключённом своём домене: в переменной — он, а не
+  // служебное имя. Стенд повторяет это, чтобы основной домен не приняли за зеркало.
+  RAILWAY_PUBLIC_DOMAIN: 'localhost',
   // Dev-сервер Vite отбрасывает запросы с чужим Host. Тесты про зеркало за CDN
   // приходят с именем Railway в Host — пускаем его (в бою этой проверки нет).
   __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: '.up.railway.app',
