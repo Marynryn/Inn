@@ -189,6 +189,7 @@ useSeoMeta({
         class="ticker"
         :style="{ '--ticker-time': tickerSeconds + 's' }"
         :aria-label="tickerItems.join('. ')"
+        @click="useClarity().event('ticker_click')"
       >
         <div class="ticker-track" aria-hidden="true">
           <span v-for="(line, i) in tickerLoop" :key="i" class="ticker-item">{{ line }}</span>

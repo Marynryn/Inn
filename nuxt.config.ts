@@ -51,6 +51,9 @@ export default defineNuxtConfig({
     },
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://taverna-book.com',
+      // Проект Microsoft Clarity (записи сессий, карты кликов). Пустой — скрипт
+      // не подключается вовсе: локалка и тесты не должны попадать в статистику.
+      clarityId: process.env.NUXT_PUBLIC_CLARITY_ID || '',
     },
   },
 
