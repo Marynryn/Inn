@@ -168,7 +168,7 @@ useSeoMeta({
         <NuxtLink v-if="bookmark" to="/progress" class="hero-progress">
           Прочитано {{ Math.round(bookmarkStats.percent) }} %
           <template v-if="bookmarkStats.done"> · вы догнали перевод</template>
-          <template v-else> · ещё {{ formatHours(bookmarkStats.hoursLeft) }} до фронта перевода</template>
+          <template v-else> · ещё {{ formatHours(bookmarkStats.hoursLeft) }} до последней переведённой главы</template>
           <span class="hero-progress-arrow">→</span>
         </NuxtLink>
         <div class="hero-meta">

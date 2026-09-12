@@ -226,7 +226,7 @@ useHead({
           </div>
           <div class="stat">
             <b class="display">{{ formatHours(stats.hoursLeft) }}</b>
-            <span>осталось до фронта перевода</span>
+            <span>осталось до последней переведённой главы</span>
           </div>
           <div class="stat">
             <b class="display">{{ formatHours(stats.hoursTotal) }}</b>
