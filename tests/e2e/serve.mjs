@@ -33,6 +33,9 @@ const env = {
   NUXT_OAUTH_GOOGLE_CLIENT_ID: '',
   NUXT_OAUTH_GOOGLE_CLIENT_SECRET: '',
   NOTIFY_SECRET: 'e2e',
+  // Dev-сервер Vite отбрасывает запросы с чужим Host. Тесты про зеркало за CDN
+  // приходят с именем Railway в Host — пускаем его (в бою этой проверки нет).
+  __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: '.up.railway.app',
   GAME_SECRET: 'e2e-game',
 }
 

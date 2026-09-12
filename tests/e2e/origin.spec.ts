@@ -25,6 +25,14 @@ test.describe('Адрес сайта за CDN', () => {
     })).json()
     // Протоколу за прокси верим и так (Railway его проставляет), а хост — нет.
     expect(new URL(evil.origin).host).toBe('localhost:3100')
+
+    // CDN, который заголовок не шлёт: Host — служебное имя Railway, и при
+    // единственном зеркале сервер понимает, что открыт через него.
+    const viaCdn = await (await page.request.get('/api/admin/origin', {
+      headers: { host: 'inn-production.up.railway.app' },
+    })).json()
+    expect(viaCdn.host).toBe('inn-production.up.railway.app')
+    expect(viaCdn.origin).toBe('https://inn.taverna-book.ru')
   })
 
   test('без ключей Google вход не падает, а возвращает на страницу входа', async ({ page }) => {
