@@ -1,0 +1,38 @@
+import { test, expect, login } from './helpers'
+import { ADMIN } from './fixtures'
+
+/*
+  Зеркало за CDN: к серверу запрос приходит со служебным Host Railway, а
+  настоящий домен — в X-Forwarded-Host. Вход через Google строит redirect_uri
+  из этого домена, иначе Google возвращал бы человека не туда (см.
+  server/utils/public-origin.ts).
+*/
+test.describe('Адрес сайта за CDN', () => {
+  test('известное зеркало берётся из X-Forwarded-Host, чужой домен — нет', async ({ page }) => {
+    await login(page, ADMIN)
+
+    const plain = await (await page.request.get('/api/admin/origin')).json()
+    expect(plain.origin).toBe('http://localhost:3100')
+    expect(plain.mirrors).toContain('inn.taverna-book.ru')
+
+    const mirror = await (await page.request.get('/api/admin/origin', {
+      headers: { 'x-forwarded-host': 'inn.taverna-book.ru', 'x-forwarded-proto': 'https' },
+    })).json()
+    expect(mirror.origin).toBe('https://inn.taverna-book.ru')
+
+    const evil = await (await page.request.get('/api/admin/origin', {
+      headers: { 'x-forwarded-host': 'evil.example', 'x-forwarded-proto': 'https' },
+    })).json()
+    // Протоколу за прокси верим и так (Railway его проставляет), а хост — нет.
+    expect(new URL(evil.origin).host).toBe('localhost:3100')
+  })
+
+  test('без ключей Google вход не падает, а возвращает на страницу входа', async ({ page }) => {
+    const res = await page.request.get('/auth/google?next=/game', {
+      maxRedirects: 0,
+      headers: { 'x-forwarded-host': 'inn.taverna-book.ru', 'x-forwarded-proto': 'https' },
+    })
+    expect(res.status()).toBe(302)
+    expect(res.headers()['location']).toBe('/login?error=google')
+  })
+})

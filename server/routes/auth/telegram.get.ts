@@ -1,4 +1,5 @@
 import { rememberNext } from '../../utils/identity'
+import { publicOrigin } from '../../utils/public-origin'
 import { telegramBotId } from '../../utils/telegram'
 
 /**
@@ -15,7 +16,7 @@ export default defineEventHandler((event) => {
   if (!botId) throw createError({ statusCode: 503, message: 'Телеграм-бот не настроен' })
 
   rememberNext(event)
-  const origin = getRequestURL(event).origin
+  const origin = publicOrigin(event)
 
   return sendRedirect(event, 'https://oauth.telegram.org/auth'
     + `?bot_id=${botId}`
