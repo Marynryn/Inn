@@ -393,6 +393,7 @@ const form = reactive({
   error_404_sub: '',
   update_schedule: '',
   original_chapters_total: '',
+  original_words_ratio: '',
   game_max_volume: '',
   game_cta_title: '',
   game_cta_text: '',
@@ -1118,6 +1119,15 @@ useHead({
               Для трекера прогресса. Оставь пустым — число раз в сутки подтягивается из
               InnWords само{{ settings?.original_chapters_auto ? ` (сейчас ${settings.original_chapters_auto})` : '' }}.
               Ставь своё, только если автоматика врёт или отвалилась.
+            </span>
+          </div>
+          <div class="field-row">
+            <label>Слов на одно английское</label>
+            <input v-model="form.original_words_ratio" type="number" min="0.1" max="3" step="0.001" placeholder="0.824">
+            <span class="field-hint">
+              Сколько русских слов выходит из одного английского — так трекер переводит
+              объём оригинала{{ settings?.original_words_auto ? ` (${Number(settings.original_words_auto).toLocaleString('ru-RU')} слов)` : '' }}
+              в наши слова. Пусто — 0,824.
             </span>
           </div>
           <div class="field-row">

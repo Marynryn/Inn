@@ -59,44 +59,44 @@ const chaptersPercent = computed(() =>
 )
 
 /*
-  Оригинал. Главы — сколько их всего; слова — тоже слова оригинала, а не наши:
-  переведённые и прочитанные главы считаем по их английской длине, иначе
-  русский перевод и английский текст складывались бы в разных единицах.
+  Оригинал. Главы — сколько их всего. Слова — объём книги, переведённый в
+  наши слова по коэффициенту: из тысячи английских слов выходит примерно
+  824 русских (замер по переведённым главам; админ может поправить). Так
+  переведённое и прочитанное считаются в одних единицах — наших словах, —
+  и по ним же можно прикинуть, сколько часов вся книга.
   Данные сервер узнаёт сам (см. server/utils/original-toc.ts); пока их нет —
   карточки нет. Меньше переведённого глав быть не может: перевод главы и есть
   её существование.
 */
-const { data: original } = await useFetch('/api/original')
+const DEFAULT_WORDS_RATIO = 0.824
 
 const originalTotal = computed(() => {
-  const n = original.value?.chapters ?? 0
+  const n = parseInt(settings.value?.original_chapters_effective ?? '')
   return n > 0 ? Math.max(n, stats.value.chaptersTotal) : 0
 })
-const originalWords = computed(() => original.value?.words ?? 0)
 
-/** Слов оригинала в первых n главах — плюс доля следующей, если она начата. */
-const originalWordsUpTo = (n: number, fraction = 0) => {
-  const list = original.value?.chapterWords ?? []
-  let sum = 0
-  for (let i = 0; i < Math.min(n, list.length); i++) sum += list[i]!
-  if (fraction > 0 && fraction < 1 && n < list.length) sum += list[n]! * fraction
-  return Math.round(sum)
-}
+const wordsRatio = computed(() => {
+  const r = parseFloat(settings.value?.original_words_ratio ?? '')
+  return r > 0 ? r : DEFAULT_WORDS_RATIO
+})
 
-const translatedWords = computed(() => originalWordsUpTo(stats.value.chaptersTotal))
-const readWords = computed(() => {
-  const fraction = position.value?.fraction ?? 0
-  return originalWordsUpTo(stats.value.chaptersRead, fraction < 1 ? fraction : 0)
+/** Вся книга в наших словах — не меньше того, что уже переведено. */
+const bookWords = computed(() => {
+  const en = parseInt(settings.value?.original_words_auto ?? '')
+  return en > 0 ? Math.max(Math.round(en * wordsRatio.value), stats.value.wordsTotal) : 0
 })
 
 const share = (part: number, whole: number) => (whole ? (part / whole) * 100 : 0)
 const translatedShare = computed(() => share(stats.value.chaptersTotal, originalTotal.value))
 const readShare = computed(() => share(stats.value.chaptersRead, originalTotal.value))
-const translatedWordsShare = computed(() => share(translatedWords.value, originalWords.value))
-const readWordsShare = computed(() => share(readWords.value, originalWords.value))
+const translatedWordsShare = computed(() => share(stats.value.wordsTotal, bookWords.value))
+const readWordsShare = computed(() => share(stats.value.wordsRead, bookWords.value))
 const sharePercent = (p: number) => (p > 0 && p < 1 ? '<1' : String(Math.round(p)))
 
-/** «17,2 млн» — для подписи; в таблице число целиком. */
+/** Часов на всю книгу при выбранной скорости. */
+const bookHours = computed(() => bookWords.value / SPEED_WPM[speed.value] / 60)
+
+/** «14,2 млн» — для подписи; в таблице число целиком. */
 const formatMillions = (n: number) => `${(n / 1_000_000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} млн`
 
 /** Ширина заливки: ненулевая доля видна хотя бы полоской — 3 главы из 824 иначе исчезают. */
@@ -234,13 +234,13 @@ useHead({
       <section v-if="originalTotal" class="card original">
         <h2 class="section-title">А если считать от всей книги</h2>
         <p class="section-note">
-          В оригинале The Wandering Inn сейчас {{ formatNumber(originalTotal) }} {{ pluralize(originalTotal, 'глава', 'главы', 'глав') }}<template v-if="originalWords"> и {{ formatMillions(originalWords) }} слов</template>.
+          В оригинале The Wandering Inn сейчас {{ formatNumber(originalTotal) }} {{ pluralize(originalTotal, 'глава', 'главы', 'глав') }}<template v-if="bookWords"> — по-русски это примерно {{ formatMillions(bookWords) }} слов</template>.
         </p>
 
         <!-- Полоса — по словам, когда они есть: главы у книги очень разной длины. -->
-        <div class="bar bar-layered" :title="originalWords ? `Прочитано ${formatNumber(readWords)}, переведено ${formatNumber(translatedWords)} из ${formatNumber(originalWords)} слов` : `Прочитано ${stats.chaptersRead}, переведено ${stats.chaptersTotal} из ${originalTotal} глав`">
-          <div class="bar-fill bar-fill-translated" :style="{ width: barWidth(originalWords ? translatedWordsShare : translatedShare) }" />
-          <div class="bar-fill" :style="{ width: barWidth(originalWords ? readWordsShare : readShare) }" />
+        <div class="bar bar-layered" :title="bookWords ? `Прочитано ${formatNumber(stats.wordsRead)}, переведено ${formatNumber(stats.wordsTotal)} из ${formatNumber(bookWords)} слов` : `Прочитано ${stats.chaptersRead}, переведено ${stats.chaptersTotal} из ${originalTotal} глав`">
+          <div class="bar-fill bar-fill-translated" :style="{ width: barWidth(bookWords ? translatedWordsShare : translatedShare) }" />
+          <div class="bar-fill" :style="{ width: barWidth(bookWords ? readWordsShare : readShare) }" />
         </div>
 
         <table class="orig-table">
@@ -248,27 +248,31 @@ useHead({
             <tr>
               <th />
               <th>глав</th>
-              <th v-if="originalWords">слов оригинала</th>
+              <th v-if="bookWords">слов</th>
             </tr>
           </thead>
           <tbody>
             <tr class="row-read">
               <td><i class="dot dot-read" />вы прочитали</td>
               <td>{{ stats.chaptersRead }} <small>{{ sharePercent(readShare) }} %</small></td>
-              <td v-if="originalWords">{{ formatNumber(readWords) }} <small>{{ sharePercent(readWordsShare) }} %</small></td>
+              <td v-if="bookWords">{{ formatNumber(stats.wordsRead) }} <small>{{ sharePercent(readWordsShare) }} %</small></td>
             </tr>
             <tr class="row-translated">
               <td><i class="dot dot-translated" />переведено</td>
               <td>{{ stats.chaptersTotal }} <small>{{ sharePercent(translatedShare) }} %</small></td>
-              <td v-if="originalWords">{{ formatNumber(translatedWords) }} <small>{{ sharePercent(translatedWordsShare) }} %</small></td>
+              <td v-if="bookWords">{{ formatNumber(stats.wordsTotal) }} <small>{{ sharePercent(translatedWordsShare) }} %</small></td>
             </tr>
             <tr class="row-total">
               <td>всего в книге</td>
               <td>{{ formatNumber(originalTotal) }}</td>
-              <td v-if="originalWords">{{ formatNumber(originalWords) }}</td>
+              <td v-if="bookWords">≈{{ formatNumber(bookWords) }}</td>
             </tr>
           </tbody>
         </table>
+        <p v-if="bookWords" class="bar-note">
+          Слова оригинала переведены в русские по коэффициенту {{ wordsRatio.toLocaleString('ru-RU') }}:
+          из тысячи английских слов выходит около {{ Math.round(wordsRatio * 1000) }} русских.
+        </p>
       </section>
 
       <!-- Время -->
@@ -304,7 +308,7 @@ useHead({
           </label>
         </div>
 
-        <div class="stat-grid stat-grid-3">
+        <div class="stat-grid" :class="{ 'stat-grid-3': !bookWords }">
           <div class="stat">
             <b class="display">{{ formatHours(stats.hoursRead) }}</b>
             <span>уже прочитано</span>
@@ -316,6 +320,10 @@ useHead({
           <div class="stat">
             <b class="display">{{ formatHours(stats.hoursTotal) }}</b>
             <span>весь перевод целиком</span>
+          </div>
+          <div v-if="bookWords" class="stat">
+            <b class="display">{{ formatHours(bookHours) }}</b>
+            <span>вся книга, когда будет переведена</span>
           </div>
         </div>
 
