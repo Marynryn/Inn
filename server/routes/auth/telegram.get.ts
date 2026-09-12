@@ -1,3 +1,4 @@
+import { sendBrowserRedirect } from '../../utils/browser-redirect'
 import { rememberNext } from '../../utils/identity'
 import { publicOrigin } from '../../utils/public-origin'
 import { telegramBotId } from '../../utils/telegram'
@@ -18,7 +19,7 @@ export default defineEventHandler((event) => {
   rememberNext(event)
   const origin = publicOrigin(event)
 
-  return sendRedirect(event, 'https://oauth.telegram.org/auth'
+  return sendBrowserRedirect(event, 'https://oauth.telegram.org/auth'
     + `?bot_id=${botId}`
     + `&origin=${encodeURIComponent(origin)}`
     + `&return_to=${encodeURIComponent(`${origin}/auth/telegram/done`)}`)

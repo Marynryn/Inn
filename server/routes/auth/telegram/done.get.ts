@@ -1,4 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
+import { sendBrowserRedirect } from '../../../utils/browser-redirect'
 import { afterLogin, loginWithProvider } from '../../../utils/identity'
 
 /**
@@ -86,5 +87,5 @@ export default defineEventHandler(async (event) => {
     photoUrl: query.photo_url ?? null,
   })
 
-  return sendRedirect(event, afterLogin(event, created))
+  return sendBrowserRedirect(event, afterLogin(event, created))
 })

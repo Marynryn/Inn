@@ -36,11 +36,24 @@ test.describe('Адрес сайта за CDN', () => {
   })
 
   test('без ключей Google вход не падает, а возвращает на страницу входа', async ({ page }) => {
-    const res = await page.request.get('/auth/google?next=/game', {
-      maxRedirects: 0,
-      headers: { 'x-forwarded-host': 'inn.taverna-book.ru', 'x-forwarded-proto': 'https' },
-    })
+    const res = await page.request.get('/auth/google?next=/game', { maxRedirects: 0 })
     expect(res.status()).toBe(302)
     expect(res.headers()['location']).toBe('/login?error=google')
+  })
+
+  test('за CDN переадресацию делает браузер, а не прокси', async ({ page }) => {
+    // CDN зеркала сам ходит по 302 и приносит чужую страницу под нашим адресом.
+    // Поэтому для запросов через него ответ — не редирект, а страница с
+    // мгновенным переходом; на своём домене остаётся обычный 302 (тест выше).
+    const res = await page.request.get('/auth/google?next=/game', {
+      maxRedirects: 0,
+      headers: { host: 'inn-production.up.railway.app' },
+    })
+    expect(res.status()).toBe(200)
+    expect(res.headers()['content-type']).toContain('text/html')
+    expect(res.headers()['cache-control']).toBe('no-store')
+    const html = await res.text()
+    expect(html).toContain('http-equiv="refresh" content="0;url=/login?error=google"')
+    expect(html).toContain('location.replace("/login?error=google")')
   })
 })

@@ -1,5 +1,9 @@
+import { withQuery } from 'ufo'
+import { sendBrowserRedirect } from '../../utils/browser-redirect'
 import { afterLogin, loginWithProvider, rememberNext } from '../../utils/identity'
 import { publicOrigin } from '../../utils/public-origin'
+
+const SCOPE = ['openid', 'email', 'profile']
 
 /**
  * Вход через Google. Обмен кода на токен и запрос профиля делает сам
@@ -19,9 +23,7 @@ const handlerFor = (origin: string) => {
 
   handler = defineOAuthGoogleEventHandler({
     config: {
-      // Только безобидные поля: имя, почта, аватарка. Просить больше — значит
-      // отправить приложение на проверку в Google, а нам этого не нужно.
-      scope: ['openid', 'email', 'profile'],
+      scope: SCOPE,
       redirectURL: `${origin}/auth/google`,
     },
 
@@ -34,12 +36,12 @@ const handlerFor = (origin: string) => {
         photoUrl: user.picture ?? null,
       })
 
-      return sendRedirect(event, afterLogin(event, created))
+      return sendBrowserRedirect(event, afterLogin(event, created))
     },
 
     onError(event, error) {
       console.error('[auth] google:', error)
-      return sendRedirect(event, '/login?error=google')
+      return sendBrowserRedirect(event, '/login?error=google')
     },
   })
 
@@ -48,8 +50,32 @@ const handlerFor = (origin: string) => {
 }
 
 export default defineEventHandler((event) => {
-  // Куда вернуть человека, знает только первый заход — с возврата от Google
+  const origin = publicOrigin(event)
+  const { code } = getQuery(event)
+
+  // Возврат от Google: код на токен, профиль, сессия — всё в обработчике.
+  if (code) return handlerFor(origin)(event)
+
+  // Первый заход. Куда вернуть человека, знает только он — с возврата от Google
   // никакого «откуда пришёл» уже не видно, поэтому запоминаем в куке.
   rememberNext(event)
-  return handlerFor(publicOrigin(event))(event)
+
+  // Отправку к Google обработчик делает через 302, а за CDN зеркала это не
+  // работает (см. sendBrowserRedirect) — поэтому адрес собираем сами, теми же
+  // параметрами. Ключи проверяем как он: без них — на страницу входа с ошибкой.
+  // Только безобидные поля: имя, почта, аватарка. Просить больше — значит
+  // отправить приложение на проверку в Google, а нам этого не нужно.
+  const { clientId, clientSecret } = useRuntimeConfig(event).oauth.google
+  if (!clientId || !clientSecret) {
+    console.error('[auth] google: нет NUXT_OAUTH_GOOGLE_CLIENT_ID или NUXT_OAUTH_GOOGLE_CLIENT_SECRET')
+    return sendBrowserRedirect(event, '/login?error=google')
+  }
+
+  return sendBrowserRedirect(event, withQuery('https://accounts.google.com/o/oauth2/v2/auth', {
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: `${origin}/auth/google`,
+    scope: SCOPE.join(' '),
+    state: '',
+  }))
 })
