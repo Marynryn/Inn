@@ -181,3 +181,13 @@ export const siteSettings = sqliteTable('site_settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull().default(''),
 })
+
+// Огонёк на карточке персонажа. Один от человека: вошедший — по аккаунту,
+// гость — по IP, как реакции на комментарии. Повторный клик снимает.
+export const characterFlames = sqliteTable('character_flames', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  characterId: text('character_id').notNull(),
+  userId: integer('user_id'),
+  ip: text('ip'), // только у гостя; у вошедшего NULL
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+})

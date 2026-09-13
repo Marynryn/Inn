@@ -8,6 +8,7 @@ const ALLOWED_KEYS = [
   'error_404_sub', 'update_schedule', 'original_chapters_total', 'original_words_ratio',
   'game_max_volume', 'game_cta_title', 'game_cta_text',
   'tg_cta_title', 'tg_cta_text',
+  'characters_title', 'characters_subtitle',
 ]
 
 export default defineEventHandler(async (event) => {

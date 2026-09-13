@@ -300,6 +300,24 @@ export async function runMigrations() {
       ON game_results (user_id, finished_at);
   `)
 
+  // Огоньки на карточках персонажей. Один от человека: у вошедшего — по
+  // аккаунту, у гостя — по IP; частичные индексы не дают поставить второй.
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS character_flames (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      character_id TEXT NOT NULL,
+      user_id INTEGER,
+      ip TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS character_flames_user
+      ON character_flames (character_id, user_id) WHERE user_id IS NOT NULL;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS character_flames_ip
+      ON character_flames (character_id, ip) WHERE user_id IS NULL;
+  `)
+
   // Партия, начатая до входа, должна засчитаться тому, кто потом вошёл.
   try {
     await client.execute('ALTER TABLE game_sessions ADD COLUMN user_id INTEGER')
@@ -510,6 +528,8 @@ export async function runMigrations() {
     game_max_volume: '',
     game_cta_title: 'Кто из таверны?',
     game_cta_text: 'Угадай персонажа по признакам: вид, занятие, том появления. Новый — каждый день, и только те, кто встречался до {том} тома.',
+    characters_title: 'Кто живёт в таверне',
+    characters_subtitle: 'Те, кого читатель встречал не раз в первых томах. Нажми на карточку — откроется подробнее, огонёк — чтобы отметить любимых.',
   }
 
   for (const [key, value] of Object.entries(defaults)) {

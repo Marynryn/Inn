@@ -46,6 +46,7 @@ for (const c of raw) {
     name,
     aliases: list(c.aliases).filter(a => a !== name),
     gender: String(c.gender ?? '').trim(),
+    age: String(c.age ?? '').trim(),
     species: list(c.species),
     status: String(c.status ?? '').trim(),
     affiliation: list(c.affiliation),

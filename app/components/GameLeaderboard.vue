@@ -88,7 +88,7 @@ useScrollLock()
           Здесь пока пусто. Угадай персонажа — и первая строка будет твоей.
         </p>
 
-        <div v-else class="table-wrap">
+        <div v-else class="table-wrap thin-scroll">
           <table class="table">
             <!-- Ширины колонок живут здесь: так подпись «Игрок» может занять
                  сразу две ячейки — аватарку и имя — и начаться там же, где она. -->
@@ -262,28 +262,6 @@ useScrollLock()
   margin-top: 14px;
   border: 1px solid rgba(241, 230, 210, .12);
   border-radius: var(--radius-sm);
-  /* Тонкая полупрозрачная полоса вместо системной: та на тёмном фоне выглядит
-     чужеродной серой плашкой. Так же сделан список подсказок в самой игре. */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(241, 230, 210, .22) transparent;
-}
-
-.table-wrap::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.table-wrap::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.table-wrap::-webkit-scrollbar-thumb {
-  border-radius: 3px;
-  background: rgba(241, 230, 210, .18);
-}
-
-.table-wrap::-webkit-scrollbar-thumb:hover {
-  background: rgba(241, 230, 210, .32);
 }
 
 .table {

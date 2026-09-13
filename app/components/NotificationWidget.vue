@@ -282,7 +282,7 @@ onUnmounted(() => {
 <template>
   <div v-if="auth.isAuthed" class="notif-widget" :class="{ tucked, 'is-open': open }">
     <Transition name="notif-panel">
-      <div v-if="open" class="panel" role="dialog" aria-label="Уведомления">
+      <div v-if="open" class="panel thin-scroll" role="dialog" aria-label="Уведомления">
         <div class="panel-head">
           <span class="panel-title">Уведомления</span>
           <button v-if="unread > 0" class="read-all" type="button" @click="readAll">
@@ -494,8 +494,6 @@ onUnmounted(() => {
   border: 1px solid rgba(241, 230, 210, .14);
   border-radius: var(--radius-md);
   box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(241, 230, 210, .22) transparent;
 }
 
 .panel-head {

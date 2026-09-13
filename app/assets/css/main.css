@@ -62,6 +62,33 @@ a {
   font-family: var(--font-body);
 }
 
+/* ─── Тонкий скролл на тёмном фоне ───────────────────────────
+   Один на весь сайт: полоска 6px, полупрозрачная, без дорожки. Системная на
+   тёмном выглядит чужеродной серой плашкой. Вешать на любой прокручиваемый
+   блок — списки подсказок, таблицы, модалки. */
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(241, 230, 210, .22) transparent;
+}
+
+.thin-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scroll::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: rgba(241, 230, 210, .18);
+}
+
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(241, 230, 210, .32);
+}
+
 /* ─── Spin animation ─────────────────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }

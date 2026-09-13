@@ -399,6 +399,8 @@ const form = reactive({
   game_cta_text: '',
   tg_cta_title: '',
   tg_cta_text: '',
+  characters_title: '',
+  characters_subtitle: '',
 })
 watch(settings, (s) => { if (s) Object.assign(form, s) }, { immediate: true })
 
@@ -1151,6 +1153,15 @@ useHead({
               Плашка на главной, перед оглавлением. Вместо <b>{том}</b> подставится номер
               из поля выше — так обещание «без спойлеров» не устареет, когда перевод уйдёт дальше.
             </span>
+          </div>
+          <div class="field-row">
+            <label>Персонажи: заголовок</label>
+            <input v-model="form.characters_title" type="text" placeholder="Кто живёт в таверне">
+          </div>
+          <div class="field-row">
+            <label>Персонажи: подзаголовок</label>
+            <textarea v-model="form.characters_subtitle" rows="2" />
+            <span class="field-hint">Страница карточек персонажей, под заголовком.</span>
           </div>
           <button class="btn-action" :disabled="savingSettings" @click="saveSettings">
             {{ settingsSaved ? '✓ Сохранено' : savingSettings ? 'Сохраняем...' : 'Сохранить' }}

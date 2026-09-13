@@ -1,8 +1,7 @@
 import { createHash, createHmac } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { GAME_LAST_VOLUME } from '#shared/utils/gameColumns'
 import { fullNameOf, unpackCharacters, type PackedCharacter } from './game-pack'
+import { assetText, readServerAsset } from './server-assets'
 
 /**
  * База персонажей для игры. Живёт только на сервере: файл лежит в server/assets,
@@ -35,31 +34,9 @@ type Glossary = {
 let charactersCache: GameCharacter[] | null = null
 let glossaryCache: Glossary | null = null
 
-/**
- * Файлы из server/assets Nitro кладёт в собранный сервер и отдаёт через useStorage.
- * В dev тот же путь читается с диска — на случай, если стораж ещё не прогрет.
- */
-async function readAsset(name: string): Promise<unknown> {
-  try {
-    const item = await useStorage('assets:server').getItem(`game/${name}`)
-    if (item) return item
-  } catch {
-    // упадём в чтение с диска ниже
-  }
-  return readFileSync(resolve('server/assets/game', name), 'utf8')
-}
-
-/** В сборке ассет приезжает байтами, в dev — строкой; наружу всегда текст. */
-function asText(value: unknown): string {
-  if (typeof value === 'string') return value
-  if (value instanceof Uint8Array) return Buffer.from(value).toString('utf8')
-  if (value instanceof ArrayBuffer) return Buffer.from(value).toString('utf8')
-  return JSON.stringify(value)
-}
-
 export async function allCharacters(): Promise<GameCharacter[]> {
   if (!charactersCache) {
-    charactersCache = unpackCharacters(asText(await readAsset('characters.pack')))
+    charactersCache = unpackCharacters(assetText(await readServerAsset('game/characters.pack')))
   }
   return charactersCache
 }
@@ -69,9 +46,9 @@ export async function useGlossary(): Promise<Glossary> {
   if (glossaryCache && !import.meta.dev) return glossaryCache
 
   // unstorage может отдать .json уже разобранным объектом, а может — байтами.
-  const raw = await readAsset('glossary.json')
+  const raw = await readServerAsset('game/glossary.json')
   const plainObject = typeof raw === 'object' && raw !== null && !(raw instanceof Uint8Array) && !(raw instanceof ArrayBuffer)
-  const parsed = (plainObject ? raw : JSON.parse(asText(raw))) as Partial<Glossary>
+  const parsed = (plainObject ? raw : JSON.parse(assetText(raw))) as Partial<Glossary>
 
   glossaryCache = {
     names: parsed.names ?? {},

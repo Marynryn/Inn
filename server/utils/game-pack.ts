@@ -19,6 +19,8 @@ export type PackedCharacter = {
   name: string
   aliases: string[]
   gender: string
+  /** Как записано в вики: «23», «200», иногда пусто. Нужен только карточкам. */
+  age: string
   species: string[]
   status: string
   affiliation: string[]

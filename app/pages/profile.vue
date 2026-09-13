@@ -264,6 +264,7 @@ useHead({
 
         <div class="foot-row">
           <NuxtLink to="/progress" class="link-btn">Прогресс чтения</NuxtLink>
+          <NuxtLink v-if="profile.role === 'admin'" to="/characters" class="link-btn">Персонажи</NuxtLink>
           <NuxtLink v-if="profile.role === 'admin'" to="/admin" class="link-btn">Панель</NuxtLink>
           <button class="link-btn" type="button" @click="logout">Выйти</button>
         </div>

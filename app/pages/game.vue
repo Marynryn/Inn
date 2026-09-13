@@ -480,7 +480,7 @@ useSeoMeta({
             @focus="open = true"
             @blur="open = false"
           >
-          <ul v-if="open && suggestions.length" ref="listEl" class="suggest">
+          <ul v-if="open && suggestions.length" ref="listEl" class="suggest thin-scroll">
             <li
               v-for="(entry, i) in suggestions"
               :key="entry.id"
@@ -839,27 +839,6 @@ useSeoMeta({
   max-height: 320px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* Тонкая полупрозрачная полоса вместо системной: та на тёмном фоне выглядит
-     чужеродной серой плашкой. */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(241, 230, 210, .22) transparent;
-}
-
-.suggest::-webkit-scrollbar {
-  width: 6px;
-}
-
-.suggest::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.suggest::-webkit-scrollbar-thumb {
-  border-radius: 3px;
-  background: rgba(241, 230, 210, .18);
-}
-
-.suggest::-webkit-scrollbar-thumb:hover {
-  background: rgba(241, 230, 210, .32);
 }
 
 @media (max-width: 620px) {
