@@ -136,7 +136,9 @@ useHead({
         <p v-if="settings?.characters_subtitle" class="lead">{{ settings.characters_subtitle }}</p>
       </header>
 
-      <div class="toolbar">
+      <!-- Поиск, сортировка, фильтры — один блок: на телефоне порядок другой
+           (фильтры выше сортировки), и делается это CSS-порядком. -->
+      <div class="controls">
         <input
           v-model="query"
           class="search-input"
@@ -149,20 +151,20 @@ useHead({
           <button class="sort" :class="{ active: sort === 'name' }" type="button" @click="sort = 'name'">По алфавиту</button>
           <button class="sort" :class="{ active: sort === 'flames' }" type="button" @click="sort = 'flames'">По огонькам</button>
         </div>
-      </div>
 
-      <div class="filters">
-        <label v-for="f in CHARACTER_FILTERS" :key="f.key" class="filter" :class="{ set: filters[f.key] }">
-          <span class="filter-label">{{ f.label }}</span>
-          <select v-model="filters[f.key]">
-            <option value="">Все</option>
-            <option v-for="v in options[f.key]" :key="v" :value="v">{{ v }}</option>
-          </select>
-        </label>
-        <span v-if="activeFilters.length || query" class="tally">
-          <span class="count">Найдено: {{ visible.length }}</span>
-          <button class="reset" type="button" @click="resetFilters">Сбросить</button>
-        </span>
+        <div class="filters">
+          <label v-for="f in CHARACTER_FILTERS" :key="f.key" class="filter" :class="{ set: filters[f.key] }">
+            <span class="filter-label">{{ f.label }}</span>
+            <select v-model="filters[f.key]">
+              <option value="">Все</option>
+              <option v-for="v in options[f.key]" :key="v" :value="v">{{ v }}</option>
+            </select>
+          </label>
+          <span v-if="activeFilters.length || query" class="tally">
+            <span class="count">Найдено: {{ visible.length }}</span>
+            <button class="reset" type="button" @click="resetFilters">Сбросить</button>
+          </span>
+        </div>
       </div>
 
       <p v-if="!visible.length" class="note">Никого такого в таверне нет.</p>
@@ -267,13 +269,13 @@ useHead({
   color: var(--text-muted);
 }
 
-/* ── Поиск и сортировка ─────────────────────── */
-.toolbar {
+/* ── Поиск, сортировка, фильтры ─────────────── */
+.controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px 16px;
-  margin-bottom: 14px;
+  margin-bottom: 24px;
 }
 
 .search-input {
@@ -325,11 +327,11 @@ useHead({
 
 /* ── Фильтры ────────────────────────────────── */
 .filters {
+  flex: 1 1 100%; /* своя строка под поиском и сортировкой */
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-bottom: 24px;
 }
 
 .filter {
@@ -527,16 +529,64 @@ useHead({
     padding-top: 80px;
   }
 
+  /* На телефоне шапка по центру: колонка узкая, прижатый к краю заголовок
+     смотрится обрубленным. */
+  .intro {
+    text-align: center;
+  }
+
+  .lead {
+    margin: 0 auto;
+  }
+
   .title {
     font-size: 30px;
   }
 
+  /* Порядок на телефоне: поиск, фильтры в два столбца, под ними сортировка. */
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
   .search-input {
+    flex: none; /* в колонке flex-basis из настольной версии растянул бы поле в высоту */
     max-width: none;
   }
 
+  .filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 8px;
+  }
+
+  .filter {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
   .filter select {
-    max-width: 120px;
+    width: 100%;
+    max-width: none;
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+
+  .tally {
+    grid-column: 1 / -1;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  .sorts {
+    order: 3;
+  }
+
+  .sort {
+    flex: 1;
   }
 
   .grid {
