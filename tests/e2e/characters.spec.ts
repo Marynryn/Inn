@@ -39,8 +39,14 @@ test.describe('Карточки персонажей', () => {
     const card = page.locator('.card').first()
     const flame = card.locator('.flame')
 
+    // Страница зажигает огонёк сразу, а на сервер ходит следом; пока ответ не
+    // пришёл, повторные клики она пропускает. Поэтому ждём ответ, а не рисунок.
+    const toggled = () => page.waitForResponse(r => r.url().includes('/flame') && r.ok())
+
     await expect(flame.locator('.num')).toHaveText('0')
+    let done = toggled()
     await flame.click()
+    await done
     await expect(flame).toHaveClass(/lit/)
     await expect(flame.locator('.num')).toHaveText('1')
 
@@ -49,7 +55,9 @@ test.describe('Карточки персонажей', () => {
     await page.getByRole('button', { name: 'По огонькам' }).click()
     await expect(page.locator('.card').first().locator('.name')).toHaveText('Торен')
 
+    done = toggled()
     await page.locator('.card').first().locator('.flame').click()
+    await done
     await expect(page.locator('.card').first().locator('.flame .num')).toHaveText('0')
   })
 
