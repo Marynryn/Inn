@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
-import { and, desc, eq, max, sql } from 'drizzle-orm'
+import { and, desc, eq, max, or, sql } from 'drizzle-orm'
 import { GAME_LAST_VOLUME, type GameMode, type GameStatus } from '#shared/utils/gameColumns'
 import { chapters, gameResults, gameSessions, gameStats, siteSettings } from '../database/schema'
 import { useDb } from './db'
@@ -37,9 +37,9 @@ export function playerKey(event: H3Event): string {
 }
 
 /**
- * Кто играет. Кука отвечает за партию, аккаунт — за достижения: без входа
- * ранжировать некого, анонимный ключ живёт в одном браузере и меняется вместе
- * с ним.
+ * Кто играет. У гостя партию держит кука — анонимный ключ, живущий в одном
+ * браузере. У вошедшего партия привязана к аккаунту и потому одна на все
+ * устройства; аккаунт же нужен и для достижений — без входа ранжировать некого.
  */
 export async function playerIdentity(event: H3Event) {
   const session = await getUserSession(event)
@@ -205,10 +205,14 @@ async function createEndless(
 
   await bumpStats(day, 'endless', isAdmin, { played: 1 })
 
-  // Прошлые свободные партии не храним: их незачем показывать и незачем возвращать.
+  // Прошлые свободные партии не храним: их незачем показывать и незачем
+  // возвращать. У вошедшего сносим и партии с других его устройств — свободная
+  // партия у человека одна.
   await db
     .delete(gameSessions)
-    .where(and(eq(gameSessions.player, player), eq(gameSessions.mode, 'endless')))
+    .where(and(eq(gameSessions.mode, 'endless'), userId
+      ? or(eq(gameSessions.player, player), eq(gameSessions.userId, userId))
+      : eq(gameSessions.player, player)))
 
   const [row] = await db
     .insert(gameSessions)
@@ -232,7 +236,34 @@ async function claimSession(row: SessionRow, userId: number | null): Promise<Ses
   return { ...row, userId }
 }
 
-/** Текущая партия игрока: находит начатую или заводит новую. */
+/**
+ * Партия вошедшего по аккаунту. Кука живёт в одном браузере, аккаунт — во всех:
+ * начал на телефоне, продолжил на ноутбуке. У дня ищем именно сегодняшнюю,
+ * у свободной — последнюю.
+ */
+async function userSession(userId: number | null, mode: GameMode, day: string): Promise<SessionRow | undefined> {
+  if (!userId) return undefined
+
+  const db = useDb()
+  const [row] = await db
+    .select()
+    .from(gameSessions)
+    .where(and(
+      eq(gameSessions.userId, userId),
+      eq(gameSessions.mode, mode),
+      ...(mode === 'daily' ? [eq(gameSessions.day, day)] : []),
+    ))
+    .orderBy(desc(gameSessions.id))
+    .limit(1)
+
+  return row
+}
+
+/**
+ * Текущая партия игрока: находит начатую или заводит новую. Сначала по
+ * аккаунту — чтобы партия была одна на все устройства, — потом по куке: так
+ * подхватывается партия, начатая до входа.
+ */
 export async function currentSession(
   player: string,
   mode: GameMode,
@@ -243,8 +274,11 @@ export async function currentSession(
 ): Promise<SessionRow> {
   const db = useDb()
 
+  const day = mskDay()
+  const own = await userSession(userId, mode, day)
+  if (own) return own
+
   if (mode === 'daily') {
-    const day = mskDay()
     const [row] = await db
       .select()
       .from(gameSessions)

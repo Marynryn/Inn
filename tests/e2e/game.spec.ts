@@ -98,3 +98,26 @@ test.describe('Игра «Кто из таверны?»', () => {
     await expect(dialog).toHaveCount(0)
   })
 })
+
+test.describe('Партия вошедшего — одна на все устройства', () => {
+  test('попытка с одного браузера видна во втором', async ({ browser }) => {
+    // Два контекста — два разных «устройства»: у каждого своя анонимная кука.
+    const phone = await browser.newContext()
+    const laptop = await browser.newContext()
+    const a = await phone.newPage()
+    const b = await laptop.newPage()
+    await login(a, READER)
+    await login(b, READER)
+
+    await open(a, '/game')
+    const name = await guessNth(a, 0)
+    await expect(rows(a)).toHaveCount(1)
+
+    await open(b, '/game')
+    await expect(rows(b)).toHaveCount(1)
+    await expect(rows(b).first()).toContainText(name)
+
+    await phone.close()
+    await laptop.close()
+  })
+})
