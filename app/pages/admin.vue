@@ -762,7 +762,6 @@ useHead({
             <button class="stat-card stat-card--today stat-card--open" type="button" @click="viewsModal = true">
               <div class="stat-value">{{ stats?.viewsToday?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Просмотров сегодня</div>
-              <span class="stat-hint">по главам →</span>
             </button>
             <div class="stat-card">
               <div class="stat-value">{{ stats?.totalDownloads?.toLocaleString('ru') ?? 0 }}</div>
@@ -1990,10 +1989,9 @@ useHead({
   background: rgba(214, 136, 62, .07);
 }
 
-/* Плитка-кнопка: выглядит как соседние, но нажимается. Подсказка появляется
-   при наведении — на телефоне наводить нечем, там она видна всегда. */
+/* Плитка-кнопка: выглядит как соседние, но нажимается — рамка ярче под
+   курсором, этого и достаточно. */
 .stat-card--open {
-  position: relative;
   display: block;
   width: 100%;
   font: inherit;
@@ -2005,27 +2003,6 @@ useHead({
 .stat-card--open:hover,
 .stat-card--open:focus-visible {
   border-color: rgba(214, 136, 62, .6);
-}
-
-.stat-hint {
-  position: absolute;
-  right: 12px;
-  bottom: 10px;
-  font-size: 11px;
-  color: var(--ember-soft);
-  opacity: .75;
-}
-
-@media (hover: hover) {
-  .stat-hint {
-    opacity: 0;
-    transition: opacity .15s ease;
-  }
-
-  .stat-card--open:hover .stat-hint,
-  .stat-card--open:focus-visible .stat-hint {
-    opacity: .9;
-  }
 }
 
 .stat-value {

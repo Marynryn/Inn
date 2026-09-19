@@ -230,6 +230,15 @@ onMounted(() => {
     sheetEl.value!.classList.add('flying')
     sheetEl.value!.animate(frames, { duration: 320, easing: 'cubic-bezier(.2, .8, .2, 1)' })
   }
+
+  // Картинку целиком тянем заранее, пока читатель смотрит на карточку: иначе
+  // при щелчке по портрету она приезжает с опозданием и въезжает рывком.
+  // Загрузка ленивая по смыслу — до открытия карточки её никто не начинает.
+  if (props.character.full) {
+    const ahead = new Image()
+    ahead.src = props.character.full
+    ahead.decode().catch(() => {})
+  }
 })
 onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
