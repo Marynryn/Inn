@@ -376,6 +376,19 @@ for (const c of characters) {
   else if (!short && whole) names[c.name] = whole
 }
 
+/**
+ * Омонимы базы и глоссария: слева написание из вики, справа — то, под которым
+ * это знает глоссарий. Раса Гилоу записана в вики как «Griffin», а в глоссарии
+ * это фамилия Рёки: существо там пишется «Griffon» (реш. 12.09.2026). Без
+ * подмены раса грифона превратилась бы в фамилию.
+ *
+ * Только для признаков: имена ищутся целой строкой, и «Ryoka Dawning Griffin»
+ * сюда не попадает.
+ */
+const AS_IN_GLOSSARY = {
+  Griffin: 'Griffon',
+}
+
 const terms = {}
 const missingTerms = new Set()
 let fromFallback = 0
@@ -386,7 +399,7 @@ for (const c of characters) {
   for (const value of [c.gender, c.status, ...c.species, ...c.affiliation, ...c.continent, ...c.occupation, ...c.cls, ...c.locations]) {
     if (!value || terms[value]) continue
 
-    const hit = translate(value)
+    const hit = translate(AS_IN_GLOSSARY[value] ?? value)
     if (hit) {
       terms[value] = hit
     } else if (FALLBACK[value]) {
