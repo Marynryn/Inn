@@ -25,6 +25,7 @@ export async function buildEpub({ id, title, contentHtml }: { id: string; title:
   </metadata>
   <manifest>
     <item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+    <item id="css" href="style.css" media-type="text/css"/>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
   </manifest>
   <spine toc="ncx">
@@ -46,9 +47,21 @@ export async function buildEpub({ id, title, contentHtml }: { id: string; title:
   </navMap>
 </ncx>`)
 
+  // «Невидимый» текст: класс приходит из исходного epub и переживает правку в
+  // админке, но без стилей скачанная глава показала бы спрятанное обычным
+  // текстом. Цвет считается от currentColor — читалка со своей темой (бумага,
+  // ночь) получит след нужной светлоты сама.
+  zip.file('OEBPS/style.css', `.invisible-text {
+  color: rgba(128, 128, 128, 0.15);
+  color: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.invisible-text::selection { color: inherit; }
+`)
+
   zip.file('OEBPS/chapter.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
-<head><title>${escapeXml(title)}</title></head>
+<head><title>${escapeXml(title)}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
 <body>
 <h1>${escapeXml(title)}</h1>
 ${contentHtml}

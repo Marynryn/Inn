@@ -33,6 +33,12 @@ const { showReadMarker } = useReadMarker(chapterId)
 const { lastRead, showProgressModal, confirmProgressUpdate, keepProgress } = useProgressGuard(chapter, allChapters)
 const { save: saveScroll, getSaved } = useScrollProgress(chapterId)
 
+// Вид страницы — тема, кегль, высота строки, ширина. Настройки лежат в
+// переменных на <html>, стили ниже их читают; здесь нужна только тема — от неё
+// зависит плашка телеграма: на светлом фоне у неё другие цвета.
+const { settings: readerSettings, load: loadReaderSettings } = useReaderSettings()
+const lightTheme = computed(() => readerSettings.value.theme === 'sepia' || readerSettings.value.theme === 'light')
+
 const scrollRestored = ref(false)
 
 // При переходе на другую страницу роутер сбрасывает scrollY новой страницы в 0 —
@@ -51,6 +57,7 @@ onBeforeRouteLeave(() => {
 
 onMounted(() => {
   load()
+  loadReaderSettings()
 
   // Просмотр засчитывается отсюда, а не при рендере на сервере: до этой строки
   // доходит только тот, у кого страница действительно открылась в браузере.
@@ -107,10 +114,21 @@ const description = computed(() => chapter.value
   ? buildChapterDescription(chapter.value.id, chapter.value.contentHtml)
   : undefined)
 
+/*
+  Вид страницы применяется ещё до первой отрисовки: скрипт в шапке читает
+  настройки из браузера и ставит переменные на <html>. Иначе читатель с сепией
+  видел бы на каждой главе тёмную вспышку, пока не подхватится клиент. Ключ и
+  переменные — те же, что в useReaderSettings.
+*/
+const READER_BOOT = `(function(){try{var s=JSON.parse(localStorage.getItem(${JSON.stringify(LS_READER)})||'null');if(!s)return;var d=document.documentElement;if(typeof s.theme==='string')d.setAttribute('data-reader-theme',s.theme);if(s.fontSize)d.style.setProperty('--reader-font',s.fontSize+'pt');if(s.lineHeight)d.style.setProperty('--reader-lh',String(s.lineHeight));if(s.width)d.style.setProperty('--reader-width',String(s.width))}catch(e){}})()`
+
 useHead(() => ({
   title: chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : 'Загрузка...',
   link: [
     { rel: 'canonical', href: `${siteUrl}/chapter/${slug.value}` },
+  ],
+  script: [
+    { key: 'reader-boot', innerHTML: READER_BOOT, tagPosition: 'head' },
   ],
 }))
 
@@ -178,6 +196,11 @@ useHead(() => ({
     />
 
     <FaintLeaves />
+
+    <!-- Значки в углах: полный экран сверху, настройки вида снизу над шаром
+         уведомлений. Внутри .page-wrap — чтобы наследовать цвета темы. -->
+    <FullscreenButton />
+    <ReaderSettingsWidget />
 
     <!-- READER -->
     <div class="reader">
@@ -253,7 +276,7 @@ useHead(() => ({
         :url="settings?.telegram_url"
         :title="settings?.tg_cta_title"
         :text="settings?.tg_cta_text"
-        on-dark
+        :on-dark="!lightTheme"
       />
 
       <NuxtLink
@@ -270,10 +293,100 @@ useHead(() => ({
 </template>
 
 <style scoped>
+/*
+  Тема страницы — набор переменных --rd-*. «Стандартная» повторяет прежние
+  цвета сайта; остальные переопределяют переменные по атрибуту на <html>,
+  который ставит useReaderSettings (и скрипт в шапке — до первой отрисовки).
+
+  Цвет и кегль идут в текст главы наследованием, а не правилом на каждый
+  абзац: так inline-стили самой главы — голубая речь фей, шрифт в 400 % —
+  остаются сильнее темы, а всё без своего стиля берёт цвет и размер отсюда.
+*/
 .page-wrap {
-  background: var(--bg-dark-2);
+  --rd-bg: var(--bg-dark-2);
+  --rd-text: #e7d9c2;
+  --rd-title: var(--parchment);
+  --rd-muted: var(--parchment-2);
+  --rd-faint: var(--moss);
+  --rd-accent: var(--ember-soft);
+  --rd-line: rgba(241, 230, 210, .1);
+  --rd-border: rgba(241, 230, 210, .18);
+
+  /*
+    Кегль, действующий на этом экране. Настройка одна на все устройства — её
+    выбирают за большим экраном, а читают потом с телефона, и 24 pt там дают
+    четыре слова в строке. Поэтому выбранный кегль ограничен долей ширины
+    окна: на широком экране потолок недостижим и работает выбор человека, на
+    узком — текст ужимается сам, сохраняя порядок величин.
+
+    Нижняя граница у потолка — 16px: на самом узком телефоне он не должен
+    опускать текст ниже прежних 17px, иначе «крупнее» превратилось бы в
+    «мельче, чем было».
+  */
+  --rd-font: min(var(--reader-font, 12pt), max(16px, 5.5vw));
+
+  background: var(--rd-bg);
   min-height: 100vh;
   padding-top: 56px;
+}
+
+/*
+  Полный экран включают ради текста — шапка сайта в нём только мешает: ссылки
+  на игру и телеграм в этот момент не нужны, а место под них съедено.
+
+  Два правила вместо одного списка: неизвестный селектор обесценил бы всё
+  правило целиком, а :fullscreen и :-webkit-full-screen понимают разные браузеры.
+*/
+html:fullscreen .app-header { display: none; }
+html:-webkit-full-screen .app-header { display: none; }
+
+html:fullscreen .page-wrap { padding-top: 16px; }
+html:-webkit-full-screen .page-wrap { padding-top: 16px; }
+
+html[data-reader-theme="dark"] .page-wrap {
+  --rd-bg: #000;
+  --rd-text: #f8f8f8;
+  --rd-title: #f8f8f8;
+  --rd-muted: #d9d9d9;
+  --rd-faint: #7d9a78;
+  --rd-line: rgba(248, 248, 248, .12);
+  --rd-border: rgba(248, 248, 248, .22);
+}
+
+html[data-reader-theme="sepia"] .page-wrap {
+  --rd-bg: #f4ecd8;
+  --rd-text: #111;
+  --rd-title: var(--ink);
+  --rd-muted: var(--ink-soft);
+  --rd-faint: var(--moss);
+  --rd-accent: #b4652a;
+  --rd-line: rgba(42, 30, 22, .14);
+  --rd-border: rgba(42, 30, 22, .26);
+}
+
+/*
+  Листья — часть стандартного облика таверны. В остальных темах их нет: читать
+  выбирают чистый фон, а осенний ворох поверх чёрного или белого — уже не та
+  страница, за которой шли.
+
+  Прячем правилом по атрибуту, а не условием в разметке: атрибут стоит на <html>
+  ещё до первой отрисовки, поэтому листья не успевают мелькнуть.
+*/
+html[data-reader-theme="dark"] .faint-leaves,
+html[data-reader-theme="sepia"] .faint-leaves,
+html[data-reader-theme="light"] .faint-leaves {
+  display: none;
+}
+
+html[data-reader-theme="light"] .page-wrap {
+  --rd-bg: #fff;
+  --rd-text: #111;
+  --rd-title: #111;
+  --rd-muted: #444;
+  --rd-faint: var(--moss);
+  --rd-accent: #b4652a;
+  --rd-line: rgba(0, 0, 0, .12);
+  --rd-border: rgba(0, 0, 0, .22);
 }
 
 .icon-btn {
@@ -283,8 +396,8 @@ useHead(() => ({
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(241, 230, 210, .18);
-  color: var(--parchment-2);
+  border: 1px solid var(--rd-border);
+  color: var(--rd-muted);
   font-size: 22px;
   background: none;
   cursor: pointer;
@@ -293,7 +406,7 @@ useHead(() => ({
 
 .icon-btn:hover {
   border-color: var(--ember);
-  color: var(--ember-soft);
+  color: var(--rd-accent);
 }
 
 .icon-btn.is-loading {
@@ -324,14 +437,26 @@ useHead(() => ({
   width: 40px;
 }
 
+/* Ширина колонки — доля окна из настроек; 50 % на экране 1920 — прежние 960px.
+   Отступы по бокам входят в неё, как и раньше. Уже 640px колонка не бывает:
+   на планшете половина окна — это столбик в четыре слова. На телефоне
+   настройка не действует вовсе, см. ниже. */
+.reader,
+.read-marker,
+.comments-cta {
+  max-width: max(calc(var(--reader-width, 50) * 1vw), 640px);
+}
+
 .reader {
   /* Над фоном, но без заливки: листья просвечивают сквозь колонку */
   position: relative;
   z-index: 1;
-  max-width: 960px;
   margin: 0 auto;
   padding: 56px 48px 0;
-  color: var(--parchment);
+  color: var(--rd-title);
+  /* Заголовок считает свой размер от этого: иначе при крупном кегле он
+     оказывался мельче текста главы. */
+  font-size: var(--rd-font);
 }
 
 .reader-title-row {
@@ -354,27 +479,52 @@ useHead(() => ({
   font-size: 12px;
   letter-spacing: .18em;
   text-transform: uppercase;
-  color: var(--ember-soft);
+  color: var(--rd-accent);
   margin-bottom: 8px;
 }
 
+/* 1.875 от кегля — ровно прежние 30px при стандартных настройках. */
 .reader h1 {
-  font-size: 30px;
+  font-size: 1.875em;
   margin: 0;
   font-weight: 600;
   line-height: 1.25;
 }
 
+/* Кегль и высота строки ставятся на обёртку и наследуются: абзац со своим
+   font-size в процентах или em считает его от этого кегля, а высота строки
+   без единиц растёт вместе с ним. */
 .reader-content {
   overflow-wrap: break-word;
   word-break: break-word;
+  font-size: var(--rd-font);
+  line-height: var(--reader-lh, 1.85);
+  color: var(--rd-text);
 }
 
+/* Отступ между абзацами — в долях строки, чтобы рос и с кеглем, и с высотой
+   строки: при прежних 17px и 1.85 это те же 22px. */
 .reader-content :deep(p) {
-  font-size: 17px;
-  line-height: 1.85;
-  color: #e7d9c2;
-  margin: 0 0 22px;
+  margin: 0 0 calc(var(--reader-lh, 1.85) * .7em);
+}
+
+/*
+  «Невидимый» текст из epub: в книге он почти сливается с фоном — автор прячет
+  в нём то, о чём читатель ещё не должен знать, и разглядеть можно, лишь
+  всмотревшись или выделив мышью.
+
+  Цвет берём от currentColor темы, а не числом: на чёрном фоне след получается
+  чуть светлее фона, на сепии и белом — чуть темнее, и подгонять под каждую
+  тему нечего. Первая строка — запасная для браузеров без color-mix.
+*/
+.reader-content :deep(.invisible-text) {
+  color: rgba(128, 128, 128, .15);
+  color: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+/* Выделишь — проступит целиком, как в книге. */
+.reader-content :deep(.invisible-text)::selection {
+  color: var(--rd-text);
 }
 
 .reader-nav {
@@ -383,17 +533,17 @@ useHead(() => ({
   align-items: center;
   margin-top: 48px;
   padding: 32px 0;
-  border-top: 1px solid rgba(241, 230, 210, .1);
+  border-top: 1px solid var(--rd-line);
   font-size: 18px;
 }
 
 .reader-nav a {
-  color: var(--ember-soft);
+  color: var(--rd-accent);
   font-weight: 500;
 }
 
 .reader-nav a:hover {
-  color: var(--parchment);
+  color: var(--rd-title);
 }
 
 .nav-placeholder {
@@ -428,18 +578,16 @@ useHead(() => ({
 }
 
 .read-marker {
-  max-width: 960px;
   margin: 0 auto;
   padding: 12px 48px;
   font-size: 12px;
-  color: var(--moss);
+  color: var(--rd-faint);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .comments-cta {
-  max-width: 960px;
   margin: 0 auto;
   padding: 20px 48px 64px;
 }
@@ -453,9 +601,9 @@ useHead(() => ({
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  border: 1px solid rgba(241, 230, 210, .2);
+  border: 1px solid var(--rd-border);
   border-radius: var(--radius-sm);
-  color: var(--parchment-2);
+  color: var(--rd-muted);
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
@@ -463,8 +611,8 @@ useHead(() => ({
 }
 
 .comments-cta-btn:hover {
-  border-color: var(--ember-soft);
-  color: var(--ember-soft);
+  border-color: var(--rd-accent);
+  color: var(--rd-accent);
   background: rgba(214, 136, 62, .06);
 }
 
@@ -481,8 +629,22 @@ useHead(() => ({
     padding: 40px 18px 0;
   }
 
+  /* На телефоне колонка всегда во всё окно: делить его незачем. */
+  .reader,
+  .read-marker,
+  .comments-cta {
+    max-width: none;
+  }
+
+  /* Под кнопкой полного экрана, а не вплотную к ней: на узком экране они стоят
+     в один столбик у правого края, и без зазора читались бы одной кнопкой. */
+  .dl-title-btn {
+    margin-top: 16px;
+  }
+
+  /* На телефоне заголовок сдержаннее: полтора кегля вместо почти двух. */
   .reader h1 {
-    font-size: 24px;
+    font-size: 1.5em;
   }
 
   .read-marker {

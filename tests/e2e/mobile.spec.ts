@@ -38,4 +38,39 @@ test.describe('Телефон', () => {
     const size = await page.locator('.reader-content p').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))
     expect(size).toBeGreaterThanOrEqual(15)
   })
+
+  /*
+    Настройки вида одни на все устройства: их выбирают за большим экраном, а
+    читают потом с телефона. Здесь проверяется, что самый крупный кегль не
+    превращает главу в четыре слова на строку и не роняет вёрстку.
+  */
+  test('крупные настройки с большого экрана не ломают главу', async ({ page, context }) => {
+    await context.addInitScript(
+      v => localStorage.setItem('tavern:reader', v),
+      JSON.stringify({ theme: 'dark', fontSize: 24, lineHeight: 2, width: 100 }),
+    )
+    await open(page, chapterUrl(CHAPTERS[0]!.id))
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
+
+    const size = (sel: string) =>
+      page.locator(sel).first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))
+
+    // Кегль ужат до доли ширины окна, но не ниже прежних 17px.
+    const text = await size('.reader-content p')
+    expect(text).toBeGreaterThan(17)
+    expect(text).toBeLessThan(26)
+
+    // Заголовок главы всегда крупнее её текста — иначе страница выглядит сломанной.
+    expect(await size('.reader h1')).toBeGreaterThan(text)
+
+    // Ширину на телефоне не настраивают: колонка и так во всё окно.
+    await page.getByRole('button', { name: 'Настройки вида' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Настройки' })
+    await expect(dialog.getByRole('button', { name: 'Текст', exact: true })).toBeVisible()
+    await expect(dialog.getByLabel(/Ширина/)).toBeHidden()
+  })
 })

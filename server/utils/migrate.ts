@@ -542,6 +542,13 @@ export async function runMigrations() {
     })
   }
 
+  // Вид страницы главы у вошедшего — чтобы совпадал на телефоне и ноутбуке.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN reader_settings TEXT')
+  } catch {
+    // Столбец уже существует — это нормально
+  }
+
   // Создать admin-аккаунт если нет ни одного пользователя
   const existing = await client.execute('SELECT COUNT(*) as cnt FROM users')
   const count = (existing.rows[0] as any).cnt as number

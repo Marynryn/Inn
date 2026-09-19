@@ -33,10 +33,6 @@ const items = ref<Item[]>([])
 const unread = ref(0)
 const loading = ref(false)
 
-/** Шар уехал за край, пока читают вниз. Держим рядом с остальным состоянием:
- *  наблюдатель с immediate уже однажды дёрнул объявление, стоявшее ниже. */
-const tucked = ref(false)
-
 const load = async () => {
   if (!auth.isAuthed) {
     items.value = []
@@ -106,6 +102,17 @@ const readAll = async () => {
   try { await $fetch('/api/notifications/read', { method: 'POST' }) }
   catch {}
 }
+
+/*
+  Шар уезжает за край, пока читают вниз, и возвращается, когда ведут вверх, —
+  как и остальные значки в углах главы. Только на странице главы: на остальных
+  читать нечего, а исчезающий значок пришлось бы искать. Открытую панель тоже
+  не прячем: человек её сейчас читает.
+
+  Объявлено после isChapterPage и open: наблюдатель с immediate ниже дёргает
+  tucked, а до этой строки его ещё нет.
+*/
+const { tucked, reset: resetTuck } = useScrollTuck(() => isChapterPage.value && !open.value)
 
 const toggle = () => {
   open.value = !open.value
@@ -199,40 +206,9 @@ watch(() => auth.isAuthed, (authed) => {
 }, { immediate: true })
 watch(() => route.fullPath, () => {
   // Ушли со главы спрятанным — на новой странице шар должен быть виден.
-  tucked.value = false
-  lastY = 0
+  resetTuck()
   if (auth.isAuthed) load()
 })
-
-/*
-  Читатель ведёт страницу вниз — шар уезжает за край, ведёт вверх — возвращается.
-  На главе он висел прямо над текстом и мешал читать, а прятать его насовсем
-  нельзя: тогда о новом ответе узнаешь только уйдя со страницы.
-
-  Мелкие подрагивания пропускаем: без порога шар дёргался бы от каждого касания.
-  У самого верха держим на виду — там ещё не читают.
-*/
-let lastY = 0
-
-/** Меньше этого считаем дрожанием пальца, а не прокруткой. */
-const JITTER = 6
-
-/** Пока не отъехали от начала, шар не убираем. */
-const TOP_ZONE = 120
-
-const onScroll = () => {
-  const y = window.scrollY
-  const dy = y - lastY
-
-  if (Math.abs(dy) < JITTER) return
-  lastY = y
-
-  // Не глава — шар стоит на месте. Открытую панель тоже не прячем: человек её
-  // сейчас читает.
-  if (!isChapterPage.value || open.value) { tucked.value = false; return }
-
-  tucked.value = dy > 0 && y > TOP_ZONE
-}
 
 /*
   На узком экране панель раскрывается на весь экран. Тогда страница под ней не
@@ -264,15 +240,12 @@ onMounted(() => {
   document.addEventListener('keydown', onKeydown)
   document.addEventListener('click', onOutside)
   document.addEventListener('visibilitychange', onVisible)
-  lastY = window.scrollY
-  window.addEventListener('scroll', onScroll, { passive: true })
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeydown)
   document.removeEventListener('click', onOutside)
   document.removeEventListener('visibilitychange', onVisible)
-  window.removeEventListener('scroll', onScroll)
   // Уходим со страницы с открытой панелью — прокрутку надо вернуть.
   if (import.meta.client) document.body.style.overflow = ''
   disconnect()

@@ -1,10 +1,28 @@
 <script setup lang="ts">
-import { useEditor, EditorContent } from '@tiptap/vue-3'
+// Mark и mergeAttributes берём из @tiptap/vue-3, а не из @tiptap/core: пакет
+// их реэкспортирует, а новая зависимость заставила бы Vite пересобирать
+// предзагруженные модули посреди работы dev-сервера.
+import { useEditor, EditorContent, Mark, mergeAttributes } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { FontSize } from '@tiptap/extension-text-style/font-size'
 import Color from '@tiptap/extension-color'
 import { Fragment } from '@tiptap/pm/model'
+
+/**
+ * «Невидимый» текст — тот, что в epub почти сливается с фоном: в него автор
+ * прячет то, о чём читатель ещё не должен знать.
+ *
+ * Редактору он нужен прежде всего затем, чтобы его не потерять: незнакомую
+ * разметку TipTap выбрасывает при загрузке, и первое же сохранение главы
+ * раскрывало спрятанное. Заодно им можно помечать текст прямо здесь.
+ */
+const InvisibleText = Mark.create({
+  name: 'invisibleText',
+  parseHTML: () => [{ tag: 'span.invisible-text' }],
+  renderHTML: ({ HTMLAttributes }) =>
+    ['span', mergeAttributes(HTMLAttributes, { class: 'invisible-text' }), 0],
+})
 
 const props = defineProps<{
   chapterId: string
@@ -58,6 +76,7 @@ const editor = useEditor({
     TextStyle,
     Color,
     FontSize,
+    InvisibleText,
   ],
   editorProps: {
     // ProseMirror вставляет скопированный внутри редактора фрагмент через
@@ -279,6 +298,14 @@ const save = async () => {
               title="Убрать цвет"
               @click="editor?.chain().focus().unsetColor().run()"
             >✕</button>
+            <span class="tb-sep" />
+            <button
+              type="button"
+              class="tb-btn"
+              :class="{ active: editor?.isActive('invisibleText') }"
+              title="Невидимый текст (в главе почти сливается с фоном)"
+              @click="editor?.chain().focus().toggleMark('invisibleText').run()"
+            >👁</button>
             <span class="tb-sep" />
             <button type="button" class="tb-btn" title="Отменить" @click="editor?.chain().focus().undo().run()">↶</button>
             <button type="button" class="tb-btn" title="Повторить" @click="editor?.chain().focus().redo().run()">↷</button>
@@ -585,6 +612,14 @@ const save = async () => {
 .editor-body :deep(p) {
   margin: 0 0 14px;
   line-height: 1.7;
+}
+
+/* В редакторе невидимый текст показываем приглушённым и с пунктиром: править
+   вслепую то, чего не видно, нельзя. Читателю он достанется почти прозрачным. */
+.editor-body :deep(.invisible-text) {
+  color: var(--text-muted);
+  text-decoration: underline dotted rgba(241, 230, 210, .35);
+  text-underline-offset: 3px;
 }
 
 .form-error {

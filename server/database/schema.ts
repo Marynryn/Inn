@@ -29,6 +29,9 @@ export const users = sqliteTable('users', {
   displayName: text('display_name'),
   displayNameKey: text('display_name_key'), // имя в одном написании: по нему имена и считаются занятыми
   isBanned: integer('is_banned', { mode: 'boolean' }).notNull().default(false),
+  // Вид страницы главы (тема, кегль, высота строки, ширина) — JSON. NULL = ещё
+  // не настраивал; у гостя то же самое живёт в браузере.
+  readerSettings: text('reader_settings'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
