@@ -2,19 +2,25 @@
  * Собирает словарь игры из рабочего глоссария перевода (xlsx с листом
  * «Английский | Русский | Примечание»).
  *
- *   node scripts/import-glossary.mjs [путь-к-xlsx]
+ *   node scripts/import-glossary.mjs [пути-к-xlsx…]
  *
- * По умолчанию берёт .data/game/glossary.xlsx (папка в .gitignore). На выходе —
- * server/assets/game/glossary.json: только те имена и термины, которые реально
- * встречаются в базе персонажей. Чего нет в глоссарии — то и остаётся
- * по-английски, как договаривались.
+ * По умолчанию берёт .data/game/glossary.xlsx и, если он есть, дополнение для
+ * карточек .data/game/glossary-cards.xlsx (папка в .gitignore). Файлов может
+ * быть несколько: первый перевод найденного слова и выигрывает, так что рабочий
+ * глоссарий идёт первым, а дополнение только закрывает его пробелы.
+ *
+ * На выходе — server/assets/game/glossary.json: только те имена и термины,
+ * которые реально встречаются в базе персонажей. Чего нет в глоссарии — то и
+ * остаётся по-английски, как договаривались.
  */
 import JSZip from 'jszip'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { basename, resolve } from 'node:path'
 import { fullNameOf, unpackCharacters } from '../server/utils/game-pack.ts'
 
-const SRC = resolve(process.argv[2] ?? '.data/game/glossary.xlsx')
+const DEFAULT_SRCS = ['.data/game/glossary.xlsx', '.data/game/glossary-cards.xlsx']
+const given = process.argv.slice(2)
+const SRCS = (given.length ? given : DEFAULT_SRCS.filter(existsSync)).map(p => resolve(p))
 const PACK = resolve('server/assets/game/characters.pack')
 const OUT = resolve('server/assets/game/glossary.json')
 
@@ -188,17 +194,45 @@ const key = s => s
   .trim()
   .toLowerCase()
 
-const zip = await JSZip.loadAsync(readFileSync(SRC))
-const strings = sharedStrings(await zip.file('xl/sharedStrings.xml')?.async('string'))
-const rows = sheetRows(await zip.file('xl/worksheets/sheet1.xml').async('string'), strings)
+/**
+ * Берём только словарные листы. В рабочей книге рядом со словарём лежат
+ * «Обращения» и «Решения»: там в двух первых столбцах русский и русский, и
+ * попади они сюда, переводы бы поехали. Словарь узнаём по заголовку —
+ * «Английский | Русский» или «Локация (EN) | Перевод (RU)».
+ */
+const isDictionarySheet = header =>
+  /англ|english|\(en\)/i.test(header[0] ?? '') && /рус|\(ru\)|перевод/i.test(header[1] ?? '')
 
-if (rows.length < 2) {
-  console.error(`В листе не нашлось строк. Проверь, что ${SRC} — это глоссарий, а не другой файл.`)
+const rows = []
+for (const src of SRCS) {
+  const zip = await JSZip.loadAsync(readFileSync(src))
+  const strings = sharedStrings(await zip.file('xl/sharedStrings.xml')?.async('string'))
+  const sheets = Object.keys(zip.files)
+    .filter(name => /^xl\/worksheets\/sheet\d+\.xml$/.test(name))
+    .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
+
+  let taken = 0
+  const skipped = []
+  for (const name of sheets) {
+    const sheet = sheetRows(await zip.file(name).async('string'), strings).filter(r => r.some(Boolean))
+    if (sheet.length < 2) continue
+    if (!isDictionarySheet(sheet[0])) {
+      skipped.push(`${sheet[0][0] || '?'} | ${sheet[0][1] || '?'}`)
+      continue
+    }
+    rows.push(...sheet.slice(1))
+    taken += sheet.length - 1
+  }
+  console.log(`${basename(src)}: строк ${taken}${skipped.length ? `, мимо словаря: ${skipped.join('; ')}` : ''}`)
+}
+
+if (!rows.length) {
+  console.error(`Словарных листов не нашлось. Проверь, что ${SRCS.map(basename).join(', ')} — это глоссарий, а не другой файл.`)
   process.exit(1)
 }
 
 const dictionary = new Map()
-for (const [en, ru] of rows.slice(1)) {
+for (const [en, ru] of rows) {
   if (!en || !ru) continue
   if (!dictionary.has(key(en))) dictionary.set(key(en), ru.trim())
 }
@@ -347,7 +381,9 @@ const missingTerms = new Set()
 let fromFallback = 0
 
 for (const c of characters) {
-  for (const value of [c.gender, c.status, ...c.species, ...c.affiliation, ...c.continent, ...c.occupation, ...c.cls]) {
+  // Локации тоже переводятся через terms: в карточке персонажа это отдельная
+  // строка, и без них «Bloodfields» и «High Passes» стояли бы по-английски.
+  for (const value of [c.gender, c.status, ...c.species, ...c.affiliation, ...c.continent, ...c.occupation, ...c.cls, ...c.locations]) {
     if (!value || terms[value]) continue
 
     const hit = translate(value)
@@ -367,10 +403,10 @@ const sorted = obj => Object.fromEntries(Object.entries(obj).sort(([a], [b]) => 
 writeFileSync(OUT, `${JSON.stringify({
   _readme: [
     'Словарь игры «Кто из таверны». Собирается из рабочего глоссария перевода:',
-    'node scripts/import-glossary.mjs [путь-к-xlsx]. Правки руками переживут только',
+    'node scripts/import-glossary.mjs [пути-к-xlsx…]. Правки руками переживут только',
     'до следующего запуска импорта — лучше править сам глоссарий.',
     'names — короткие имена, fullNames — имя с фамилией (показываем его, если есть),',
-    'terms — виды, организации, континенты, занятия, классы.',
+    'terms — виды, организации, континенты, занятия, классы, локации.',
     'Чего здесь нет, то показывается по-английски. Сервер читает файл на лету.',
   ],
   names: sorted(names),
