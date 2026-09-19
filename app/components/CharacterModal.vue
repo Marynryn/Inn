@@ -12,22 +12,25 @@ const emit = defineEmits<{
 }>()
 
 const sheetEl = ref<HTMLElement | null>(null)
+const portraitEl = ref<HTMLElement | null>(null)
+const photoEl = ref<HTMLElement | null>(null)
 
 /**
- * Лист вылетает из карточки: в первом кадре он сжат до её размера и стоит на
- * её месте, дальше разворачивается туда, где ему положено быть. Закрытие — тот
- * же путь назад. Без origin (или если анимации выключены в системе) остаётся
- * простое появление из CSS.
+ * Лист вылетает из карточки: в первом кадре он сжат до размера превью и стоит
+ * на его месте, дальше разворачивается туда, где ему положено быть. Закрытие —
+ * тот же путь назад. Без исходного прямоугольника (или если анимации выключены
+ * в системе) остаётся простое появление из CSS.
+ *
+ * Тем же путём картинка целиком вырастает из портрета.
  */
-const flightFrames = (): Keyframe[] | null => {
-  const el = sheetEl.value
-  if (!el || !props.origin) return null
+const flightFrames = (el: HTMLElement | null, from: Origin | null | undefined): Keyframe[] | null => {
+  if (!el || !from) return null
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return null
 
   const rect = el.getBoundingClientRect()
-  const dx = props.origin.x + props.origin.width / 2 - (rect.x + rect.width / 2)
-  const dy = props.origin.y + props.origin.height / 2 - (rect.y + rect.height / 2)
-  const scale = Math.min(props.origin.width / rect.width, props.origin.height / rect.height)
+  const dx = from.x + from.width / 2 - (rect.x + rect.width / 2)
+  const dy = from.y + from.height / 2 - (rect.y + rect.height / 2)
+  const scale = Math.min(from.width / rect.width, from.height / rect.height)
   return [
     { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: 0.3 },
     { transform: 'none', opacity: 1 },
@@ -38,11 +41,166 @@ let closing = false
 
 const close = () => {
   if (closing) return
-  const frames = flightFrames()
+  const frames = flightFrames(sheetEl.value, props.origin)
   if (!frames) return emit('close')
   closing = true
   sheetEl.value!.animate([...frames].reverse(), { duration: 200, easing: 'cubic-bezier(.4, 0, 1, 1)', fill: 'forwards' })
     .finished.finally(() => emit('close'))
+}
+
+/**
+ * Картинка целиком поверх листа. Портрет в карточке квадратный, и у высокого
+ * рисунка видна только середина — увеличение показывает его без обрезки.
+ * Прокрутку страницы уже держит лист, второй замок не нужен.
+ */
+const photo = ref(false)
+let photoFrom: Origin | null = null
+let photoClosing = false
+
+/**
+ * Увеличение внутри самой картинки — чтобы рассмотреть мелочи: колесо, щипок
+ * двумя пальцами или щелчок по рисунку. Пока масштаб больше единицы, картинку
+ * можно таскать, но за собственные края она не уходит.
+ */
+const MIN_ZOOM = 1
+const MAX_ZOOM = 6
+const CLICK_ZOOM = 2.5
+
+const view = reactive({ scale: MIN_ZOOM, x: 0, y: 0 })
+const dragging = ref(false)
+const smooth = ref(false) // плавный переход нужен щелчку, а колесу и перетаскиванию мешает
+
+const photoStyle = computed(() => ({ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }))
+
+const resetView = () => {
+  view.scale = MIN_ZOOM
+  view.x = 0
+  view.y = 0
+}
+
+/** Сдвиг не больше той части картинки, что свисает за экран: пустых полей не будет. */
+const clampPan = () => {
+  const el = photoEl.value
+  if (!el) return
+  const slack = (size: number, screen: number) => Math.max(0, (size * view.scale - screen) / 2)
+  const maxX = slack(el.offsetWidth, window.innerWidth)
+  const maxY = slack(el.offsetHeight, window.innerHeight)
+  view.x = Math.min(maxX, Math.max(-maxX, view.x))
+  view.y = Math.min(maxY, Math.max(-maxY, view.y))
+}
+
+/** Масштаб вокруг точки экрана: что было под пальцем, под ним и остаётся. */
+const zoomAt = (clientX: number, clientY: number, next: number) => {
+  const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next))
+  const cx = window.innerWidth / 2
+  const cy = window.innerHeight / 2
+  const u = (clientX - cx - view.x) / view.scale
+  const v = (clientY - cy - view.y) / view.scale
+  view.scale = scale
+  if (scale === MIN_ZOOM) {
+    view.x = 0
+    view.y = 0
+    return
+  }
+  view.x = clientX - cx - u * scale
+  view.y = clientY - cy - v * scale
+  clampPan()
+}
+
+const onWheel = (e: WheelEvent) => {
+  smooth.value = false
+  zoomAt(e.clientX, e.clientY, view.scale * (e.deltaY < 0 ? 1.18 : 1 / 1.18))
+}
+
+/**
+ * Пальцы и мышь — одними и теми же событиями. Два пальца — щипок, один —
+ * таскание; если палец не сдвинулся, это щелчок, и он переключает масштаб.
+ */
+const pointers = new Map<number, { x: number; y: number }>()
+let pinchFrom = 0
+let pinchScale = MIN_ZOOM
+let pressAt = { x: 0, y: 0 }
+let moved = false
+
+const onPointerDown = (e: PointerEvent) => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  ;(e.target as Element).setPointerCapture?.(e.pointerId)
+  smooth.value = false
+
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()] as [{ x: number; y: number }, { x: number; y: number }]
+    pinchFrom = Math.hypot(a.x - b.x, a.y - b.y)
+    pinchScale = view.scale
+    moved = true
+    return
+  }
+  pressAt = { x: e.clientX, y: e.clientY }
+  moved = false
+  dragging.value = view.scale > MIN_ZOOM
+}
+
+const onPointerMove = (e: PointerEvent) => {
+  const prev = pointers.get(e.pointerId)
+  if (!prev) return
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+  if (pointers.size === 2 && pinchFrom) {
+    const [a, b] = [...pointers.values()] as [{ x: number; y: number }, { x: number; y: number }]
+    zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, pinchScale * (Math.hypot(a.x - b.x, a.y - b.y) / pinchFrom))
+    return
+  }
+
+  if (Math.hypot(e.clientX - pressAt.x, e.clientY - pressAt.y) > 6) moved = true
+  if (!dragging.value) return
+  view.x += e.clientX - prev.x
+  view.y += e.clientY - prev.y
+  clampPan()
+}
+
+const onPointerUp = (e: PointerEvent) => {
+  pointers.delete(e.pointerId)
+  if (pointers.size < 2) pinchFrom = 0
+  dragging.value = false
+  if (pointers.size || moved) return
+
+  smooth.value = true
+  zoomAt(e.clientX, e.clientY, view.scale > MIN_ZOOM ? MIN_ZOOM : CLICK_ZOOM)
+}
+
+const openPhoto = async () => {
+  resetView()
+  const rect = portraitEl.value?.getBoundingClientRect()
+  photoFrom = rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null
+  photo.value = true
+  await nextTick()
+
+  // Картинку целиком браузер тянет только сейчас: пока она не разобрана, её
+  // размеров нет и лететь неоткуда — ждём, а фон в это время уже затемнён.
+  const img = photoEl.value as HTMLImageElement | null
+  if (img && !img.complete) await img.decode().catch(() => {})
+  if (!photo.value) return
+
+  const frames = flightFrames(photoEl.value, photoFrom)
+  if (frames) photoEl.value!.animate(frames, { duration: 240, easing: 'cubic-bezier(.2, .8, .2, 1)' })
+}
+
+const closePhoto = async () => {
+  if (photoClosing) return
+  // Увеличенная картинка складывается в портрет не из своего масштаба, а из
+  // обычного: иначе полёт считается по раздутому размеру и уезжает мимо.
+  if (view.scale > MIN_ZOOM) {
+    smooth.value = false
+    resetView()
+    await nextTick()
+  }
+  const frames = flightFrames(photoEl.value, photoFrom)
+  if (!frames) return void (photo.value = false)
+  photoClosing = true
+  photoEl.value!.animate([...frames].reverse(), { duration: 180, easing: 'cubic-bezier(.4, 0, 1, 1)', fill: 'forwards' })
+    .finished.finally(() => {
+      photo.value = false
+      photoClosing = false
+    })
 }
 
 const list = (values: string[]) => values.length ? values.join(', ') : '—'
@@ -59,12 +217,15 @@ const facts = computed(() => [
 ])
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') close()
+  if (e.key !== 'Escape') return
+  // Сначала закрывается картинка — лист под ней остаётся открытым.
+  if (photo.value) return closePhoto()
+  close()
 }
 
 onMounted(() => {
   document.addEventListener('keydown', onKeydown)
-  const frames = flightFrames()
+  const frames = flightFrames(sheetEl.value, props.origin)
   if (frames) {
     sheetEl.value!.classList.add('flying')
     sheetEl.value!.animate(frames, { duration: 320, easing: 'cubic-bezier(.2, .8, .2, 1)' })
@@ -82,7 +243,23 @@ useScrollLock()
         <button class="close" type="button" aria-label="Закрыть" @click="close">×</button>
 
         <div class="portrait-wrap">
-          <div class="portrait">
+          <button
+            v-if="character.image && character.full"
+            ref="portraitEl"
+            class="portrait zoomable"
+            type="button"
+            :aria-label="`Показать картинку целиком: ${character.name}`"
+            @click="openPhoto"
+          >
+            <img :src="character.image" :alt="character.name">
+            <span class="zoom" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path d="M15.5 15.5 L21 21M10.5 7.5v6M7.5 10.5h6" />
+              </svg>
+            </span>
+          </button>
+          <div v-else class="portrait">
             <img v-if="character.image" :src="character.image" :alt="character.name">
             <div v-else class="placeholder" aria-hidden="true">
               <span class="initial display">{{ character.name.slice(0, 1) }}</span>
@@ -111,6 +288,24 @@ useScrollLock()
           </div>
         </div>
       </div>
+    </div>
+
+    <div v-if="photo && character.full" class="photo" :style="{ '--glow': character.glow }" @click="closePhoto">
+      <img
+        ref="photoEl"
+        :src="character.full"
+        :alt="character.name"
+        :class="{ zoomed: view.scale > MIN_ZOOM, dragging, smooth }"
+        :style="photoStyle"
+        draggable="false"
+        @click.stop
+        @wheel.prevent="onWheel"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
+      >
+      <button class="photo-close" type="button" aria-label="Закрыть картинку" @click.stop="closePhoto">×</button>
     </div>
   </Teleport>
 </template>
@@ -195,6 +390,111 @@ useScrollLock()
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Портрет с полной картинкой — кнопка, но выглядит ровно как обычный. */
+.portrait.zoomable {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  cursor: zoom-in;
+}
+
+.zoom {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(20, 14, 10, .66);
+  color: var(--parchment-2);
+  transition: opacity .15s ease, color .15s ease;
+}
+
+/* С мышью значок всплывает при наведении и не мешает смотреть на портрет;
+   на телефоне наводить нечем — там он виден всегда, только приглушённый. */
+.zoom {
+  opacity: .8;
+}
+
+@media (hover: hover) {
+  .zoom {
+    opacity: 0;
+  }
+
+  .portrait.zoomable:hover .zoom,
+  .portrait.zoomable:focus-visible .zoom {
+    opacity: 1;
+    color: var(--ember-soft);
+  }
+}
+
+/* Картинка целиком: поверх листа, вписана в экран. Мимо картинки — закрытие,
+   по самой картинке — увеличение. Раздутая наружу не вылезает: слой её режет. */
+.photo {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow: hidden;
+  background: rgba(12, 8, 6, .9);
+  cursor: zoom-out;
+  animation: fade-in .15s ease;
+}
+
+.photo img {
+  display: block;
+  max-width: min(100%, 900px);
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 30px 60px -30px rgba(0, 0, 0, .9),
+    0 0 0 1px color-mix(in srgb, var(--glow) 35%, transparent);
+  cursor: zoom-in;
+  /* Щипок и перетаскивание ведём сами — иначе браузер начнёт возить страницу. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.photo img.smooth {
+  transition: transform .18s ease;
+}
+
+.photo img.zoomed {
+  cursor: grab;
+}
+
+.photo img.dragging {
+  cursor: grabbing;
+}
+
+/* Когда картинка раздута на весь экран, мимо неё уже не щёлкнешь — нужен крестик. */
+.photo-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(20, 14, 10, .7);
+  color: var(--parchment-2);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.photo-close:hover {
+  color: var(--ember-soft);
 }
 
 .placeholder {
@@ -320,6 +620,15 @@ useScrollLock()
 
   .initial {
     font-size: 96px;
+  }
+
+  .photo {
+    padding: 12px;
+  }
+
+  .photo img {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
   }
 
   /* Текст уходит под портрет с растворением, а не обрезом по линейке. */

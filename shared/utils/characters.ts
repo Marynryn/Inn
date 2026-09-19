@@ -15,6 +15,7 @@ export type Character = {
   locations: string[]
   volume: number
   image: string | null // /characters/<id>.webp, если файл положили; иначе плейсхолдер
+  full: string | null // та же картинка целиком: есть не у всех, с ней портрет увеличивается по клику
   description: string[] // абзацы; пусто — блока в карточке нет
   glow: string // цвет подсветки в открытой карточке, по расе
   flames: number

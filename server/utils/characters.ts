@@ -27,6 +27,7 @@ export type CharacterCard = {
   locations: string[]
   volume: number
   image: string | null // /characters/<id>.webp, если файл положили; иначе плейсхолдер
+  full: string | null // та же картинка целиком, если её положили в full/
   description: string[] // абзацы; пусто — блока в карточке нет
   glow: string // цвет подсветки в открытой карточке, по расе
 }
@@ -136,21 +137,28 @@ async function useExtras(): Promise<Map<string, Extra>> {
  * Картинки лежат в public/characters/<id>.webp и добавляются по одной — без
  * списка на сервере карточка не узнает, есть ли файл, а стучаться за каждой
  * картинкой и ловить 404 не хочется. Папки может не быть вовсе.
+ *
+ * Рядом, в public/characters/full/<id>.webp, лежит та же картинка целиком:
+ * портрет в карточке квадратный, и высокий рисунок пришлось бы обрезать. Полная
+ * есть не у всех — по этому списку карточка решает, предлагать ли увеличение.
  */
-let imagesCache: Set<string> | null = null
+const idsCache = new Map<string, Set<string>>()
 
-function imageIds(): Set<string> {
-  if (imagesCache && !import.meta.dev) return imagesCache
+function webpIds(dir: string): Set<string> {
+  const cached = idsCache.get(dir)
+  if (cached && !import.meta.dev) return cached
+  let ids: Set<string>
   try {
-    imagesCache = new Set(
-      readdirSync(resolve('public/characters'))
+    ids = new Set(
+      readdirSync(resolve(dir))
         .filter(f => f.endsWith('.webp'))
         .map(f => f.slice(0, -'.webp'.length)),
     )
   } catch {
-    imagesCache = new Set()
+    ids = new Set()
   }
-  return imagesCache
+  idsCache.set(dir, ids)
+  return ids
 }
 
 let cardsCache: CharacterCard[] | null = null
@@ -160,7 +168,8 @@ export async function characterCards(): Promise<CharacterCard[]> {
 
   const glossary = await useGlossary()
   const extras = await useExtras()
-  const images = imageIds()
+  const images = webpIds('public/characters')
+  const fulls = webpIds('public/characters/full')
   const term = (v: string) => ruTerm(v, glossary)
 
   cardsCache = (await allCharacters())
@@ -180,6 +189,7 @@ export async function characterCards(): Promise<CharacterCard[]> {
         locations: extra?.locations ?? c.locations.map(term),
         volume: c.volume,
         image: images.has(c.id) ? `/characters/${c.id}.webp` : null,
+        full: fulls.has(c.id) ? `/characters/full/${c.id}.webp` : null,
         description: extra?.description ?? [],
         glow: glowOf(c.species),
       }

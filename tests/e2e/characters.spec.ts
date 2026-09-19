@@ -75,6 +75,43 @@ test.describe('Карточки персонажей', () => {
     await expect(dialog).toBeHidden()
   })
 
+  test('портрет с полной картинкой увеличивается, Esc закрывает её раньше карточки', async ({ page }) => {
+    await open(page, '/characters')
+    await page.getByPlaceholder(SEARCH).fill('Эрин')
+    await page.locator('.card').first().click()
+
+    const dialog = page.getByRole('dialog', { name: 'Эрин Солстис' })
+    await dialog.getByRole('button', { name: /Показать картинку целиком/ }).click()
+
+    const photo = page.locator('.photo img')
+    await expect(photo).toBeVisible()
+    await expect(photo).toHaveAttribute('src', '/characters/full/erin.webp')
+
+    // Щелчок по самой картинке приближает её, повторный — возвращает как было.
+    await photo.click()
+    await expect(photo).toHaveClass(/zoomed/)
+    await photo.click()
+    await expect(photo).not.toHaveClass(/zoomed/)
+
+    // Первый Esc убирает картинку, лист под ней остаётся открытым.
+    await page.keyboard.press('Escape')
+    await expect(photo).toBeHidden()
+    await expect(dialog).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+  })
+
+  test('без полной картинки портрет не предлагает увеличение', async ({ page }) => {
+    await open(page, '/characters')
+    await page.getByPlaceholder(SEARCH).fill('Торен')
+    await page.locator('.card').first().click()
+
+    const dialog = page.getByRole('dialog', { name: 'Торен' })
+    await expect(dialog.locator('.portrait img')).toBeVisible()
+    await expect(dialog.getByRole('button', { name: /Показать картинку целиком/ })).toHaveCount(0)
+  })
+
   test('админ прячет карточку, и читатель её не получает', async ({ page, browser }) => {
     await login(page, ADMIN)
     await open(page, '/characters')
