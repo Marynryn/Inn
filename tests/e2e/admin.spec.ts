@@ -83,6 +83,26 @@ test.describe('Панель администратора', () => {
     await editChapter(page, ch.id, { title: ch.title })
   })
 
+  test('плитка «Просмотров сегодня» раскрывается списком глав', async ({ page }) => {
+    // Просмотр засчитывает сама страница главы, а не серверный рендер, — поэтому
+    // сначала читаем главу и дожидаемся запроса, иначе список будет пустым.
+    await open(page, chapterUrl(CHAPTERS[0].id))
+    await page.waitForResponse(r => r.url().includes('/view') && r.ok())
+
+    await login(page, ADMIN)
+    await open(page, '/admin')
+    await page.locator('.sb-tab', { hasText: 'Статистика' }).click()
+    await page.locator('.stat-card--open').click()
+
+    const dialog = page.getByRole('dialog', { name: 'Просмотры сегодня' })
+    await expect(dialog).toBeVisible()
+    const row = dialog.locator('.row', { hasText: CHAPTERS[0].title })
+    await expect(row.locator('.row-id')).toHaveText(CHAPTERS[0].id)
+
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+  })
+
   test('статистика отдаёт просмотры и пользователей', async ({ page }) => {
     await login(page, ADMIN)
     const stats = await page.request.get('/api/admin/stats')

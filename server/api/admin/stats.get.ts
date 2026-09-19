@@ -71,6 +71,20 @@ export default defineEventHandler(async (event) => {
     UNION SELECT user_id FROM reading_progress
   `)
 
+  // Что именно читали сегодня — та же таблица, что и счётчик выше, только
+  // построчно. Присоединение левое: строка остаётся и у снятой с сайта главы,
+  // иначе список не сошёлся бы с числом на плитке. Название тогда пустое.
+  const viewsTodayChapters = await db
+    .select({
+      id: chapterViewDays.chapterId,
+      title: chapters.title,
+      views: chapterViewDays.count,
+    })
+    .from(chapterViewDays)
+    .leftJoin(chapters, eq(chapters.id, chapterViewDays.chapterId))
+    .where(eq(chapterViewDays.day, mskDay()))
+    .orderBy(desc(chapterViewDays.count))
+
   const topChapters = await db
     .select({
       id: chapters.id,
@@ -87,6 +101,7 @@ export default defineEventHandler(async (event) => {
   return {
     totalViews: Number(totals?.totalViews ?? 0),
     viewsToday: Number(today?.total ?? 0),
+    viewsTodayChapters,
     totalDownloads: Number(totals?.totalDownloads ?? 0),
     totalComments: commentCount?.total ?? 0,
     game: {

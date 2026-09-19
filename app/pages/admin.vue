@@ -516,6 +516,7 @@ const sendNotify = async () => {
 
 // --- Статистика ---
 const { data: stats } = await useFetch('/api/admin/stats')
+const viewsModal = ref(false)
 type StatsSortKey = 'order' | 'date' | 'views' | 'downloads'
 const statsSort = ref<{ key: StatsSortKey; dir: 'asc' | 'desc' }>({ key: 'views', dir: 'desc' })
 
@@ -756,10 +757,13 @@ useHead({
               <div class="stat-value">{{ stats?.totalViews?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Просмотров глав</div>
             </div>
-            <div class="stat-card stat-card--today">
+            <!-- Единственная плитка, за которой есть что смотреть: сумма за
+                 сегодня раскладывается по главам. -->
+            <button class="stat-card stat-card--today stat-card--open" type="button" @click="viewsModal = true">
               <div class="stat-value">{{ stats?.viewsToday?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Просмотров сегодня</div>
-            </div>
+              <span class="stat-hint">по главам →</span>
+            </button>
             <div class="stat-card">
               <div class="stat-value">{{ stats?.totalDownloads?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Скачиваний epub</div>
@@ -833,6 +837,12 @@ useHead({
             </div>
           </div>
 
+          <ViewsTodayModal
+            v-if="viewsModal"
+            :rows="stats?.viewsTodayChapters ?? []"
+            :total="stats?.viewsToday ?? 0"
+            @close="viewsModal = false"
+          />
         </section>
 
         <!-- Комментарии -->
@@ -1978,6 +1988,44 @@ useHead({
 .stat-card--today {
   border-color: rgba(214, 136, 62, .35);
   background: rgba(214, 136, 62, .07);
+}
+
+/* Плитка-кнопка: выглядит как соседние, но нажимается. Подсказка появляется
+   при наведении — на телефоне наводить нечем, там она видна всегда. */
+.stat-card--open {
+  position: relative;
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stat-card--open:hover,
+.stat-card--open:focus-visible {
+  border-color: rgba(214, 136, 62, .6);
+}
+
+.stat-hint {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  font-size: 11px;
+  color: var(--ember-soft);
+  opacity: .75;
+}
+
+@media (hover: hover) {
+  .stat-hint {
+    opacity: 0;
+    transition: opacity .15s ease;
+  }
+
+  .stat-card--open:hover .stat-hint,
+  .stat-card--open:focus-visible .stat-hint {
+    opacity: .9;
+  }
 }
 
 .stat-value {
