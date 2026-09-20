@@ -63,7 +63,7 @@ onUnmounted(() => {
       aria-label="Настройки вида"
       @click="open = true"
     >
-      <NuxtImg src="/reader-book.webp" class="book" width="160" height="210" alt="" />
+      <NuxtImg src="/reader-book.webp" class="book" width="167" height="210" alt="" />
     </button>
   </div>
 
