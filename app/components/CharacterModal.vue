@@ -54,6 +54,10 @@ const close = () => {
  * Прокрутку страницы уже держит лист, второй замок не нужен.
  */
 const photo = ref(false)
+// Пока картинка не разобрана и полёт не запущен, она спрятана: иначе на
+// медленной сети браузер успевает нарисовать её во весь размер за кадр до
+// анимации, и она вспыхивает, прыгает в портрет и только потом вылетает.
+const photoReady = ref(false)
 let photoFrom: Origin | null = null
 let photoClosing = false
 
@@ -169,6 +173,7 @@ const onPointerUp = (e: PointerEvent) => {
 
 const openPhoto = async () => {
   resetView()
+  photoReady.value = false
   const rect = portraitEl.value?.getBoundingClientRect()
   photoFrom = rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null
   photo.value = true
@@ -180,7 +185,9 @@ const openPhoto = async () => {
   if (img && !img.complete) await img.decode().catch(() => {})
   if (!photo.value) return
 
+  // Показать и запустить полёт в одном тике — между ними кадра не будет.
   const frames = flightFrames(photoEl.value, photoFrom)
+  photoReady.value = true
   if (frames) photoEl.value!.animate(frames, { duration: 240, easing: 'cubic-bezier(.2, .8, .2, 1)' })
 }
 
@@ -304,7 +311,7 @@ useScrollLock()
         ref="photoEl"
         :src="character.full"
         :alt="character.name"
-        :class="{ zoomed: view.scale > MIN_ZOOM, dragging, smooth }"
+        :class="{ ready: photoReady, zoomed: view.scale > MIN_ZOOM, dragging, smooth }"
         :style="photoStyle"
         draggable="false"
         @click.stop
@@ -472,6 +479,10 @@ useScrollLock()
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+.photo img:not(.ready) {
+  visibility: hidden;
 }
 
 .photo img.smooth {
