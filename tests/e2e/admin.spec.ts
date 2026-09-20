@@ -1,6 +1,6 @@
 import { test, expect, open, login } from './helpers'
 import type { Page } from '@playwright/test'
-import { ADMIN, CHAPTERS, READER, chapterUrl } from './fixtures'
+import { ADMIN, CHAPTERS, READER, chapterUrl, makeEpub } from './fixtures'
 
 /**
  * Правка главы. Сервер всегда ждёт полный contentHtml — так работает и редактор
@@ -39,6 +39,47 @@ test.describe('Панель администратора', () => {
 
     await page.getByRole('button', { name: 'Список глав' }).click()
     await expect(page.getByRole('heading', { name: `Главы (${CHAPTERS.length})` })).toBeVisible()
+  })
+
+  test('интерлюдия, загруженная позже, встаёт в конец своего тома, и навигация видит её без перезагрузки', async ({ page }) => {
+    await login(page, ADMIN)
+    // Вкладка с главой открыта заранее: список глав в ней уже загружен.
+    await open(page, chapterUrl('1.01'))
+
+    // Посев: 1.01, 1.02, 2.01. Догружаем интерлюдию первого тома — она должна
+    // встать после 1.02, а не после второго тома, как было бы по порядку
+    // загрузки. По номеру её место не угадать, ориентир — только том.
+    const late = { id: 'I.1.1', volume: 1, title: 'Интерлюдия' }
+    const lateUrl = '/chapter/i-1-1'
+    const upload = await page.request.post('/api/admin/chapters', {
+      multipart: {
+        id: late.id,
+        title: late.title,
+        volume: String(late.volume),
+        publishedAt: '2026-02-01',
+        isPublished: '1',
+        epub: { name: `${late.id}.epub`, mimeType: 'application/epub+zip', buffer: await makeEpub(late.title, 5) },
+      },
+    })
+    expect(upload.ok(), await upload.text()).toBeTruthy()
+
+    try {
+      const list = await (await page.request.get('/api/chapters')).json()
+      expect(list.map((c: any) => c.id)).toEqual(['1.01', '1.02', late.id, '2.01'])
+
+      // Переход по ссылке, не перезагрузка: список должен подтянуться заново.
+      const nav = page.locator('.reader-nav')
+      await nav.getByRole('link', { name: '1.02 →' }).click()
+      await expect(page).toHaveURL(chapterUrl('1.02'))
+      await expect(nav.getByRole('link', { name: `${late.id} →` })).toHaveAttribute('href', lateUrl)
+
+      await nav.getByRole('link', { name: `${late.id} →` }).click()
+      await expect(page).toHaveURL(lateUrl)
+      await expect(nav.getByRole('link', { name: '← 1.02' })).toHaveAttribute('href', chapterUrl('1.02'))
+      await expect(nav.getByRole('link', { name: '2.01 →' })).toHaveAttribute('href', chapterUrl('2.01'))
+    } finally {
+      await page.request.delete(`/api/admin/chapters/${encodeURIComponent(late.id)}`)
+    }
   })
 
   test('черновик не виден читателям, а после публикации — виден', async ({ page }) => {

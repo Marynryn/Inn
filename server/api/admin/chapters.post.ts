@@ -4,8 +4,41 @@ import { parseEpub } from '../../utils/epub-parser'
 import { writeFile, mkdir } from 'fs/promises'
 import { resolve } from 'path'
 import { getStorageDir } from '../../utils/storage'
-import { max } from 'drizzle-orm'
+import { asc, eq } from 'drizzle-orm'
 import { countWords } from '#shared/utils/wordCount'
+
+/**
+ * Возвращает sortOrder для главы id. Уже загруженная глава остаётся на своём
+ * месте. Новая встаёт в конец своего тома — после последней главы с таким же
+ * или меньшим номером тома, — а всё, что ниже, сдвигается на единицу. По номеру
+ * главы место не угадать: интерлюдии («I.2.2») и побочные истории («1.00 C» в
+ * томе 2) стоят там, куда их поставили руками в панели; а вот в конец своего
+ * тома они ложатся верно, потому что главы и грузятся по порядку чтения.
+ * Список заодно перенумеровывается подряд — дубли и дыры в sortOrder делают
+ * порядок в выдаче случайным.
+ */
+async function placeChapter(db: ReturnType<typeof useDb>, id: string, volume: number) {
+  const rows = await db
+    .select({ id: chapters.id, volume: chapters.volume, sortOrder: chapters.sortOrder })
+    .from(chapters)
+    .orderBy(asc(chapters.sortOrder))
+
+  const existing = rows.find(r => r.id === id)
+  if (existing) return existing.sortOrder
+
+  let at = 0
+  rows.forEach((r, i) => {
+    if (r.volume <= volume) at = i + 1
+  })
+
+  for (let i = 0; i < rows.length; i++) {
+    const wanted = i < at ? i + 1 : i + 2
+    if (rows[i]!.sortOrder !== wanted) {
+      await db.update(chapters).set({ sortOrder: wanted }).where(eq(chapters.id, rows[i]!.id))
+    }
+  }
+  return at + 1
+}
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -51,10 +84,12 @@ export default defineEventHandler(async (event) => {
   await writeFile(epubPath, epubField.data)
 
   const db = useDb()
-
-  const [{ maxOrder }] = await db.select({ maxOrder: max(chapters.sortOrder) }).from(chapters)
-  const sortOrder = (maxOrder ?? 0) + 1
   const wordCount = countWords(contentHtml)
+
+  // Новая глава встаёт в конец своего тома, а не всего списка: иначе глава
+  // второго тома, загруженная после четвёртого, оказывалась последней — и
+  // навигация «← →» с оглавлением, которые идут по sortOrder, вели через тома.
+  const sortOrder = await placeChapter(db, id, volume)
 
   await db
     .insert(chapters)

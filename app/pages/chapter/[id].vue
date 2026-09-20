@@ -17,7 +17,11 @@ if (error.value) {
   })
 }
 
-const { data: allChapters } = await useFetch('/api/chapters')
+// Ключ — свой на каждую главу. С общим ключом Nuxt при переходе между главами
+// не перезапрашивает список (предыдущая страница ещё смонтирована, её данные
+// считаются свежими), и навигация «← →» до перезагрузки вкладки живёт на
+// порядке, который был при первом заходе, — перестановки в панели не доезжают.
+const { data: allChapters } = await useFetch('/api/chapters', { key: `chapters-nav:${rawParam}` })
 const { data: settings } = useFetch('/api/settings')
 
 // Источник истины по id — ответ API (он резолвит слаг в реальный id главы),
