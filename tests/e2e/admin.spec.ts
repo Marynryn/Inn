@@ -133,12 +133,32 @@ test.describe('Панель администратора', () => {
     await login(page, ADMIN)
     await open(page, '/admin')
     await page.locator('.sb-tab', { hasText: 'Статистика' }).click()
-    await page.locator('.stat-card--open').click()
+    await page.locator('.stat-card--open', { hasText: 'Просмотров сегодня' }).click()
 
     const dialog = page.getByRole('dialog', { name: 'Просмотры сегодня' })
     await expect(dialog).toBeVisible()
     const row = dialog.locator('.row', { hasText: CHAPTERS[0].title })
     await expect(row.locator('.row-id')).toHaveText(CHAPTERS[0].id)
+
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+  })
+
+  test('плитка «Скачиваний epub» раскрывается списком скачиваний за сегодня', async ({ page }) => {
+    // Скачивает гость: свои скачивания администратора в дневной список не идут.
+    const dl = await page.request.get(`/api/chapters/${encodeURIComponent(CHAPTERS[1]!.id)}/download`)
+    expect(dl.ok()).toBeTruthy()
+
+    await login(page, ADMIN)
+    await open(page, '/admin')
+    await page.locator('.sb-tab', { hasText: 'Статистика' }).click()
+    await page.locator('.stat-card--open', { hasText: 'Скачиваний epub' }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Скачивания сегодня' })
+    await expect(dialog).toBeVisible()
+    const row = dialog.locator('.row', { hasText: CHAPTERS[1]!.title })
+    await expect(row.locator('.row-id')).toHaveText(CHAPTERS[1]!.id)
+    await expect(row.locator('.row-num')).toHaveText('1')
 
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()

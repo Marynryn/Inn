@@ -1,5 +1,5 @@
 import { useDb } from '../../utils/db'
-import { chapters, chapterStats, chapterViewDays, comments, gameStats, userIdentities, users } from '../../database/schema'
+import { chapterDownloadDays, chapters, chapterStats, chapterViewDays, comments, gameStats, userIdentities, users } from '../../database/schema'
 import { and, eq, desc, gte, sql, sum, count } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -78,12 +78,26 @@ export default defineEventHandler(async (event) => {
     .select({
       id: chapterViewDays.chapterId,
       title: chapters.title,
-      views: chapterViewDays.count,
+      count: chapterViewDays.count,
     })
     .from(chapterViewDays)
     .leftJoin(chapters, eq(chapters.id, chapterViewDays.chapterId))
     .where(eq(chapterViewDays.day, mskDay()))
     .orderBy(desc(chapterViewDays.count))
+
+  // Скачивания за сегодня — тем же образом. Отдельной плитки «сегодня» у них
+  // нет, список открывается с общей суммы, поэтому сегодняшнюю сумму считаем
+  // здесь же, из тех же строк.
+  const downloadsTodayChapters = await db
+    .select({
+      id: chapterDownloadDays.chapterId,
+      title: chapters.title,
+      count: chapterDownloadDays.count,
+    })
+    .from(chapterDownloadDays)
+    .leftJoin(chapters, eq(chapters.id, chapterDownloadDays.chapterId))
+    .where(eq(chapterDownloadDays.day, mskDay()))
+    .orderBy(desc(chapterDownloadDays.count))
 
   const topChapters = await db
     .select({
@@ -103,6 +117,8 @@ export default defineEventHandler(async (event) => {
     viewsToday: Number(today?.total ?? 0),
     viewsTodayChapters,
     totalDownloads: Number(totals?.totalDownloads ?? 0),
+    downloadsToday: downloadsTodayChapters.reduce((sum, r) => sum + r.count, 0),
+    downloadsTodayChapters,
     totalComments: commentCount?.total ?? 0,
     game: {
       today: sumRows(gameRows.filter(r => r.day === mskDay())),

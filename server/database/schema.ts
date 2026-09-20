@@ -121,6 +121,14 @@ export const chapterViewDays = sqliteTable('chapter_view_days', {
   count: integer('count').notNull().default(0),
 }, t => [primaryKey({ columns: [t.chapterId, t.day] })])
 
+// Скачивания epub по дням — устроено так же, как просмотры: строка на главу
+// за день, без людей. Общая сумма живёт в chapter_stats.
+export const chapterDownloadDays = sqliteTable('chapter_download_days', {
+  chapterId: text('chapter_id').notNull(),
+  day: text('day').notNull(),
+  count: integer('count').notNull().default(0),
+}, t => [primaryKey({ columns: [t.chapterId, t.day] })])
+
 // Партия в игре «Кто из таверны». Ответ и список попыток живут здесь, а не у
 // игрока: браузер знает только разбор своих догадок.
 export const gameSessions = sqliteTable('game_sessions', {

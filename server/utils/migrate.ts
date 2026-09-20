@@ -158,8 +158,19 @@ export async function runMigrations() {
   // отказались, адреса больше не пишем.
   try { await client.execute('DROP TABLE chapter_views') } catch {}
 
+  // Скачивания по дням — та же форма, для плитки «Скачиваний epub».
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS chapter_download_days (
+      chapter_id TEXT NOT NULL,
+      day TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (chapter_id, day)
+    );
+  `)
+
   // Хранить историю по дням незачем: показывается только сегодняшний день.
   await client.execute("DELETE FROM chapter_view_days WHERE day < date('now', '-7 day')")
+  await client.execute("DELETE FROM chapter_download_days WHERE day < date('now', '-7 day')")
 
   // Игра «Кто из таверны»: партии игроков и сводка по персонажу дня.
   // Уникальный индекс частичный — партия дня одна на игрока, свободных сколько угодно.

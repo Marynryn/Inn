@@ -1,15 +1,31 @@
 <script setup lang="ts">
 /**
- * Что читали сегодня. Счётчик на плитке — это сумма, а здесь та же сумма
- * разложена по главам: видно, одну ли главу открывали сто раз или сто глав по
- * разу. Кто именно читал, база не хранит: строка на главу за день, без людей.
+ * Что сегодня читали или скачивали — сумма за день, разложенная по главам:
+ * видно, одну ли главу открывали сто раз или сто глав по разу. Кто именно,
+ * база не хранит: строка на главу за день, без людей. Просмотры и скачивания
+ * различаются только словами, поэтому окно одно на оба.
  */
 const props = defineProps<{
-  rows: { id: string; title: string | null; views: number }[]
+  kind: 'views' | 'downloads'
+  rows: { id: string; title: string | null; count: number }[]
   total: number
 }>()
 
 const emit = defineEmits<{ close: [] }>()
+
+const WORDS = {
+  views: {
+    title: 'Просмотры сегодня',
+    unit: ['просмотр', 'просмотра', 'просмотров'] as [string, string, string],
+    empty: 'Сегодня глав ещё не открывали',
+  },
+  downloads: {
+    title: 'Скачивания сегодня',
+    unit: ['скачивание', 'скачивания', 'скачиваний'] as [string, string, string],
+    empty: 'Сегодня epub ещё не скачивали',
+  },
+}
+const words = computed(() => WORDS[props.kind])
 
 const plural = (n: number, forms: [string, string, string]) => {
   const ten = n % 10
@@ -20,9 +36,9 @@ const plural = (n: number, forms: [string, string, string]) => {
 }
 
 const summary = computed(() => {
-  const views = `${props.total.toLocaleString('ru')} ${plural(props.total, ['просмотр', 'просмотра', 'просмотров'])}`
+  const total = `${props.total.toLocaleString('ru')} ${plural(props.total, words.value.unit)}`
   const chapters = `${props.rows.length} ${plural(props.rows.length, ['главе', 'главах', 'главах'])}`
-  return `${views} в ${chapters}`
+  return `${total} в ${chapters}`
 })
 
 const onKeydown = (e: KeyboardEvent) => {
@@ -38,19 +54,19 @@ useScrollLock()
 <template>
   <Teleport to="body">
     <div class="modal-backdrop" @click.self="emit('close')">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="Просмотры сегодня">
+      <div class="modal" role="dialog" aria-modal="true" :aria-label="words.title">
         <button class="close" type="button" aria-label="Закрыть" @click="emit('close')">×</button>
 
-        <p class="modal-title">Просмотры сегодня</p>
+        <p class="modal-title">{{ words.title }}</p>
         <p class="modal-note">{{ summary }}</p>
 
         <div class="rows thin-scroll">
           <div v-for="r in rows" :key="r.id" class="row">
             <span class="row-id">{{ r.id }}</span>
             <span class="row-title" :class="{ gone: !r.title }">{{ r.title ?? 'глава снята с сайта' }}</span>
-            <span class="row-num">{{ r.views.toLocaleString('ru') }}</span>
+            <span class="row-num">{{ r.count.toLocaleString('ru') }}</span>
           </div>
-          <p v-if="!rows.length" class="empty">Сегодня глав ещё не открывали</p>
+          <p v-if="!rows.length" class="empty">{{ words.empty }}</p>
         </div>
       </div>
     </div>

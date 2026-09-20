@@ -516,7 +516,10 @@ const sendNotify = async () => {
 
 // --- Статистика ---
 const { data: stats } = await useFetch('/api/admin/stats')
+// Плитки-кнопки: у сегодняшних просмотров и у скачиваний за суммой открывается
+// список по главам. У скачиваний сумма общая, а список — только за сегодня.
 const viewsModal = ref(false)
+const downloadsModal = ref(false)
 type StatsSortKey = 'order' | 'date' | 'views' | 'downloads'
 const statsSort = ref<{ key: StatsSortKey; dir: 'asc' | 'desc' }>({ key: 'views', dir: 'desc' })
 
@@ -757,16 +760,16 @@ useHead({
               <div class="stat-value">{{ stats?.totalViews?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Просмотров глав</div>
             </div>
-            <!-- Единственная плитка, за которой есть что смотреть: сумма за
-                 сегодня раскладывается по главам. -->
+            <!-- За этими двумя плитками есть что смотреть: сумма раскладывается
+                 по главам за сегодня. -->
             <button class="stat-card stat-card--today stat-card--open" type="button" @click="viewsModal = true">
               <div class="stat-value">{{ stats?.viewsToday?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Просмотров сегодня</div>
             </button>
-            <div class="stat-card">
+            <button class="stat-card stat-card--open" type="button" @click="downloadsModal = true">
               <div class="stat-value">{{ stats?.totalDownloads?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Скачиваний epub</div>
-            </div>
+            </button>
             <div class="stat-card">
               <div class="stat-value">{{ stats?.totalComments?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Комментариев</div>
@@ -836,11 +839,19 @@ useHead({
             </div>
           </div>
 
-          <ViewsTodayModal
+          <TodayByChapterModal
             v-if="viewsModal"
+            kind="views"
             :rows="stats?.viewsTodayChapters ?? []"
             :total="stats?.viewsToday ?? 0"
             @close="viewsModal = false"
+          />
+          <TodayByChapterModal
+            v-if="downloadsModal"
+            kind="downloads"
+            :rows="stats?.downloadsTodayChapters ?? []"
+            :total="stats?.downloadsToday ?? 0"
+            @close="downloadsModal = false"
           />
         </section>
 
