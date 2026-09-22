@@ -164,6 +164,29 @@ test.describe('Панель администратора', () => {
     await expect(dialog).toBeHidden()
   })
 
+  test('плитка «Комментариев» раскрывается списком последних', async ({ page }) => {
+    const text = `Свежий отзыв ${Date.now()}`
+    const posted = await page.request.post('/api/comments', {
+      data: { chapterId: CHAPTERS[0]!.id, authorName: 'Гость статистики', body: text },
+    })
+    expect(posted.ok(), await posted.text()).toBeTruthy()
+
+    await login(page, ADMIN)
+    await open(page, '/admin')
+    await page.locator('.sb-tab', { hasText: 'Статистика' }).click()
+    await page.locator('.stat-card--open', { hasText: 'Комментариев' }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Последние комментарии' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('.row', { hasText: text })).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+
+    // Отдельной вкладки в меню больше нет — список живёт только в окне.
+    await expect(page.locator('.sb-tab', { hasText: 'Комментарии' })).toHaveCount(0)
+  })
+
   test('статистика отдаёт просмотры и пользователей', async ({ page }) => {
     await login(page, ADMIN)
     const stats = await page.request.get('/api/admin/stats')

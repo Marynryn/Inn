@@ -520,6 +520,7 @@ const { data: stats } = await useFetch('/api/admin/stats')
 // список по главам. У скачиваний сумма общая, а список — только за сегодня.
 const viewsModal = ref(false)
 const downloadsModal = ref(false)
+const commentsModal = ref(false)
 type StatsSortKey = 'order' | 'date' | 'views' | 'downloads'
 const statsSort = ref<{ key: StatsSortKey; dir: 'asc' | 'desc' }>({ key: 'views', dir: 'desc' })
 
@@ -557,23 +558,11 @@ const formatStatsDate = (iso?: string | null) =>
 
 const { data: commentLogs, refresh: refreshLogs } = await useFetch('/api/admin/comments')
 
-const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'notify' | 'stats' | 'comments' | 'frames'>('upload')
+const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'notify' | 'stats' | 'frames'>('upload')
 const appHeader = ref()
 const switchTab = (tab: typeof activeTab.value) => {
   activeTab.value = tab
   appHeader.value?.close()
-}
-
-/**
- * Время из базы — UTC без зоны ('YYYY-MM-DD HH:MM:SS'). Хозяйка сайта живёт по
- * Москве, и «13:33» вместо «16:33» сбивало бы с толку.
- */
-const fmtMsk = (iso?: string | null) => {
-  if (!iso) return ''
-  const date = new Date(iso.replace(' ', 'T') + 'Z')
-  return new Intl.DateTimeFormat('ru-RU', {
-    timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-  }).format(date)
 }
 
 useHead({
@@ -595,7 +584,6 @@ useHead({
           <button class="adm-menu-link" :class="{ active: activeTab === 'settings' }" @click="switchTab('settings')">Настройки сайта</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'notify' }" @click="switchTab('notify')">Уведомления</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'stats' }" @click="switchTab('stats')">Статистика</button>
-          <button class="adm-menu-link" :class="{ active: activeTab === 'comments' }" @click="switchTab('comments')">Комментарии</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'frames' }" @click="switchTab('frames')">Рамки</button>
           <NuxtLink href="/game" class="adm-menu-link">Игра</NuxtLink>
           <button class="adm-menu-link adm-logout" @click="auth.logout().then(() => navigateTo('/login'))">Выйти</button>
@@ -770,10 +758,10 @@ useHead({
               <div class="stat-value">{{ stats?.totalDownloads?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Скачиваний epub</div>
             </button>
-            <div class="stat-card">
+            <button class="stat-card stat-card--open" type="button" @click="commentsModal = true">
               <div class="stat-value">{{ stats?.totalComments?.toLocaleString('ru') ?? 0 }}</div>
               <div class="stat-label">Комментариев</div>
-            </div>
+            </button>
           </div>
 
           <!-- Читатели — строкой, а не пятой плиткой: на этом экране их уже
@@ -846,6 +834,13 @@ useHead({
             :total="stats?.viewsToday ?? 0"
             @close="viewsModal = false"
           />
+          <AdminCommentsModal
+            v-if="commentsModal"
+            :rows="commentLogs ?? []"
+            :total="stats?.totalComments ?? 0"
+            @refresh="refreshLogs"
+            @close="commentsModal = false"
+          />
           <TodayByChapterModal
             v-if="downloadsModal"
             kind="downloads"
@@ -853,26 +848,6 @@ useHead({
             :total="stats?.downloadsToday ?? 0"
             @close="downloadsModal = false"
           />
-        </section>
-
-        <!-- Комментарии -->
-        <section v-if="activeTab === 'comments'" class="card card--fill">
-          <div class="logs-header">
-            <h2 style="margin:0">Последние комментарии</h2>
-            <button class="logs-refresh" @click="refreshLogs">↻ Обновить</button>
-          </div>
-          <div class="logs-list">
-            <div v-for="c in commentLogs" :key="c.id" class="log-item">
-              <div class="log-meta">
-                <span class="log-time">{{ fmtMsk(c.createdAt) }}</span>
-                <span v-if="c.isSpoiler" class="log-spoiler">спойлер</span>
-                <NuxtLink v-if="c.chapterId" :href="`/chapter/${encodeURIComponent(slugifyChapterId(c.chapterId))}/comments`" class="log-link" target="_blank">гл. {{ c.chapterId }} ↗</NuxtLink>
-                <NuxtLink v-else href="/" class="log-link" target="_blank">отзыв о сайте ↗</NuxtLink>
-              </div>
-              <div class="log-body">{{ c.body }}</div>
-            </div>
-            <div v-if="!commentLogs?.length" class="empty-hint">Комментариев пока нет</div>
-          </div>
         </section>
 
         <!-- Рамки для аватарок -->
@@ -1254,10 +1229,6 @@ useHead({
           <button class="sb-tab" :class="{ active: activeTab === 'stats' }" @click="activeTab = 'stats'">
             <span class="sb-icon">📊</span>
             Статистика
-          </button>
-          <button class="sb-tab" :class="{ active: activeTab === 'comments' }" @click="activeTab = 'comments'">
-            <span class="sb-icon">💬</span>
-            Комментарии
           </button>
           <button class="sb-tab" :class="{ active: activeTab === 'frames' }" @click="activeTab = 'frames'">
             <span class="sb-icon">◎</span>
@@ -2236,122 +2207,6 @@ useHead({
   max-width: 1040px;
 }
 
-.card--fill {
-  display: flex;
-  flex-direction: column;
-  height: calc(100dvh - 80px);
-}
-
-.card--fill .logs-header {
-  flex-shrink: 0;
-}
-
-.card--fill .logs-list {
-  flex: 1;
-  max-height: none;
-}
-
-.logs-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 0 12px;
-}
-
-.logs-refresh {
-  background: none;
-  border: 1px solid rgba(241, 230, 210, .15);
-  border-radius: 6px;
-  color: var(--parchment-2);
-  font-size: 12px;
-  padding: 4px 10px;
-  cursor: pointer;
-  font-family: var(--font-body);
-  transition: border-color .15s;
-}
-
-.logs-refresh:hover {
-  border-color: var(--ember-soft);
-}
-
-.logs-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  max-height: 320px;
-  overflow-y: auto;
-  border: 1px solid rgba(241, 230, 210, .07);
-  border-radius: 6px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(214, 136, 62, .3) transparent;
-}
-
-.logs-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.logs-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.logs-list::-webkit-scrollbar-thumb {
-  background: rgba(214, 136, 62, .3);
-  border-radius: 4px;
-}
-
-.logs-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(214, 136, 62, .6);
-}
-
-.log-item {
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border-bottom: 1px solid rgba(241, 230, 210, .05);
-}
-
-.log-item:last-child {
-  border-bottom: none;
-}
-
-.log-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.log-time {
-  font-size: 11px;
-  color: var(--ink-soft);
-}
-
-.log-spoiler {
-  font-size: 11px;
-  color: var(--ember-soft);
-  font-style: italic;
-}
-
-.log-body {
-  font-size: 12.5px;
-  color: var(--parchment-2);
-  opacity: .85;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.log-link {
-  font-size: 11px;
-  color: var(--ember-soft);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  margin-left: auto;
-}
-
-.log-link:hover {
-  color: var(--ember);
-}
-
 .admin-header-wrap {
   display: none;
 }
@@ -2404,10 +2259,6 @@ useHead({
 
   .card {
     padding: 20px 16px;
-  }
-
-  .card--fill {
-    height: calc(100dvh - 56px - 32px);
   }
 
   /* Пять колонок в телефон не влезают: название сжимается в многоточие, а

@@ -143,9 +143,12 @@ test.describe('Находки исследователя', () => {
       timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
     }).format(created)
 
+    // Список комментариев живёт в окне за плиткой «Комментариев», а не вкладкой.
     await open(page, '/admin')
-    await page.getByRole('button', { name: 'Комментарии' }).click()
-    const row = page.locator('.log-item', { hasText: text })
-    await expect(row.locator('.log-time')).toHaveText(expected)
+    await page.locator('.sb-tab', { hasText: 'Статистика' }).click()
+    await page.locator('.stat-card--open', { hasText: 'Комментариев' }).click()
+    const row = page.getByRole('dialog', { name: 'Последние комментарии' })
+      .locator('.row', { hasText: text })
+    await expect(row.locator('.row-time')).toHaveText(expected)
   })
 })
