@@ -21,6 +21,25 @@ test.describe('Комментарии', () => {
     await expect(section.getByPlaceholder('Что думаешь об этой главе?')).toHaveValue('')
   })
 
+  test('кнопка «Обсуждение главы» показывает число комментариев', async ({ page }) => {
+    const id = CHAPTERS[0]!.id
+    const before = (await (await page.request.get(`/api/comments?chapterId=${encodeURIComponent(id)}`)).json()).length
+
+    await open(page, discussionUrl)
+    const section = page.locator('.comments-section')
+    await section.getByPlaceholder('Твоё имя').fill('Счетовод')
+    await section.getByPlaceholder('Что думаешь об этой главе?').fill(`Плюс один ${stamp()}`)
+    await section.getByRole('button', { name: 'Отправить' }).click()
+    await expect(section.locator('.comment-item', { hasText: 'Плюс один' }).first()).toBeVisible()
+
+    await open(page, chapterUrl(id))
+    await expect(page.locator('.comments-cta-btn')).toContainText(`(${before + 1})`)
+
+    // У главы без комментариев скобок нет вовсе.
+    await open(page, chapterUrl(CHAPTERS[2]!.id))
+    await expect(page.locator('.comments-cta-btn')).not.toContainText('(')
+  })
+
   test('гость не может подписаться именем читателя', async ({ page }) => {
     await open(page, discussionUrl)
     const section = page.locator('.comments-section')

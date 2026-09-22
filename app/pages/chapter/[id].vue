@@ -290,7 +290,7 @@ useHead(() => ({
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
           <path d="M2 3h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6l-4 3V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        Обсуждение главы
+        Обсуждение главы<span v-if="chapter?.commentsCount" class="comments-cta-count">({{ chapter.commentsCount }})</span>
       </NuxtLink>
     </div>
   </div>
@@ -618,6 +618,12 @@ html[data-reader-theme="light"] .page-wrap {
   border-color: var(--rd-accent);
   color: var(--rd-accent);
   background: rgba(214, 136, 62, .06);
+}
+
+/* Число комментариев — тем же цветом, но тише: это подсказка, а не надпись. */
+.comments-cta-count {
+  opacity: .7;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 600px) {

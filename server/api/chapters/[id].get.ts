@@ -1,6 +1,6 @@
 import { useDb } from '../../utils/db'
-import { chapters } from '../../database/schema'
-import { eq } from 'drizzle-orm'
+import { chapters, comments } from '../../database/schema'
+import { count, eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   const param = getRouterParam(event, 'id')!
@@ -20,5 +20,13 @@ export default defineEventHandler(async (event) => {
   // Просмотр здесь больше не считается: этот обработчик отвечает и на серверный
   // рендер, то есть на любой скачанный HTML. Считает /api/chapters/[id]/view,
   // который дёргает уже загруженная страница.
-  return chapter
+
+  // Сколько комментариев — для кнопки «Обсуждение главы». Здесь, а не отдельным
+  // запросом: страница и так ждёт этот ответ, а счётчик — одно число.
+  const [{ commentsCount }] = await db
+    .select({ commentsCount: count() })
+    .from(comments)
+    .where(eq(comments.chapterId, id))
+
+  return { ...chapter, commentsCount }
 })
