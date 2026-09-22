@@ -97,6 +97,23 @@ test.describe('Игра «Кто из таверны?»', () => {
     await dialog.getByRole('button', { name: 'Закрыть' }).click()
     await expect(dialog).toHaveCount(0)
   })
+
+  test('рейтинг считается за месяц, а зал славы разворачивается', async ({ page }) => {
+    await open(page, '/game')
+    await page.getByRole('button', { name: 'Рейтинг' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Рейтинг игроков' })
+
+    // Подпись называет месяц: счёт идёт за него, а не за всё время.
+    await expect(dialog.locator('.month')).toHaveText(/^за [а-я]+$/)
+    await expect(dialog).toContainText('1-го числа таблица начинается заново')
+
+    // История свёрнута, пока её не попросят.
+    await expect(dialog.locator('.hall-body')).toHaveCount(0)
+    await dialog.getByRole('button', { name: 'Чемпионы прошлых месяцев' }).click()
+
+    // На чистом стенде прошлых месяцев нет — окно говорит об этом, а не пустует.
+    await expect(dialog.locator('.hall-body')).toContainText('Месяц ещё не закончился')
+  })
 })
 
 test.describe('Партия вошедшего — одна на все устройства', () => {

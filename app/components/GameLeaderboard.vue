@@ -5,8 +5,21 @@ import type { GameMode } from '#shared/utils/gameColumns'
 /**
  * Таблица рейтинга поверх страницы игры. Два режима считаются врозь: персонаж
  * дня один на всех и партия там одна в сутки, а свободных партий человек играет
- * сколько захочет.
+ * сколько захочет. Счёт идёт за текущий месяц — 1-го числа таблица начинается
+ * заново, и подпись в шапке называет месяц, чтобы это не было сюрпризом.
  */
+
+const MONTHS = [
+  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
+]
+
+// Месяц берём по Москве, как и сервер: иначе у читателя за границей подпись
+// разъедется с таблицей в последние часы месяца.
+const monthName = computed(() => {
+  const msk = new Date(Date.now() + 3 * 60 * 60 * 1000)
+  return MONTHS[msk.getUTCMonth()]
+})
 
 type Row = {
   name: string
@@ -48,6 +61,44 @@ const load = async (value: GameMode) => {
 const switchMode = (value: GameMode) => {
   mode.value = value
   load(value)
+  if (hallOpen.value) loadHall(value)
+}
+
+/**
+ * Зал славы — кто был первым в прошлые месяцы. Свёрнут по умолчанию: пришли
+ * сюда за нынешней таблицей, а история нужна не каждый раз. Тянем её только
+ * когда развернут, и тоже по разу на режим.
+ */
+type Champion = Row & { month: string }
+
+const hallOpen = ref(false)
+const hallLoading = ref(false)
+const halls = ref<Partial<Record<GameMode, Champion[]>>>({})
+const champions = computed(() => halls.value[mode.value] ?? [])
+
+const loadHall = async (value: GameMode) => {
+  if (halls.value[value]) return
+
+  hallLoading.value = true
+  try {
+    halls.value[value] = await $fetch<Champion[]>('/api/game/champions', { query: { mode: value } })
+  } catch {
+    halls.value[value] = []
+  } finally {
+    hallLoading.value = false
+  }
+}
+
+const toggleHall = () => {
+  hallOpen.value = !hallOpen.value
+  if (hallOpen.value) loadHall(mode.value)
+}
+
+/** '2026-08' → 'Август 2026'. */
+const monthLabel = (month: string) => {
+  const [year, mon] = month.split('-')
+  const name = MONTHS[Number(mon) - 1] ?? month
+  return `${name[0]!.toUpperCase()}${name.slice(1)} ${year}`
 }
 
 const onKeydown = (e: KeyboardEvent) => {
@@ -69,7 +120,7 @@ useScrollLock()
     <div class="backdrop" @click.self="emit('close')">
       <div class="card" role="dialog" aria-modal="true" aria-label="Рейтинг игроков">
         <div class="head">
-          <h2 class="title display">Рейтинг</h2>
+          <h2 class="title display">Рейтинг<span class="month">за {{ monthName }}</span></h2>
           <button class="close" type="button" aria-label="Закрыть" @click="emit('close')">×</button>
         </div>
 
@@ -85,7 +136,7 @@ useScrollLock()
         <p v-if="loading" class="note">В таверне считают победы…</p>
         <p v-else-if="error" class="note err">{{ error }}</p>
         <p v-else-if="!rows.length" class="note">
-          Здесь пока пусто. Угадай персонажа — и первая строка будет твоей.
+          В этом месяце здесь пока пусто. Угадай персонажа — и первая строка будет твоей.
         </p>
 
         <div v-else class="table-wrap thin-scroll">
@@ -160,6 +211,41 @@ useScrollLock()
           Серия — сколько дней подряд угадан персонаж дня. Пропущенный день её обрывает,
           а сегодняшняя несыгранная партия — нет.
         </p>
+        <div class="hall">
+          <button class="hall-head" type="button" :aria-expanded="hallOpen" @click="toggleHall">
+            <span class="hall-title">Чемпионы прошлых месяцев</span>
+            <span class="hall-sign" :class="{ open: hallOpen }" aria-hidden="true">▾</span>
+          </button>
+
+          <div v-if="hallOpen" class="hall-body">
+            <p v-if="hallLoading" class="note">В таверне листают летопись…</p>
+            <p v-else-if="!champions.length" class="note">
+              Месяц ещё не закончился ни разу — первым чемпионом может стать кто угодно.
+            </p>
+            <ul v-else class="hall-list">
+              <li v-for="champ in champions" :key="champ.month" class="hall-row" :class="{ me: champ.me }">
+                <span class="hall-month">{{ monthLabel(champ.month) }}</span>
+                <UserAvatar
+                  class="avatar"
+                  :src="champ.avatarUrl"
+                  :name="champ.name"
+                  :frame="champ.avatarFrame"
+                  :size="26"
+                  alt=""
+                />
+                <span class="hall-name" :title="champ.name">{{ champ.name }}</span>
+                <span class="hall-wins">
+                  {{ champ.wins }}<span class="hall-wins-word">&nbsp;{{ pluralize(champ.wins, 'победа', 'победы', 'побед') }}</span>
+                </span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <p class="fine">
+          Счёт идёт за текущий месяц: 1-го числа таблица начинается заново, а сыгранные
+          партии никуда не деваются.
+        </p>
         <p class="fine">
           В рейтинге участвуют только зарегистрированные читатели.
         </p>
@@ -206,6 +292,23 @@ useScrollLock()
   margin: 0;
   font-size: 22px;
   flex: 1;
+}
+
+/* Месяц — подпись при заголовке: рядом на широком окне, строкой ниже на узком. */
+.month {
+  margin-left: 8px;
+  color: var(--parchment-2);
+  font-size: 13px;
+  font-weight: 400;
+  opacity: .7;
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .month {
+    display: block;
+    margin-left: 0;
+  }
 }
 
 .close {
@@ -395,6 +498,89 @@ useScrollLock()
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Зал славы свёрнут: пришли за нынешней таблицей, история — по желанию. */
+.hall {
+  margin-top: 14px;
+  border-top: 1px solid rgba(241, 230, 210, .1);
+}
+
+.hall-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 2px 10px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  opacity: .75;
+  transition: opacity .15s;
+}
+
+.hall-head:hover,
+.hall-head:focus-visible { opacity: 1; }
+
+.hall-sign {
+  font-size: 11px;
+  transition: transform .15s ease;
+}
+
+.hall-sign.open { transform: rotate(180deg); }
+
+.hall-list {
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.hall-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 2px;
+  font-size: 13px;
+}
+
+.hall-row + .hall-row { border-top: 1px solid rgba(241, 230, 210, .06); }
+
+/* Своя строка — тем же цветом, что и в таблице выше. */
+.hall-row.me { color: var(--ember-soft); }
+
+.hall-month {
+  flex: 0 0 auto;
+  width: 108px;
+  opacity: .6;
+  font-size: 12px;
+}
+
+.hall-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Число побед — той же меркой, что колонка «Побед»: цифры не пляшут. */
+.hall-wins {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  opacity: .8;
+}
+
+.hall-wins-word {
+  font-size: 11px;
+  opacity: .6;
+}
+
+@media (max-width: 560px) {
+  .hall-month { width: 92px; }
 }
 
 .fine {

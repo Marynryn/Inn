@@ -2,8 +2,7 @@ import { and, desc, eq, gte } from 'drizzle-orm'
 import type { GameMode } from '#shared/utils/gameColumns'
 import { gameResults, users } from '../../database/schema'
 import { useDb } from '../../utils/db'
-import { readerName } from '../../utils/identity'
-import { framesByIds } from '../../utils/frames'
+import { monthStart, rankPlayers } from '../../utils/game-rating'
 import { mskDay } from '../../utils/msk'
 
 /**
@@ -13,42 +12,24 @@ import { mskDay } from '../../utils/msk'
  *
  * Играют все на равных, администраторы в том числе: таблица показывает, кто
  * сколько угадал, и вычёркивать из неё людей по должности незачем.
+ *
+ * Счёт идёт за текущий месяц: 1-го числа таблица начинается с чистого листа,
+ * чтобы догнать первых было делом посильным, а не безнадёжным. Ничего при этом
+ * не удаляется — сыгранные партии остаются в базе, а прошлые месяцы показывает
+ * зал славы (api/game/champions).
  */
 
-/** Глубина, на которую смотрим назад. Серия длиннее полугода — уже легенда. */
+/**
+ * Глубина, на которую смотрим назад ради серии побед: её месяц не обрывает —
+ * серия длиной в полгода уже легенда, и терять её из-за календаря обидно.
+ */
 const WINDOW_DAYS = 180
 
 /** Сколько строк отдаём. Дальше первой двадцатки таблицу никто не читает. */
 const LIMIT = 20
 
-const dayBefore = (days: number) => {
-  const date = new Date(Date.parse(`${mskDay()}T00:00:00Z`) - days * 86_400_000)
-  return date.toISOString().slice(0, 10)
-}
-
-/** Длина серии подряд идущих побед, считая от самого свежего дня. */
-function streakOf(winDays: string[]): number {
-  if (!winDays.length) return 0
-
-  const days = [...new Set(winDays)].sort().reverse()
-  const today = mskDay()
-  const yesterday = dayBefore(1)
-
-  // Серия жива, пока последняя победа — сегодня или вчера: пропущенный день её
-  // обрывает, но сегодняшнюю партию человек мог ещё не сыграть.
-  if (days[0] !== today && days[0] !== yesterday) return 0
-
-  let streak = 1
-  for (let i = 1; i < days.length; i++) {
-    const expected = new Date(Date.parse(`${days[i - 1]}T00:00:00Z`) - 86_400_000)
-      .toISOString().slice(0, 10)
-
-    if (days[i] !== expected) break
-    streak++
-  }
-
-  return streak
-}
+const dayBefore = (days: number) =>
+  new Date(Date.parse(`${mskDay()}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10)
 
 export default defineEventHandler(async (event) => {
   // Два рейтинга, а не один: персонаж дня у всех общий и партия там одна в
@@ -80,61 +61,7 @@ export default defineEventHandler(async (event) => {
     ))
     .orderBy(desc(gameResults.day))
 
-  type Player = {
-    userId: number
-    name: string
-    avatarUrl: string | null
-    avatarFrameId: number | null
-    played: number
-    wins: number
-    winGuesses: number
-    winDays: string[]
-  }
-
-  const players = new Map<number, Player>()
-
-  for (const row of rows) {
-    let player = players.get(row.userId)
-    if (!player) {
-      player = {
-        userId: row.userId,
-        name: readerName(row),
-        avatarUrl: row.avatarUrl,
-        avatarFrameId: row.avatarFrameId,
-        played: 0,
-        wins: 0,
-        winGuesses: 0,
-        winDays: [],
-      }
-      players.set(row.userId, player)
-    }
-
-    player.played++
-    if (row.won) {
-      player.wins++
-      player.winGuesses += row.guesses
-      player.winDays.push(row.day)
-    }
-  }
-
-  const frames = await framesByIds([...players.values()].map(p => p.avatarFrameId))
-
-  const ranked = [...players.values()]
-    .map(p => ({
-      me: p.userId === myId,
-      name: p.name,
-      avatarUrl: p.avatarUrl,
-      avatarFrame: frames.get(p.avatarFrameId ?? 0) ?? null,
-      played: p.played,
-      wins: p.wins,
-      // Среднее — по выигранным партиям: попытки сдавшихся сюда мешать нельзя.
-      averageGuesses: p.wins ? Math.round((p.winGuesses / p.wins) * 10) / 10 : 0,
-      streak: streakOf(p.winDays),
-    }))
-    // Побед больше — выше. Поровну — выигрывает тот, кто угадывал с меньшего
-    // числа попыток: иначе таблица зависела бы только от усидчивости.
-    .sort((a, b) => b.wins - a.wins || a.averageGuesses - b.averageGuesses || b.streak - a.streak)
-    .map((row, i) => ({ place: i + 1, ...row }))
+  const ranked = await rankPlayers(rows, { since: monthStart(), myId, withStreak: true })
 
   const top = ranked.slice(0, LIMIT)
   const mine = ranked.find(r => r.me)
