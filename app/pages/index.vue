@@ -283,8 +283,9 @@ useSeoMeta({
      с лунами слева и табличкой справа, — и подрезается только сверху и снизу. */
   width: 64%;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.65) 15%, black 38%);
-  mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.65) 15%, black 38%);
+  /* Много промежуточных шагов: на двух-трёх граница фона и картинки даёт излом. */
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.1) 8%, rgba(0,0,0,.3) 16%, rgba(0,0,0,.55) 25%, rgba(0,0,0,.78) 34%, rgba(0,0,0,.93) 43%, black 52%);
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.1) 8%, rgba(0,0,0,.3) 16%, rgba(0,0,0,.55) 25%, rgba(0,0,0,.78) 34%, rgba(0,0,0,.93) 43%, black 52%);
 }
 
 .hero-art img,
@@ -612,8 +613,8 @@ useSeoMeta({
   .hero-art img,
   .hero-art picture {
     /* Колонка на телефоне узкая — видно четверть кадра. По центру туда попадает
-       пустая долина, у правого края — дерево; 72% ставят в окно сам дом. */
-    object-position: 72% center;
+       пустая долина, у правого края — дерево; 88% ставят в окно дом с табличкой. */
+    object-position: 88% center;
   }
 
   .hero-title {
