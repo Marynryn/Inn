@@ -279,10 +279,12 @@ useSeoMeta({
   right: 0;
   top: 0;
   bottom: 0;
-  width: 52%;
+  /* Шире, чем нужно тексту: при 64% картинка влезает в слот целиком по ширине —
+     с лунами слева и табличкой справа, — и подрезается только сверху и снизу. */
+  width: 64%;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.6) 30%, black 65%);
-  mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.6) 30%, black 65%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.65) 15%, black 38%);
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.65) 15%, black 38%);
 }
 
 .hero-art img,
@@ -291,7 +293,8 @@ useSeoMeta({
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: left center;
+  /* Правый край — таверна и табличка, его не режем: лишнее уходит слева, под маской. */
+  object-position: right center;
   opacity: .5;
 }
 
