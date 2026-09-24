@@ -611,7 +611,9 @@ useSeoMeta({
 
   .hero-art img,
   .hero-art picture {
-    object-position: center center;
+    /* Колонка на телефоне узкая — видно четверть кадра. По центру туда попадает
+       пустая долина, у правого края — дерево; 72% ставят в окно сам дом. */
+    object-position: 72% center;
   }
 
   .hero-title {
