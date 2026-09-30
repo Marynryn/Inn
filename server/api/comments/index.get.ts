@@ -22,14 +22,16 @@ export default defineEventHandler(async (event) => {
   const userIds = [...new Set(rows.map(r => r.userId).filter(Boolean))] as number[]
   const avatarMap = new Map<number, string | null>()
   const frameIdMap = new Map<number, number | null>()
+  const codeMap = new Map<number, string | null>()
 
   if (userIds.length) {
     const userRows = await db
-      .select({ id: users.id, avatarUrl: users.avatarUrl, avatarFrameId: users.avatarFrameId })
+      .select({ id: users.id, avatarUrl: users.avatarUrl, avatarFrameId: users.avatarFrameId, publicId: users.publicId })
       .from(users)
     for (const u of userRows) {
       avatarMap.set(u.id, u.avatarUrl ?? null)
       frameIdMap.set(u.id, u.avatarFrameId ?? null)
+      codeMap.set(u.id, u.publicId ?? null)
     }
   }
 
@@ -59,10 +61,13 @@ export default defineEventHandler(async (event) => {
     if (isMine) bucket.myReaction = r.type
   }
 
-  return rows.map(r => ({
+  // Номер автора наружу не отдаём — по нему видно, сколько на сайте
+  // читателей. Для ссылки на его страницу есть публичный код.
+  return rows.map(({ userId, ...r }) => ({
     ...r,
-    avatarUrl: r.userId ? (avatarMap.get(r.userId) ?? null) : null,
-    avatarFrame: r.userId ? (frames.get(frameIdMap.get(r.userId) ?? 0) ?? null) : null,
+    authorCode: userId ? (codeMap.get(userId) ?? null) : null,
+    avatarUrl: userId ? (avatarMap.get(userId) ?? null) : null,
+    avatarFrame: userId ? (frames.get(frameIdMap.get(userId) ?? 0) ?? null) : null,
     likes: reactionsByComment.get(r.id)!.likes,
     dislikes: reactionsByComment.get(r.id)!.dislikes,
     myReaction: reactionsByComment.get(r.id)!.myReaction,

@@ -1,5 +1,5 @@
 import { test, expect, open, login, logout } from './helpers'
-import { ADMIN, READER, SECOND } from './fixtures'
+import { ADMIN, CHAPTERS, READER, SECOND } from './fixtures'
 
 test.describe('Профиль', () => {
   test('гостя отправляют на вход', async ({ page }) => {
@@ -80,13 +80,13 @@ test.describe('Страница читателя', () => {
     expect(me.about).toBe(about.replace(/\n{3,}/g, '\n\n'))
 
     await page.getByRole('link', { name: 'Как меня видят другие' }).click()
-    await expect(page).toHaveURL(new RegExp(`/reader/${me.id}$`))
+    await expect(page).toHaveURL(new RegExp(`/reader/${me.publicId}$`))
     await expect(page.locator('h1.name')).toHaveText(READER.name)
     await expect(page.locator('.about')).toContainText('Болею за Мршу')
 
     // Гость видит ту же страницу, но ни почты, ни способа входа в ответе нет.
     const guest = await browser.newContext()
-    const pub = await (await guest.request.get(`/api/readers/${me.id}`)).json()
+    const pub = await (await guest.request.get(`/api/readers/${me.publicId}`)).json()
     await guest.close()
     expect(pub.name).toBe(READER.name)
     expect(JSON.stringify(pub)).not.toContain(READER.email)
@@ -95,7 +95,7 @@ test.describe('Страница читателя', () => {
   })
 
   test('несуществующий читатель — понятная заглушка', async ({ page }) => {
-    await open(page, '/reader/999999')
+    await open(page, '/reader/000000000000')
     await expect(page.getByRole('heading', { name: 'Такого читателя нет' })).toBeVisible()
   })
 
@@ -103,19 +103,19 @@ test.describe('Страница читателя', () => {
     await login(page, SECOND)
     const put = await page.request.put('/api/profile', { multipart: { about: 'Текст, который придётся стереть' } })
     expect(put.ok(), await put.text()).toBeTruthy()
-    const { id } = await (await page.request.get('/api/profile')).json()
+    const { publicId: code } = await (await page.request.get('/api/profile')).json()
 
-    const denied = await page.request.delete(`/api/admin/readers/${id}/about`)
+    const denied = await page.request.delete(`/api/admin/readers/${code}/about`)
     expect(denied.status()).toBe(403)
 
     await logout(page)
     await login(page, ADMIN)
-    await open(page, `/reader/${id}`)
+    await open(page, `/reader/${code}`)
     await expect(page.locator('.about')).toBeVisible()
     await page.getByRole('button', { name: 'Стереть «О себе»' }).click()
     await expect(page.locator('.about')).toHaveCount(0)
 
-    const pub = await (await page.request.get(`/api/readers/${id}`)).json()
+    const pub = await (await page.request.get(`/api/readers/${code}`)).json()
     expect(pub.about).toBeNull()
   })
 
@@ -145,11 +145,45 @@ test.describe('Страница читателя', () => {
       const worn = await page.request.put('/api/profile', { multipart: { avatarFrameId: String(frame.id) } })
       expect(worn.ok(), await worn.text()).toBeTruthy()
 
-      const pub = await (await page.request.get(`/api/readers/${me.id}`)).json()
+      const pub = await (await page.request.get(`/api/readers/${me.publicId}`)).json()
       expect(pub.avatarFrame?.id).toBe(frame.id)
       expect(pub.frames.map((f: any) => f.id)).toContain(frame.id)
     } finally {
       await page.request.delete(`/api/admin/frames/${frame.id}`)
     }
+  })
+
+  test('номер читателя наружу не выходит — только публичный код', async ({ page }) => {
+    await login(page, READER)
+
+    const me = await (await page.request.get('/api/auth/me')).json()
+    expect(me).not.toHaveProperty('id')
+    const profile = await (await page.request.get('/api/profile')).json()
+    expect(profile.id).toBeUndefined()
+    expect(profile.publicId).toMatch(/^[0-9a-f]{12}$/)
+
+    // Комментарий читателя приходит с кодом автора, без номера.
+    const res = await page.request.post('/api/comments', {
+      data: { chapterId: CHAPTERS[0]!.id, authorName: READER.name, body: `Проверка кода ${Math.random().toString(36).slice(2, 6)}` },
+    })
+    expect(res.ok(), await res.text()).toBeTruthy()
+    const posted = await res.json()
+    expect(posted).not.toHaveProperty('userId')
+    expect(posted.authorCode).toBe(profile.publicId)
+
+    const list = await (await page.request.get(`/api/comments?chapterId=${CHAPTERS[0]!.id}`)).json()
+    expect(list.every((c: any) => !('userId' in c))).toBe(true)
+
+    // Аватарка ложится под кодом, а не под номером.
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAFklEQVQImWP8z8DwHwMDAwMTAwMDAwAlBQMBc9QG0QAAAABJRU5ErkJggg==',
+      'base64',
+    )
+    const put = await page.request.put('/api/profile', {
+      multipart: { avatar: { name: 'a.png', mimeType: 'image/png', buffer: png } },
+    })
+    expect(put.ok(), await put.text()).toBeTruthy()
+    const { avatarUrl } = await put.json()
+    expect(avatarUrl).toContain(`avatar-${profile.publicId}.`)
   })
 })

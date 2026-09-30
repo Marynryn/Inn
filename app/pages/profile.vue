@@ -6,13 +6,15 @@ const auth = useAuthStore()
 const { data: settings } = await useFetch('/api/settings')
 
 type Profile = {
-  id: number
+  /** Только у хозяйки сайта — для «выдать себе». */
+  id?: number
   email: string | null
   role: string
   displayName: string | null
   avatarUrl: string | null
   avatarFrame: AvatarFrame | null
   about: string | null
+  publicId: string | null
   frames: OwnedFrame[]
   hasPassword: boolean
   providers: ('google' | 'telegram')[]
@@ -56,7 +58,7 @@ const trying = computed(() => Boolean(chosenFrame.value && !chosenFrame.value.ow
 const granting = ref(false)
 
 const grantToSelf = async () => {
-  if (!profile.value || !chosenFrame.value) return
+  if (!profile.value?.id || !chosenFrame.value) return
   granting.value = true
   error.value = ''
   try {
@@ -228,7 +230,7 @@ useHead({
           </button>
           <span v-if="message" class="ok-msg">{{ message }}</span>
           <span v-if="error" class="err-msg">{{ error }}</span>
-          <NuxtLink :to="`/reader/${profile.id}`" class="link-btn">Как меня видят другие</NuxtLink>
+          <NuxtLink v-if="profile.publicId" :to="`/reader/${profile.publicId}`" class="link-btn">Как меня видят другие</NuxtLink>
         </div>
 
         <hr class="divider">

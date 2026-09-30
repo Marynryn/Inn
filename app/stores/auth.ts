@@ -1,5 +1,6 @@
 export type SessionUser = {
-  id: number
+  /** Только у хозяйки сайта: читателю свой номер не отдаётся, см. /api/auth/me. */
+  id?: number
   email: string | null
   role: 'admin' | 'reader'
   displayName: string | null

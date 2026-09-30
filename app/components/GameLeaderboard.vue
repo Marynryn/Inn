@@ -22,7 +22,7 @@ const monthName = computed(() => {
 })
 
 type Row = {
-  userId: number
+  code: string | null
   name: string
   avatarUrl: string | null
   avatarFrame: AvatarFrame | null
@@ -196,7 +196,8 @@ useScrollLock()
                   />
                 </td>
                 <td class="name" :title="row.name">
-                  <NuxtLink :to="`/reader/${row.userId}`" class="reader-link">{{ row.name }}</NuxtLink>
+                  <NuxtLink v-if="row.code" :to="`/reader/${row.code}`" class="reader-link">{{ row.name }}</NuxtLink>
+                  <template v-else>{{ row.name }}</template>
                 </td>
                 <td class="num">{{ row.wins }}<span class="of"> из {{ row.played }}</span></td>
                 <td class="num">{{ row.averageGuesses || '—' }}</td>
@@ -236,7 +237,8 @@ useScrollLock()
                   :size="26"
                   alt=""
                 />
-                <NuxtLink :to="`/reader/${champ.userId}`" class="hall-name reader-link" :title="champ.name">{{ champ.name }}</NuxtLink>
+                <NuxtLink v-if="champ.code" :to="`/reader/${champ.code}`" class="hall-name reader-link" :title="champ.name">{{ champ.name }}</NuxtLink>
+                <span v-else class="hall-name" :title="champ.name">{{ champ.name }}</span>
                 <span class="hall-wins">
                   {{ champ.wins }}<span class="hall-wins-word">&nbsp;{{ pluralize(champ.wins, 'победа', 'победы', 'побед') }}</span>
                 </span>

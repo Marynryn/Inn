@@ -11,10 +11,10 @@ const route = useRoute()
 const auth = useAuthStore()
 const { data: settings } = await useFetch('/api/settings')
 
-const id = computed(() => String(route.params.id))
-const { data: reader, error, refresh } = await useFetch<PublicReader>(() => `/api/readers/${id.value}`)
+const code = computed(() => String(route.params.code))
+const { data: reader, error, refresh } = await useFetch<PublicReader>(() => `/api/readers/${code.value}`)
 
-const isMe = computed(() => Boolean(reader.value && auth.user?.id === reader.value.id))
+const isMe = computed(() => Boolean(reader.value?.isMe))
 
 // Даты в базе — UTC без пометки; показываем по Москве, как и всё на сайте.
 const asDate = (raw: string) => new Date(`${raw.replace(' ', 'T')}Z`)
@@ -39,7 +39,7 @@ const clearAbout = async () => {
   clearing.value = true
   clearError.value = ''
   try {
-    await $fetch(`/api/admin/readers/${reader.value.id}/about`, { method: 'DELETE' })
+    await $fetch(`/api/admin/readers/${reader.value.code}/about`, { method: 'DELETE' })
     await refresh()
   } catch (e: any) {
     clearError.value = e.data?.message || 'Не получилось стереть'

@@ -1,5 +1,8 @@
 import { mkdir, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { eq } from 'drizzle-orm'
+import { users } from '../database/schema'
+import { useDb } from './db'
 import { getStorageDir } from './storage'
 
 /**
@@ -113,6 +116,14 @@ export function checkImage(data: Buffer | Uint8Array, maxBytes: number, maxSide:
   return ext
 }
 
+/** Имя файла аватарки — по публичному коду, а не по номеру: номер в адресе
+ *  картинки выдавал бы, сколько на сайте читателей. */
+export async function avatarFileBase(userId: number): Promise<string> {
+  const [row] = await useDb().select({ publicId: users.publicId }).from(users).where(eq(users.id, userId))
+  if (!row?.publicId) throw createError({ statusCode: 500, message: 'У читателя нет публичного кода' })
+  return `avatar-${row.publicId}`
+}
+
 /**
  * Кладёт аватарку на диск. Имя файла зависит только от пользователя, поэтому к
  * ссылке дописывается отметка времени: раздача кэшируется на год, и без неё
@@ -120,18 +131,19 @@ export function checkImage(data: Buffer | Uint8Array, maxBytes: number, maxSide:
  */
 export async function saveAvatar(userId: number, data: Buffer | Uint8Array): Promise<string> {
   const ext = checkImage(data, MAX_AVATAR_BYTES, MAX_AVATAR_SIDE)
+  const base = await avatarFileBase(userId)
 
   const dir = join(getStorageDir(), 'avatars')
   await mkdir(dir, { recursive: true })
-  await writeFile(join(dir, `avatar-${userId}.${ext}`), data)
+  await writeFile(join(dir, `${base}.${ext}`), data)
 
   // Прежняя аватарка могла быть другого формата — она больше не нужна и по
   // ссылке недостижима, но место занимала бы до скончания века.
   for (const old of IMAGE_EXTENSIONS) {
-    if (old !== ext) await unlink(join(dir, `avatar-${userId}.${old}`)).catch(() => {})
+    if (old !== ext) await unlink(join(dir, `${base}.${old}`)).catch(() => {})
   }
 
-  return `/api/avatars/avatar-${userId}.${ext}?v=${Date.now()}`
+  return `/api/avatars/${base}.${ext}?v=${Date.now()}`
 }
 
 /**

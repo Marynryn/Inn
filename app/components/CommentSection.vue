@@ -13,8 +13,8 @@ const route = useRoute()
 
 // Вошедший автор ведёт на свою страницу, гость — никуда: у гостя её нет.
 const NuxtLink = resolveComponent('NuxtLink')
-const authorTag = (c: any) => (c.userId ? NuxtLink : 'span')
-const authorTo = (c: any) => (c.userId ? `/reader/${c.userId}` : undefined)
+const authorTag = (c: any) => (c.authorCode ? NuxtLink : 'span')
+const authorTo = (c: any) => (c.authorCode ? `/reader/${c.authorCode}` : undefined)
 const now = useNow()
 const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
 
@@ -350,7 +350,7 @@ onMounted(() => {
           :is="authorTag(c)"
           :to="authorTo(c)"
           class="comment-author-pic"
-          :tabindex="c.userId ? -1 : undefined"
+          :tabindex="c.authorCode ? -1 : undefined"
           aria-hidden="true"
         >
           <UserAvatar

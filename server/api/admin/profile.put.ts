@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm'
 import { writeFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { getStorageDir } from '../../utils/storage'
+import { avatarFileBase } from '../../utils/avatar'
 import bcrypt from 'bcryptjs'
 
 export default defineEventHandler(async (event) => {
@@ -56,11 +57,11 @@ export default defineEventHandler(async (event) => {
     const ext = (filePart.filename ?? 'jpg').split('.').pop()?.toLowerCase() ?? 'jpg'
     const allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif']
     if(!allowed.includes(ext)) throw createError({ statusCode: 400, message: 'Формат не поддерживается' })
-    const filename = `avatar-${sessionUser.id}.${ext}`
+    const filename = `${await avatarFileBase(sessionUser.id)}.${ext}`
     const avatarsDir = join(getStorageDir(), 'avatars')
     await mkdir(avatarsDir, { recursive: true })
     await writeFile(join(avatarsDir, filename), filePart.data)
-    updates.avatarUrl = `/api/avatars/${filename}`
+    updates.avatarUrl = `/api/avatars/${filename}?v=${Date.now()}`
   }
 
   if(!Object.keys(updates).length) throw createError({ statusCode: 400, message: 'Нет данных для обновления' })

@@ -19,12 +19,16 @@ export default defineEventHandler(async (event) => {
     .where(eq(userIdentities.userId, user.id))
 
   return {
-    id: user.id,
+    // Номер — только хозяйке сайта: «выдать себе» в панели идёт по нему. Читателю
+    // он выдал бы, сколько людей зарегистрировалось до него.
+    id: user.role === 'admin' ? user.id : undefined,
     email: user.email,
     role: user.role,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
     about: user.about,
+    // Код своей публичной страницы — для ссылки «Как меня видят другие».
+    publicId: user.publicId,
     avatarFrame: await frameById(user.avatarFrameId),
     // Выигранные рамки — из них человек и выбирает; у хозяйки сайта здесь
     // весь каталог. Пустой список значит, что выбирать не из чего: на странице

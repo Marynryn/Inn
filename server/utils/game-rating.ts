@@ -18,13 +18,14 @@ export interface RatingRow {
   email: string | null
   avatarUrl: string | null
   avatarFrameId: number | null
+  publicId: string | null
 }
 
 export interface RankedPlayer {
   place: number
   me: boolean
-  /** Для ссылки на страницу читателя. */
-  userId: number
+  /** Публичный код — для ссылки на страницу читателя. Номер наружу не идёт. */
+  code: string | null
   name: string
   avatarUrl: string | null
   avatarFrame: AvatarFrame | null
@@ -78,6 +79,7 @@ export async function rankPlayers(
 ): Promise<RankedPlayer[]> {
   type Player = {
     userId: number
+    publicId: string | null
     name: string
     avatarUrl: string | null
     avatarFrameId: number | null
@@ -100,6 +102,7 @@ export async function rankPlayers(
     if (!player) {
       player = {
         userId: row.userId,
+        publicId: row.publicId,
         name: readerName(row),
         avatarUrl: row.avatarUrl,
         avatarFrameId: row.avatarFrameId,
@@ -126,7 +129,7 @@ export async function rankPlayers(
   return [...players.values()]
     .map(p => ({
       me: p.userId === myId,
-      userId: p.userId,
+      code: p.publicId,
       name: p.name,
       avatarUrl: p.avatarUrl,
       avatarFrame: frames.get(p.avatarFrameId ?? 0) ?? null,

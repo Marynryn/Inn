@@ -39,6 +39,7 @@ export default defineEventHandler(async (event) => {
       email: users.email,
       avatarUrl: users.avatarUrl,
       avatarFrameId: users.avatarFrameId,
+      publicId: users.publicId,
     })
     .from(gameResults)
     .innerJoin(users, eq(users.id, gameResults.userId))

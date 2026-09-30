@@ -585,6 +585,57 @@ export async function runMigrations() {
   // по всей таблице на каждое открытие профиля.
   await client.execute('CREATE INDEX IF NOT EXISTS comments_user ON comments (user_id)')
 
+  // Публичный код читателя — вместо номера в адресах. Номер выдаёт, сколько у
+  // сайта читателей: /reader/42 значит «их около сорока». Код случайный и
+  // ничего не говорит.
+  //
+  // Код ставит база, а не код сайта: пользователей заводят в нескольких
+  // местах, и забыть его в одном из них было бы легко. Триггер срабатывает
+  // на любую вставку.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN public_id TEXT')
+  } catch {
+    // Столбец уже существует — это нормально
+  }
+  await client.executeMultiple(`
+    UPDATE users SET public_id = lower(hex(randomblob(6))) WHERE public_id IS NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS users_public_id ON users (public_id);
+    CREATE TRIGGER IF NOT EXISTS users_public_id_fill AFTER INSERT ON users
+      WHEN NEW.public_id IS NULL
+      BEGIN
+        UPDATE users SET public_id = lower(hex(randomblob(6))) WHERE id = NEW.id;
+      END;
+  `)
+
+  // Аватарки лежали под номером читателя — avatar-42.webp, и адрес картинки
+  // выдавал тот же номер. Переносим под публичный код, один раз.
+  const avatarsMoved = await client.execute("SELECT value FROM site_settings WHERE key = 'avatars_by_public_id'")
+  if (avatarsMoved.rows.length === 0) {
+    const { rename } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const dir = join(storageDir, 'avatars')
+
+    const rows = await client.execute("SELECT id, public_id, avatar_url FROM users WHERE avatar_url LIKE '/api/avatars/avatar-%'")
+    for (const row of rows.rows as any[]) {
+      const match = /^\/api\/avatars\/avatar-(\d+)\.(\w+)/.exec(String(row.avatar_url))
+      if (!match || Number(match[1]) !== Number(row.id)) continue
+
+      const ext = match[2]
+      const moved = await rename(join(dir, `avatar-${row.id}.${ext}`), join(dir, `avatar-${row.public_id}.${ext}`))
+        .then(() => true, () => false)
+      // Файла нет — ссылка и так вела в пустоту; адрес не трогаем, чтобы не
+      // выдумывать картинку, которой не было.
+      if (!moved) continue
+
+      await client.execute({
+        sql: 'UPDATE users SET avatar_url = ? WHERE id = ?',
+        args: [`/api/avatars/avatar-${row.public_id}.${ext}?v=${Date.now()}`, row.id],
+      })
+    }
+
+    await client.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('avatars_by_public_id', '1')")
+  }
+
   // Создать admin-аккаунт если нет ни одного пользователя
   const existing = await client.execute('SELECT COUNT(*) as cnt FROM users')
   const count = (existing.rows[0] as any).cnt as number

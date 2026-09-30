@@ -108,7 +108,7 @@ export default defineEventHandler(async (event) => {
   // приходит им сокетом и мимо выборки, которая всё это собирает.
   const author = userId
     ? (await db
-        .select({ avatarUrl: users.avatarUrl, avatarFrameId: users.avatarFrameId })
+        .select({ avatarUrl: users.avatarUrl, avatarFrameId: users.avatarFrameId, publicId: users.publicId })
         .from(users)
         .where(eq(users.id, userId)))[0]
     : null
@@ -116,8 +116,12 @@ export default defineEventHandler(async (event) => {
   const avatarUrl = author?.avatarUrl ?? null
   const avatarFrame = await frameById(author?.avatarFrameId)
 
-  const payload = { type: 'new_comment', comment: { ...created, avatarUrl, avatarFrame, likes: 0, dislikes: 0, myReaction: null } }
+  // Номер автора наружу не уходит — вместо него публичный код, как и в списке.
+  const { userId: _author, ...shown } = created!
+  const authorCode = author?.publicId ?? null
+
+  const payload = { type: 'new_comment', comment: { ...shown, authorCode, avatarUrl, avatarFrame, likes: 0, dislikes: 0, myReaction: null } }
   wsBroadcast(chapterId, payload)
 
-  return created
+  return { ...shown, authorCode }
 })

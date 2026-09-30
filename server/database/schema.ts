@@ -34,6 +34,10 @@ export const users = sqliteTable('users', {
   readerSettings: text('reader_settings'),
   // «О себе» на публичной странице читателя. NULL = не заполнял, и блока там нет.
   about: text('about'),
+  // Публичный код — в адресе страницы читателя и в имени файла аватарки.
+  // Номер туда не идёт: по нему видно, сколько на сайте читателей. Ставит его
+  // триггер базы при вставке, см. migrate.
+  publicId: text('public_id'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
