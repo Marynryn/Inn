@@ -45,6 +45,9 @@ const toggleVolume = (vol: number) => {
 }
 
 const siteUrl = useRuntimeConfig().public.siteUrl
+// Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
+// позже, вне контекста Nuxt, и useRuntimeConfig там падает.
+const ogImage = ogImageUrl()
 
 useHead({
   title: 'Странствующая Таверна — русский перевод The Wandering Inn',
@@ -126,14 +129,14 @@ useSeoMeta({
   description: seoDescription,
   ogTitle: () => socialTitle.value,
   ogDescription: seoDescription,
-  ogImage: `${siteUrl}/og.jpg`,
+  ogImage,
   ogUrl: siteUrl,
   ogType: 'website',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
   twitterTitle: () => socialTitle.value,
   twitterDescription: seoDescription,
-  twitterImage: `${siteUrl}/og.jpg`,
+  twitterImage: ogImage,
 })
 </script>
 

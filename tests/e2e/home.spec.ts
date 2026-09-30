@@ -36,4 +36,17 @@ test.describe('Главная', () => {
     )
     expect(overflow).toBeLessThanOrEqual(0)
   })
+
+  test('картинка превью ссылок — с версией в адресе, и она открывается', async ({ page, request }) => {
+    // Телеграм и ВК кэшируют превью по адресу картинки: без версии новая og.jpg
+    // до них не доходит.
+    await open(page, '/')
+    const og = await page.locator('meta[property="og:image"]').getAttribute('content')
+    expect(og).toMatch(/\/og\.jpg\?v=[0-9a-f]{8}$/)
+    expect(await page.locator('meta[name="twitter:image"]').getAttribute('content')).toBe(og)
+
+    const img = await request.get(new URL(og!).pathname + new URL(og!).search)
+    expect(img.ok()).toBeTruthy()
+    expect(img.headers()['content-type']).toMatch(/^image\//)
+  })
 })

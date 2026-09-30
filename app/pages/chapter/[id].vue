@@ -110,6 +110,9 @@ onMounted(() => {
 })
 
 const siteUrl = useRuntimeConfig().public.siteUrl
+// Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
+// позже, вне контекста Nuxt, и useRuntimeConfig там падает.
+const ogImage = ogImageUrl()
 
 // У обычных глав TWI нет настоящих названий — title в базе это просто
 // «Глава N», так что description строим из текста самой главы, а не из title,
@@ -140,14 +143,14 @@ useSeoMeta({
   description: () => description.value,
   ogTitle: () => chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : undefined,
   ogDescription: () => description.value,
-  ogImage: `${siteUrl}/og.jpg`,
+  ogImage,
   ogUrl: () => `${siteUrl}/chapter/${slug.value}`,
   ogType: 'article',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
   twitterTitle: () => chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : undefined,
   twitterDescription: () => description.value,
-  twitterImage: `${siteUrl}/og.jpg`,
+  twitterImage: ogImage,
 })
 
 useHead(() => ({
@@ -161,7 +164,7 @@ useHead(() => ({
             headline: chapter.value.title,
             inLanguage: 'ru',
             url: `${siteUrl}/chapter/${slug.value}`,
-            image: `${siteUrl}/og.jpg`,
+            image: ogImage,
             datePublished: chapter.value.publishedAt,
             isPartOf: {
               '@type': 'Book',

@@ -2,6 +2,9 @@
 const { data: settings } = await useFetch('/api/settings')
 
 const siteUrl = useRuntimeConfig().public.siteUrl
+// Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
+// позже, вне контекста Nuxt, и useRuntimeConfig там падает.
+const ogImage = ogImageUrl()
 
 const title = computed(() => settings.value?.about_title || 'О проекте')
 
@@ -19,11 +22,11 @@ useSeoMeta({
   ogUrl: `${siteUrl}/about`,
   ogType: 'website',
   ogLocale: 'ru_RU',
-  ogImage: `${siteUrl}/og.jpg`,
+  ogImage,
   twitterCard: 'summary_large_image',
   twitterTitle: () => `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
   twitterDescription: aboutDescription,
-  twitterImage: `${siteUrl}/og.jpg`,
+  twitterImage: ogImage,
 })
 </script>
 

@@ -279,6 +279,9 @@ const countdown = computed(() => {
 
 // ── Поделиться результатом ─────────────────────────────────
 const siteUrl = useRuntimeConfig().public.siteUrl
+// Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
+// позже, вне контекста Nuxt, и useRuntimeConfig там падает.
+const ogImage = ogImageUrl()
 const MARKS = { hit: '🟩', partial: '🟨', miss: '⬜' } as const
 const copied = ref(false)
 
@@ -389,11 +392,11 @@ useSeoMeta({
   ogUrl: `${siteUrl}/game`,
   ogType: 'website',
   ogLocale: 'ru_RU',
-  ogImage: `${siteUrl}/og.jpg`,
+  ogImage,
   twitterCard: 'summary_large_image',
   twitterTitle: gameTitle,
   twitterDescription: gameDescription,
-  twitterImage: `${siteUrl}/og.jpg`,
+  twitterImage: ogImage,
 })
 </script>
 

@@ -23,6 +23,9 @@ const chapterId = chapter.value?.id ?? rawId.replace('-', '.')
 
 
 const siteUrl = useRuntimeConfig().public.siteUrl
+// Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
+// позже, вне контекста Nuxt, и useRuntimeConfig там падает.
+const ogImage = ogImageUrl()
 const slug = computed(() => encodeURIComponent(slugifyChapterId(chapter.value?.id ?? rawId)))
 const pageUrl = computed(() => `${siteUrl}/chapter/${slug.value}/comments`)
 const pageTitle = computed(() => chapter.value
@@ -44,14 +47,14 @@ useSeoMeta({
   description: () => pageDescription.value,
   ogTitle: () => pageTitle.value,
   ogDescription: () => pageDescription.value,
-  ogImage: `${siteUrl}/og.jpg`,
+  ogImage,
   ogUrl: () => pageUrl.value,
   ogType: 'website',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
   twitterTitle: () => pageTitle.value,
   twitterDescription: () => pageDescription.value,
-  twitterImage: `${siteUrl}/og.jpg`,
+  twitterImage: ogImage,
 })
 </script>
 

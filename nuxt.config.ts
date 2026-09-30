@@ -1,3 +1,11 @@
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+
+// Отпечаток картинки превью ссылок. Телеграм, ВК и прочие кэшируют превью по
+// адресу картинки — сколько угодно долго, — и новая og.jpg под старым адресом
+// до них не доходит. С отпечатком в адресе новая картинка — это новый адрес.
+const ogImageVersion = createHash('sha1').update(readFileSync('public/og.jpg')).digest('hex').slice(0, 8)
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
@@ -51,6 +59,7 @@ export default defineNuxtConfig({
     },
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://taverna-book.com',
+      ogImageVersion,
       // Проект Microsoft Clarity (записи сессий, карты кликов). Пустой — скрипт
       // не подключается вовсе: локалка и тесты не должны попадать в статистику.
       clarityId: process.env.NUXT_PUBLIC_CLARITY_ID || '',

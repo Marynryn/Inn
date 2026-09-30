@@ -12,19 +12,22 @@ useHead({
 // useSeoMeta (главная, глава, о проекте, комментарии) переопределяют их конкретикой.
 // Страницы без собственных тегов (например /admin, /login) всё равно получат
 // осмысленное превью, а не пустую карточку.
-const siteUrl = useRuntimeConfig().public.siteUrl
+
+// Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
+// позже, вне контекста Nuxt, и useRuntimeConfig там падает.
+const ogImage = ogImageUrl()
 
 useSeoMeta({
   ogSiteName: 'Странствующая Таверна',
   ogTitle: 'Странствующая Таверна',
   ogDescription: 'Фанатский перевод The Wandering Inn на русский язык.',
-  ogImage: `${siteUrl}/og.jpg`,
+  ogImage,
   ogType: 'website',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
   twitterTitle: 'Странствующая Таверна',
   twitterDescription: 'Фанатский перевод The Wandering Inn на русский язык.',
-  twitterImage: `${siteUrl}/og.jpg`,
+  twitterImage: ogImage,
 })
 </script>
 
