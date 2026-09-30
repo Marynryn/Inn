@@ -1,5 +1,5 @@
-import { test, expect, open, login } from './helpers'
-import { READER, SECOND } from './fixtures'
+import { test, expect, open, login, logout } from './helpers'
+import { ADMIN, READER, SECOND } from './fixtures'
 
 test.describe('Профиль', () => {
   test('гостя отправляют на вход', async ({ page }) => {
@@ -62,5 +62,94 @@ test.describe('Профиль', () => {
 
     await open(page, '/profile')
     await expect(page.locator('.avatar-face .ua-pic')).toHaveAttribute('src', /avatars/)
+  })
+})
+
+test.describe('Страница читателя', () => {
+  test('«О себе» сохраняется и видно всем, почты там нет', async ({ page, browser }) => {
+    await login(page, READER)
+    await open(page, '/profile')
+
+    const about = `С первой главы.\n\n\n\nБолею за Мршу ${Math.random().toString(36).slice(2, 6)}`
+    await page.getByLabel('О себе').fill(about)
+    await page.getByRole('button', { name: 'Сохранить' }).click()
+    await expect(page.locator('.ok-msg')).toHaveText('Сохранено')
+
+    const me = await (await page.request.get('/api/profile')).json()
+    // Пустые строки подряд схлопываются до одной — растянуть страницу ими нельзя.
+    expect(me.about).toBe(about.replace(/\n{3,}/g, '\n\n'))
+
+    await page.getByRole('link', { name: 'Как меня видят другие' }).click()
+    await expect(page).toHaveURL(new RegExp(`/reader/${me.id}$`))
+    await expect(page.locator('h1.name')).toHaveText(READER.name)
+    await expect(page.locator('.about')).toContainText('Болею за Мршу')
+
+    // Гость видит ту же страницу, но ни почты, ни способа входа в ответе нет.
+    const guest = await browser.newContext()
+    const pub = await (await guest.request.get(`/api/readers/${me.id}`)).json()
+    await guest.close()
+    expect(pub.name).toBe(READER.name)
+    expect(JSON.stringify(pub)).not.toContain(READER.email)
+    expect(pub).not.toHaveProperty('email')
+    expect(pub).not.toHaveProperty('providers')
+  })
+
+  test('несуществующий читатель — понятная заглушка', async ({ page }) => {
+    await open(page, '/reader/999999')
+    await expect(page.getByRole('heading', { name: 'Такого читателя нет' })).toBeVisible()
+  })
+
+  test('хозяйка сайта стирает чужое «О себе», читатель — нет', async ({ page }) => {
+    await login(page, SECOND)
+    const put = await page.request.put('/api/profile', { multipart: { about: 'Текст, который придётся стереть' } })
+    expect(put.ok(), await put.text()).toBeTruthy()
+    const { id } = await (await page.request.get('/api/profile')).json()
+
+    const denied = await page.request.delete(`/api/admin/readers/${id}/about`)
+    expect(denied.status()).toBe(403)
+
+    await logout(page)
+    await login(page, ADMIN)
+    await open(page, `/reader/${id}`)
+    await expect(page.locator('.about')).toBeVisible()
+    await page.getByRole('button', { name: 'Стереть «О себе»' }).click()
+    await expect(page.locator('.about')).toHaveCount(0)
+
+    const pub = await (await page.request.get(`/api/readers/${id}`)).json()
+    expect(pub.about).toBeNull()
+  })
+
+  test('хозяйка сайта примеряет любую рамку, а носит только выданную', async ({ page }) => {
+    await login(page, ADMIN)
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAFklEQVQImWP8z8DwHwMDAwMTAwMDAwAlBQMBc9QG0QAAAABJRU5ErkJggg==',
+      'base64',
+    )
+    const made = await page.request.post('/api/admin/frames', {
+      multipart: { name: 'Рамка будущего ивента', inPool: '0', image: { name: 'f.png', mimeType: 'image/png', buffer: png } },
+    })
+    expect(made.ok(), await made.text()).toBeTruthy()
+    const { frame } = await made.json()
+
+    try {
+      const me = await (await page.request.get('/api/profile')).json()
+      // Каталог открыт для примерки…
+      expect(me.frames.find((f: any) => f.id === frame.id)?.owned).toBe(false)
+
+      // …но надеть невыданную нельзя: её увидели бы все до розыгрыша.
+      const denied = await page.request.put('/api/profile', { multipart: { avatarFrameId: String(frame.id) } })
+      expect(denied.status()).toBe(403)
+
+      const granted = await page.request.post('/api/admin/frames/grant', { data: { userId: me.id, frameId: frame.id } })
+      expect(granted.ok()).toBeTruthy()
+      const worn = await page.request.put('/api/profile', { multipart: { avatarFrameId: String(frame.id) } })
+      expect(worn.ok(), await worn.text()).toBeTruthy()
+
+      const pub = await (await page.request.get(`/api/readers/${me.id}`)).json()
+      expect(pub.avatarFrame?.id).toBe(frame.id)
+      expect(pub.frames.map((f: any) => f.id)).toContain(frame.id)
+    } finally {
+      await page.request.delete(`/api/admin/frames/${frame.id}`)
+    }
   })
 })

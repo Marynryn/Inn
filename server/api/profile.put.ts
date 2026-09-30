@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { displayNameKey, nameFromEmail, normalizeDisplayName } from '#shared/utils/displayName'
+import { normalizeAbout } from '#shared/utils/readerProfile'
 import { users } from '../database/schema'
 import { saveAvatar } from '../utils/avatar'
 import { useDb } from '../utils/db'
@@ -8,7 +9,7 @@ import { canWearFrame, frameById } from '../utils/frames'
 import { toSessionUser } from '../utils/identity'
 
 /**
- * Ник и аватарка читателя. Почта и пароль сюда не входят: у аккаунтов из
+ * Ник, аватарка и «О себе» читателя. Почта и пароль сюда не входят: у аккаунтов из
  * соцсетей их нет, а у администратора для этого есть своя страница.
  */
 export default defineEventHandler(async (event) => {
@@ -38,6 +39,11 @@ export default defineEventHandler(async (event) => {
     updates.displayNameKey = displayNameKey(shown) || null
   }
 
+  // «О себе» уходит на публичную страницу. Пустое — «не заполнял»: блока там
+  // тогда нет вовсе, а не пустой абзац.
+  const aboutPart = form.find(f => f.name === 'about')
+  if (aboutPart) updates.about = normalizeAbout(aboutPart.data.toString('utf8')) || null
+
   const filePart = form.find(f => f.name === 'avatar' && f.data?.length)
   if (filePart) {
     // saveAvatar проверяет сигнатуру, вес и размеры сам — имени, присланному
@@ -48,7 +54,7 @@ export default defineEventHandler(async (event) => {
   if (form.find(f => f.name === 'removeAvatar')) updates.avatarUrl = null
 
   // Рамка. Пустое значение — «снять рамку», и снять её можно всегда. Надеть —
-  // только выигранную: иначе рамку носил бы любой, кто знает её номер, и
+  // только выигранную или выданную, хозяйке сайта тоже: иначе рамку носил бы любой, кто знает её номер, и
   // награда перестала бы что-либо значить.
   const framePart = form.find(f => f.name === 'avatarFrameId')
   if (framePart) {
@@ -59,8 +65,11 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, message: 'Неизвестная рамка' })
     }
 
-    if (frameId && !(await canWearFrame(sessionUser.id, frameId, me.role === 'admin'))) {
-      throw createError({ statusCode: 403, message: 'Эта рамка не твоя' })
+    if (frameId && !(await canWearFrame(sessionUser.id, frameId))) {
+      throw createError({
+        statusCode: 403,
+        message: me.role === 'admin' ? 'Это примерка: чтобы носить рамку, сначала выдай её себе' : 'Эта рамка не твоя',
+      })
     }
 
     updates.avatarFrameId = frameId || null
@@ -82,5 +91,6 @@ export default defineEventHandler(async (event) => {
     displayName: updated!.displayName,
     avatarUrl: updated!.avatarUrl,
     avatarFrame: await frameById(updated!.avatarFrameId),
+    about: updated!.about,
   }
 })

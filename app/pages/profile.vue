@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AvatarFrame, OwnedFrame } from '#shared/utils/avatarFrames'
+import { ABOUT_MAX } from '#shared/utils/readerProfile'
 
 const auth = useAuthStore()
 const { data: settings } = await useFetch('/api/settings')
@@ -11,6 +12,7 @@ type Profile = {
   displayName: string | null
   avatarUrl: string | null
   avatarFrame: AvatarFrame | null
+  about: string | null
   frames: OwnedFrame[]
   hasPassword: boolean
   providers: ('google' | 'telegram')[]
@@ -24,6 +26,7 @@ watchEffect(() => {
 })
 
 const displayName = ref('')
+const about = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const preview = ref<string | null>(null)
 const saving = ref(false)
@@ -34,6 +37,7 @@ const frameId = ref<number | null>(null)
 
 watchEffect(() => {
   displayName.value = profile.value?.displayName ?? ''
+  about.value = profile.value?.about ?? ''
   frameId.value = profile.value?.avatarFrame?.id ?? null
 })
 
@@ -44,6 +48,36 @@ const frames = computed(() => profile.value?.frames ?? [])
 // примерить на живом лице раньше, чем она кому-то достанется.
 const isAdmin = computed(() => profile.value?.role === 'admin')
 const chosenFrame = computed(() => frames.value.find(f => f.id === frameId.value) ?? null)
+
+// Примерка — рамка из каталога, которой у хозяйки сайта нет. Видна только ей
+// здесь; надеть такую сервер не даст, пока рамка не выдана.
+const trying = computed(() => Boolean(chosenFrame.value && !chosenFrame.value.owned))
+
+const granting = ref(false)
+
+const grantToSelf = async () => {
+  if (!profile.value || !chosenFrame.value) return
+  granting.value = true
+  error.value = ''
+  try {
+    const picked = chosenFrame.value.id
+    await $fetch('/api/admin/frames/grant', {
+      method: 'POST',
+      body: { userId: profile.value.id, frameId: picked },
+    })
+
+    // Выдала себе — значит, хочет носить: надеваем сразу. Шлём одну рамку —
+    // имя и «О себе» сохраняются своей кнопкой.
+    const form = new FormData()
+    form.append('avatarFrameId', String(picked))
+    await $fetch('/api/profile', { method: 'PUT', body: form })
+    await Promise.all([refresh(), auth.fetchMe()])
+  } catch (e: any) {
+    error.value = e.data?.message || 'Не выдалась'
+  } finally {
+    granting.value = false
+  }
+}
 
 const avatarSrc = computed(() => preview.value || profile.value?.avatarUrl || null)
 
@@ -100,7 +134,10 @@ const save = async () => {
   try {
     const form = new FormData()
     form.append('displayName', displayName.value)
-    form.append('avatarFrameId', frameId.value ? String(frameId.value) : '')
+    form.append('about', about.value)
+    // Примерку не надеваем: остаётся та рамка, что была.
+    const wear = trying.value ? (profile.value?.avatarFrame?.id ?? null) : frameId.value
+    form.append('avatarFrameId', wear ? String(wear) : '')
     const file = fileInput.value?.files?.[0]
     if (file) form.append('avatar', await toSmallSquare(file), 'avatar.webp')
 
@@ -172,12 +209,26 @@ useHead({
           </div>
         </div>
 
+        <div class="about-field">
+          <label for="pf-about">О себе</label>
+          <textarea
+            id="pf-about"
+            v-model="about"
+            class="thin-scroll"
+            rows="4"
+            :maxlength="ABOUT_MAX"
+            placeholder="Пара слов для твоей страницы: с какой главы читаешь, за кого болеешь"
+          />
+          <span class="about-count">{{ about.length }}/{{ ABOUT_MAX }}</span>
+        </div>
+
         <div class="form-foot">
           <button class="save-btn" type="button" :disabled="saving" @click="save">
             {{ saving ? 'Сохраняем...' : 'Сохранить' }}
           </button>
           <span v-if="message" class="ok-msg">{{ message }}</span>
           <span v-if="error" class="err-msg">{{ error }}</span>
+          <NuxtLink :to="`/reader/${profile.id}`" class="link-btn">Как меня видят другие</NuxtLink>
         </div>
 
         <hr class="divider">
@@ -191,7 +242,10 @@ useHead({
 
         <template v-else>
           <p class="section-note">
-            <template v-if="isAdmin">Тебе показан весь каталог — читатель видит только выигранное.</template>
+            <template v-if="isAdmin">
+              Тебе показан весь каталог для примерки — её видишь только ты. Носить можно свои:
+              выдай рамку себе, и она станет твоей.
+            </template>
             <template v-else>Носить можно любую из своих — или ходить без рамки.</template>
           </p>
 
@@ -231,6 +285,13 @@ useHead({
               />
               <span class="frame-name">{{ f.name }}</span>
               <span v-if="!f.owned" class="frame-tag">примерка</span>
+            </button>
+          </div>
+
+          <div v-if="trying" class="try-note">
+            <span>«{{ chosenFrame?.name }}» — примерка: сохранить её не выйдет, все увидят прежнюю рамку.</span>
+            <button class="link-btn" type="button" :disabled="granting" @click="grantToSelf">
+              {{ granting ? 'Выдаём...' : 'Выдать себе и надеть' }}
             </button>
           </div>
         </template>
@@ -379,8 +440,47 @@ useHead({
   border-color: var(--ember-soft);
 }
 
+.about-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.about-field label {
+  font-size: 12px;
+  opacity: .5;
+}
+
+.about-field textarea {
+  background: rgba(241, 230, 210, .05);
+  border: 1px solid rgba(241, 230, 210, .18);
+  border-radius: var(--radius-md);
+  color: var(--parchment);
+  padding: 10px 13px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  width: 100%;
+  resize: vertical;
+  min-height: 92px;
+}
+
+.about-field textarea:focus-visible {
+  outline: none;
+  border-color: var(--ember-soft);
+}
+
+.about-count {
+  align-self: flex-end;
+  font-size: 11px;
+  opacity: .4;
+  font-variant-numeric: tabular-nums;
+}
+
 .form-foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin-top: 18px;
@@ -462,6 +562,20 @@ useHead({
   text-transform: uppercase;
   color: var(--ember-soft);
   opacity: .65;
+}
+
+.try-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--ember-soft);
+}
+
+.try-note .link-btn {
+  margin-left: 0;
 }
 
 /* ── Способы входа ──────────────────────────── */

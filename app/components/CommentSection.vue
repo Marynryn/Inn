@@ -10,6 +10,11 @@ const props = defineProps<{
 
 const auth = useAuthStore()
 const route = useRoute()
+
+// Вошедший автор ведёт на свою страницу, гость — никуда: у гостя её нет.
+const NuxtLink = resolveComponent('NuxtLink')
+const authorTag = (c: any) => (c.userId ? NuxtLink : 'span')
+const authorTo = (c: any) => (c.userId ? `/reader/${c.userId}` : undefined)
 const now = useNow()
 const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
 
@@ -339,16 +344,26 @@ onMounted(() => {
         class="comment-item"
         :class="{ 'is-reply': c.parentId != null, 'is-target': c.id === targetId }"
       >
-        <UserAvatar
-          class="comment-avatar"
-          :src="c.avatarUrl"
-          :name="c.authorName"
-          :frame="c.avatarFrame"
-          :size="c.parentId != null ? 30 : 40"
-          alt=""
-        />
+        <!-- Со ссылки на аватарке фокус не нужен: рядом та же ссылка на имени,
+             и дважды проходить по одному адресу с клавиатуры незачем. -->
+        <component
+          :is="authorTag(c)"
+          :to="authorTo(c)"
+          class="comment-author-pic"
+          :tabindex="c.userId ? -1 : undefined"
+          aria-hidden="true"
+        >
+          <UserAvatar
+            class="comment-avatar"
+            :src="c.avatarUrl"
+            :name="c.authorName"
+            :frame="c.avatarFrame"
+            :size="c.parentId != null ? 30 : 40"
+            alt=""
+          />
+        </component>
         <div class="comment-content">
-          <span class="comment-name">{{ c.authorName }}</span>
+          <component :is="authorTag(c)" :to="authorTo(c)" class="comment-name">{{ c.authorName }}</component>
           <span v-if="answeredName(c)" class="in-reply">в ответ {{ answeredName(c) }}</span>
           <span v-if="c.isSpoiler" class="spoiler-badge">[спойлер]</span>
           <span class="comment-time">{{ timeAgo(c.createdAt, now) }}</span>
@@ -658,6 +673,17 @@ onMounted(() => {
 .comment-avatar {
   background: linear-gradient(135deg, var(--ember-soft), var(--moss));
   color: var(--bg-dark);
+}
+
+.comment-author-pic {
+  flex: none;
+  align-self: flex-start;
+  display: block;
+  border-radius: 50%;
+}
+
+a.comment-name:hover {
+  color: var(--ember-soft);
 }
 
 .comment-content {

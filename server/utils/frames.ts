@@ -63,7 +63,8 @@ export async function ownedFrames(userId: number): Promise<OwnedFrame[]> {
  * Из чего человек выбирает рамку. Читатель — только из выигранного, иначе
  * рамка перестала бы быть наградой. Хозяйке сайта показываем весь каталог:
  * ей рамку нужно примерить на живое лицо до того, как она кому-то достанется,
- * и заводить ради этого второй аккаунт незачем.
+ * и заводить ради этого второй аккаунт незачем. Примерить — не значит надеть:
+ * см. canWearFrame.
  */
 export async function wearableFrames(userId: number, isAdmin: boolean): Promise<OwnedFrame[]> {
   const owned = await ownedFrames(userId)
@@ -78,12 +79,13 @@ export async function wearableFrames(userId: number, isAdmin: boolean): Promise<
   return [...owned, ...rest]
 }
 
-/** Можно ли человеку носить эту рамку. Та же поблажка хозяйке сайта, что и в
- *  списке выбора: показали весь каталог — значит, надеть можно любую. */
-export async function canWearFrame(userId: number, frameId: number, isAdmin: boolean): Promise<boolean> {
-  if (isAdmin) return Boolean(await frameById(frameId))
-  return ownsFrame(userId, frameId)
-}
+/**
+ * Можно ли человеку носить эту рамку — то есть показывать её всем. Только
+ * свою, и хозяйке сайта тоже: каталог ей открыт для примерки, но надетая
+ * рамка видна под каждым её комментарием, и рамка будущего ивента засветилась
+ * бы до розыгрыша. Чтобы носить, хозяйка выдаёт рамку себе.
+ */
+export const canWearFrame = ownsFrame
 
 export async function ownsFrame(userId: number, frameId: number): Promise<boolean> {
   const [row] = await useDb()

@@ -22,6 +22,7 @@ const monthName = computed(() => {
 })
 
 type Row = {
+  userId: number
   name: string
   avatarUrl: string | null
   avatarFrame: AvatarFrame | null
@@ -194,7 +195,9 @@ useScrollLock()
                     alt=""
                   />
                 </td>
-                <td class="name" :title="row.name">{{ row.name }}</td>
+                <td class="name" :title="row.name">
+                  <NuxtLink :to="`/reader/${row.userId}`" class="reader-link">{{ row.name }}</NuxtLink>
+                </td>
                 <td class="num">{{ row.wins }}<span class="of"> из {{ row.played }}</span></td>
                 <td class="num">{{ row.averageGuesses || '—' }}</td>
                 <td v-if="mode === 'daily'" class="num">{{ row.streak || '—' }}</td>
@@ -233,7 +236,7 @@ useScrollLock()
                   :size="26"
                   alt=""
                 />
-                <span class="hall-name" :title="champ.name">{{ champ.name }}</span>
+                <NuxtLink :to="`/reader/${champ.userId}`" class="hall-name reader-link" :title="champ.name">{{ champ.name }}</NuxtLink>
                 <span class="hall-wins">
                   {{ champ.wins }}<span class="hall-wins-word">&nbsp;{{ pluralize(champ.wins, 'победа', 'победы', 'побед') }}</span>
                 </span>
@@ -498,6 +501,17 @@ useScrollLock()
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Имя ведёт на страницу читателя, но в таблице выглядит именем, а не
+   ссылкой: подчёркнутая колонка спорила бы с числами. */
+.reader-link {
+  color: inherit;
+}
+
+.reader-link:hover {
+  color: var(--ember-soft);
+  text-decoration: underline;
 }
 
 /* Зал славы свёрнут: пришли за нынешней таблицей, история — по желанию. */

@@ -23,6 +23,8 @@ export interface RatingRow {
 export interface RankedPlayer {
   place: number
   me: boolean
+  /** Для ссылки на страницу читателя. */
+  userId: number
   name: string
   avatarUrl: string | null
   avatarFrame: AvatarFrame | null
@@ -124,6 +126,7 @@ export async function rankPlayers(
   return [...players.values()]
     .map(p => ({
       me: p.userId === myId,
+      userId: p.userId,
       name: p.name,
       avatarUrl: p.avatarUrl,
       avatarFrame: frames.get(p.avatarFrameId ?? 0) ?? null,

@@ -32,6 +32,8 @@ export const users = sqliteTable('users', {
   // Вид страницы главы (тема, кегль, высота строки, ширина) — JSON. NULL = ещё
   // не настраивал; у гостя то же самое живёт в браузере.
   readerSettings: text('reader_settings'),
+  // «О себе» на публичной странице читателя. NULL = не заполнял, и блока там нет.
+  about: text('about'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 

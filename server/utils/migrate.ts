@@ -560,6 +560,31 @@ export async function runMigrations() {
     // Столбец уже существует — это нормально
   }
 
+  // «О себе» — абзац на публичной странице читателя.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN about TEXT')
+  } catch {
+    // Столбец уже существует — это нормально
+  }
+
+  // Хозяйка сайта раньше могла носить любую рамку каталога, теперь — только
+  // свою. Ту, что на ней сейчас, выдаём ей один раз, молча: рамка не должна
+  // слететь с аватарки из-за того, что поменялось правило.
+  const wornGranted = await client.execute("SELECT value FROM site_settings WHERE key = 'admin_worn_frames_granted'")
+  if (wornGranted.rows.length === 0) {
+    await client.batch([
+      `INSERT OR IGNORE INTO user_frames (user_id, frame_id)
+        SELECT u.id, u.avatar_frame_id FROM users u
+        JOIN avatar_frames f ON f.id = u.avatar_frame_id
+        WHERE u.role = 'admin'`,
+      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('admin_worn_frames_granted', '1')",
+    ], 'write')
+  }
+
+  // Публичная страница считает комментарии читателя — без индекса это проход
+  // по всей таблице на каждое открытие профиля.
+  await client.execute('CREATE INDEX IF NOT EXISTS comments_user ON comments (user_id)')
+
   // Создать admin-аккаунт если нет ни одного пользователя
   const existing = await client.execute('SELECT COUNT(*) as cnt FROM users')
   const count = (existing.rows[0] as any).cnt as number

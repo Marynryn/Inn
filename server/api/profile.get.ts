@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
     role: user.role,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
+    about: user.about,
     avatarFrame: await frameById(user.avatarFrameId),
     // Выигранные рамки — из них человек и выбирает; у хозяйки сайта здесь
     // весь каталог. Пустой список значит, что выбирать не из чего: на странице
