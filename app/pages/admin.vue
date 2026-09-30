@@ -1223,14 +1223,14 @@ useHead({
             {{ sendingNotify ? 'Отправляем...' : `Отправить в Telegram (${selectedNotifyIds.length})` }}
           </button>
           <p v-if="notifyResult" class="result-msg">{{ notifyResult }}</p>
+
+          <AdminTelegramPost />
         </section>
       </main>
 
       <!-- САЙДБАР -->
       <aside class="admin-sidebar">
         <div class="sb-profile" @click="activeTab = 'profile'">
-
-          <AdminTelegramPost />
           <img v-if="currentAvatar" :src="currentAvatar" class="sb-avatar" alt="">
           <div v-else class="sb-avatar sb-avatar--text display">
             {{ (displayName || profile?.email || '?')[0].toUpperCase() }}
@@ -2428,15 +2428,6 @@ useHead({
   margin-bottom: 16px;
 }
 
-.notify-preview-label {
-  font-size: 11px;
-  color: var(--ink-soft);
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-
-.notify-preview-text {
-  margin: 0;
 .notify-preview-head {
   display: flex;
   align-items: baseline;
@@ -2445,14 +2436,13 @@ useHead({
   margin-bottom: 6px;
 }
 
-  font-family: var(--font-body);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--parchment-2);
-  white-space: pre-wrap;
-  word-break: break-word;
+.notify-preview-label {
+  font-size: 11px;
+  color: var(--ink-soft);
+  letter-spacing: .04em;
+  text-transform: uppercase;
 }
-</style>
+
 .notify-rebuild {
   padding: 0;
   border: none;
@@ -2467,14 +2457,23 @@ useHead({
 
 /* Поле без рамки и фона — окошко вокруг уже рамка: правится текст там же,
    где раньше только показывался. */
+.notify-preview-text {
   display: block;
   width: 100%;
   height: 96px;
+  margin: 0;
   padding: 0;
   border: none;
   background: none;
   resize: none;
   overflow-y: auto;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--parchment-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 .notify-preview-text:focus-visible {
   outline: none;
@@ -2483,3 +2482,4 @@ useHead({
 .notify-preview:focus-within {
   border-color: var(--ember-soft);
 }
+</style>
