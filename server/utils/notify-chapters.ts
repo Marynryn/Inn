@@ -40,6 +40,8 @@ export async function getPendingChapters() {
  */
 export async function notifyChapters(opts: {
   chapterIds?: string[]
+  /** Свой текст вместо собранного — из панели, где его правят перед отправкой. */
+  text?: string
   touchLastNotify?: boolean
 } = {}): Promise<NotifyResult> {
   const db = useDb()
@@ -51,7 +53,8 @@ export async function notifyChapters(opts: {
 
   if (list.length === 0) return { notified: false, count: 0, reason: 'nothing-to-send' }
 
-  const message = buildChapterNotification(list, useRuntimeConfig().public.siteUrl)
+  // Текст, поправленный в панели, уходит как есть; без него — собранный сам.
+  const message = opts.text?.trim() || buildChapterNotification(list, useRuntimeConfig().public.siteUrl)
   const sent = await sendTelegramMessage(message)
   // Бот не настроен — сообщение никуда не ушло, и помечать главы отправленными нельзя.
   if (!sent) return { notified: false, count: 0, reason: 'telegram-not-configured' }

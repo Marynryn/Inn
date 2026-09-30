@@ -494,6 +494,20 @@ const notifyPreview = computed(() => {
   return buildChapterNotification(picked, runtimeConfig.public.siteUrl)
 })
 
+// Текст сообщения правится прямо перед отправкой. Пока его не трогали, он
+// следует за выбором глав; тронули — остаётся твоим, пока не соберёшь заново.
+const notifyText = ref('')
+const notifyEdited = ref(false)
+
+watch(notifyPreview, (text) => {
+  if (!notifyEdited.value) notifyText.value = text
+}, { immediate: true })
+
+const rebuildNotifyText = () => {
+  notifyEdited.value = false
+  notifyText.value = notifyPreview.value
+}
+
 const formatNotifyDate = (iso?: string | null) => iso ? iso.slice(0, 16).replace('T', ' ') : '—'
 
 const sendNotify = async () => {
@@ -503,9 +517,10 @@ const sendNotify = async () => {
   try {
     const res = await $fetch('/api/admin/notify', {
       method: 'POST',
-      body: { chapterIds: selectedNotifyIds.value },
+      body: { chapterIds: selectedNotifyIds.value, text: notifyText.value },
     })
     notifyResult.value = `✓ Отправлено в телеграм: ${res.count} гл.`
+    notifyEdited.value = false
     await refreshNotify()
   } catch (e: any) {
     notifyError.value = e?.data?.message || 'Не удалось отправить'
@@ -1187,12 +1202,24 @@ useHead({
           </div>
 
           <div v-if="notifyPreview" class="notify-preview">
-            <div class="notify-preview-label">Текст сообщения</div>
-            <pre class="notify-preview-text">{{ notifyPreview }}</pre>
+            <div class="notify-preview-head">
+              <label class="notify-preview-label" for="notify-text">Текст сообщения — можно править</label>
+              <button v-if="notifyEdited" class="notify-rebuild" type="button" @click="rebuildNotifyText">
+                Собрать заново
+              </button>
+            </div>
+            <textarea
+              id="notify-text"
+              v-model="notifyText"
+              class="notify-preview-text thin-scroll"
+              rows="4"
+              maxlength="4096"
+              @input="notifyEdited = true"
+            />
           </div>
 
           <div v-if="notifyError" class="form-error">{{ notifyError }}</div>
-          <button class="btn-action" :disabled="sendingNotify || !selectedNotifyIds.length" @click="sendNotify">
+          <button class="btn-action" :disabled="sendingNotify || !selectedNotifyIds.length || !notifyText.trim()" @click="sendNotify">
             {{ sendingNotify ? 'Отправляем...' : `Отправить в Telegram (${selectedNotifyIds.length})` }}
           </button>
           <p v-if="notifyResult" class="result-msg">{{ notifyResult }}</p>
@@ -1202,6 +1229,8 @@ useHead({
       <!-- САЙДБАР -->
       <aside class="admin-sidebar">
         <div class="sb-profile" @click="activeTab = 'profile'">
+
+          <AdminTelegramPost />
           <img v-if="currentAvatar" :src="currentAvatar" class="sb-avatar" alt="">
           <div v-else class="sb-avatar sb-avatar--text display">
             {{ (displayName || profile?.email || '?')[0].toUpperCase() }}
@@ -2404,11 +2433,18 @@ useHead({
   color: var(--ink-soft);
   letter-spacing: .04em;
   text-transform: uppercase;
-  margin-bottom: 6px;
 }
 
 .notify-preview-text {
   margin: 0;
+.notify-preview-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
   font-family: var(--font-body);
   font-size: 13px;
   line-height: 1.5;
@@ -2417,3 +2453,33 @@ useHead({
   word-break: break-word;
 }
 </style>
+.notify-rebuild {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ember-soft);
+  font-family: var(--font-body);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notify-rebuild:hover { text-decoration: underline; }
+
+/* Поле без рамки и фона — окошко вокруг уже рамка: правится текст там же,
+   где раньше только показывался. */
+  display: block;
+  width: 100%;
+  height: 96px;
+  padding: 0;
+  border: none;
+  background: none;
+  resize: none;
+  overflow-y: auto;
+
+.notify-preview-text:focus-visible {
+  outline: none;
+}
+
+.notify-preview:focus-within {
+  border-color: var(--ember-soft);
+}
