@@ -6,6 +6,8 @@
  */
 type CommentRow = {
   id: number
+  authorName: string
+  authorCode: string | null
   body: string
   isSpoiler: boolean | null
   chapterId: string | null
@@ -85,6 +87,8 @@ useScrollLock()
         <div class="rows thin-scroll">
           <div v-for="c in rows" :key="c.id" class="row">
             <div class="row-meta">
+              <NuxtLink v-if="c.authorCode" :href="`/reader/${c.authorCode}`" class="row-author" target="_blank">{{ c.authorName }}</NuxtLink>
+              <span v-else class="row-author">{{ c.authorName }} <span v-if="c.authorName !== 'Гость'" class="row-guest">гость</span></span>
               <span class="row-time">{{ fmtMsk(c.createdAt) }}</span>
               <span v-if="c.isSpoiler" class="row-spoiler">спойлер</span>
               <NuxtLink
@@ -222,6 +226,24 @@ useScrollLock()
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.row-author {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--parchment);
+}
+
+a.row-author:hover { color: var(--ember-soft); }
+
+.row-guest {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--ink-soft);
 }
 
 .row-time {

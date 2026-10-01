@@ -1,5 +1,5 @@
 import { useDb } from '../../utils/db'
-import { comments, chapters } from '../../database/schema'
+import { comments, chapters, users } from '../../database/schema'
 import { desc, leftJoin, eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -12,6 +12,8 @@ export default defineEventHandler(async (event) => {
     .select({
       id: comments.id,
       authorName: comments.authorName,
+      // Код страницы автора — у гостя его нет: гость пишет без аккаунта.
+      authorCode: users.publicId,
       body: comments.body,
       isSpoiler: comments.isSpoiler,
       chapterId: comments.chapterId,
@@ -20,6 +22,7 @@ export default defineEventHandler(async (event) => {
     })
     .from(comments)
     .leftJoin(chapters, eq(comments.chapterId, chapters.id))
+    .leftJoin(users, eq(comments.userId, users.id))
     .orderBy(desc(comments.createdAt))
     .limit(50)
 

@@ -68,9 +68,20 @@ const load = async () => {
 
   strip.value = [pick(symbols.value), pick(symbols.value), pick(symbols.value)]
   phase.value = 'ready'
+  predecode()
 }
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+/** Раскодировать картинки ленты заранее: иначе браузер распаковывает рамку в
+ *  момент, когда она въезжает в окошко, и лента дёргается. */
+const predecode = () => {
+  for (const s of symbols.value) {
+    const img = new Image()
+    img.src = s.url
+    img.decode?.().catch(() => {})
+  }
+}
 
 const spinNow = async () => {
   if (phase.value !== 'ready') return
@@ -329,8 +340,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(15, 11, 8, .82);
-  backdrop-filter: blur(3px);
+  /* Без backdrop-filter: размытие всего экрана под едущей лентой на большом
+     мониторе стоило кадров, а затемнения и так хватает. */
+  background: rgba(15, 11, 8, .86);
 }
 
 .reel-sheet {

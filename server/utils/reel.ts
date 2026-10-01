@@ -77,7 +77,7 @@ export async function symbolsOf(segs: Segment[]): Promise<ReelSymbol[]> {
     const url = s.frameId
       ? frames.get(s.frameId)?.url
       : s.figure
-        ? figureById(s.figure)?.big
+        ? figureById(s.figure)?.bigStill
         : s.skinId
           ? skins.get(s.skinId)?.url
           : s.image ? reelImageUrl(s.image) : null

@@ -40,6 +40,8 @@ const title = ref('')
 const texts = ref<Record<ReelTextKey, string>>(Object.fromEntries(REEL_TEXT_KEYS.map(k => [k, ''])) as Record<ReelTextKey, string>)
 const textsOpen = ref(false)
 const log = ref<LogRow[]>([])
+/** В журнале — только выигрыши: кому что досталось, без сценок и повторок. */
+const onlyWon = ref(false)
 
 const newTitle = ref('')
 const busy = ref(false)
@@ -121,8 +123,13 @@ const select = async (id: number | null) => {
   drafts.value = r ? toDraft(r) : []
   title.value = r?.title ?? ''
   for (const k of REEL_TEXT_KEYS) texts.value[k] = r?.texts[k] ?? ''
+  await loadLog()
+}
+
+const loadLog = async () => {
+  const r = selected.value
   log.value = r && r.status !== 'draft'
-    ? await $fetch<LogRow[]>(`/api/admin/reels/${r.id}/log`).catch(() => [])
+    ? await $fetch<LogRow[]>(`/api/admin/reels/${r.id}/log`, { query: onlyWon.value ? { won: 1 } : {} }).catch(() => [])
     : []
 }
 
@@ -508,8 +515,15 @@ onMounted(load)
 
       <!-- Кто что выкрутил -->
       <div v-if="selected.status !== 'draft'" class="log">
-        <h3>Попытки · {{ selected.spins }} от {{ selected.players }} чел.</h3>
-        <p v-if="!log.length" class="empty">Пока никто не крутил.</p>
+        <div class="log-head">
+          <h3>Попытки · {{ selected.spins }} от {{ selected.players }} чел.</h3>
+          <label class="log-filter">
+            <input v-model="onlyWon" type="checkbox" @change="loadLog">
+            <span>Только выигрыши</span>
+          </label>
+        </div>
+        <p v-if="!log.length" class="empty">{{ onlyWon ? 'Выигрышей пока нет.' : 'Пока никто не крутил.' }}</p>
+        <p v-else-if="onlyWon" class="note">Выигрышей: {{ log.length }}{{ log.length >= 500 ? ' (показаны последние 500)' : '' }}</p>
         <div v-for="row in log" :key="row.id" class="log-row">
           <span class="log-who">{{ row.name }}</span>
           <span class="log-what">{{ row.label }} <em :class="row.outcome">{{ OUTCOME[row.outcome] }}</em></span>
@@ -876,8 +890,33 @@ select option { background: var(--bg-dark-2); }
   border-top: 1px solid rgba(241, 230, 210, .1);
 }
 
+.log-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 14px;
+  margin-bottom: 10px;
+}
+
+.log-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(241, 230, 210, .75);
+  cursor: pointer;
+}
+
+.log-filter input {
+  flex: none;
+  width: auto;
+  margin: 0;
+  accent-color: var(--ember);
+}
+
 .log h3 {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 14px;
   font-weight: 500;
 }

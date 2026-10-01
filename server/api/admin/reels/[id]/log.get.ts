@@ -1,14 +1,20 @@
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { reelSegments, reelSpins, users } from '../../../../database/schema'
 import { useDb } from '../../../../utils/db'
 import { readerName } from '../../../../utils/identity'
 import { reelFromRoute } from '../../../../utils/reel'
 
-/** Кто что выкрутил — последние попытки, свежие сверху. */
+/**
+ * Кто что выкрутил — последние попытки, свежие сверху. С ?won=1 — только
+ * выигрыши, и их отдаём почти все: при нескольких попытках в день выигрыши
+ * тонут среди сценок, а последней полусотни на них не хватит.
+ */
 const LIMIT = 50
+const WON_LIMIT = 500
 
 export default defineEventHandler(async (event) => {
   const reel = await reelFromRoute(event)
+  const onlyWon = getQuery(event).won === '1'
 
   const rows = await useDb()
     .select({
@@ -23,9 +29,11 @@ export default defineEventHandler(async (event) => {
     .from(reelSpins)
     .innerJoin(reelSegments, eq(reelSegments.id, reelSpins.segmentId))
     .innerJoin(users, eq(users.id, reelSpins.userId))
-    .where(eq(reelSpins.reelId, reel.id))
+    .where(onlyWon
+      ? and(eq(reelSpins.reelId, reel.id), eq(reelSpins.outcome, 'won'))
+      : eq(reelSpins.reelId, reel.id))
     .orderBy(desc(reelSpins.id))
-    .limit(LIMIT)
+    .limit(onlyWon ? WON_LIMIT : LIMIT)
 
   return rows.map(({ displayName, email, ...r }) => ({ ...r, name: readerName({ displayName, email }) }))
 })
