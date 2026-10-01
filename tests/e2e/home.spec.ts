@@ -49,4 +49,14 @@ test.describe('Главная', () => {
     expect(img.ok()).toBeTruthy()
     expect(img.headers()['content-type']).toMatch(/^image\//)
   })
+
+  test('вывеска под hero ведёт на карточки персонажей', async ({ page }) => {
+    await open(page, '/')
+    const sign = page.getByRole('link', { name: 'Карточки персонажей' })
+    await sign.scrollIntoViewIfNeeded()
+    // Спускается, когда её видно: после спуска табличка на месте, а не за краем.
+    await expect(sign).toHaveClass(/shown/)
+    await sign.click()
+    await expect(page).toHaveURL(/\/characters$/)
+  })
 })

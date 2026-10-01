@@ -206,6 +206,9 @@ useSeoMeta({
          Обёртка держит систему координат для украшений, которые идут
          вдоль всей полосы, — сейчас отключённых. -->
     <div class="parchment-band">
+      <!-- Вывеска на цепях — вход в карточки персонажей, свисает из-под hero. -->
+      <SignCharacters />
+
       <div class="game-wrap">
         <GameCta
           :title="settings?.game_cta_title"
