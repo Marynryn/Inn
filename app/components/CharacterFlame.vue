@@ -31,15 +31,21 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
+/* Огонёк сидит поверх портрета, а портреты бывают светлыми: подложка почти
+   непрозрачная, да ещё и размывает то, что под ней, — иначе цифру на светлой
+   картинке не разглядеть. */
 .flame {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 4px 8px 4px 5px;
   border-radius: 999px;
-  border: 1px solid rgba(241, 230, 210, .14);
-  background: rgba(31, 24, 19, .7);
-  color: var(--text-muted);
+  border: 1px solid rgba(241, 230, 210, .22);
+  background: rgba(20, 15, 11, .88);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .45);
+  color: rgba(241, 230, 210, .85);
   font-family: var(--font-body);
   font-size: 12px;
   line-height: 1;
@@ -64,10 +70,12 @@ const emit = defineEmits<{
   opacity: 0;
 }
 
+/* Зажжённый — та же тёмная основа с тёплым отливом: полупрозрачная оранжевая
+   на светлом портрете сливалась бы с ним. */
 .flame.lit {
   color: var(--ember);
-  border-color: rgba(214, 136, 62, .6);
-  background: rgba(214, 136, 62, .16);
+  border-color: rgba(214, 136, 62, .75);
+  background: linear-gradient(rgba(214, 136, 62, .22), rgba(214, 136, 62, .22)), rgba(20, 15, 11, .9);
 }
 
 .flame.lit .icon {
