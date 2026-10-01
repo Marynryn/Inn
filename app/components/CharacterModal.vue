@@ -18,6 +18,20 @@ const glowStyle = computed(() => {
   return { '--glow': a, '--glow-2': b, '--glow-3': c }
 })
 
+/**
+ * Почти чёрное свечение (у Богов) на тёмной подложке не видно вовсе — тень
+ * есть, но сливается с фоном. Таким цветам — чёрная рамка и тень гуще обычной.
+ * Порог — по яркости цвета.
+ */
+const luminance = (hex: string) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
+  if (!m) return 1
+  const n = parseInt(m[1]!, 16)
+  const lin = (c: number) => (c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  return 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255)
+}
+const eclipse = computed(() => luminance(props.character.glow[0] ?? '') < 0.02)
+
 const sheetEl = ref<HTMLElement | null>(null)
 const portraitEl = ref<HTMLElement | null>(null)
 const photoEl = ref<HTMLElement | null>(null)
@@ -262,7 +276,7 @@ useScrollLock()
 <template>
   <Teleport to="body">
     <div class="backdrop" @click.self="close">
-      <div ref="sheetEl" class="sheet" role="dialog" aria-modal="true" :aria-label="character.name" :style="glowStyle">
+      <div ref="sheetEl" class="sheet" :class="{ eclipse, multi: character.glow.length > 1 }" role="dialog" aria-modal="true" :aria-label="character.name" :style="glowStyle">
         <button class="close" type="button" aria-label="Закрыть" @click="close">×</button>
 
         <div class="portrait-wrap">
@@ -313,7 +327,7 @@ useScrollLock()
       </div>
     </div>
 
-    <div v-if="photo && character.full" class="photo" :style="glowStyle" @click="closePhoto">
+    <div v-if="photo && character.full" class="photo" :class="{ eclipse }" :style="glowStyle" @click="closePhoto">
       <img
         ref="photoEl"
         :src="character.full"
@@ -361,16 +375,44 @@ useScrollLock()
   color: var(--parchment);
   /* Тень листа светится цветом расы (--glow приходит с карточкой): гоблины
      зелёным, нежить фиолетовым, люди золотым. */
-  /* Цветов бывает до трёх (Люцифены, Единороги): первый светит слева сверху,
-     последний справа снизу, средний — по центру. У одноцветных все три равны. */
+  /* Тень листа светится цветом расы (--glow приходит с карточкой) — ровно со
+     всех сторон. */
+  box-shadow:
+    0 30px 60px -30px rgba(0, 0, 0, .9),
+    0 0 90px -10px color-mix(in srgb, var(--glow) 70%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--glow) 35%, transparent);
+  animation: slide-up .22s ease;
+  transform-origin: center;
+}
+
+/* Перелив (Люцифены, Единороги): первый цвет светит слева сверху, последний —
+   справа снизу, средний — по центру. Только у них: у одноцветных боковые
+   пятна сделали бы свечение неровным по углам. */
+.sheet.multi {
   box-shadow:
     0 30px 60px -30px rgba(0, 0, 0, .9),
     0 0 90px -10px color-mix(in srgb, var(--glow-2) 55%, transparent),
-    -36px -28px 80px -24px color-mix(in srgb, var(--glow) 30%, transparent),
-    36px 28px 80px -24px color-mix(in srgb, var(--glow-3) 30%, transparent),
+    -36px -28px 80px -24px color-mix(in srgb, var(--glow) 45%, transparent),
+    36px 28px 80px -24px color-mix(in srgb, var(--glow-3) 45%, transparent),
     0 0 0 1px color-mix(in srgb, var(--glow-2) 35%, transparent);
-  animation: slide-up .22s ease;
-  transform-origin: center;
+}
+
+/* Тёмная раса: чёрная рамка и плотная чёрная тень. Подложка за карточкой
+   тоже тёмная, но не чёрная — сгущённая тень на ней читается как тёмный ореол. */
+.sheet.eclipse {
+  border: 2px solid #000;
+  box-shadow:
+    0 30px 60px -30px rgba(0, 0, 0, .9),
+    0 0 24px 6px rgba(0, 0, 0, 1),
+    0 0 70px 24px rgba(0, 0, 0, .95),
+    0 0 140px 50px rgba(0, 0, 0, .85);
+}
+
+.photo.eclipse img {
+  box-shadow:
+    0 30px 60px -30px rgba(0, 0, 0, .9),
+    0 0 0 2px #000,
+    0 0 40px 12px rgba(0, 0, 0, .95);
 }
 
 /* Когда лист летит из карточки, CSS-появление не нужно — оно бы наложилось. */
