@@ -364,6 +364,7 @@ onMounted(() => {
         </component>
         <div class="comment-content">
           <component :is="authorTag(c)" :to="authorTo(c)" class="comment-name">{{ c.authorName }}</component>
+          <NameFigure v-if="c.authorFigure" :figure="c.authorFigure" />
           <span v-if="answeredName(c)" class="in-reply">в ответ {{ answeredName(c) }}</span>
           <span v-if="c.isSpoiler" class="spoiler-badge">[спойлер]</span>
           <span class="comment-time">{{ timeAgo(c.createdAt, now) }}</span>

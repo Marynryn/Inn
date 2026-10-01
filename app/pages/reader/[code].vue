@@ -109,7 +109,9 @@ useHead(() => ({
           />
 
           <div class="info">
-            <h1 class="display name">{{ reader.name }}</h1>
+            <h1 class="display name">
+              {{ reader.name }}<NameFigure v-if="reader.figure" :figure="reader.figure" />
+            </h1>
             <!-- Здесь встанет титул, когда их начнут разыгрывать. Пустой строки
                  под именем быть не должно — поэтому пока ничего. -->
 
@@ -273,6 +275,12 @@ useHead(() => ({
   margin: 0;
   overflow-wrap: anywhere;
   text-wrap: balance;
+}
+
+/* У крупного имени фигурка в полторы высоты букв была бы великовата. */
+.name :deep(.name-figure img) {
+  width: 1.15em;
+  height: 1.15em;
 }
 
 .meta {

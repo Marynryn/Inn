@@ -1,3 +1,5 @@
+import type { NameFigure } from '#shared/utils/nameFigures'
+
 export type SessionUser = {
   /** Только у хозяйки сайта: читателю свой номер не отдаётся, см. /api/auth/me. */
   id?: number
@@ -5,6 +7,7 @@ export type SessionUser = {
   role: 'admin' | 'reader'
   displayName: string | null
   avatarUrl: string | null
+  figure?: NameFigure | null
 }
 
 export const useAuthStore = defineStore('auth', () => {

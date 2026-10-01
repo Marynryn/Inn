@@ -40,6 +40,8 @@ export const users = sqliteTable('users', {
   publicId: text('public_id'),
   // Надетый скин публичной страницы. NULL = без скина.
   skinId: integer('skin_id'),
+  // Надетая фигурка у имени — id из каталога в коде. NULL = без фигурки.
+  figure: text('figure'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
@@ -97,6 +99,54 @@ export const userSkins = sqliteTable('user_skins', {
   skinId: integer('skin_id').notNull(),
   grantedAt: text('granted_at').notNull().default(sql`(datetime('now'))`),
 }, t => [primaryKey({ columns: [t.userId, t.skinId] })])
+
+// Выданные фигурки у имени. Каталог — в коде (shared/utils/nameFigures), здесь
+// только у кого какая есть. Надеть можно только отсюда.
+export const userFigures = sqliteTable('user_figures', {
+  userId: integer('user_id').notNull(),
+  figure: text('figure').notNull(),
+  grantedAt: text('granted_at').notNull().default(sql`(datetime('now'))`),
+}, t => [primaryKey({ columns: [t.userId, t.figure] })])
+// Барабан — розыгрыш рамок на ивенте. Идёт один за раз; пока идёт, каждый
+// читатель крутит раз в день (по Москве).
+export const reels = sqliteTable('reels', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  title: text('title').notNull(),
+  status: text('status', { enum: ['draft', 'running', 'finished'] }).notNull().default('draft'),
+  startedAt: text('started_at'),
+  finishedAt: text('finished_at'),
+  // Проба на проде: барабан видят и крутят только админы, читателям его нет.
+  adminsOnly: integer('admins_only', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+})
+
+// Сегмент барабана — один символ в окошке. С рамкой или фигуркой — приз, без
+// них — сценка из таверны: картинка и пара строк вместо пустоты.
+export const reelSegments = sqliteTable('reel_segments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  reelId: integer('reel_id').notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  label: text('label').notNull(),
+  frameId: integer('frame_id'), // приз-рамка
+  figure: text('figure'), // приз-фигурка у имени; ни рамки, ни фигурки — сценка
+  image: text('image'), // картинка сценки, файл в storage/reel
+  text: text('text'), // что сказать тому, кому выпала сценка
+  weight: integer('weight').notNull().default(0), // шанс в десятых долях процента: 1000 = 100%
+  stock: integer('stock'), // сколько раз приз можно выдать всего; NULL = без ограничений
+})
+
+// Попытка читателя. Одна на человека в день — это держит уникальный индекс, а
+// не проверка в коде: двойной клик иначе проскочил бы между чтением и записью.
+export const reelSpins = sqliteTable('reel_spins', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  reelId: integer('reel_id').notNull(),
+  userId: integer('user_id').notNull(),
+  day: text('day').notNull(), // '2026-09-30' по Москве
+  segmentId: integer('segment_id').notNull(),
+  // won — приз выдан; duplicate — выпал тот, что уже есть; scene — сценка.
+  outcome: text('outcome', { enum: ['won', 'duplicate', 'scene'] }).notNull(),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+})
 
 export const comments = sqliteTable('comments', {
   id: integer('id').primaryKey({ autoIncrement: true }),

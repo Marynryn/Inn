@@ -573,7 +573,7 @@ const formatStatsDate = (iso?: string | null) =>
 
 const { data: commentLogs, refresh: refreshLogs } = await useFetch('/api/admin/comments')
 
-const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'notify' | 'stats' | 'frames' | 'skins'>('upload')
+const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'notify' | 'stats' | 'frames' | 'skins' | 'reel'>('upload')
 const appHeader = ref()
 const switchTab = (tab: typeof activeTab.value) => {
   activeTab.value = tab
@@ -601,6 +601,7 @@ useHead({
           <button class="adm-menu-link" :class="{ active: activeTab === 'stats' }" @click="switchTab('stats')">Статистика</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'frames' }" @click="switchTab('frames')">Рамки</button>
           <button class="adm-menu-link" :class="{ active: activeTab === 'skins' }" @click="switchTab('skins')">Скины</button>
+          <button class="adm-menu-link" :class="{ active: activeTab === 'reel' }" @click="switchTab('reel')">Барабан</button>
           <NuxtLink href="/game" class="adm-menu-link">Игра</NuxtLink>
           <button class="adm-menu-link adm-logout" @click="auth.logout().then(() => navigateTo('/login'))">Выйти</button>
         </template>
@@ -1062,6 +1063,11 @@ useHead({
           <AdminSkins />
         </section>
 
+        <section v-if="activeTab === 'reel'" class="card card--wide">
+          <h2>Барабан</h2>
+          <AdminReel />
+        </section>
+
         <section v-if="activeTab === 'settings'" class="card">
           <h2>Настройки сайта</h2>
           <div class="field-row">
@@ -1272,6 +1278,10 @@ useHead({
           <button class="sb-tab" :class="{ active: activeTab === 'skins' }" @click="activeTab = 'skins'">
             <span class="sb-icon">✶</span>
             Скины
+          </button>
+          <button class="sb-tab" :class="{ active: activeTab === 'reel' }" @click="activeTab = 'reel'">
+            <span class="sb-icon">▤</span>
+            Барабан
           </button>
           <NuxtLink href="/game" class="sb-tab">
             <span class="sb-icon">🎲</span>

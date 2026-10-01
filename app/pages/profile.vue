@@ -2,6 +2,7 @@
 import type { AvatarFrame, OwnedFrame } from '#shared/utils/avatarFrames'
 import { ABOUT_MAX } from '#shared/utils/readerProfile'
 import type { OwnedSkin, ProfileSkin } from '#shared/utils/profileSkins'
+import type { NameFigure, OwnedFigure } from '#shared/utils/nameFigures'
 
 const auth = useAuthStore()
 const { data: settings } = await useFetch('/api/settings')
@@ -19,6 +20,8 @@ type Profile = {
   frames: OwnedFrame[]
   skin: ProfileSkin | null
   skins: OwnedSkin[]
+  figure: NameFigure | null
+  figures: OwnedFigure[]
   hasPassword: boolean
   providers: ('google' | 'telegram')[]
 }
@@ -128,6 +131,50 @@ const grantSkinToSelf = async () => {
     return
   }
   await wearSkin(skin.id)
+}
+
+// ── Фигурка у имени ────────────────────────────
+// Как скин: выданная надевается по щелчку, невыданная — примерка хозяйки сайта.
+const figures = computed(() => profile.value?.figures ?? [])
+const figurePicked = ref<string | null>(null)
+const figureBusy = ref(false)
+const figureError = ref('')
+const pickedTryFigure = computed(() => figures.value.find(g => g.id === figurePicked.value && !g.owned) ?? null)
+
+const wearFigure = async (id: string | null) => {
+  figureBusy.value = true
+  figureError.value = ''
+  try {
+    const form = new FormData()
+    form.append('figure', id ?? '')
+    await $fetch('/api/profile', { method: 'PUT', body: form })
+    figurePicked.value = null
+    await refresh()
+  } catch (e: any) {
+    figureError.value = e.data?.message || 'Не получилось'
+  } finally {
+    figureBusy.value = false
+  }
+}
+
+const pickFigure = (g: OwnedFigure) => {
+  if (g.owned) return wearFigure(g.id)
+  figurePicked.value = g.id
+}
+
+const grantFigureToSelf = async () => {
+  const figure = pickedTryFigure.value
+  if (!figure) return
+  figureBusy.value = true
+  figureError.value = ''
+  try {
+    await $fetch('/api/admin/figures/grant', { method: 'POST', body: { figure: figure.id } })
+  } catch (e: any) {
+    figureError.value = e.data?.message || 'Не выдалась'
+    figureBusy.value = false
+    return
+  }
+  await wearFigure(figure.id)
 }
 
 const avatarSrc = computed(() => preview.value || profile.value?.avatarUrl || null)
@@ -401,6 +448,57 @@ useHead({
             </button>
           </div>
           <p v-if="skinError" class="err-msg">{{ skinError }}</p>
+        </template>
+
+        <!-- Фигурок ни одной — и раздела нет, как со скинами. -->
+        <template v-if="figures.length">
+          <hr class="divider">
+
+          <h2 class="section-title">Фигурка у имени</h2>
+          <p class="section-note">
+            Стоит рядом с твоим именем в комментариях и на твоей странице.
+            <template v-if="isAdmin">Невыданные — для примерки, их видишь только ты.</template>
+          </p>
+
+          <div class="skin-grid">
+            <button
+              class="skin-pick"
+              type="button"
+              :class="{ active: !profile.figure }"
+              :disabled="figureBusy"
+              @click="wearFigure(null)"
+            >
+              <span class="figure-thumb" />
+              <span class="frame-name">Без фигурки</span>
+            </button>
+
+            <button
+              v-for="g in figures"
+              :key="g.id"
+              class="skin-pick"
+              type="button"
+              :class="{ active: profile.figure?.id === g.id, picked: figurePicked === g.id }"
+              :disabled="figureBusy"
+              @click="pickFigure(g)"
+            >
+              <span class="figure-thumb">
+                <img :src="g.url" alt="" draggable="false">
+              </span>
+              <span class="frame-name">{{ g.name }}</span>
+              <span v-if="!g.owned" class="frame-tag">примерка</span>
+            </button>
+          </div>
+
+          <div v-if="pickedTryFigure" class="try-note">
+            <span class="figure-preview">
+              {{ auth.name }}<NameFigure :figure="pickedTryFigure" />
+            </span>
+            <span>— примерка: наружу не видна.</span>
+            <button class="link-btn" type="button" :disabled="figureBusy" @click="grantFigureToSelf">
+              Выдать себе и надеть
+            </button>
+          </div>
+          <p v-if="figureError" class="err-msg">{{ figureError }}</p>
         </template>
 
         <hr class="divider">
@@ -715,6 +813,26 @@ useHead({
   width: 56px;
   height: 56px;
   object-fit: contain;
+}
+
+.figure-thumb {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(241, 230, 210, .12);
+  background: var(--bg-dark);
+}
+
+.figure-thumb img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.figure-preview {
+  font-weight: 600;
 }
 
 .try-note {

@@ -7,6 +7,8 @@ import { useDb } from '../utils/db'
 import { assertNameFree, saveUnique } from '../utils/display-name'
 import { canWearFrame, frameById } from '../utils/frames'
 import { ownsSkin } from '../utils/skins'
+import { ownsFigure } from '../utils/figures'
+import { isFigureId } from '#shared/utils/nameFigures'
 import { toSessionUser } from '../utils/identity'
 
 /**
@@ -90,6 +92,21 @@ export default defineEventHandler(async (event) => {
       })
     }
     updates.skinId = skinId || null
+  }
+
+  // Фигурка у имени. Пусто — «без фигурки». Надеть — только выданную, и
+  // хозяйке сайта тоже: фигурку видят все, кто читает комментарии.
+  const figurePart = form.find(f => f.name === 'figure')
+  if (figurePart) {
+    const figure = figurePart.data.toString('utf8').trim()
+    if (figure && !isFigureId(figure)) throw createError({ statusCode: 400, message: 'Неизвестная фигурка' })
+    if (figure && !(await ownsFigure(sessionUser.id, figure))) {
+      throw createError({
+        statusCode: 403,
+        message: me.role === 'admin' ? 'Это примерка: чтобы носить фигурку, сначала выдай её себе' : 'Эта фигурка не твоя',
+      })
+    }
+    updates.figure = figure || null
   }
 
   if (!Object.keys(updates).length) {

@@ -3,6 +3,8 @@ import { userIdentities, users } from '../database/schema'
 import { useDb } from '../utils/db'
 import { frameById, wearableFrames } from '../utils/frames'
 import { skinById, wearableSkins } from '../utils/skins'
+import { wearableFigures } from '../utils/figures'
+import { figureById } from '#shared/utils/nameFigures'
 
 /** Профиль читателя вместе со списком привязанных способов входа. */
 export default defineEventHandler(async (event) => {
@@ -39,6 +41,9 @@ export default defineEventHandler(async (event) => {
     // рамками, весь каталог для примерки.
     skin: await skinById(user.skinId),
     skins: await wearableSkins(user.id, user.role === 'admin'),
+    // Фигурка у имени — так же: надетая и из чего выбирать.
+    figure: figureById(user.figure),
+    figures: await wearableFigures(user.id, user.role === 'admin'),
     hasPassword: Boolean(user.passwordHash),
     providers: links.map(l => l.provider),
   }

@@ -4,6 +4,7 @@ import { avatarFrames, comments, notifications, users } from '../../database/sch
 import { excerptText } from '#shared/utils/excerpt'
 import { useDb } from '../../utils/db'
 import { framesByIds, toAvatarFrame } from '../../utils/frames'
+import { runningReelFor, todaysSpin } from '../../utils/reel'
 
 /**
  * Уведомления читателя: кто ответил на его комментарий и какие рамки ему
@@ -37,7 +38,7 @@ export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   const userId = (session.user as { id?: number } | undefined)?.id ?? null
 
-  if (!userId) return { unread: 0, items: [] }
+  if (!userId) return { unread: 0, items: [], reel: null }
 
   const db = useDb()
 
@@ -93,8 +94,15 @@ export default defineEventHandler(async (event) => {
 
   const frames = await framesByIds(rows.map(r => r.avatarFrameId))
 
+  // Приглашение крутить барабан не хранится строкой: оно считается на лету —
+  // так его видит и тот, кто зарегистрировался посреди ивента, а назавтра оно
+  // появляется снова само, без рассылки каждому.
+  const reel = await runningReelFor((session.user as { role?: string } | undefined)?.role)
+  const reelInvite = reel && !(await todaysSpin(reel.id, userId)) ? { id: reel.id, title: reel.title } : null
+
   return {
     unread: unread?.total ?? 0,
+    reel: reelInvite,
     items: rows.map(({ avatarFrameId, grantedFrame, ...r }) => ({
       ...r,
       avatarFrame: frames.get(avatarFrameId ?? 0) ?? null,

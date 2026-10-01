@@ -7,6 +7,7 @@ import { checkRateLimit } from '../../utils/rate-limit'
 import { wsBroadcast, wsToUser } from '../../utils/ws-rooms'
 import { readerName } from '../../utils/identity'
 import { frameById } from '../../utils/frames'
+import { figureById } from '#shared/utils/nameFigures'
 
 export default defineEventHandler(async (event) => {
   const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
@@ -108,19 +109,20 @@ export default defineEventHandler(async (event) => {
   // приходит им сокетом и мимо выборки, которая всё это собирает.
   const author = userId
     ? (await db
-        .select({ avatarUrl: users.avatarUrl, avatarFrameId: users.avatarFrameId, publicId: users.publicId })
+        .select({ avatarUrl: users.avatarUrl, avatarFrameId: users.avatarFrameId, publicId: users.publicId, figure: users.figure })
         .from(users)
         .where(eq(users.id, userId)))[0]
     : null
 
   const avatarUrl = author?.avatarUrl ?? null
   const avatarFrame = await frameById(author?.avatarFrameId)
+  const authorFigure = figureById(author?.figure)
 
   // Номер автора наружу не уходит — вместо него публичный код, как и в списке.
   const { userId: _author, ...shown } = created!
   const authorCode = author?.publicId ?? null
 
-  const payload = { type: 'new_comment', comment: { ...shown, authorCode, avatarUrl, avatarFrame, likes: 0, dislikes: 0, myReaction: null } }
+  const payload = { type: 'new_comment', comment: { ...shown, authorCode, avatarUrl, avatarFrame, authorFigure, likes: 0, dislikes: 0, myReaction: null } }
   wsBroadcast(chapterId, payload)
 
   return { ...shown, authorCode }

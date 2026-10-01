@@ -31,20 +31,28 @@ const now = useNow()
 const open = ref(false)
 const items = ref<Item[]>([])
 const unread = ref(0)
+
+// Приглашение покрутить барабан — строкой над уведомлениями, пока сегодня не
+// крутил. В счёт на значке тоже входит: иначе о нём не узнать, не открыв шар.
+const reel = ref<{ id: number, title: string } | null>(null)
+const reelOpen = ref(false)
+const badge = computed(() => unread.value + (reel.value ? 1 : 0))
 const loading = ref(false)
 
 const load = async () => {
   if (!auth.isAuthed) {
     items.value = []
     unread.value = 0
+    reel.value = null
     return
   }
 
   loading.value = true
   try {
-    const data = await $fetch<{ unread: number, items: Item[] }>('/api/notifications')
+    const data = await $fetch<{ unread: number, items: Item[], reel: { id: number, title: string } | null }>('/api/notifications')
     items.value = data.items
     unread.value = data.unread
+    reel.value = data.reel ?? null
   }
   catch {
     // Молча: не загрузились — значок просто не покажет числа, а страница цела.
@@ -94,6 +102,17 @@ const openItem = async (n: Item) => {
   }
 
   await navigateTo(hrefOf(n))
+}
+
+const openReel = () => {
+  open.value = false
+  reelOpen.value = true
+}
+
+// Покрутил — строка приглашения должна уйти, а с ней и единица на значке.
+const onReelClose = () => {
+  reelOpen.value = false
+  load()
 }
 
 const readAll = async () => {
@@ -265,13 +284,27 @@ onUnmounted(() => {
           <button class="panel-close" type="button" aria-label="Закрыть" @click="open = false">×</button>
         </div>
 
-        <p v-if="loading && !items.length" class="panel-note">Смотрим…</p>
-        <p v-else-if="!items.length" class="panel-note">
+        <p v-if="loading && !items.length && !reel" class="panel-note">Смотрим…</p>
+        <p v-else-if="!items.length && !reel" class="panel-note">
           Пока тихо. Здесь появятся ответы на твои комментарии и новые рамки.
         </p>
 
         <!-- Чужие реплики в записях Clarity не показываем. -->
         <ul v-else class="list" data-clarity-mask="true">
+          <li v-if="reel">
+            <button class="item item--reel" type="button" @click="openReel">
+              <svg class="reel-icon" viewBox="0 0 28 28" aria-hidden="true">
+                <rect x="6" y="2" width="16" height="24" rx="4" fill="#1f1813" stroke="#e8b07a" stroke-width="1.5" />
+                <path d="M4 11h20M4 17h20" stroke="#e8b07a" stroke-width="1.5" />
+                <circle cx="14" cy="14" r="2.6" fill="#d6883e" />
+              </svg>
+              <span class="item-text">
+                <span class="item-top"><b>Барабан «{{ reel.title }}»</b></span>
+                <span class="item-body">Попытка на сегодня ждёт тебя.</span>
+                <span class="item-go">Крутить →</span>
+              </span>
+            </button>
+          </li>
           <li v-for="n in items" :key="n.id">
             <!-- Рамка — на своём же лице читателя: так сразу видно, что именно
                  досталось, а не «какая-то рамка». -->
@@ -323,15 +356,17 @@ onUnmounted(() => {
 
     <button
       class="orb-btn"
-      :class="{ 'has-unread': unread > 0 }"
+      :class="{ 'has-unread': badge > 0 }"
       type="button"
-      :aria-label="unread ? `Уведомления, непрочитанных: ${unread}` : 'Уведомления'"
+      :aria-label="badge ? `Уведомления, непрочитанных: ${badge}` : 'Уведомления'"
       @click.stop="toggle"
     >
       <NuxtImg src="/orb.webp" class="orb" width="56" height="64" alt="" />
       <span class="glow" aria-hidden="true" />
-      <span v-if="unread > 0" class="badge">{{ unread > 9 ? '9+' : unread }}</span>
+      <span v-if="badge > 0" class="badge">{{ badge > 9 ? '9+' : badge }}</span>
     </button>
+
+    <ReelModal v-if="reelOpen" @close="onReelClose" />
   </div>
 </template>
 
@@ -542,6 +577,27 @@ onUnmounted(() => {
 }
 
 .item:hover { background: rgba(241, 230, 210, .04); }
+
+/* Барабан — не новость, а приглашение: тёплая полоса выделяет его над списком. */
+.item--reel {
+  background: linear-gradient(90deg, rgba(214, 136, 62, .16), rgba(214, 136, 62, .04));
+}
+
+.item--reel:hover {
+  background: linear-gradient(90deg, rgba(214, 136, 62, .24), rgba(214, 136, 62, .08));
+}
+
+.reel-icon {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.item-go {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ember-soft);
+}
 
 .item-pic {
   background: linear-gradient(135deg, var(--ember-soft), var(--moss));

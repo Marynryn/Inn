@@ -3,6 +3,8 @@ import { and, eq } from 'drizzle-orm'
 import { displayNameKey, nameFromEmail } from '#shared/utils/displayName'
 import { userIdentities, users } from '../database/schema'
 import type { AvatarFrame } from '#shared/utils/avatarFrames'
+import type { NameFigure } from '#shared/utils/nameFigures'
+import { figureById } from '#shared/utils/nameFigures'
 import { saveRemoteAvatar } from './avatar'
 import { frameById, grantDefaultFrame } from './frames'
 import { useDb } from './db'
@@ -28,6 +30,8 @@ export type SessionUser = {
   // Рамка целиком, а не её id: шапка рисует аватарку из одной сессии и лезть
   // за картинкой отдельным запросом на каждой странице ей незачем.
   avatarFrame: AvatarFrame | null
+  // Фигурка у имени — по той же причине целиком.
+  figure: NameFigure | null
 }
 
 type UserRow = typeof users.$inferSelect
@@ -39,6 +43,7 @@ export const toSessionUser = async (u: UserRow): Promise<SessionUser> => ({
   displayName: u.displayName,
   avatarUrl: u.avatarUrl,
   avatarFrame: await frameById(u.avatarFrameId),
+  figure: figureById(u.figure),
 })
 
 /** Имя для показа: ник, часть почты до собаки или безликое «Читатель». */

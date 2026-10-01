@@ -29,6 +29,7 @@ storage/epubs/
 storage/skins/
 storage/avatars/
 storage/frames/
+storage/reel/
 
 # Личные настройки Claude Code (разрешения этой машины); скиллы в .claude/skills — общие
 .claude/settings.local.json

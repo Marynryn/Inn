@@ -1,4 +1,5 @@
 import type { AvatarFrame } from './avatarFrames'
+import type { NameFigure } from './nameFigures'
 import type { ProfileSkin } from './profileSkins'
 
 /**
@@ -21,6 +22,8 @@ export type PublicReader = {
   frames: (AvatarFrame & { grantedAt: string })[]
   /** Надетый скин страницы. У хозяйки сайта на своей странице — и примерка. */
   skin: ProfileSkin | null
+  /** Фигурка у имени. */
+  figure: NameFigure | null
 }
 
 export const ABOUT_MAX = 300

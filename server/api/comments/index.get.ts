@@ -2,6 +2,7 @@ import { useDb } from '../../utils/db'
 import { comments, users, commentReactions } from '../../database/schema'
 import { eq, isNull, desc, and } from 'drizzle-orm'
 import { framesByIds } from '../../utils/frames'
+import { figureById } from '#shared/utils/nameFigures'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -23,15 +24,17 @@ export default defineEventHandler(async (event) => {
   const avatarMap = new Map<number, string | null>()
   const frameIdMap = new Map<number, number | null>()
   const codeMap = new Map<number, string | null>()
+  const figureMap = new Map<number, string | null>()
 
   if (userIds.length) {
     const userRows = await db
-      .select({ id: users.id, avatarUrl: users.avatarUrl, avatarFrameId: users.avatarFrameId, publicId: users.publicId })
+      .select({ id: users.id, avatarUrl: users.avatarUrl, avatarFrameId: users.avatarFrameId, publicId: users.publicId, figure: users.figure })
       .from(users)
     for (const u of userRows) {
       avatarMap.set(u.id, u.avatarUrl ?? null)
       frameIdMap.set(u.id, u.avatarFrameId ?? null)
       codeMap.set(u.id, u.publicId ?? null)
+      figureMap.set(u.id, u.figure ?? null)
     }
   }
 
@@ -68,6 +71,7 @@ export default defineEventHandler(async (event) => {
     authorCode: userId ? (codeMap.get(userId) ?? null) : null,
     avatarUrl: userId ? (avatarMap.get(userId) ?? null) : null,
     avatarFrame: userId ? (frames.get(frameIdMap.get(userId) ?? 0) ?? null) : null,
+    authorFigure: userId ? figureById(figureMap.get(userId)) : null,
     likes: reactionsByComment.get(r.id)!.likes,
     dislikes: reactionsByComment.get(r.id)!.dislikes,
     myReaction: reactionsByComment.get(r.id)!.myReaction,

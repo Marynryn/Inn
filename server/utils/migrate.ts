@@ -664,6 +664,69 @@ export async function runMigrations() {
     // Столбец уже существует — это нормально
   }
 
+  // Барабан — розыгрыш рамок. Попытка одна в день: это держит уникальный
+  // индекс, двойной клик между проверкой и записью иначе дал бы вторую.
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS reels (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','running','finished')),
+      started_at TEXT,
+      finished_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS reel_segments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      reel_id INTEGER NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      label TEXT NOT NULL,
+      frame_id INTEGER,
+      image TEXT,
+      text TEXT,
+      weight INTEGER NOT NULL DEFAULT 0,
+      stock INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS reel_segments_reel ON reel_segments (reel_id);
+
+    CREATE TABLE IF NOT EXISTS reel_spins (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      reel_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      day TEXT NOT NULL,
+      segment_id INTEGER NOT NULL,
+      outcome TEXT NOT NULL CHECK(outcome IN ('won','duplicate','scene')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS reel_spins_daily ON reel_spins (reel_id, user_id, day);
+    CREATE INDEX IF NOT EXISTS reel_spins_segment ON reel_spins (segment_id, outcome);
+  `)
+
+  // Фигурка у имени — второй вид приза барабана. Каталог в коде, в базе только
+  // выданное, надетое и сегмент, который её разыгрывает.
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS user_figures (
+      user_id INTEGER NOT NULL,
+      figure TEXT NOT NULL,
+      granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, figure)
+    );
+  `)
+
+  for (const sql of [
+    'ALTER TABLE users ADD COLUMN figure TEXT',
+    'ALTER TABLE reel_segments ADD COLUMN figure TEXT',
+    'ALTER TABLE reels ADD COLUMN admins_only INTEGER NOT NULL DEFAULT 0',
+  ]) {
+    try {
+      await client.execute(sql)
+    } catch {
+      // Столбец уже существует — это нормально
+    }
+  }
+
   // Создать admin-аккаунт если нет ни одного пользователя
   const existing = await client.execute('SELECT COUNT(*) as cnt FROM users')
   const count = (existing.rows[0] as any).cnt as number
