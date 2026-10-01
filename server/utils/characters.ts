@@ -140,7 +140,7 @@ async function useExtras(): Promise<Map<string, Extra>> {
  *
  * Рядом, в public/characters/full/<id>.webp, лежит та же картинка целиком:
  * портрет в карточке квадратный, и высокий рисунок пришлось бы обрезать. Полная
- * есть не у всех — по этому списку карточка решает, предлагать ли увеличение.
+ * есть не у всех — у кого её нет, увеличивается сама карточка.
  */
 const idsCache = new Map<string, Set<string>>()
 
@@ -189,7 +189,11 @@ export async function characterCards(): Promise<CharacterCard[]> {
         locations: extra?.locations ?? c.locations.map(term),
         volume: c.volume,
         image: images.has(c.id) ? `/characters/${c.id}.webp` : null,
-        full: fulls.has(c.id) ? `/characters/full/${c.id}.webp` : null,
+        // Без картинки целиком увеличиваем саму карточку: посмотреть портрет
+        // крупно хочется у каждого, а полная версия есть не у всех.
+        full: fulls.has(c.id)
+          ? `/characters/full/${c.id}.webp`
+          : images.has(c.id) ? `/characters/${c.id}.webp` : null,
         description: extra?.description ?? [],
         glow: glowOf(c.species),
       }

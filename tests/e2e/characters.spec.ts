@@ -102,14 +102,14 @@ test.describe('Карточки персонажей', () => {
     await expect(dialog).toBeHidden()
   })
 
-  test('без полной картинки портрет не предлагает увеличение', async ({ page }) => {
+  test('без полной картинки увеличивается сама карточка', async ({ page }) => {
     await open(page, '/characters')
     await page.getByPlaceholder(SEARCH).fill('Торен')
     await page.locator('.card').first().click()
 
     const dialog = page.getByRole('dialog', { name: 'Торен' })
-    await expect(dialog.locator('.portrait img')).toBeVisible()
-    await expect(dialog.getByRole('button', { name: /Показать картинку целиком/ })).toHaveCount(0)
+    await dialog.getByRole('button', { name: /Показать картинку целиком/ }).click()
+    await expect(page.locator('.photo img')).toHaveAttribute('src', '/characters/toren.webp')
   })
 
   test('админ прячет карточку, и читатель её не получает', async ({ page, browser }) => {
