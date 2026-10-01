@@ -11,6 +11,13 @@ const emit = defineEmits<{
   flame: [character: Character]
 }>()
 
+// Цвета свечения по расе: один или до трёх. Недостающие повторяют последний,
+// так одноцветная карточка светится ровно, а переливчатая — тремя пятнами.
+const glowStyle = computed(() => {
+  const [a, b = a, c = b] = props.character.glow
+  return { '--glow': a, '--glow-2': b, '--glow-3': c }
+})
+
 const sheetEl = ref<HTMLElement | null>(null)
 const portraitEl = ref<HTMLElement | null>(null)
 const photoEl = ref<HTMLElement | null>(null)
@@ -255,7 +262,7 @@ useScrollLock()
 <template>
   <Teleport to="body">
     <div class="backdrop" @click.self="close">
-      <div ref="sheetEl" class="sheet" role="dialog" aria-modal="true" :aria-label="character.name" :style="{ '--glow': character.glow }">
+      <div ref="sheetEl" class="sheet" role="dialog" aria-modal="true" :aria-label="character.name" :style="glowStyle">
         <button class="close" type="button" aria-label="Закрыть" @click="close">×</button>
 
         <div class="portrait-wrap">
@@ -306,7 +313,7 @@ useScrollLock()
       </div>
     </div>
 
-    <div v-if="photo && character.full" class="photo" :style="{ '--glow': character.glow }" @click="closePhoto">
+    <div v-if="photo && character.full" class="photo" :style="glowStyle" @click="closePhoto">
       <img
         ref="photoEl"
         :src="character.full"
@@ -354,10 +361,14 @@ useScrollLock()
   color: var(--parchment);
   /* Тень листа светится цветом расы (--glow приходит с карточкой): гоблины
      зелёным, нежить фиолетовым, люди золотым. */
+  /* Цветов бывает до трёх (Люцифены, Единороги): первый светит слева сверху,
+     последний справа снизу, средний — по центру. У одноцветных все три равны. */
   box-shadow:
     0 30px 60px -30px rgba(0, 0, 0, .9),
-    0 0 90px -10px color-mix(in srgb, var(--glow) 70%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--glow) 35%, transparent);
+    0 0 90px -10px color-mix(in srgb, var(--glow-2) 55%, transparent),
+    -36px -28px 80px -24px color-mix(in srgb, var(--glow) 30%, transparent),
+    36px 28px 80px -24px color-mix(in srgb, var(--glow-3) 30%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--glow-2) 35%, transparent);
   animation: slide-up .22s ease;
   transform-origin: center;
 }

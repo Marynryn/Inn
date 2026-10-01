@@ -29,41 +29,58 @@ export type CharacterCard = {
   image: string | null // /characters/<id>.webp, если файл положили; иначе плейсхолдер
   full: string | null // та же картинка целиком, если её положили в full/
   description: string[] // абзацы; пусто — блока в карточке нет
-  glow: string // цвет подсветки в открытой карточке, по расе
+  glow: string[] // цвета подсветки в открытой карточке, по расе: один или переливом
 }
 
 /**
- * Подсветка по расе: гоблинам зелёная, нежити фиолетовая, людям золотая…
- * Ключ — раса в оригинале, первая из списка (у хобгоблинов она «Hobgoblin»).
- * Кого в списке нет — греется у очага, цветом угля.
+ * Подсветка по расе — палитра из «Подсветка.html» (01.10.2026). Ключ — раса в
+ * оригинале, первая из списка (у хобгоблинов она «Hobgoblin»). Цвет один или
+ * несколько: у Люцифенов и Единорогов свечение переливается, и карточка
+ * разносит цвета по краям. Кого в списке нет — греется у очага, цветом угля.
  */
-const GLOW_DEFAULT = '#d6883e'
-const GLOW_BY_SPECIES: Record<string, string> = {
-  'Human': '#e0b53a',
-  'Goblin': '#5fbf5a',
-  'Hobgoblin': '#5fbf5a',
-  'Undead': '#9b5cf6',
-  'Antinium': '#4a7bd6',
-  'Drake': '#d9534f',
-  'Gnoll': '#c9773a',
-  'Half-Elf': '#8fd3c7',
-  'Selphid': '#e0609a',
-  'Minotaur': '#b4562e',
-  'String Person': '#ecdcc0',
-  'Beastkin': '#d4a24c',
-  'Dragon': '#f0703a',
-  'Half-Gazer': '#6c63d8',
-  'Fraerling': '#a8d84a',
-  'Half-Giant': '#8d9bb0',
-  'Fae': '#5fd8e8',
-  'Half-Troll': '#6f8a4a',
-  'God': '#fff0b0',
-  'Centaur': '#a86a3c',
-  'Drowned Person': '#3f8fa8',
-  'Lizardfolk': '#3aa88a',
-  'Golem': '#9c9a90',
-  'Dwarf': '#c47a3a',
-  'Ashfire Bee': '#f2c12e',
+const GLOW_DEFAULT = ['#d6883e']
+const GLOW_BY_SPECIES: Record<string, string[]> = {
+  'Human': ['#F5C518'],
+  'God': ['#111111'],
+  'Goblin': ['#2E9E44'],
+  'Hobgoblin': ['#2E9E44'],
+  'Drake': ['#A6E22E'],
+  'Fae': ['#30D5C8'],
+  'Gnoll': ['#C9A27E'],
+  'Antinium': ['#5D3A1A'],
+  'Half-Gazer': ['#FF8A1F'],
+  'Dragon': ['#E53935'],
+  'Ashfire Bee': ['#E53935'],
+  'Undead': ['#8E44AD'],
+  'Golem': ['#FFFFFF'],
+  'Troll': ['#FFFFFF'],
+  'Half-Troll': ['#FFFFFF'],
+  'Ogre': ['#FFFFFF'],
+  'Cyclops': ['#FFFFFF'],
+  'Half-Giant': ['#8A7F72'],
+  'Fraerling': ['#F8A5C2'],
+  'Halfling': ['#F8A5C2'],
+  'Sariant Lamb': ['#F8A5C2'],
+  'Demon': ['#D81B60'],
+  'Lucifen': ['#2B2B2B', '#D4A017'],
+  'Minotaur': ['#7B1E2B'],
+  'Dwarf': ['#B0602A'],
+  'Selphid': ['#FF7A6B'],
+  'Djinni': ['#1E63D6'],
+  'Djinn': ['#1E63D6'],
+  'Jinn': ['#1E63D6'],
+  'Garuda': ['#7FD3FF'],
+  'Drowned Person': ['#0B2E6B'],
+  'Dullahan': ['#6E8796'],
+  'Half-Elf': ['#B8A6F0'],
+  'Gnome': ['#B8A6F0'],
+  'Lizardfolk': ['#12A37F'],
+  'Naga': ['#12A37F'],
+  'Beastkin': ['#8C8A3E'],
+  'Centaur': ['#8C8A3E'],
+  'Satyr': ['#8C8A3E'],
+  'String Person': ['#E6D3B3'],
+  'Unicorn': ['#FFFFFF', '#F8C8E8', '#BDE0FE'],
 }
 
 const glowOf = (species: string[]) => GLOW_BY_SPECIES[species[0] ?? ''] ?? GLOW_DEFAULT
