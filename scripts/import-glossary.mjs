@@ -389,6 +389,15 @@ const AS_IN_GLOSSARY = {
   Griffin: 'Griffon',
 }
 
+/**
+ * Решения поверх рабочего глоссария: там перевод записан с вариантами, а на
+ * сайте нужен один. Сильнее глоссария — чтобы правка не откатывалась при
+ * каждом импорте, пока её не перенесли в сам xlsx.
+ */
+const DECIDED = {
+  Beastkin: 'Зверочеловек', // в глоссарии «Зверолюди / Зверочеловек» (реш. 01.10.2026)
+}
+
 const terms = {}
 const missingTerms = new Set()
 let fromFallback = 0
@@ -399,7 +408,7 @@ for (const c of characters) {
   for (const value of [c.gender, c.status, ...c.species, ...c.affiliation, ...c.continent, ...c.occupation, ...c.cls, ...c.locations]) {
     if (!value || terms[value]) continue
 
-    const hit = translate(AS_IN_GLOSSARY[value] ?? value)
+    const hit = DECIDED[value] ?? translate(AS_IN_GLOSSARY[value] ?? value)
     if (hit) {
       terms[value] = hit
     } else if (FALLBACK[value]) {
