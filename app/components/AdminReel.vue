@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ALL_FIGURES, figureById } from '#shared/utils/nameFigures'
 import type { AdminReel } from '#shared/utils/reel'
+import type { ReelTextKey } from '#shared/utils/reel'
 import {
-  REEL_LABEL_MAX, REEL_TEXT_MAX, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL, percentToWeight, weightToPercent,
+  REEL_LABEL_MAX, REEL_TEXT_KEYS, REEL_TEXT_MAX, REEL_TEXTS, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL,
+  percentToWeight, weightToPercent,
 } from '#shared/utils/reel'
 
 /**
@@ -31,6 +33,9 @@ const frames = ref<CatalogFrame[]>([])
 const selectedId = ref<number | null>(null)
 const drafts = ref<Draft[]>([])
 const title = ref('')
+/** Тексты окна в правке: пустое поле — текст по умолчанию, он же в подсказке. */
+const texts = ref<Record<ReelTextKey, string>>(Object.fromEntries(REEL_TEXT_KEYS.map(k => [k, ''])) as Record<ReelTextKey, string>)
+const textsOpen = ref(false)
 const log = ref<LogRow[]>([])
 
 const newTitle = ref('')
@@ -102,6 +107,7 @@ const select = async (id: number | null) => {
   const r = selected.value
   drafts.value = r ? toDraft(r) : []
   title.value = r?.title ?? ''
+  for (const k of REEL_TEXT_KEYS) texts.value[k] = r?.texts[k] ?? ''
   log.value = r && r.status !== 'draft'
     ? await $fetch<LogRow[]>(`/api/admin/reels/${r.id}/log`).catch(() => [])
     : []
@@ -174,6 +180,7 @@ const uploadImage = async (d: Draft, i: number, e: Event) => {
 
 const payload = () => ({
   title: title.value,
+  texts: texts.value,
   segments: drafts.value.map(d => ({
     label: d.label,
     frameId: d.frameId,
@@ -194,6 +201,13 @@ const saveTitle = () => run(async () => {
   await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: { title: title.value } })
   await load()
 }, 'Название сохранено')
+
+/** Тексты окна — отдельной кнопкой: у идущего барабана сегменты заморожены, а слова нет. */
+const changedTexts = computed(() => REEL_TEXT_KEYS.filter(k => texts.value[k].trim()).length)
+const saveTexts = () => run(async () => {
+  await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: { title: title.value, texts: texts.value } })
+  await load()
+}, 'Тексты сохранены')
 
 /** «Только для админов» сохраняется сразу — и у идущего барабана тоже. */
 const setAdminsOnly = (adminsOnly: boolean) => run(async () => {
@@ -404,6 +418,22 @@ onMounted(load)
         <template v-else> — лишние {{ fmt(total - REEL_WEIGHT_TOTAL) }}%</template>
       </p>
 
+      <!-- Тексты окна -->
+      <details v-if="selected.status !== 'finished'" class="texts" :open="textsOpen" @toggle="textsOpen = ($event.target as HTMLDetailsElement).open">
+        <summary>
+          Тексты окна и приглашения
+          <span v-if="changedTexts" class="texts-count">изменено: {{ changedTexts }}</span>
+        </summary>
+        <p class="note">Пустое поле — текст по умолчанию, он виден серым. Править можно и у идущего барабана.</p>
+        <div class="texts-grid">
+          <label v-for="k in REEL_TEXT_KEYS" :key="k" class="fld">
+            <span>{{ REEL_TEXTS[k].label }}</span>
+            <input v-model="texts[k]" type="text" :maxlength="REEL_TEXT_MAX" :placeholder="REEL_TEXTS[k].value">
+          </label>
+        </div>
+        <button class="btn ghost" type="button" :disabled="busy" @click="saveTexts">Сохранить тексты</button>
+      </details>
+
       <div class="actions">
         <template v-if="editable">
           <button class="btn ghost" type="button" :disabled="busy" @click="save">Сохранить</button>
@@ -571,6 +601,36 @@ select option { background: var(--bg-dark-2); }
   border-radius: var(--radius-md);
   background: rgba(241, 230, 210, .02);
 }
+
+.texts {
+  margin: 4px 0 16px;
+  padding: 10px 14px;
+  border: 1px solid rgba(241, 230, 210, .1);
+  border-radius: var(--radius-md);
+}
+
+.texts summary {
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.texts-count {
+  margin-left: 6px;
+  font-weight: 400;
+  color: var(--ember-soft);
+}
+
+.texts[open] summary { margin-bottom: 8px; }
+
+.texts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.texts-grid input { width: 100%; min-width: 0; }
 
 .admins-only {
   display: flex;
@@ -787,7 +847,11 @@ select option { background: var(--bg-dark-2); }
 
 @media (max-width: 600px) {
   .new-reel { margin-left: 0; width: 100%; }
-  .new-reel input { flex: 1; width: auto; }
+  /* Без min-width: 0 поле держит свою ширину по умолчанию и выталкивает кнопку за край. */
+  .new-reel input { flex: 1; width: auto; min-width: 0; }
+  .new-reel .btn { flex: none; }
+  .head { flex-wrap: wrap; }
+  .title-in { min-width: 0; flex: 1; }
   .seg { flex-direction: column; }
 }
 </style>

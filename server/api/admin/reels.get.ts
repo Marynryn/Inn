@@ -1,5 +1,6 @@
 import { count, countDistinct, desc, eq } from 'drizzle-orm'
 import type { AdminReel } from '#shared/utils/reel'
+import { cleanReelTexts } from '#shared/utils/reel'
 import { reelSpins, reels } from '../../database/schema'
 import { useDb } from '../../utils/db'
 import { reelImageUrl, segmentsOf } from '../../utils/reel'
@@ -31,6 +32,7 @@ export default defineEventHandler(async (): Promise<AdminReel[]> => {
       id: reel.id,
       title: reel.title,
       adminsOnly: reel.adminsOnly,
+      texts: cleanReelTexts(reel.texts),
       status: reel.status,
       startedAt: reel.startedAt,
       finishedAt: reel.finishedAt,

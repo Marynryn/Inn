@@ -1,7 +1,7 @@
 import { and, eq, inArray, ne } from 'drizzle-orm'
 import { isFigureId } from '#shared/utils/nameFigures'
 import type { ReelSegmentInput } from '#shared/utils/reel'
-import { REEL_LABEL_MAX, REEL_TEXT_MAX, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL } from '#shared/utils/reel'
+import { REEL_LABEL_MAX, REEL_TEXT_MAX, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL, cleanReelTexts } from '#shared/utils/reel'
 import { avatarFrames, reelSegments, reels } from '../../../database/schema'
 import { useDb } from '../../../utils/db'
 import { reelFromRoute } from '../../../utils/reel'
@@ -11,12 +11,12 @@ const IMAGE_NAME = /^scene-[\w-]+\.(webp|png|jpg|gif)$/
 /**
  * Сохранить барабан: название и сегменты целиком. Сегменты правятся только у
  * черновика — у идущего барабана шансы менять нельзя, иначе тем, кто крутил
- * вчера, выпадало бы по другим правилам. Название и «только для админов»
- * поправить можно всегда.
+ * вчера, выпадало бы по другим правилам. Название, «только для админов» и
+ * тексты окна поправить можно всегда.
  */
 export default defineEventHandler(async (event) => {
   const reel = await reelFromRoute(event)
-  const body = await readBody<{ title?: string; adminsOnly?: boolean; segments?: ReelSegmentInput[] }>(event)
+  const body = await readBody<{ title?: string; adminsOnly?: boolean; texts?: Record<string, string>; segments?: ReelSegmentInput[] }>(event)
   const db = useDb()
 
   const title = String(body?.title ?? reel.title).trim().slice(0, REEL_TITLE_MAX)
@@ -24,7 +24,9 @@ export default defineEventHandler(async (event) => {
   // «Только для админов» меняется когда угодно, и у идущего тоже: снять
   // галочку и значит открыть опробованный барабан читателям.
   const adminsOnly = typeof body?.adminsOnly === 'boolean' ? body.adminsOnly : reel.adminsOnly
-  await db.update(reels).set({ title, adminsOnly }).where(eq(reels.id, reel.id))
+  // Тексты окна — тоже когда угодно: слова не меняют правил розыгрыша.
+  const texts = cleanReelTexts(body?.texts ?? reel.texts)
+  await db.update(reels).set({ title, adminsOnly, texts }).where(eq(reels.id, reel.id))
 
   if (!body?.segments) return { ok: true }
   if (reel.status !== 'draft') {

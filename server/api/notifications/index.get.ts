@@ -4,7 +4,7 @@ import { avatarFrames, comments, notifications, users } from '../../database/sch
 import { excerptText } from '#shared/utils/excerpt'
 import { useDb } from '../../utils/db'
 import { framesByIds, toAvatarFrame } from '../../utils/frames'
-import { runningReelFor, todaysSpin } from '../../utils/reel'
+import { runningReelFor, textsOf, todaysSpin } from '../../utils/reel'
 
 /**
  * Уведомления читателя: кто ответил на его комментарий и какие рамки ему
@@ -98,7 +98,7 @@ export default defineEventHandler(async (event) => {
   // так его видит и тот, кто зарегистрировался посреди ивента, а назавтра оно
   // появляется снова само, без рассылки каждому.
   const reel = await runningReelFor((session.user as { role?: string } | undefined)?.role)
-  const reelInvite = reel && !(await todaysSpin(reel.id, userId)) ? { id: reel.id, title: reel.title } : null
+  const reelInvite = reel && !(await todaysSpin(reel.id, userId)) ? { id: reel.id, title: reel.title, invite: textsOf(reel).invite } : null
 
   return {
     unread: unread?.total ?? 0,

@@ -95,9 +95,23 @@ test.describe('Барабан', () => {
     expect(spin.outcome).toBe('duplicate')
     expect(spin.frame.id).toBe(frameId)
 
+    // Админу раз в день не указ: крутит снова, и снова повторка.
+    const again = await page.request.post('/api/reel/spin')
+    expect(again.ok(), await again.text()).toBeTruthy()
+
     const [reel] = (await (await page.request.get('/api/admin/reels')).json()).filter((r: any) => r.id === reelId)
     expect(reel.segments[0].won).toBe(0)
-    expect(reel.segments[0].duplicates).toBe(1)
+    expect(reel.segments[0].duplicates).toBe(2)
+
+    // Тексты окна — свои у барабана; пустые и совпадающие с умолчанием не хранятся.
+    const texted = await page.request.put(`/api/admin/reels/${reelId}`, { data: { texts: { spinButton: 'Крутануть', footer: '', lead: 'Одна попытка в день. Что остановится на линии, то и твоё.' } } })
+    expect(texted.ok(), await texted.text()).toBeTruthy()
+    const [withTexts] = (await (await page.request.get('/api/admin/reels')).json()).filter((r: any) => r.id === reelId)
+    expect(withTexts.texts).toEqual({ spinButton: 'Крутануть' })
+    const shown = await (await page.request.get('/api/reel')).json()
+    expect(shown.reel.texts.spinButton).toBe('Крутануть')
+    expect(shown.reel.texts.footer).toBe('Следующая попытка — завтра, пока идёт ивент.')
+    await page.request.put(`/api/admin/reels/${reelId}`, { data: { texts: {} } })
 
     // Опробовали — открываем читателям, не останавливая барабан.
     expect(reel.adminsOnly).toBe(true)

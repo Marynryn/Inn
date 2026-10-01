@@ -34,7 +34,7 @@ const unread = ref(0)
 
 // Приглашение покрутить барабан — строкой над уведомлениями, пока сегодня не
 // крутил. В счёт на значке тоже входит: иначе о нём не узнать, не открыв шар.
-const reel = ref<{ id: number, title: string } | null>(null)
+const reel = ref<{ id: number, title: string, invite: string } | null>(null)
 const reelOpen = ref(false)
 const badge = computed(() => unread.value + (reel.value ? 1 : 0))
 const loading = ref(false)
@@ -49,7 +49,7 @@ const load = async () => {
 
   loading.value = true
   try {
-    const data = await $fetch<{ unread: number, items: Item[], reel: { id: number, title: string } | null }>('/api/notifications')
+    const data = await $fetch<{ unread: number, items: Item[], reel: { id: number, title: string, invite: string } | null }>('/api/notifications')
     items.value = data.items
     unread.value = data.unread
     reel.value = data.reel ?? null
@@ -74,6 +74,10 @@ const isChapterPage = computed(() => {
   const parts = route.path.split('/').filter(Boolean)
   return parts.length === 2 && parts[0] === 'chapter'
 })
+
+/** В админке шару делать нечего: там работают, а не читают, и на телефоне он
+ *  закрывал бы кнопки панели. Приглашение крутить барабан ждёт на сайте. */
+const isAdminPage = computed(() => route.path === '/admin' || route.path.startsWith('/admin/'))
 
 /** Куда ведёт уведомление: рамка — в профиль, где её надевают; ответ — к
  *  комментариям главы или к отзывам на главной. */
@@ -272,7 +276,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="auth.isAuthed" class="notif-widget" :class="{ tucked, 'is-open': open }">
+  <div v-if="auth.isAuthed && !isAdminPage" class="notif-widget" :class="{ tucked, 'is-open': open }">
     <Transition name="notif-panel">
       <div v-if="open" class="panel thin-scroll" role="dialog" aria-label="Уведомления">
         <div class="panel-head">
@@ -300,7 +304,7 @@ onUnmounted(() => {
               </svg>
               <span class="item-text">
                 <span class="item-top"><b>Барабан «{{ reel.title }}»</b></span>
-                <span class="item-body">Попытка на сегодня ждёт тебя.</span>
+                <span class="item-body">{{ reel.invite }}</span>
                 <span class="item-go">Крутить →</span>
               </span>
             </button>

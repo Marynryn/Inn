@@ -117,6 +117,8 @@ export const reels = sqliteTable('reels', {
   finishedAt: text('finished_at'),
   // Проба на проде: барабан видят и крутят только админы, читателям его нет.
   adminsOnly: integer('admins_only', { mode: 'boolean' }).notNull().default(false),
+  // Изменённые тексты окна — JSON; чего нет, то по умолчанию (shared/utils/reel).
+  texts: text('texts', { mode: 'json' }).$type<Record<string, string>>(),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 

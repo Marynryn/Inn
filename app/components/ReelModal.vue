@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ReelState, ReelSymbol, SpinResult } from '#shared/utils/reel'
+import { fullReelTexts } from '#shared/utils/reel'
 import { frameScale } from '#shared/utils/avatarFrames'
 
 /**
@@ -25,6 +26,7 @@ const nearMiss = ref(false)
 
 const symbols = computed(() => state.value?.reel?.symbols ?? [])
 const title = computed(() => state.value?.reel?.title ?? '')
+const t = computed(() => state.value?.reel?.texts ?? fullReelTexts(null))
 const trial = computed(() => Boolean(props.trialId))
 
 const base = computed(() => (props.trialId ? `/api/admin/reels/${props.trialId}/trial` : '/api/reel'))
@@ -155,9 +157,9 @@ const wear = async () => {
 const eyebrow = computed(() => {
   if (trial.value) return 'Выпало бы'
   switch (result.value?.outcome) {
-    case 'won': return result.value.figure ? 'Тебе досталась фигурка' : 'Тебе досталась рамка'
-    case 'duplicate': return 'Повторка'
-    default: return 'Сегодня без приза'
+    case 'won': return result.value.figure ? t.value.wonFigure : t.value.wonFrame
+    case 'duplicate': return t.value.duplicate
+    default: return t.value.scene
   }
 })
 
@@ -195,7 +197,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <h2 id="reel-title" class="display reel-title">«{{ title || 'Барабан' }}»</h2>
           <p class="reel-lead">
             <template v-if="trial">Видишь только ты. Ничего не выдаётся и не записывается.</template>
-            <template v-else>Одна попытка в день. Что остановится на линии, то и твоё.</template>
+            <template v-else>{{ t.lead }}</template>
           </p>
 
           <div ref="windowEl" class="reel-window">
@@ -213,7 +215,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <p class="reel-err" aria-live="polite">{{ error }}</p>
 
           <button class="reel-btn" type="button" :disabled="phase !== 'ready'" @click="spinNow">
-            {{ phase === 'spinning' ? 'Крутится…' : phase === 'loading' ? 'Смотрим…' : 'Крутить' }}
+            {{ phase === 'spinning' ? 'Крутится…' : phase === 'loading' ? 'Смотрим…' : t.spinButton }}
           </button>
         </template>
 
@@ -226,7 +228,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
         <!-- Что выпало -->
         <template v-else-if="result">
-          <div class="rays" aria-hidden="true" />
+          <div class="rays-clip" aria-hidden="true"><div class="rays" /></div>
           <p class="eyebrow">{{ eyebrow }}</p>
 
           <div
@@ -257,10 +259,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <h2 id="reel-title" class="display prize-name">{{ result.label }}</h2>
 
           <p class="prize-sub">
-            <template v-if="result.outcome === 'won' && !trial && result.figure">Она уже в твоём профиле. Надень — и встанет рядом с твоим именем.</template>
-            <template v-else-if="result.outcome === 'won' && !trial">Она уже в твоём профиле. Примерь её прямо сейчас.</template>
-            <template v-else-if="result.outcome === 'duplicate' && result.figure">Эта фигурка у тебя уже есть. Может, завтра повезёт на другую.</template>
-            <template v-else-if="result.outcome === 'duplicate'">Эта рамка у тебя уже есть. Может, завтра повезёт на другую.</template>
+            <template v-if="result.outcome === 'won' && !trial && result.figure">{{ t.wonFigureSub }}</template>
+            <template v-else-if="result.outcome === 'won' && !trial">{{ t.wonFrameSub }}</template>
+            <template v-else-if="result.outcome === 'duplicate' && result.figure">{{ t.duplicateFigureSub }}</template>
+            <template v-else-if="result.outcome === 'duplicate'">{{ t.duplicateFrameSub }}</template>
             <template v-else-if="result.text">{{ result.text }}</template>
           </p>
 
@@ -272,14 +274,15 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
               :disabled="wearing"
               @click="wear"
             >
-              {{ wearing ? 'Надеваем…' : 'Надеть' }}
+              {{ wearing ? 'Надеваем…' : t.wearButton }}
             </button>
             <span v-else-if="prize && !trial" class="worn-tag">✓ Надета</span>
             <button class="reel-btn ghost" type="button" @click="close">Закрыть</button>
           </div>
 
           <p v-if="error" class="reel-err">{{ error }}</p>
-          <p v-if="!trial" class="reel-fine">Следующая попытка — завтра, пока идёт ивент.</p>
+          <p v-if="!trial && auth.isAdmin" class="reel-fine">Админу без ограничений — закрой окно и крути ещё.</p>
+          <p v-else-if="!trial" class="reel-fine">{{ t.footer }}</p>
         </template>
       </div>
     </div>
@@ -314,6 +317,16 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
 .reel-sheet.is-result {
   overflow: hidden auto;
+}
+
+/* Лучи шире окна и крутятся: прямо в окне их углы раздували бы прокрутку.
+   Обёртка размером с окно обрезает их по краю. */
+.rays-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .reel-close {
@@ -463,7 +476,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
 @keyframes rays { to { transform: rotate(360deg); } }
 
-.is-result > *:not(.rays):not(.reel-close) {
+.is-result > *:not(.rays-clip):not(.reel-close) {
   position: relative;
 }
 

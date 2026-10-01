@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { and, asc, count, eq } from 'drizzle-orm'
 import type { ReelSymbol, SpinResult } from '#shared/utils/reel'
 import { figureById } from '#shared/utils/nameFigures'
-import { REEL_IMAGE_MAX_BYTES, REEL_IMAGE_MAX_SIDE } from '#shared/utils/reel'
+import { REEL_IMAGE_MAX_BYTES, REEL_IMAGE_MAX_SIDE, cleanReelTexts, fullReelTexts } from '#shared/utils/reel'
 import { reelSegments, reelSpins, reels, userFrames } from '../database/schema'
 import { checkImage } from './avatar'
 import { useDb } from './db'
@@ -33,6 +33,9 @@ export async function runningReelFor(role: string | undefined): Promise<Reel | n
   const reel = await runningReel()
   return reel && (!reel.adminsOnly || role === 'admin') ? reel : null
 }
+
+/** Тексты окна барабана целиком — то, что видит читатель. */
+export const textsOf = (reel: Reel) => fullReelTexts(cleanReelTexts(reel.texts))
 
 /** Барабан по номеру из адреса — или 404. */
 export async function reelFromRoute(event: Parameters<typeof getRouterParam>[0]): Promise<Reel> {
@@ -144,7 +147,11 @@ export async function spin(userId: number, role: string | undefined): Promise<Sp
   const reel = await runningReelFor(role)
   if (!reel) throw createError({ statusCode: 404, message: 'Барабан сейчас не крутится' })
 
-  if (await todaysSpin(reel.id, userId)) {
+  // Админ крутит сколько угодно — чтобы опробовать барабан по-настоящему, с
+  // выдачей и повторками. Его попытки пишутся с днём «2026-10-01#…»: уникальный
+  // индекс их не держит, а «сегодняшняя попытка» их не видит.
+  const isAdmin = role === 'admin'
+  if (!isAdmin && await todaysSpin(reel.id, userId)) {
     throw createError({ statusCode: 409, message: 'Сегодня уже крутил — приходи завтра' })
   }
 
@@ -160,7 +167,8 @@ export async function spin(userId: number, role: string | undefined): Promise<Sp
 
   const db = useDb()
   try {
-    await db.insert(reelSpins).values({ reelId: reel.id, userId, day: mskDay(), segmentId: seg.id, outcome })
+    const day = isAdmin ? `${mskDay()}#${Date.now()}` : mskDay()
+    await db.insert(reelSpins).values({ reelId: reel.id, userId, day, segmentId: seg.id, outcome })
   } catch (e) {
     if (isUniqueViolation(e)) throw createError({ statusCode: 409, message: 'Сегодня уже крутил — приходи завтра' })
     throw e
