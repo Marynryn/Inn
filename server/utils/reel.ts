@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { and, asc, count, eq } from 'drizzle-orm'
+import { and, asc, count, desc, eq } from 'drizzle-orm'
 import type { ReelSymbol, SpinResult } from '#shared/utils/reel'
 import { figureById } from '#shared/utils/nameFigures'
 import { REEL_IMAGE_MAX_BYTES, REEL_IMAGE_MAX_SIDE, cleanReelTexts, fullReelTexts } from '#shared/utils/reel'
@@ -131,14 +131,22 @@ export async function toSpinResult(seg: Segment, outcome: SpinResult['outcome'])
   }
 }
 
-/** Сегодняшняя попытка читателя в этом барабане, если была. */
-export async function todaysSpin(reelId: number, userId: number): Promise<SpinResult | null> {
-  const [row] = await useDb()
+/** Сегодняшние попытки читателя в этом барабане: сколько их было и последняя. */
+export async function todaysSpins(reelId: number, userId: number): Promise<{ count: number, last: SpinResult | null }> {
+  const rows = await useDb()
     .select({ outcome: reelSpins.outcome, seg: reelSegments })
     .from(reelSpins)
     .innerJoin(reelSegments, eq(reelSegments.id, reelSpins.segmentId))
     .where(and(eq(reelSpins.reelId, reelId), eq(reelSpins.userId, userId), eq(reelSpins.day, mskDay())))
-  return row ? toSpinResult(row.seg, row.outcome) : null
+    .orderBy(desc(reelSpins.id))
+  return { count: rows.length, last: rows[0] ? await toSpinResult(rows[0].seg, rows[0].outcome) : null }
+}
+
+/** Сколько попыток у человека осталось сегодня; null — без ограничений (админ). */
+export async function spinsLeft(reel: Reel, userId: number, role: string | undefined) {
+  const today = await todaysSpins(reel.id, userId)
+  const left = role === 'admin' ? null : Math.max(0, reel.spinsPerDay - today.count)
+  return { ...today, left }
 }
 
 const isUniqueViolation = (e: any) =>
@@ -146,8 +154,8 @@ const isUniqueViolation = (e: any) =>
 
 /**
  * Попытка читателя. Сначала пишем саму попытку и только потом выдаём приз:
- * вторая попытка за день упрётся в уникальный индекс раньше, чем что-то
- * получит.
+ * лишняя попытка — двойной клик, вторая вкладка — упрётся в уникальный индекс
+ * по номеру попытки раньше, чем что-то получит.
  *
  * Приз выдаём без уведомления: человек смотрит на него прямо сейчас в окне
  * поздравления, и «тебе досталась рамка» в колокольчике следом было бы эхом.
@@ -158,11 +166,13 @@ export async function spin(userId: number, role: string | undefined): Promise<Sp
 
   // Админ крутит сколько угодно — чтобы опробовать барабан по-настоящему, с
   // выдачей и повторками. Его попытки пишутся с днём «2026-10-01#…»: уникальный
-  // индекс их не держит, а «сегодняшняя попытка» их не видит.
+  // индекс их не держит, а сегодняшние попытки их не считают.
   const isAdmin = role === 'admin'
-  if (!isAdmin && await todaysSpin(reel.id, userId)) {
-    throw createError({ statusCode: 409, message: 'Сегодня уже крутил — приходи завтра' })
+  const { count: done } = isAdmin ? { count: 0 } : await todaysSpins(reel.id, userId)
+  if (!isAdmin && done >= reel.spinsPerDay) {
+    throw createError({ statusCode: 409, message: 'Попытки на сегодня кончились — приходи завтра' })
   }
+  const attempt = done + 1
 
   const segs = await segmentsOf(reel.id)
   const seg = pickSegment(segs, await wonCounts(reel.id))
@@ -179,9 +189,9 @@ export async function spin(userId: number, role: string | undefined): Promise<Sp
   const db = useDb()
   try {
     const day = isAdmin ? `${mskDay()}#${Date.now()}` : mskDay()
-    await db.insert(reelSpins).values({ reelId: reel.id, userId, day, segmentId: seg.id, outcome })
+    await db.insert(reelSpins).values({ reelId: reel.id, userId, day, attempt, segmentId: seg.id, outcome })
   } catch (e) {
-    if (isUniqueViolation(e)) throw createError({ statusCode: 409, message: 'Сегодня уже крутил — приходи завтра' })
+    if (isUniqueViolation(e)) throw createError({ statusCode: 409, message: 'Эта попытка уже засчитана — обнови окно' })
     throw e
   }
 
@@ -193,7 +203,7 @@ export async function spin(userId: number, role: string | undefined): Promise<Sp
     await grantSkin(userId, seg.skinId)
   }
 
-  return toSpinResult(seg, outcome)
+  return { ...(await toSpinResult(seg, outcome)), left: isAdmin ? null : reel.spinsPerDay - attempt }
 }
 
 /** Пробная прокрутка из панели: тот же жребий, но ничего не пишется и не выдаётся. */

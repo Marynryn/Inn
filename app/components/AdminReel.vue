@@ -3,7 +3,7 @@ import { ALL_FIGURES, figureById } from '#shared/utils/nameFigures'
 import type { AdminReel } from '#shared/utils/reel'
 import type { ReelTextKey } from '#shared/utils/reel'
 import {
-  REEL_LABEL_MAX, REEL_TEXT_KEYS, REEL_TEXT_MAX, REEL_TEXTS, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL,
+  REEL_LABEL_MAX, REEL_SPINS_MAX, REEL_TEXT_KEYS, REEL_TEXT_MAX, REEL_TEXTS, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL,
   percentToWeight, weightToPercent,
 } from '#shared/utils/reel'
 
@@ -226,6 +226,16 @@ const saveTexts = () => run(async () => {
   await load()
 }, 'Тексты сохранены')
 
+/** Попыток в день — сохраняется сразу, как и «только для админов». */
+const setSpinsPerDay = (raw: string) => {
+  const n = Math.round(Number(raw))
+  if (!Number.isFinite(n) || n < 1) return
+  run(async () => {
+    await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: { title: title.value, spinsPerDay: n } })
+    await load()
+  }, `Попыток в день: ${Math.min(n, REEL_SPINS_MAX)}`)
+}
+
 /** «Только для админов» сохраняется сразу — и у идущего барабана тоже. */
 const setAdminsOnly = (adminsOnly: boolean) => run(async () => {
   await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: { title: title.value, adminsOnly } })
@@ -446,6 +456,19 @@ onMounted(load)
         <template v-else> — лишние {{ fmt(total - REEL_WEIGHT_TOTAL) }}%</template>
       </p>
 
+      <label v-if="selected.status !== 'finished'" class="per-day">
+        <span>Попыток в день у читателя</span>
+        <input
+          type="number"
+          min="1"
+          :max="REEL_SPINS_MAX"
+          step="1"
+          :value="selected.spinsPerDay"
+          :disabled="busy"
+          @change="setSpinsPerDay(($event.target as HTMLInputElement).value)"
+        >
+      </label>
+
       <!-- Тексты окна -->
       <details v-if="selected.status !== 'finished'" class="texts" :open="textsOpen" @toggle="textsOpen = ($event.target as HTMLDetailsElement).open">
         <summary>
@@ -659,6 +682,20 @@ select option { background: var(--bg-dark-2); }
 }
 
 .texts-grid input { width: 100%; min-width: 0; }
+
+.per-day {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: rgba(241, 230, 210, .75);
+}
+
+.per-day input {
+  width: 72px;
+  flex: none;
+}
 
 .admins-only {
   display: flex;

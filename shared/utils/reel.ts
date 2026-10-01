@@ -29,13 +29,18 @@ export type SpinResult = {
   frame: AvatarFrame | null
   figure: NameFigure | null
   skin: ProfileSkin | null
+  /** Сколько попыток осталось сегодня после этой; null — без ограничений (админ). */
+  left?: number | null
 }
 
 export type ReelState = {
   reel: { id: number; title: string; symbols: ReelSymbol[]; texts: ReelTexts } | null
-  /** Сегодняшняя попытка, если уже была. */
+  /** Последняя сегодняшняя попытка, если уже была. */
   today: SpinResult | null
   canSpin: boolean
+  /** Сколько попыток осталось сегодня; null — без ограничений (админ). */
+  left: number | null
+  perDay: number
 }
 
 /** Сегмент в панели — со всем, что читателю не показывают. */
@@ -61,6 +66,8 @@ export type AdminReel = {
   title: string
   /** Проба: видят и крутят только админы. */
   adminsOnly: boolean
+  /** Сколько раз в день крутит читатель. */
+  spinsPerDay: number
   /** Только изменённые тексты окна; чего нет — то по умолчанию. */
   texts: Partial<ReelTexts>
   status: 'draft' | 'running' | 'finished'
@@ -90,6 +97,10 @@ export const REEL_LABEL_MAX = 24
 export const REEL_TEXT_MAX = 200
 export const REEL_TITLE_MAX = 40
 
+/** Попыток в день у читателя: от одной до полусотни. */
+export const REEL_SPINS_MAX = 50
+export const clampSpinsPerDay = (v: unknown) => Math.min(REEL_SPINS_MAX, Math.max(1, Math.round(Number(v)) || 1))
+
 /** Картинка сценки — как рамка: символ крупный, мелкие детали должны читаться. */
 export const REEL_IMAGE_MAX_BYTES = 600 * 1024
 export const REEL_IMAGE_MAX_SIDE = 1024
@@ -104,7 +115,7 @@ export const weightToPercent = (weight: number) => weight / 10
  */
 export const REEL_TEXTS = {
   invite: { label: 'Приглашение в колокольчике', value: 'Попытка на сегодня ждёт тебя.' },
-  lead: { label: 'Подпись над лентой', value: 'Одна попытка в день. Что остановится на линии, то и твоё.' },
+  lead: { label: 'Подпись над лентой', value: 'Что остановится на линии, то и твоё.' },
   spinButton: { label: 'Кнопка запуска', value: 'Крутить' },
   wonFrame: { label: 'Выпала рамка — надпись над ней', value: 'Тебе досталась рамка' },
   wonFrameSub: { label: 'Выпала рамка — строка под ней', value: 'Она уже в твоём профиле. Примерь её прямо сейчас.' },
@@ -113,12 +124,13 @@ export const REEL_TEXTS = {
   duplicate: { label: 'Повторка — надпись над призом', value: 'Повторка' },
   duplicateFrameSub: { label: 'Повторка рамки — строка под ней', value: 'Эта рамка у тебя уже есть. Может, завтра повезёт на другую.' },
   duplicateFigureSub: { label: 'Повторка фигурки — строка под ней', value: 'Эта фигурка у тебя уже есть. Может, завтра повезёт на другую.' },
-  scene: { label: 'Сценка — надпись над картинкой', value: 'Сегодня без приза' },
+  scene: { label: 'Сценка — надпись над картинкой', value: 'В этот раз без приза' },
   wonSkin: { label: 'Выпал скин — надпись над ним', value: 'Тебе достался скин' },
   wonSkinSub: { label: 'Выпал скин — строка под ним', value: 'Он уже в твоём профиле. Надень — и твоя страница оденется в него.' },
   duplicateSkinSub: { label: 'Повторка скина — строка под ним', value: 'Этот скин у тебя уже есть. Может, завтра повезёт на другой.' },
   wearButton: { label: 'Кнопка «Надеть»', value: 'Надеть' },
-  footer: { label: 'Приписка внизу', value: 'Следующая попытка — завтра, пока идёт ивент.' },
+  againButton: { label: 'Кнопка «ещё раз»', value: 'Крутить ещё' },
+  footer: { label: 'Приписка внизу, когда попытки кончились', value: 'Следующие попытки — завтра, пока идёт ивент.' },
 } as const
 
 export type ReelTextKey = keyof typeof REEL_TEXTS

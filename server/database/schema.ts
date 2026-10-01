@@ -117,6 +117,7 @@ export const reels = sqliteTable('reels', {
   finishedAt: text('finished_at'),
   // Проба на проде: барабан видят и крутят только админы, читателям его нет.
   adminsOnly: integer('admins_only', { mode: 'boolean' }).notNull().default(false),
+  spinsPerDay: integer('spins_per_day').notNull().default(1), // попыток в день у читателя
   // Изменённые тексты окна — JSON; чего нет, то по умолчанию (shared/utils/reel).
   texts: text('texts', { mode: 'json' }).$type<Record<string, string>>(),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
@@ -138,13 +139,15 @@ export const reelSegments = sqliteTable('reel_segments', {
   stock: integer('stock'), // сколько раз приз можно выдать всего; NULL = без ограничений
 })
 
-// Попытка читателя. Одна на человека в день — это держит уникальный индекс, а
-// не проверка в коде: двойной клик иначе проскочил бы между чтением и записью.
+// Попытка читателя. N-я попытка за день пишется один раз — это держит
+// уникальный индекс (барабан, человек, день, номер), а не проверка в коде:
+// двойной клик иначе проскочил бы между чтением и записью.
 export const reelSpins = sqliteTable('reel_spins', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   reelId: integer('reel_id').notNull(),
   userId: integer('user_id').notNull(),
   day: text('day').notNull(), // '2026-09-30' по Москве
+  attempt: integer('attempt').notNull().default(1), // какая это попытка за день
   segmentId: integer('segment_id').notNull(),
   // won — приз выдан; duplicate — выпал тот, что уже есть; scene — сценка.
   outcome: text('outcome', { enum: ['won', 'duplicate', 'scene'] }).notNull(),

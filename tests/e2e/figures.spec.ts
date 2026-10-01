@@ -106,6 +106,26 @@ test.describe('Фигурка у имени', () => {
     expect(me.figures).toEqual([])
   })
 
+  test('несколько попыток в день: считаются, кончаются, приглашение уходит', async ({ page, playwright, baseURL }) => {
+    const admin = await playwright.request.newContext({ baseURL })
+    await asAdmin(admin)
+    await admin.put(`/api/admin/reels/${reelId}`, { data: { spinsPerDay: 3 } })
+    await admin.dispose()
+
+    // Одна попытка уже была в прошлом тесте — осталось две.
+    await login(page, SECOND)
+    const state = await (await page.request.get('/api/reel')).json()
+    expect(state.left).toBe(2)
+    expect(state.canSpin).toBe(true)
+
+    expect((await (await page.request.post('/api/reel/spin')).json()).left).toBe(1)
+    expect((await (await page.request.post('/api/reel/spin')).json()).left).toBe(0)
+    expect((await page.request.post('/api/reel/spin')).status()).toBe(409)
+
+    const notes = await (await page.request.get('/api/notifications')).json()
+    expect(notes.reel).toBeNull()
+  })
+
   test('хозяйка сайта примеряет любую, носит только выданную себе', async ({ page }) => {
     await login(page, ADMIN)
     const me = await (await page.request.get('/api/profile')).json()

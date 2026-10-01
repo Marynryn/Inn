@@ -28,6 +28,9 @@ const symbols = computed(() => state.value?.reel?.symbols ?? [])
 const title = computed(() => state.value?.reel?.title ?? '')
 const t = computed(() => state.value?.reel?.texts ?? fullReelTexts(null))
 const trial = computed(() => Boolean(props.trialId))
+/** Сколько попыток осталось сегодня; null — без ограничений (админ, проба). */
+const left = ref<number | null>(null)
+const perDay = computed(() => state.value?.perDay ?? 1)
 
 const base = computed(() => (props.trialId ? `/api/admin/reels/${props.trialId}/trial` : '/api/reel'))
 
@@ -54,9 +57,10 @@ const load = async () => {
     return
   }
 
-  // Уже крутил сегодня — например, закрыл вкладку посреди вращения. Показываем,
-  // что выпало, а не ленту, которую всё равно не запустить.
-  if (state.value.today) {
+  left.value = state.value.left
+  // Попытки на сегодня кончились — например, закрыл вкладку посреди вращения.
+  // Показываем, что выпало в последний раз, а не ленту, которую не запустить.
+  if (state.value.today && left.value === 0) {
     result.value = state.value.today
     phase.value = 'result'
     return
@@ -112,6 +116,7 @@ const spinNow = async () => {
 
   await wait(seconds * 1000 + 120)
   await wait(reduce ? 200 : 900)
+  if (!trial.value) left.value = res.left ?? null
   result.value = res
   phase.value = 'result'
 }
@@ -164,6 +169,15 @@ const eyebrow = computed(() => {
     default: return t.value.scene
   }
 })
+
+/** Ещё попытка: обратно к ленте, она стоит там, где остановилась. */
+const canAgain = computed(() => !trial.value && (left.value === null || left.value > 0))
+const again = () => {
+  result.value = null
+  worn.value = false
+  error.value = ''
+  phase.value = 'ready'
+}
 
 const close = () => {
   if (phase.value === 'spinning') return
@@ -292,12 +306,15 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
               {{ wearing ? 'Надеваем…' : t.wearButton }}
             </button>
             <span v-else-if="prize && !trial" class="worn-tag">✓ Надета</span>
+            <button v-if="canAgain" class="reel-btn" :class="{ ghost: prize && !isWorn }" type="button" @click="again">
+              {{ t.againButton }}<template v-if="left !== null"> · {{ left }}</template>
+            </button>
             <button class="reel-btn ghost" type="button" @click="close">Закрыть</button>
           </div>
 
           <p v-if="error" class="reel-err">{{ error }}</p>
-          <p v-if="!trial && auth.isAdmin" class="reel-fine">Админу без ограничений — закрой окно и крути ещё.</p>
-          <p v-else-if="!trial" class="reel-fine">{{ t.footer }}</p>
+          <p v-if="!trial && left === 0" class="reel-fine">{{ t.footer }}</p>
+          <p v-else-if="!trial && left !== null && perDay > 1" class="reel-fine">Осталось попыток сегодня: {{ left }} из {{ perDay }}</p>
         </template>
       </div>
     </div>

@@ -32,6 +32,7 @@ export default defineEventHandler(async (): Promise<AdminReel[]> => {
       id: reel.id,
       title: reel.title,
       adminsOnly: reel.adminsOnly,
+      spinsPerDay: reel.spinsPerDay,
       texts: cleanReelTexts(reel.texts),
       status: reel.status,
       startedAt: reel.startedAt,

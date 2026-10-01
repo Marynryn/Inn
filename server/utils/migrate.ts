@@ -697,10 +697,10 @@ export async function runMigrations() {
       day TEXT NOT NULL,
       segment_id INTEGER NOT NULL,
       outcome TEXT NOT NULL CHECK(outcome IN ('won','duplicate','scene')),
+      attempt INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE UNIQUE INDEX IF NOT EXISTS reel_spins_daily ON reel_spins (reel_id, user_id, day);
     CREATE INDEX IF NOT EXISTS reel_spins_segment ON reel_spins (segment_id, outcome);
   `)
 
@@ -721,6 +721,8 @@ export async function runMigrations() {
     'ALTER TABLE reels ADD COLUMN admins_only INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE reels ADD COLUMN texts TEXT',
     'ALTER TABLE reel_segments ADD COLUMN skin_id INTEGER',
+    'ALTER TABLE reels ADD COLUMN spins_per_day INTEGER NOT NULL DEFAULT 1',
+    'ALTER TABLE reel_spins ADD COLUMN attempt INTEGER NOT NULL DEFAULT 1',
   ]) {
     try {
       await client.execute(sql)
@@ -740,6 +742,12 @@ export async function runMigrations() {
     })
     console.log('[migrate] Admin created: admin@tavern.local / admin123 — смени пароль!')
   }
+
+  // Попыток в день может быть несколько: уникален номер попытки за день, а не сам день.
+  await client.executeMultiple(`
+    DROP INDEX IF EXISTS reel_spins_daily;
+    CREATE UNIQUE INDEX IF NOT EXISTS reel_spins_attempt ON reel_spins (reel_id, user_id, day, attempt);
+  `)
 
   client.close()
 }

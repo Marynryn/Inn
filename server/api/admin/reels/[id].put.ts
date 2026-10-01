@@ -1,7 +1,7 @@
 import { and, eq, inArray, ne } from 'drizzle-orm'
 import { isFigureId } from '#shared/utils/nameFigures'
 import type { ReelSegmentInput } from '#shared/utils/reel'
-import { REEL_LABEL_MAX, REEL_TEXT_MAX, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL, cleanReelTexts } from '#shared/utils/reel'
+import { REEL_LABEL_MAX, REEL_TEXT_MAX, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL, clampSpinsPerDay, cleanReelTexts } from '#shared/utils/reel'
 import { avatarFrames, profileSkins, reelSegments, reels } from '../../../database/schema'
 import { useDb } from '../../../utils/db'
 import { reelFromRoute } from '../../../utils/reel'
@@ -11,12 +11,12 @@ const IMAGE_NAME = /^scene-[\w-]+\.(webp|png|jpg|gif)$/
 /**
  * Сохранить барабан: название и сегменты целиком. Сегменты правятся только у
  * черновика — у идущего барабана шансы менять нельзя, иначе тем, кто крутил
- * вчера, выпадало бы по другим правилам. Название, «только для админов» и
- * тексты окна поправить можно всегда.
+ * вчера, выпадало бы по другим правилам. Название, «только для админов»,
+ * попытки в день и тексты окна поправить можно всегда.
  */
 export default defineEventHandler(async (event) => {
   const reel = await reelFromRoute(event)
-  const body = await readBody<{ title?: string; adminsOnly?: boolean; texts?: Record<string, string>; segments?: ReelSegmentInput[] }>(event)
+  const body = await readBody<{ title?: string; adminsOnly?: boolean; spinsPerDay?: number; texts?: Record<string, string>; segments?: ReelSegmentInput[] }>(event)
   const db = useDb()
 
   const title = String(body?.title ?? reel.title).trim().slice(0, REEL_TITLE_MAX)
@@ -26,7 +26,9 @@ export default defineEventHandler(async (event) => {
   const adminsOnly = typeof body?.adminsOnly === 'boolean' ? body.adminsOnly : reel.adminsOnly
   // Тексты окна — тоже когда угодно: слова не меняют правил розыгрыша.
   const texts = cleanReelTexts(body?.texts ?? reel.texts)
-  await db.update(reels).set({ title, adminsOnly, texts }).where(eq(reels.id, reel.id))
+  // Попыток в день — тоже когда угодно: прибавить их посреди ивента не нечестно.
+  const spinsPerDay = body?.spinsPerDay == null ? reel.spinsPerDay : clampSpinsPerDay(body.spinsPerDay)
+  await db.update(reels).set({ title, adminsOnly, texts, spinsPerDay }).where(eq(reels.id, reel.id))
 
   if (!body?.segments) return { ok: true }
   if (reel.status !== 'draft') {

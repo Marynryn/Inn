@@ -9,5 +9,7 @@ export default defineEventHandler(async (event): Promise<ReelState> => {
     reel: { id: reel.id, title: reel.title, symbols: await symbolsOf(await segmentsOf(reel.id)), texts: textsOf(reel) },
     today: null,
     canSpin: true,
+    left: null,
+    perDay: reel.spinsPerDay,
   }
 })
