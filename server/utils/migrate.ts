@@ -636,6 +636,34 @@ export async function runMigrations() {
     await client.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('avatars_by_public_id', '1')")
   }
 
+  // Скины публичной страницы — устроены как рамки: каталог, выданное и надетое.
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS profile_skins (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      file TEXT NOT NULL,
+      accent TEXT NOT NULL DEFAULT '#c9b8e6',
+      tint TEXT NOT NULL DEFAULT '#24212a',
+      effects TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS user_skins (
+      user_id INTEGER NOT NULL,
+      skin_id INTEGER NOT NULL,
+      granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, skin_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS user_skins_skin ON user_skins (skin_id);
+  `)
+
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN skin_id INTEGER')
+  } catch {
+    // Столбец уже существует — это нормально
+  }
+
   // Создать admin-аккаунт если нет ни одного пользователя
   const existing = await client.execute('SELECT COUNT(*) as cnt FROM users')
   const count = (existing.rows[0] as any).cnt as number

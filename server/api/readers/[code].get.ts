@@ -4,6 +4,7 @@ import { comments, users } from '../../database/schema'
 import { useDb } from '../../utils/db'
 import { frameById, ownedFrames } from '../../utils/frames'
 import { readerName } from '../../utils/identity'
+import { skinById } from '../../utils/skins'
 
 /**
  * Публичная страница читателя. Отдаём только то, что и так видно под его
@@ -30,11 +31,19 @@ export default defineEventHandler(async (event): Promise<PublicReader> => {
   const frames = (await ownedFrames(user.id)).map(({ owned, grantedAt, ...f }) => ({ ...f, grantedAt: grantedAt! }))
 
   const session = await getUserSession(event)
-  const viewerId = (session.user as { id?: number } | undefined)?.id
+  const viewer = session.user as { id?: number, role?: string } | undefined
+  const isMe = viewer?.id === user.id
+
+  // Примерка: хозяйка сайта смотрит свою страницу в любом скине каталога, не
+  // надевая его. Только на своей и только она — остальные ?skin= не видят.
+  const trySkin = Number(getQuery(event).skin)
+  const skin = isMe && viewer?.role === 'admin' && Number.isInteger(trySkin) && trySkin > 0
+    ? await skinById(trySkin)
+    : await skinById(user.skinId)
 
   return {
     code,
-    isMe: viewerId === user.id,
+    isMe,
     name: readerName(user),
     avatarUrl: user.avatarUrl,
     avatarFrame: await frameById(user.avatarFrameId),
@@ -42,5 +51,6 @@ export default defineEventHandler(async (event): Promise<PublicReader> => {
     since: user.createdAt,
     comments: said?.n ?? 0,
     frames,
+    skin,
   }
 })

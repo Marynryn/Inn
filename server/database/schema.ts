@@ -38,6 +38,8 @@ export const users = sqliteTable('users', {
   // Номер туда не идёт: по нему видно, сколько на сайте читателей. Ставит его
   // триггер базы при вставке, см. migrate.
   publicId: text('public_id'),
+  // Надетый скин публичной страницы. NULL = без скина.
+  skinId: integer('skin_id'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
@@ -75,6 +77,26 @@ export const userFrames = sqliteTable('user_frames', {
   frameId: integer('frame_id').notNull(),
   grantedAt: text('granted_at').notNull().default(sql`(datetime('now'))`),
 }, t => [primaryKey({ columns: [t.userId, t.frameId] })])
+
+// Скины публичной страницы читателя — как рамки, только для страницы, а не для
+// аватарки. Каталог в базе, картинка на диске: новый скин не требует выкатки.
+// Эффекты (паучок на нити, пылинки) рисует код, скин лишь отмечает, какие нужны.
+export const profileSkins = sqliteTable('profile_skins', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  file: text('file').notNull(), // картинка для углов: skin-1-….png
+  accent: text('accent').notNull().default('#c9b8e6'), // цвет цифр и мелочей
+  tint: text('tint').notNull().default('#24212a'), // фон карточки
+  effects: text('effects').notNull().default(''), // через запятую: spider,dust
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+})
+
+// Выданные скины. Надеть можно только отсюда — как и с рамками.
+export const userSkins = sqliteTable('user_skins', {
+  userId: integer('user_id').notNull(),
+  skinId: integer('skin_id').notNull(),
+  grantedAt: text('granted_at').notNull().default(sql`(datetime('now'))`),
+}, t => [primaryKey({ columns: [t.userId, t.skinId] })])
 
 export const comments = sqliteTable('comments', {
   id: integer('id').primaryKey({ autoIncrement: true }),

@@ -12,7 +12,19 @@ const auth = useAuthStore()
 const { data: settings } = await useFetch('/api/settings')
 
 const code = computed(() => String(route.params.code))
-const { data: reader, error, refresh } = await useFetch<PublicReader>(() => `/api/readers/${code.value}`)
+// ?skin= — примерка скина хозяйкой сайта на своей странице; остальным сервер
+// его не применит.
+const trySkin = computed(() => (typeof route.query.skin === 'string' ? route.query.skin : undefined))
+const { data: reader, error, refresh } = await useFetch<PublicReader>(() => `/api/readers/${code.value}`, {
+  query: { skin: trySkin },
+})
+
+const skin = computed(() => reader.value?.skin ?? null)
+const hasSpider = computed(() => Boolean(skin.value?.effects.includes('spider')))
+const trying = computed(() => Boolean(trySkin.value && reader.value?.isMe && skin.value))
+const skinStyle = computed(() => skin.value
+  ? { '--skin-tint': skin.value.tint, '--skin-accent': skin.value.accent }
+  : undefined)
 
 const isMe = computed(() => Boolean(reader.value?.isMe))
 
@@ -71,8 +83,22 @@ useHead(() => ({
         <NuxtLink to="/" class="link-btn">На главную</NuxtLink>
       </div>
 
-      <article v-else class="reader-card" data-clarity-mask="true">
-        <header class="top">
+      <template v-else>
+      <p v-if="trying" class="try-banner">
+        Примерка скина «{{ skin?.name }}» — так страницу видишь только ты.
+        <NuxtLink to="/profile" class="link-btn">Вернуться в профиль</NuxtLink>
+      </p>
+
+      <article
+        class="reader-card"
+        :class="{ skinned: skin }"
+        :style="skinStyle"
+        data-clarity-mask="true"
+      >
+        <SkinDeco v-if="skin" :skin="skin" />
+
+        <header class="top" :class="{ 'has-spider': hasSpider }">
+          <SkinSpider v-if="hasSpider" />
           <UserAvatar
             class="big-face"
             :src="reader.avatarUrl"
@@ -131,6 +157,7 @@ useHead(() => ({
           </ul>
         </section>
       </article>
+      </template>
     </div>
 
     <AppFooter :settings="settings as any" on-dark />
@@ -154,7 +181,61 @@ useHead(() => ({
   padding: 96px 24px 64px;
 }
 
+/* Скин: фон карточки и холодный акцент берутся из каталога. Украшения лежат
+   под содержимым, поэтому шапка и рамки подняты над ними. */
+.reader-card.skinned {
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(255, 255, 255, .06), transparent 60%),
+    radial-gradient(60% 50% at 100% 100%, rgba(0, 0, 0, .35), transparent 70%),
+    var(--skin-tint);
+  border-color: color-mix(in srgb, var(--skin-accent) 22%, transparent);
+}
+
+/* Кружок аватарки без картинки — полупрозрачный, и паутина просвечивала бы
+   сквозь лицо. В скине подкладываем под него фон карточки. */
+.reader-card.skinned .big-face {
+  background: linear-gradient(rgba(241, 230, 210, .08), rgba(241, 230, 210, .08)), var(--skin-tint);
+}
+
+.reader-card.skinned .meta b {
+  color: var(--skin-accent);
+}
+
+.reader-card.skinned .frames {
+  border-top-color: color-mix(in srgb, var(--skin-accent) 18%, transparent);
+}
+
+.reader-card.skinned .frame-tile {
+  background: rgba(0, 0, 0, .3);
+  border-color: color-mix(in srgb, var(--skin-accent) 18%, transparent);
+}
+
+.top,
+.frames {
+  position: relative;
+  z-index: 1;
+}
+
+/* Дорожка паучка: текст шапки до неё не доходит, и паучок его не закроет. */
+.top.has-spider {
+  padding-right: 100px;
+}
+
+.try-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px dashed rgba(232, 176, 122, .4);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--ember-soft);
+}
+
 .reader-card {
+  position: relative;
   background: var(--bg-dark-2);
   border: 1px solid rgba(241, 230, 210, .1);
   border-radius: var(--radius-md);
@@ -348,7 +429,8 @@ useHead(() => ({
     padding: 84px 16px 48px;
   }
 
-  .top {
+  .top,
+  .top.has-spider {
     flex-direction: column;
     text-align: center;
     gap: 22px;

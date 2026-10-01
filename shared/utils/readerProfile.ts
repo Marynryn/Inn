@@ -1,4 +1,5 @@
 import type { AvatarFrame } from './avatarFrames'
+import type { ProfileSkin } from './profileSkins'
 
 /**
  * Публичная страница читателя — то, что о нём видно всем. Почта, способы
@@ -18,6 +19,8 @@ export type PublicReader = {
   since: string
   comments: number
   frames: (AvatarFrame & { grantedAt: string })[]
+  /** Надетый скин страницы. У хозяйки сайта на своей странице — и примерка. */
+  skin: ProfileSkin | null
 }
 
 export const ABOUT_MAX = 300

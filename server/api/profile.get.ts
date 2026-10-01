@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { userIdentities, users } from '../database/schema'
 import { useDb } from '../utils/db'
 import { frameById, wearableFrames } from '../utils/frames'
+import { skinById, wearableSkins } from '../utils/skins'
 
 /** Профиль читателя вместе со списком привязанных способов входа. */
 export default defineEventHandler(async (event) => {
@@ -34,6 +35,10 @@ export default defineEventHandler(async (event) => {
     // весь каталог. Пустой список значит, что выбирать не из чего: на странице
     // тогда стоит объяснение, а не список.
     frames: await wearableFrames(user.id, user.role === 'admin'),
+    // Скин страницы — надетый и из чего выбирать; у хозяйки сайта, как и с
+    // рамками, весь каталог для примерки.
+    skin: await skinById(user.skinId),
+    skins: await wearableSkins(user.id, user.role === 'admin'),
     hasPassword: Boolean(user.passwordHash),
     providers: links.map(l => l.provider),
   }

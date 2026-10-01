@@ -6,6 +6,7 @@ import { saveAvatar } from '../utils/avatar'
 import { useDb } from '../utils/db'
 import { assertNameFree, saveUnique } from '../utils/display-name'
 import { canWearFrame, frameById } from '../utils/frames'
+import { ownsSkin } from '../utils/skins'
 import { toSessionUser } from '../utils/identity'
 
 /**
@@ -73,6 +74,22 @@ export default defineEventHandler(async (event) => {
     }
 
     updates.avatarFrameId = frameId || null
+  }
+
+  // Скин страницы. Пусто — «без скина». Надеть — только выданный, и хозяйке
+  // сайта тоже: надетый скин видят все, кто заходит на страницу.
+  const skinPart = form.find(f => f.name === 'skinId')
+  if (skinPart) {
+    const raw = skinPart.data.toString('utf8').trim()
+    const skinId = raw ? Number(raw) : 0
+    if (!Number.isInteger(skinId) || skinId < 0) throw createError({ statusCode: 400, message: 'Неизвестный скин' })
+    if (skinId && !(await ownsSkin(sessionUser.id, skinId))) {
+      throw createError({
+        statusCode: 403,
+        message: me.role === 'admin' ? 'Это примерка: чтобы носить скин, сначала выдай его себе' : 'Этот скин не твой',
+      })
+    }
+    updates.skinId = skinId || null
   }
 
   if (!Object.keys(updates).length) {

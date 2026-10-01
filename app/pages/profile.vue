@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AvatarFrame, OwnedFrame } from '#shared/utils/avatarFrames'
 import { ABOUT_MAX } from '#shared/utils/readerProfile'
+import type { OwnedSkin, ProfileSkin } from '#shared/utils/profileSkins'
 
 const auth = useAuthStore()
 const { data: settings } = await useFetch('/api/settings')
@@ -16,6 +17,8 @@ type Profile = {
   about: string | null
   publicId: string | null
   frames: OwnedFrame[]
+  skin: ProfileSkin | null
+  skins: OwnedSkin[]
   hasPassword: boolean
   providers: ('google' | 'telegram')[]
 }
@@ -79,6 +82,52 @@ const grantToSelf = async () => {
   } finally {
     granting.value = false
   }
+}
+
+// ── Скин страницы ──────────────────────────────
+// Выданный скин надевается сразу, по щелчку: это не поле формы, а выбор, как
+// включить свет. Невыданный — примерка хозяйки сайта: его можно посмотреть на
+// своей странице или выдать себе.
+const skins = computed(() => profile.value?.skins ?? [])
+const skinPicked = ref<number | null>(null)
+const skinBusy = ref(false)
+const skinError = ref('')
+const pickedTrySkin = computed(() => skins.value.find(s => s.id === skinPicked.value && !s.owned) ?? null)
+
+const wearSkin = async (id: number | null) => {
+  skinBusy.value = true
+  skinError.value = ''
+  try {
+    const form = new FormData()
+    form.append('skinId', id ? String(id) : '')
+    await $fetch('/api/profile', { method: 'PUT', body: form })
+    skinPicked.value = null
+    await refresh()
+  } catch (e: any) {
+    skinError.value = e.data?.message || 'Не получилось'
+  } finally {
+    skinBusy.value = false
+  }
+}
+
+const pickSkin = (s: OwnedSkin) => {
+  if (s.owned) return wearSkin(s.id)
+  skinPicked.value = s.id
+}
+
+const grantSkinToSelf = async () => {
+  const skin = pickedTrySkin.value
+  if (!profile.value?.id || !skin) return
+  skinBusy.value = true
+  skinError.value = ''
+  try {
+    await $fetch('/api/admin/skins/grant', { method: 'POST', body: { userId: profile.value.id, skinId: skin.id } })
+  } catch (e: any) {
+    skinError.value = e.data?.message || 'Не выдался'
+    skinBusy.value = false
+    return
+  }
+  await wearSkin(skin.id)
 }
 
 const avatarSrc = computed(() => preview.value || profile.value?.avatarUrl || null)
@@ -296,6 +345,62 @@ useHead({
               {{ granting ? 'Выдаём...' : 'Выдать себе и надеть' }}
             </button>
           </div>
+        </template>
+
+        <!-- Скинов ни одного — и раздела нет: читателю, у которого их не бывало,
+             незачем знать о пустой полке. -->
+        <template v-if="skins.length">
+          <hr class="divider">
+
+          <h2 class="section-title">Скин страницы</h2>
+          <p class="section-note">
+            Видят все, кто открывает твою страницу.
+            <template v-if="isAdmin">Невыданные — для примерки, их видишь только ты.</template>
+          </p>
+
+          <div class="skin-grid">
+            <button
+              class="skin-pick"
+              type="button"
+              :class="{ active: !profile.skin }"
+              :disabled="skinBusy"
+              @click="wearSkin(null)"
+            >
+              <span class="skin-thumb" />
+              <span class="frame-name">Без скина</span>
+            </button>
+
+            <button
+              v-for="s in skins"
+              :key="s.id"
+              class="skin-pick"
+              type="button"
+              :class="{ active: profile.skin?.id === s.id, picked: skinPicked === s.id }"
+              :disabled="skinBusy"
+              @click="pickSkin(s)"
+            >
+              <span class="skin-thumb" :style="{ background: s.tint }">
+                <img :src="s.url" alt="" draggable="false">
+              </span>
+              <span class="frame-name">{{ s.name }}</span>
+              <span v-if="!s.owned" class="frame-tag">примерка</span>
+            </button>
+          </div>
+
+          <div v-if="pickedTrySkin" class="try-note">
+            <span>«{{ pickedTrySkin.name }}» — примерка: наружу не видна.</span>
+            <NuxtLink
+              v-if="profile.publicId"
+              :to="`/reader/${profile.publicId}?skin=${pickedTrySkin.id}`"
+              class="link-btn"
+            >
+              Посмотреть на своей странице
+            </NuxtLink>
+            <button class="link-btn" type="button" :disabled="skinBusy" @click="grantSkinToSelf">
+              Выдать себе и надеть
+            </button>
+          </div>
+          <p v-if="skinError" class="err-msg">{{ skinError }}</p>
         </template>
 
         <hr class="divider">
@@ -564,6 +669,52 @@ useHead({
   text-transform: uppercase;
   color: var(--ember-soft);
   opacity: .65;
+}
+
+/* Скин — как рамка в сетке, только превью прямоугольное: это кусок страницы. */
+.skin-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.skin-pick {
+  width: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--parchment);
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.skin-pick:hover { background: rgba(241, 230, 210, .05); }
+.skin-pick.active { border-color: var(--ember-soft); background: rgba(241, 230, 210, .05); }
+.skin-pick.picked { border-color: rgba(232, 176, 122, .45); border-style: dashed; }
+.skin-pick:disabled { cursor: default; opacity: .7; }
+
+.skin-thumb {
+  position: relative;
+  width: 96px;
+  height: 60px;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid rgba(241, 230, 210, .12);
+  background: var(--bg-dark);
+}
+
+.skin-thumb img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
 }
 
 .try-note {
