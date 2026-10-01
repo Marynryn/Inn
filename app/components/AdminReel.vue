@@ -14,6 +14,7 @@ import {
  */
 
 type CatalogFrame = { id: number; name: string; url: string }
+type CatalogSkin = { id: number; name: string; url: string; tint: string }
 type LogRow = { id: number; name: string; label: string; outcome: 'won' | 'duplicate' | 'scene'; createdAt: string }
 
 /** Сегмент в редакторе. Шанс — строкой процентов, как его ввели: «2,5». */
@@ -21,6 +22,7 @@ type Draft = {
   label: string
   frameId: number | null
   figure: string | null
+  skinId: number | null
   image: string | null
   imageUrl: string | null
   text: string
@@ -30,6 +32,7 @@ type Draft = {
 
 const reels = ref<AdminReel[]>([])
 const frames = ref<CatalogFrame[]>([])
+const skins = ref<CatalogSkin[]>([])
 const selectedId = ref<number | null>(null)
 const drafts = ref<Draft[]>([])
 const title = ref('')
@@ -55,6 +58,7 @@ const toDraft = (r: AdminReel): Draft[] => r.segments.map(s => ({
   label: s.label,
   frameId: s.frameId,
   figure: s.figure,
+  skinId: s.skinId,
   image: s.image,
   imageUrl: s.imageUrl,
   text: s.text ?? '',
@@ -84,19 +88,28 @@ const takenElsewhere = computed(() => {
 const frameName = (id: number | null) => frames.value.find(f => f.id === id)?.name ?? 'рамка удалена'
 const frameUrl = (id: number | null) => frames.value.find(f => f.id === id)?.url ?? null
 
-/** Приз сегмента одной строкой для выпадающего списка: «f5» — рамка, «gghost» — фигурка, пусто — сценка. */
-const prizeKey = (d: Draft) => (d.frameId ? `f${d.frameId}` : d.figure ? `g${d.figure}` : '')
-const isPrize = (d: Draft) => Boolean(d.frameId || d.figure)
-const picOf = (d: Draft) => (d.frameId ? frameUrl(d.frameId) : d.figure ? figureById(d.figure)?.big ?? null : d.imageUrl)
-const prizeName = (d: Draft) => (d.frameId ? frameName(d.frameId) : figureById(d.figure)?.name ?? '')
+const skinOf = (id: number | null) => skins.value.find(s => s.id === id) ?? null
+
+/** Приз сегмента одной строкой для выпадающего списка: «f5» — рамка, «gghost» —
+ *  фигурка, «s3» — скин, пусто — сценка. */
+const prizeKey = (d: Draft) => (d.frameId ? `f${d.frameId}` : d.figure ? `g${d.figure}` : d.skinId ? `s${d.skinId}` : '')
+const isPrize = (d: Draft) => Boolean(d.frameId || d.figure || d.skinId)
+const picOf = (d: Draft) => d.frameId
+  ? frameUrl(d.frameId)
+  : d.figure ? figureById(d.figure)?.big ?? null : d.skinId ? skinOf(d.skinId)?.url ?? null : d.imageUrl
+const prizeName = (d: Draft) => d.frameId
+  ? frameName(d.frameId)
+  : d.figure ? figureById(d.figure)?.name ?? '' : skinOf(d.skinId)?.name ?? ''
 
 const load = async () => {
-  const [list, catalog] = await Promise.all([
+  const [list, catalog, skinList] = await Promise.all([
     $fetch<AdminReel[]>('/api/admin/reels'),
     $fetch<{ frames: CatalogFrame[] }>('/api/admin/frames'),
+    $fetch<CatalogSkin[]>('/api/admin/skins'),
   ])
   reels.value = list
   frames.value = catalog.frames
+  skins.value = skinList
   if (!list.some(r => r.id === selectedId.value)) selectedId.value = list[0]?.id ?? null
   select(selectedId.value)
 }
@@ -136,14 +149,16 @@ const create = () => run(async () => {
   await load()
 }, 'Барабан заведён — добавь сегменты')
 
-const addSegment = (kind: 'frame' | 'figure' | 'scene') => {
+const addSegment = (kind: 'frame' | 'figure' | 'skin' | 'scene') => {
   const free = frames.value.find(f => !takenElsewhere.value.has(f.id) && !drafts.value.some(d => d.frameId === f.id))
   const freeFigure = ALL_FIGURES.find(g => !drafts.value.some(d => d.figure === g.id))
-  const label = kind === 'frame' ? free?.name : kind === 'figure' ? freeFigure?.name : ''
+  const freeSkin = skins.value.find(s => !drafts.value.some(d => d.skinId === s.id))
+  const label = kind === 'frame' ? free?.name : kind === 'figure' ? freeFigure?.name : kind === 'skin' ? freeSkin?.name : ''
   drafts.value.push({
     label: (label ?? '').slice(0, REEL_LABEL_MAX),
     frameId: kind === 'frame' ? (free?.id ?? null) : null,
     figure: kind === 'figure' ? (freeFigure?.id ?? null) : null,
+    skinId: kind === 'skin' ? (freeSkin?.id ?? null) : null,
     image: null,
     imageUrl: null,
     text: '',
@@ -157,6 +172,7 @@ const onPrizePick = (d: Draft, key: string) => {
   const before = prizeName(d).slice(0, REEL_LABEL_MAX)
   d.frameId = key.startsWith('f') ? Number(key.slice(1)) : null
   d.figure = key.startsWith('g') ? key.slice(1) : null
+  d.skinId = key.startsWith('s') ? Number(key.slice(1)) : null
   if (isPrize(d) && (!d.label || d.label === before)) d.label = prizeName(d).slice(0, REEL_LABEL_MAX)
 }
 
@@ -185,6 +201,7 @@ const payload = () => ({
     label: d.label,
     frameId: d.frameId,
     figure: d.frameId ? null : d.figure,
+    skinId: d.frameId || d.figure ? null : d.skinId,
     image: isPrize(d) ? null : d.image,
     text: isPrize(d) ? null : d.text,
     weight: percentToWeight(pctOf(d)),
@@ -256,8 +273,8 @@ onMounted(load)
 <template>
   <div class="reel-admin">
     <p class="note">
-      Читатель крутит раз в день, пока барабан идёт. Сегмент с рамкой или фигуркой у имени — приз,
-      без них — сценка: картинка и пара строк вместо пустоты. Выпал приз, который уже есть, — это
+      Читатель крутит раз в день, пока барабан идёт. Сегмент с рамкой, фигуркой у имени или скином
+      страницы — приз, без них — сценка: картинка и пара строк вместо пустоты. Выпал приз, который уже есть, — это
       повторка, тираж она не тратит. Кончился тираж — шанс приза делится между остальными.
     </p>
 
@@ -345,6 +362,16 @@ onMounted(load)
                       {{ f.name }}{{ takenElsewhere.has(f.id) ? ` — в «${takenElsewhere.get(f.id)}»` : '' }}
                     </option>
                   </optgroup>
+                  <optgroup v-if="skins.length" label="Скины страницы">
+                    <option
+                      v-for="sk in skins"
+                      :key="sk.id"
+                      :value="`s${sk.id}`"
+                      :disabled="drafts.some((o, j) => j !== i && o.skinId === sk.id)"
+                    >
+                      {{ sk.name }}
+                    </option>
+                  </optgroup>
                   <optgroup label="Фигурки у имени">
                     <option
                       v-for="g in ALL_FIGURES"
@@ -408,6 +435,7 @@ onMounted(load)
       <div v-if="editable" class="add-row">
         <button class="link" type="button" @click="addSegment('frame')">+ Рамка</button>
         <button class="link" type="button" @click="addSegment('figure')">+ Фигурка</button>
+        <button v-if="skins.length" class="link" type="button" @click="addSegment('skin')">+ Скин</button>
         <button class="link" type="button" @click="addSegment('scene')">+ Сценка</button>
       </div>
 

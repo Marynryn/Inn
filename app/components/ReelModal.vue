@@ -128,9 +128,10 @@ const worn = ref(false)
 const isWorn = computed(() => {
   if (worn.value) return true
   if (result.value?.frame) return (auth.user as any)?.avatarFrame?.id === result.value.frame.id
-  return Boolean(result.value?.figure) && auth.user?.figure?.id === result.value?.figure?.id
+  if (result.value?.figure) return auth.user?.figure?.id === result.value.figure.id
+  return false
 })
-const prize = computed(() => result.value?.frame ?? result.value?.figure ?? null)
+const prize = computed(() => result.value?.frame ?? result.value?.figure ?? result.value?.skin ?? null)
 
 // Аватарка в рамке видна сразу у повторки — эта рамка и так своя — и после
 // «Надеть» у выигрыша. До того в середине пусто: рамку показываем саму по себе.
@@ -143,7 +144,8 @@ const wear = async () => {
   try {
     const form = new FormData()
     if (result.value?.frame) form.append('avatarFrameId', String(result.value.frame.id))
-    else form.append('figure', result.value!.figure!.id)
+    else if (result.value?.figure) form.append('figure', result.value.figure.id)
+    else form.append('skinId', String(result.value!.skin!.id))
     await $fetch('/api/profile', { method: 'PUT', body: form })
     await auth.fetchMe()
     worn.value = true
@@ -157,7 +159,7 @@ const wear = async () => {
 const eyebrow = computed(() => {
   if (trial.value) return 'Выпало бы'
   switch (result.value?.outcome) {
-    case 'won': return result.value.figure ? t.value.wonFigure : t.value.wonFrame
+    case 'won': return result.value.figure ? t.value.wonFigure : result.value.skin ? t.value.wonSkin : t.value.wonFrame
     case 'duplicate': return t.value.duplicate
     default: return t.value.scene
   }
@@ -254,13 +256,26 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
               {{ auth.name }}<NameFigure :figure="result.figure" />
             </span>
           </div>
+          <div
+            v-else-if="result.skin"
+            class="prize-skin"
+            :style="{ background: result.skin.tint, '--accent': result.skin.accent }"
+          >
+            <img class="corner" :src="result.skin.url" alt="" draggable="false">
+            <img class="corner corner--right" :src="result.skin.url" alt="" draggable="false">
+            <span class="skin-name">{{ auth.name }}</span>
+            <span class="skin-line" />
+            <span class="skin-line skin-line--short" />
+          </div>
           <img v-else class="scene-pic" :src="result.imageUrl" alt="" draggable="false">
 
           <h2 id="reel-title" class="display prize-name">{{ result.label }}</h2>
 
           <p class="prize-sub">
             <template v-if="result.outcome === 'won' && !trial && result.figure">{{ t.wonFigureSub }}</template>
+            <template v-else-if="result.outcome === 'won' && !trial && result.skin">{{ t.wonSkinSub }}</template>
             <template v-else-if="result.outcome === 'won' && !trial">{{ t.wonFrameSub }}</template>
+            <template v-else-if="result.outcome === 'duplicate' && result.skin">{{ t.duplicateSkinSub }}</template>
             <template v-else-if="result.outcome === 'duplicate' && result.figure">{{ t.duplicateFigureSub }}</template>
             <template v-else-if="result.outcome === 'duplicate'">{{ t.duplicateFrameSub }}</template>
             <template v-else-if="result.text">{{ result.text }}</template>
@@ -534,6 +549,55 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   user-select: none;
 }
 
+/* Скин — маленькая страница: его фон, углы и имя читателя цветом скина. */
+.prize-skin {
+  position: relative;
+  width: 220px;
+  height: 140px;
+  margin: 10px auto 12px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(241, 230, 210, .14);
+  animation: rise .8s cubic-bezier(.2, .9, .25, 1.25) both;
+}
+
+.prize-skin .corner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  object-position: left top;
+}
+
+.prize-skin .corner--right {
+  left: auto;
+  right: 0;
+  transform: scaleX(-1);
+}
+
+.skin-name {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.skin-line {
+  width: 110px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(241, 230, 210, .14);
+}
+
+.skin-line--short { width: 70px; }
+
 /* Фигурка крупно, а под ней — как она встанет у имени. */
 .prize-figure {
   position: relative;
@@ -614,6 +678,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   .rays,
   .prize-frame,
   .prize-figure,
+  .prize-skin,
   .scene-pic { animation: none; }
   .prize-face { transition: none; }
 }

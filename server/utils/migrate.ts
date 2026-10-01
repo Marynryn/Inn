@@ -720,6 +720,7 @@ export async function runMigrations() {
     'ALTER TABLE reel_segments ADD COLUMN figure TEXT',
     'ALTER TABLE reels ADD COLUMN admins_only INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE reels ADD COLUMN texts TEXT',
+    'ALTER TABLE reel_segments ADD COLUMN skin_id INTEGER',
   ]) {
     try {
       await client.execute(sql)

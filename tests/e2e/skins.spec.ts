@@ -119,4 +119,32 @@ test.describe('Скины страницы', () => {
     expect(pub.skin).toBeNull()
     await guest.close()
   })
+
+  test('скин — приз барабана: выпадает, выдаётся, и пока барабан идёт, его не удалить', async ({ page }) => {
+    await login(page, ADMIN)
+    const pic = await (await page.request.post('/api/admin/reel-images', {
+      multipart: { image: { name: 's.png', mimeType: 'image/png', buffer: PNG } },
+    })).json()
+    const id = (await (await page.request.post('/api/admin/reels', { data: { title: 'Скин на барабане' } })).json()).id
+    const url = `/api/admin/reels/${id}`
+    const saved = await page.request.put(url, {
+      data: { segments: [
+        { label: 'Паутина', frameId: null, figure: null, skinId, image: null, text: null, weight: 1000, stock: null },
+        { label: 'Пусто', frameId: null, figure: null, skinId: null, image: pic.file, text: 'Ничего', weight: 0, stock: null },
+      ] },
+    })
+    expect(saved.ok(), await saved.text()).toBeTruthy()
+    const started = await page.request.post(`${url}/start`)
+    expect(started.ok(), await started.text()).toBeTruthy()
+
+    const spin = await (await page.request.post('/api/reel/spin')).json()
+    expect(['won', 'duplicate']).toContain(spin.outcome)
+    expect(spin.skin?.id).toBe(skinId)
+
+    const me = await (await page.request.get('/api/profile')).json()
+    expect(me.skins.find((s: any) => s.id === skinId)?.owned).toBe(true)
+
+    expect((await page.request.delete(`/api/admin/skins/${skinId}`)).status()).toBe(409)
+    await page.request.post(`${url}/finish`)
+  })
 })

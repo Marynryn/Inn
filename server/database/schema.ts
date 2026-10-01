@@ -122,15 +122,16 @@ export const reels = sqliteTable('reels', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
-// Сегмент барабана — один символ в окошке. С рамкой или фигуркой — приз, без
-// них — сценка из таверны: картинка и пара строк вместо пустоты.
+// Сегмент барабана — один символ в окошке. С рамкой, фигуркой или скином —
+// приз, без них — сценка из таверны: картинка и пара строк вместо пустоты.
 export const reelSegments = sqliteTable('reel_segments', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   reelId: integer('reel_id').notNull(),
   sortOrder: integer('sort_order').notNull().default(0),
   label: text('label').notNull(),
   frameId: integer('frame_id'), // приз-рамка
-  figure: text('figure'), // приз-фигурка у имени; ни рамки, ни фигурки — сценка
+  figure: text('figure'), // приз-фигурка у имени
+  skinId: integer('skin_id'), // приз-скин страницы; ни рамки, ни фигурки, ни скина — сценка
   image: text('image'), // картинка сценки, файл в storage/reel
   text: text('text'), // что сказать тому, кому выпала сценка
   weight: integer('weight').notNull().default(0), // шанс в десятых долях процента: 1000 = 100%

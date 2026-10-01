@@ -2,7 +2,7 @@ import { and, eq, inArray, ne } from 'drizzle-orm'
 import { isFigureId } from '#shared/utils/nameFigures'
 import type { ReelSegmentInput } from '#shared/utils/reel'
 import { REEL_LABEL_MAX, REEL_TEXT_MAX, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL, cleanReelTexts } from '#shared/utils/reel'
-import { avatarFrames, reelSegments, reels } from '../../../database/schema'
+import { avatarFrames, profileSkins, reelSegments, reels } from '../../../database/schema'
 import { useDb } from '../../../utils/db'
 import { reelFromRoute } from '../../../utils/reel'
 
@@ -53,7 +53,11 @@ export default defineEventHandler(async (event) => {
     if (figure !== null && !isFigureId(figure)) {
       throw createError({ statusCode: 400, message: `У сегмента ${n} неизвестная фигурка` })
     }
-    const scene = frameId === null && figure === null
+    const skinId = frameId === null && figure === null && s.skinId != null ? Number(s.skinId) : null
+    if (skinId !== null && !Number.isInteger(skinId)) {
+      throw createError({ statusCode: 400, message: `У сегмента ${n} странный скин` })
+    }
+    const scene = frameId === null && figure === null && skinId === null
 
     // Тираж — только у приза: сценок не жалко.
     const stock = scene || s.stock == null || s.stock === ('' as any) ? null : Number(s.stock)
@@ -68,12 +72,21 @@ export default defineEventHandler(async (event) => {
 
     const text = scene ? String(s.text ?? '').trim().slice(0, REEL_TEXT_MAX) || null : null
 
-    return { reelId: reel.id, sortOrder: i, label, frameId, figure, image, text, weight, stock }
+    return { reelId: reel.id, sortOrder: i, label, frameId, figure, skinId, image, text, weight, stock }
   })
 
   const frameIds = segs.flatMap(s => (s.frameId ? [s.frameId] : []))
   if (new Set(frameIds).size !== frameIds.length) {
     throw createError({ statusCode: 400, message: 'Одна рамка стоит в двух сегментах' })
+  }
+
+  const skinIds = segs.flatMap(s => (s.skinId ? [s.skinId] : []))
+  if (new Set(skinIds).size !== skinIds.length) {
+    throw createError({ statusCode: 400, message: 'Один скин стоит в двух сегментах' })
+  }
+  if (skinIds.length) {
+    const found = await db.select({ id: profileSkins.id }).from(profileSkins).where(inArray(profileSkins.id, skinIds))
+    if (found.length !== skinIds.length) throw createError({ statusCode: 400, message: 'Такого скина нет в каталоге' })
   }
 
   // Фигурка может разыгрываться и в другом барабане — её не жалко, — но в одном

@@ -41,6 +41,7 @@ export default defineEventHandler(async (): Promise<AdminReel[]> => {
         label: s.label,
         frameId: s.frameId,
         figure: s.figure,
+        skinId: s.skinId,
         image: s.image,
         imageUrl: s.image ? reelImageUrl(s.image) : null,
         text: s.text,

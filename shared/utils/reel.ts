@@ -1,10 +1,11 @@
 import type { AvatarFrame } from './avatarFrames'
 import type { NameFigure } from './nameFigures'
+import type { ProfileSkin } from './profileSkins'
 
 /**
  * Барабан — розыгрыш призов на ивенте. В окошке крутятся символы сегментов, и
- * тот, что остановился на линии, выпал. Сегмент с рамкой или фигуркой у имени —
- * приз, без них — сценка из таверны.
+ * тот, что остановился на линии, выпал. Сегмент с рамкой, фигуркой у имени или
+ * скином страницы — приз, без них — сценка из таверны.
  */
 
 /** Символ на ленте. Шансов и тиража здесь нет: читателю их знать незачем. */
@@ -27,6 +28,7 @@ export type SpinResult = {
   imageUrl: string
   frame: AvatarFrame | null
   figure: NameFigure | null
+  skin: ProfileSkin | null
 }
 
 export type ReelState = {
@@ -42,6 +44,7 @@ export type AdminReelSegment = {
   label: string
   frameId: number | null
   figure: string | null
+  skinId: number | null
   image: string | null
   imageUrl: string | null
   text: string | null
@@ -73,6 +76,7 @@ export type ReelSegmentInput = {
   label: string
   frameId: number | null
   figure: string | null
+  skinId: number | null
   image: string | null
   text: string | null
   weight: number
@@ -110,6 +114,9 @@ export const REEL_TEXTS = {
   duplicateFrameSub: { label: 'Повторка рамки — строка под ней', value: 'Эта рамка у тебя уже есть. Может, завтра повезёт на другую.' },
   duplicateFigureSub: { label: 'Повторка фигурки — строка под ней', value: 'Эта фигурка у тебя уже есть. Может, завтра повезёт на другую.' },
   scene: { label: 'Сценка — надпись над картинкой', value: 'Сегодня без приза' },
+  wonSkin: { label: 'Выпал скин — надпись над ним', value: 'Тебе достался скин' },
+  wonSkinSub: { label: 'Выпал скин — строка под ним', value: 'Он уже в твоём профиле. Надень — и твоя страница оденется в него.' },
+  duplicateSkinSub: { label: 'Повторка скина — строка под ним', value: 'Этот скин у тебя уже есть. Может, завтра повезёт на другой.' },
   wearButton: { label: 'Кнопка «Надеть»', value: 'Надеть' },
   footer: { label: 'Приписка внизу', value: 'Следующая попытка — завтра, пока идёт ивент.' },
 } as const

@@ -10,6 +10,7 @@ import { checkImage } from './avatar'
 import { useDb } from './db'
 import { grantFigure, ownsFigure } from './figures'
 import { framesByIds, ownsFrame } from './frames'
+import { grantSkin, ownsSkin, skinById } from './skins'
 import { mskDay } from './msk'
 import { getStorageDir } from './storage'
 
@@ -18,8 +19,8 @@ type Segment = typeof reelSegments.$inferSelect
 
 export const reelImageUrl = (file: string) => `/api/reel-images/${file}`
 
-/** Приз ли сегмент: рамка или фигурка. Ни того, ни другого — сценка. */
-export const isPrize = (s: Segment) => Boolean(s.frameId || s.figure)
+/** Приз ли сегмент: рамка, фигурка или скин. Ничего из этого — сценка. */
+export const isPrize = (s: Segment) => Boolean(s.frameId || s.figure || s.skinId)
 
 /** Идущий барабан. Он один: второй запустить нельзя, пока идёт первый. */
 export async function runningReel(): Promise<Reel | null> {
@@ -64,16 +65,22 @@ export async function wonCounts(reelId: number): Promise<Map<number, number>> {
   return new Map(rows.map(r => [r.segmentId, r.n]))
 }
 
-/** Символы ленты: картинка рамки, фигурки или сценки. Без картинки символа нет —
- *  такой сегмент запустить не дадут, но черновик показать надо, поэтому пропускаем. */
+/** Символы ленты: картинка рамки, фигурки, скина (его угол) или сценки. Без
+ *  картинки символа нет — такой сегмент запустить не дадут, но черновик показать
+ *  надо, поэтому пропускаем. */
 export async function symbolsOf(segs: Segment[]): Promise<ReelSymbol[]> {
   const frames = await framesByIds(segs.map(s => s.frameId))
+  const skins = new Map(await Promise.all(
+    segs.filter(s => s.skinId).map(async s => [s.skinId!, await skinById(s.skinId)] as const),
+  ))
   return segs.flatMap((s) => {
     const url = s.frameId
       ? frames.get(s.frameId)?.url
       : s.figure
         ? figureById(s.figure)?.big
-        : s.image ? reelImageUrl(s.image) : null
+        : s.skinId
+          ? skins.get(s.skinId)?.url
+          : s.image ? reelImageUrl(s.image) : null
     return url ? [{ id: s.id, label: s.label, url, isPrize: isPrize(s) }] : []
   })
 }
@@ -111,14 +118,16 @@ export function pickSegment(segs: Segment[], won: Map<number, number>): Segment 
 export async function toSpinResult(seg: Segment, outcome: SpinResult['outcome']): Promise<SpinResult> {
   const frame = seg.frameId ? (await framesByIds([seg.frameId])).get(seg.frameId) ?? null : null
   const figure = seg.frameId ? null : figureById(seg.figure)
+  const skin = seg.frameId || figure ? null : await skinById(seg.skinId)
   return {
     segmentId: seg.id,
     outcome,
     label: seg.label,
     text: isPrize(seg) ? null : seg.text,
-    imageUrl: frame?.url ?? figure?.big ?? (seg.image ? reelImageUrl(seg.image) : ''),
+    imageUrl: frame?.url ?? figure?.big ?? skin?.url ?? (seg.image ? reelImageUrl(seg.image) : ''),
     frame,
     figure,
+    skin,
   }
 }
 
@@ -162,7 +171,9 @@ export async function spin(userId: number, role: string | undefined): Promise<Sp
   const figure = figureById(seg.figure)
   const owned = seg.frameId
     ? await ownsFrame(userId, seg.frameId)
-    : figure ? await ownsFigure(userId, figure.id) : false
+    : figure
+      ? await ownsFigure(userId, figure.id)
+      : seg.skinId ? await ownsSkin(userId, seg.skinId) : false
   const outcome = !isPrize(seg) ? 'scene' : owned ? 'duplicate' : 'won'
 
   const db = useDb()
@@ -178,6 +189,8 @@ export async function spin(userId: number, role: string | undefined): Promise<Sp
     await db.insert(userFrames).values({ userId, frameId: seg.frameId }).onConflictDoNothing()
   } else if (outcome === 'won' && figure) {
     await grantFigure(userId, figure.id)
+  } else if (outcome === 'won' && seg.skinId) {
+    await grantSkin(userId, seg.skinId)
   }
 
   return toSpinResult(seg, outcome)
