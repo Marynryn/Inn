@@ -48,6 +48,18 @@ test.describe('Игра «Кто из таверны?»', () => {
     await expect(page.locator('.chip', { hasText: 'Попыток: 1' })).toBeVisible()
   })
 
+  test('имя в таблице открывает карточку персонажа', async ({ page }) => {
+    await open(page, '/game')
+    const name = await guessNth(page, 0, 'Эрин')
+    expect(name).toContain('Эрин')
+
+    // Карточки подгружаются после игры — ждём, пока имя станет ссылкой.
+    const link = rows(page).first().locator('.cell.name .name-link')
+    await expect(link).toBeVisible()
+    await link.click()
+    await expect(page.getByRole('dialog', { name })).toBeVisible()
+  })
+
   test('партия дня переживает перезагрузку', async ({ page }) => {
     await open(page, '/game')
     await guessNth(page, 0)

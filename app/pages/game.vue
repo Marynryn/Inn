@@ -11,6 +11,7 @@ import {
   type GameMode,
   type GameStatus,
 } from '#shared/utils/gameColumns'
+import type { Character, Origin } from '#shared/utils/characters'
 
 type Pool = 'known' | 'all'
 
@@ -74,6 +75,34 @@ const boardRows = computed(() => {
     : rows
 })
 const finished = computed(() => state.value ? state.value.status !== 'playing' : false)
+
+// ── Карточки персонажей ────────────────────────────────────
+// Имя в таблице и в итоге открывает ту же карточку, что на странице
+// персонажей. Только у тех, у кого карточка есть: открывать любого из базы
+// игры значило бы выложить наружу все признаки, а база нарочно спрятана —
+// иначе загадку можно было бы вычислить, не играя.
+const cards = ref<Character[]>([])
+const cardIds = computed(() => new Set(cards.value.map(c => c.id)))
+const openedId = ref<string | null>(null)
+const opened = computed(() => cards.value.find(c => c.id === openedId.value) ?? null)
+const origin = ref<Origin | null>(null)
+const toggleFlame = useCharacterFlame()
+
+const openCard = (id: string, e: Event) => {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  origin.value = { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+  openedId.value = id
+}
+
+// Тянем после загрузки страницы: карточки нужны, только когда по имени щёлкнут,
+// и задерживать ими саму игру незачем.
+onMounted(async () => {
+  try {
+    cards.value = (await $fetch<{ characters: Character[] }>('/api/characters')).characters
+  } catch {
+    // Не загрузились — имена останутся простым текстом, игра от этого не страдает.
+  }
+})
 const guessedIds = computed(() => new Set(state.value?.guesses.map(g => g.id) ?? []))
 
 // ── Загрузка ───────────────────────────────────────────────
@@ -504,7 +533,16 @@ useSeoMeta({
         <div v-if="finished && state.answer" class="result" :class="{ won: state.status === 'won' }">
           <div class="result-text">
             <div class="result-head display">
-              {{ state.status === 'won' ? 'Угадано!' : 'Это был' }} {{ state.answer.name }}
+              {{ state.status === 'won' ? 'Угадано!' : 'Это был' }}
+              <button
+                v-if="cardIds.has(state.answer.id)"
+                type="button"
+                class="name-link"
+                @click="openCard(state.answer.id, $event)"
+              >
+                {{ state.answer.name }}
+              </button>
+              <template v-else>{{ state.answer.name }}</template>
             </div>
             <div v-if="state.answer.original !== state.answer.name" class="result-orig">{{ state.answer.original }}</div>
             <div class="result-sub">
@@ -540,7 +578,15 @@ useSeoMeta({
               :class="{ hit: row.correct }"
             >
               <div class="cell name">
-                <span>{{ row.name }}</span>
+                <button
+                  v-if="cardIds.has(row.id)"
+                  type="button"
+                  class="name-link"
+                  @click="openCard(row.id, $event)"
+                >
+                  {{ row.name }}
+                </button>
+                <span v-else>{{ row.name }}</span>
               </div>
               <div
                 v-for="col in columns"
@@ -588,6 +634,8 @@ useSeoMeta({
     </main>
 
     <AppFooter on-dark :settings="settings as any" />
+
+    <CharacterModal v-if="opened" :character="opened" :origin="origin" @close="openedId = null" @flame="toggleFlame" />
   </div>
 </template>
 
@@ -966,6 +1014,24 @@ useSeoMeta({
   font-weight: 500;
   color: var(--ember-soft);
   padding-left: 10px;
+}
+
+/* Имя с карточкой — ссылка, но в таблице выглядит именем: подчёркивание
+   появляется, только когда на него наводят. */
+.name-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.name-link:hover,
+.name-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .row.hit .cell.name {
