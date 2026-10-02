@@ -2,9 +2,9 @@ import { randomInt } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { and, asc, count, desc, eq } from 'drizzle-orm'
-import type { ReelSymbol, SpinResult } from '#shared/utils/reel'
+import type { ReelLook, ReelSymbol, SpinResult } from '#shared/utils/reel'
 import { figureById } from '#shared/utils/nameFigures'
-import { REEL_IMAGE_MAX_BYTES, REEL_IMAGE_MAX_SIDE, cleanReelTexts, fullReelTexts } from '#shared/utils/reel'
+import { REEL_BG_MAX_BYTES, REEL_BG_MAX_SIDE, REEL_IMAGE_MAX_BYTES, REEL_IMAGE_MAX_SIDE, cleanReelTexts, fullReelTexts } from '#shared/utils/reel'
 import { reelSegments, reelSpins, reels, userFrames } from '../database/schema'
 import { checkImage } from './avatar'
 import { useDb } from './db'
@@ -34,6 +34,13 @@ export async function runningReelFor(role: string | undefined): Promise<Reel | n
   const reel = await runningReel()
   return reel && (!reel.adminsOnly || role === 'admin') ? reel : null
 }
+
+/** Фон окна барабана — как его показать. */
+export const lookOf = (reel: Reel): ReelLook => ({
+  background: reel.background ? reelImageUrl(reel.background) : null,
+  dim: reel.bgDim,
+  blur: reel.bgBlur,
+})
 
 /** Тексты окна барабана целиком — то, что видит читатель. */
 export const textsOf = (reel: Reel) => fullReelTexts(cleanReelTexts(reel.texts))
@@ -214,16 +221,18 @@ export async function trialSpin(reelId: number): Promise<SpinResult> {
   return toSpinResult(seg, isPrize(seg) ? 'won' : 'scene')
 }
 
-/** Картинка сценки на диск. Как и с рамками, сервер её не пережимает — только
- *  проверяет, что это картинка нужного веса и размера. */
-export async function saveReelImage(data: Buffer | Uint8Array): Promise<string> {
-  const ext = checkImage(data, REEL_IMAGE_MAX_BYTES, REEL_IMAGE_MAX_SIDE)
+/** Картинка сценки или фона окна на диск. Как и с рамками, сервер её не
+ *  пережимает — только проверяет, что это картинка нужного веса и размера. */
+export async function saveReelImage(data: Buffer | Uint8Array, kind: 'scene' | 'bg' = 'scene'): Promise<string> {
+  const ext = kind === 'bg'
+    ? checkImage(data, REEL_BG_MAX_BYTES, REEL_BG_MAX_SIDE)
+    : checkImage(data, REEL_IMAGE_MAX_BYTES, REEL_IMAGE_MAX_SIDE)
   const dir = join(getStorageDir(), 'reel')
   await mkdir(dir, { recursive: true })
 
   // Имя новое на каждую загрузку: раздача кэшируется на год, и заменённая
   // картинка под старым именем жила бы в браузерах читателей.
-  const file = `scene-${Date.now()}-${randomInt(1_000_000)}.${ext}`
+  const file = `${kind}-${Date.now()}-${randomInt(1_000_000)}.${ext}`
   await writeFile(join(dir, file), data)
   return file
 }

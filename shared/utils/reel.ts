@@ -33,8 +33,18 @@ export type SpinResult = {
   left?: number | null
 }
 
+/** Фон окна барабана: картинка, насколько её притушить и размыть под линией. */
+export type ReelLook = {
+  /** Адрес картинки; null — окно без фона, тёмное. */
+  background: string | null
+  /** Затемнение поверх картинки, в процентах. */
+  dim: number
+  /** Размытие фона под выпадающей клеткой, в пикселях. */
+  blur: number
+}
+
 export type ReelState = {
-  reel: { id: number; title: string; symbols: ReelSymbol[]; texts: ReelTexts } | null
+  reel: { id: number; title: string; symbols: ReelSymbol[]; texts: ReelTexts; look: ReelLook } | null
   /** Последняя сегодняшняя попытка, если уже была. */
   today: SpinResult | null
   canSpin: boolean
@@ -70,6 +80,9 @@ export type AdminReel = {
   spinsPerDay: number
   /** Только изменённые тексты окна; чего нет — то по умолчанию. */
   texts: Partial<ReelTexts>
+  /** Файл фона окна (для сохранения) и как фон показан. */
+  background: string | null
+  look: ReelLook
   status: 'draft' | 'running' | 'finished'
   startedAt: string | null
   finishedAt: string | null
@@ -104,6 +117,22 @@ export const clampSpinsPerDay = (v: unknown) => Math.min(REEL_SPINS_MAX, Math.ma
 /** Картинка сценки — как рамка: символ крупный, мелкие детали должны читаться. */
 export const REEL_IMAGE_MAX_BYTES = 600 * 1024
 export const REEL_IMAGE_MAX_SIDE = 1024
+
+/** Фон окна — картинка во всё окно: крупнее и тяжелее символа ленты. */
+export const REEL_BG_MAX_BYTES = 1536 * 1024
+export const REEL_BG_MAX_SIDE = 2400
+
+/** Затемнение фона: 0–90 %; размытие под линией: 0–20 px. */
+export const REEL_DIM_MAX = 90
+export const REEL_BLUR_MAX = 20
+export const REEL_DIM_DEFAULT = 35
+export const REEL_BLUR_DEFAULT = 6
+const clampInt = (v: unknown, max: number, fallback: number) => {
+  const n = Math.round(Number(v))
+  return Number.isFinite(n) ? Math.min(max, Math.max(0, n)) : fallback
+}
+export const clampReelDim = (v: unknown) => clampInt(v, REEL_DIM_MAX, REEL_DIM_DEFAULT)
+export const clampReelBlur = (v: unknown) => clampInt(v, REEL_BLUR_MAX, REEL_BLUR_DEFAULT)
 
 export const percentToWeight = (pct: number) => Math.round(pct * 10)
 export const weightToPercent = (weight: number) => weight / 10

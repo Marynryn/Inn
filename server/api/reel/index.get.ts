@@ -1,5 +1,5 @@
 import type { ReelState } from '#shared/utils/reel'
-import { runningReelFor, segmentsOf, spinsLeft, symbolsOf, textsOf } from '../../utils/reel'
+import { lookOf, runningReelFor, segmentsOf, spinsLeft, symbolsOf, textsOf } from '../../utils/reel'
 
 /**
  * Идущий барабан: лента символов, последняя сегодняшняя попытка и сколько
@@ -15,7 +15,7 @@ export default defineEventHandler(async (event): Promise<ReelState> => {
   const mine = userId ? await spinsLeft(reel, userId, user?.role) : { last: null, left: 0 }
 
   return {
-    reel: { id: reel.id, title: reel.title, symbols: await symbolsOf(await segmentsOf(reel.id)), texts: textsOf(reel) },
+    reel: { id: reel.id, title: reel.title, symbols: await symbolsOf(await segmentsOf(reel.id)), texts: textsOf(reel), look: lookOf(reel) },
     today: mine.last,
     canSpin: Boolean(userId) && mine.left !== 0,
     left: mine.left,

@@ -723,6 +723,9 @@ export async function runMigrations() {
     'ALTER TABLE reel_segments ADD COLUMN skin_id INTEGER',
     'ALTER TABLE reels ADD COLUMN spins_per_day INTEGER NOT NULL DEFAULT 1',
     'ALTER TABLE reel_spins ADD COLUMN attempt INTEGER NOT NULL DEFAULT 1',
+    'ALTER TABLE reels ADD COLUMN background TEXT',
+    'ALTER TABLE reels ADD COLUMN bg_dim INTEGER NOT NULL DEFAULT 35',
+    'ALTER TABLE reels ADD COLUMN bg_blur INTEGER NOT NULL DEFAULT 6',
   ]) {
     try {
       await client.execute(sql)

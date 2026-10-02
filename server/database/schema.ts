@@ -120,6 +120,10 @@ export const reels = sqliteTable('reels', {
   spinsPerDay: integer('spins_per_day').notNull().default(1), // попыток в день у читателя
   // Изменённые тексты окна — JSON; чего нет, то по умолчанию (shared/utils/reel).
   texts: text('texts', { mode: 'json' }).$type<Record<string, string>>(),
+  // Фон окна: файл в storage/reel, затемнение (%) и размытие под линией (px).
+  background: text('background'),
+  bgDim: integer('bg_dim').notNull().default(35),
+  bgBlur: integer('bg_blur').notNull().default(6),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 

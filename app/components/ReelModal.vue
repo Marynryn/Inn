@@ -27,6 +27,20 @@ const nearMiss = ref(false)
 const symbols = computed(() => state.value?.reel?.symbols ?? [])
 const title = computed(() => state.value?.reel?.title ?? '')
 const t = computed(() => state.value?.reel?.texts ?? fullReelTexts(null))
+
+// Фон окна: картинка под затемнением — фоном самой карточки, а не слоем в ней,
+// чтобы при прокрутке длинного результата он оставался на месте.
+const look = computed(() => state.value?.reel?.look ?? null)
+const sheetStyle = computed(() => {
+  const l = look.value
+  if (!l) return {}
+  const style: Record<string, string> = { '--bg-blur': `${l.blur}px` }
+  if (l.background) {
+    const dim = `rgba(20, 14, 10, ${l.dim / 100})`
+    style.backgroundImage = `linear-gradient(${dim}, ${dim}), url("${l.background}")`
+  }
+  return style
+})
 const trial = computed(() => Boolean(props.trialId))
 /** Сколько попыток осталось сегодня; null — без ограничений (админ, проба). */
 const left = ref<number | null>(null)
@@ -183,11 +197,15 @@ const eyebrow = computed(() => {
 
 /** Ещё попытка: обратно к ленте, она стоит там, где остановилась. */
 const canAgain = computed(() => !trial.value && (left.value === null || left.value > 0))
-const again = () => {
+// «Крутить ещё» сразу запускает ленту: второй раз жать «Крутить» незачем.
+// Тик ждём, чтобы окошко ленты успело появиться вместо результата.
+const again = async () => {
   result.value = null
   worn.value = false
   error.value = ''
   phase.value = 'ready'
+  await nextTick()
+  spinNow()
 }
 
 const close = () => {
@@ -211,7 +229,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
     <div class="reel-backdrop" @click.self="close">
       <div
         class="reel-sheet"
-        :class="{ 'is-result': phase === 'result' }"
+        :class="{ 'is-result': phase === 'result', 'has-bg': look?.background }"
+        :style="sheetStyle"
         role="dialog"
         aria-modal="true"
         aria-labelledby="reel-title"
@@ -228,12 +247,15 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           </p>
 
           <div ref="windowEl" class="reel-window">
-            <div
-              class="reel-strip"
-              :style="{ transform: `translateY(${offset}px)`, transition }"
-            >
-              <div v-for="(s, i) in strip" :key="i" class="reel-cell">
-                <img :src="s.url" alt="" draggable="false">
+            <span class="reel-plate" aria-hidden="true" />
+            <div class="reel-fade">
+              <div
+                class="reel-strip"
+                :style="{ transform: `translateY(${offset}px)`, transition }"
+              >
+                <div v-for="(s, i) in strip" :key="i" class="reel-cell">
+                  <img :src="s.url" alt="" draggable="false">
+                </div>
               </div>
             </div>
             <span class="reel-line" aria-hidden="true" />
@@ -320,7 +342,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
             <button v-if="canAgain" class="reel-btn" :class="{ ghost: prize && !isWorn }" type="button" @click="again">
               {{ t.againButton }}<template v-if="left !== null"> · {{ left }}</template>
             </button>
-            <button class="reel-btn ghost" type="button" @click="close">Закрыть</button>
           </div>
 
           <p v-if="error" class="reel-err">{{ error }}</p>
@@ -361,6 +382,23 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
 .reel-sheet.is-result {
   overflow: hidden auto;
+}
+
+/* Картинка и затемнение приходят в style; здесь — как она ложится. */
+.reel-sheet.has-bg {
+  background-color: var(--bg-dark-2);
+  background-size: cover;
+  background-position: center;
+}
+
+/* На картинке подписи теряются — им нужна тень, на тёмном окне её не видно. */
+.reel-sheet.has-bg :is(.reel-title, .prize-name, .eyebrow) {
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .7);
+}
+
+.reel-sheet.has-bg :is(.reel-lead, .prize-sub) {
+  color: rgba(241, 230, 210, .82);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .8);
 }
 
 /* Лучи шире окна и крутятся: прямо в окне их углы раздували бы прокрутку.
@@ -421,26 +459,42 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 }
 
 /* ── Окошко ─────────────────────────────────── */
-/* Три клетки в высоту: выпавшая посередине, соседи сверху и снизу. Края
-   уходят в фон окна, чтобы взгляд держался на линии. */
+/* Три клетки в высоту: выпавшая посередине, соседи сверху и снизу. Ни рамки,
+   ни подложки — лента стоит прямо на фоне окна, а соседи растворяются в нём,
+   чтобы взгляд держался на линии. */
 .reel-window {
   --cell: 116px;
   position: relative;
   width: min(240px, 100%);
   height: calc(var(--cell) * 3);
   margin: 0 auto;
-  overflow: hidden;
-  border-radius: 14px;
-  background: var(--bg-dark);
-  box-shadow: inset 0 0 0 1px rgba(241, 230, 210, .22), inset 0 8px 18px rgba(0, 0, 0, .45);
 }
 
-.reel-window::after {
-  content: '';
+/* Затухание — маской, а не заливкой цветом окна: на картинке-фоне заливка
+   легла бы тёмными полосами. Маска на обёртке, а не на самой ленте, иначе
+   уезжала бы вместе с ней. */
+.reel-fade {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 32%, #000 68%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 32%, #000 68%, transparent);
+}
+
+/* Подложка выпадающей клетки: размывает фон окна под лентой, а не саму ленту.
+   Стоит вне маски — внутри неё размывать было бы нечего. */
+.reel-plate {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: var(--cell);
+  transform: translateY(-50%);
+  border-radius: 14px;
+  background: rgba(20, 14, 10, .2);
+  -webkit-backdrop-filter: blur(var(--bg-blur, 6px));
+  backdrop-filter: blur(var(--bg-blur, 6px));
   pointer-events: none;
-  background: linear-gradient(180deg, var(--bg-dark-2), transparent 32%, transparent 68%, var(--bg-dark-2));
 }
 
 .reel-strip {
@@ -468,8 +522,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   z-index: 1;
   height: var(--cell);
   transform: translateY(-50%);
-  border-top: 2px solid rgba(232, 176, 122, .55);
-  border-bottom: 2px solid rgba(232, 176, 122, .55);
+  border: 2px solid rgba(232, 176, 122, .7);
+  border-radius: 14px;
+  box-shadow: 0 0 18px rgba(214, 136, 62, .35), inset 0 0 12px rgba(214, 136, 62, .2);
   pointer-events: none;
 }
 

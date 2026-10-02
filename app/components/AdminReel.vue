@@ -3,6 +3,7 @@ import { ALL_FIGURES, figureById } from '#shared/utils/nameFigures'
 import type { AdminReel } from '#shared/utils/reel'
 import type { ReelTextKey } from '#shared/utils/reel'
 import {
+  REEL_BLUR_DEFAULT, REEL_BLUR_MAX, REEL_DIM_DEFAULT, REEL_DIM_MAX,
   REEL_LABEL_MAX, REEL_SPINS_MAX, REEL_TEXT_KEYS, REEL_TEXT_MAX, REEL_TEXTS, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL,
   percentToWeight, weightToPercent,
 } from '#shared/utils/reel'
@@ -39,8 +40,15 @@ const title = ref('')
 /** Тексты окна в правке: пустое поле — текст по умолчанию, он же в подсказке. */
 const texts = ref<Record<ReelTextKey, string>>(Object.fromEntries(REEL_TEXT_KEYS.map(k => [k, ''])) as Record<ReelTextKey, string>)
 const textsOpen = ref(false)
+/** Фон окна в правке: файл, его адрес для превью, затемнение (%) и размытие (px). */
+const bg = ref<string | null>(null)
+const bgUrl = ref<string | null>(null)
+const bgDim = ref(REEL_DIM_DEFAULT)
+const bgBlur = ref(REEL_BLUR_DEFAULT)
+const bgOpen = ref(false)
+const bgUploading = ref(false)
 const log = ref<LogRow[]>([])
-/** В журнале — только выигрыши: кому что досталось, без сценок и повторок. */
+/** В журнале — только выигрыши: кому какой приз выпал, повторки тоже; без сценок. */
 const onlyWon = ref(false)
 
 const newTitle = ref('')
@@ -123,6 +131,10 @@ const select = async (id: number | null) => {
   drafts.value = r ? toDraft(r) : []
   title.value = r?.title ?? ''
   for (const k of REEL_TEXT_KEYS) texts.value[k] = r?.texts[k] ?? ''
+  bg.value = r?.background ?? null
+  bgUrl.value = r?.look.background ?? null
+  bgDim.value = r?.look.dim ?? REEL_DIM_DEFAULT
+  bgBlur.value = r?.look.blur ?? REEL_BLUR_DEFAULT
   await loadLog()
 }
 
@@ -232,6 +244,66 @@ const saveTexts = () => run(async () => {
   await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: { title: title.value, texts: texts.value } })
   await load()
 }, 'Тексты сохранены')
+
+/** Фон ужимаем ещё в браузере: обои с телефона бывают 4096 px и тяжелее
+ *  мегабайта, а окну барабана хватает 2000 по длинной стороне. Сервер сам
+ *  картинки не пережимает, только проверяет — так через него проходит любая. */
+const BG_SIDE = 2000
+const shrinkBg = async (file: File): Promise<Blob> => {
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, BG_SIDE / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  const encode = (type: string) => new Promise<Blob | null>(resolve => canvas.toBlob(resolve, type, 0.85))
+  // Старый Safari webp не пишет и молча отдаёт png — тогда jpeg.
+  const webp = await encode('image/webp')
+  return webp?.type === 'image/webp' ? webp : (await encode('image/jpeg'))!
+}
+
+/** Фон окна — отдельной кнопкой, как и тексты: менять его можно и посреди ивента. */
+const uploadBg = async (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  bgUploading.value = true
+  err.value = ''
+  try {
+    const form = new FormData()
+    form.append('image', await shrinkBg(file))
+    form.append('kind', 'bg')
+    const res = await $fetch<{ file: string; url: string }>('/api/admin/reel-images', { method: 'POST', body: form })
+    bg.value = res.file
+    bgUrl.value = res.url
+  } catch (e: any) {
+    err.value = e.data?.message || 'Фон не загрузился'
+  } finally {
+    bgUploading.value = false
+    input.value = ''
+  }
+}
+
+const removeBg = () => {
+  bg.value = null
+  bgUrl.value = null
+}
+
+const saveBg = () => run(async () => {
+  await $fetch(`/api/admin/reels/${selectedId.value}`, {
+    method: 'PUT',
+    body: { title: title.value, background: bg.value, bgDim: bgDim.value, bgBlur: bgBlur.value },
+  })
+  await load()
+}, 'Фон сохранён')
+
+/** Превью фона: та же картинка под тем же затемнением, что и в окне. */
+const bgPreview = computed(() => {
+  if (!bgUrl.value) return {}
+  const dim = `rgba(20, 14, 10, ${bgDim.value / 100})`
+  return { backgroundImage: `linear-gradient(${dim}, ${dim}), url("${bgUrl.value}")` }
+})
 
 /** Попыток в день — сохраняется сразу, как и «только для админов». */
 const setSpinsPerDay = (raw: string) => {
@@ -492,6 +564,38 @@ onMounted(load)
         <button class="btn ghost" type="button" :disabled="busy" @click="saveTexts">Сохранить тексты</button>
       </details>
 
+      <!-- Фон окна -->
+      <details v-if="selected.status !== 'finished'" class="texts" :open="bgOpen" @toggle="bgOpen = ($event.target as HTMLDetailsElement).open">
+        <summary>
+          Фон окна
+          <span v-if="selected.background" class="texts-count">есть</span>
+        </summary>
+        <p class="note">Картинка во всё окно барабана, лучше вертикальная. Большую админка сама уменьшит перед загрузкой. Без фона окно тёмное. Менять можно и у идущего барабана.</p>
+        <div class="bg-row">
+          <div class="bg-preview" :class="{ empty: !bgUrl }" :style="bgPreview">
+            <span v-if="!bgUrl">нет фона</span>
+          </div>
+          <div class="bg-controls">
+            <label class="btn ghost bg-upload">
+              {{ bgUploading ? 'Загружаем…' : bgUrl ? 'Заменить картинку' : 'Загрузить картинку' }}
+              <input type="file" accept="image/*" :disabled="bgUploading" @change="uploadBg">
+            </label>
+            <button v-if="bgUrl" class="link danger" type="button" @click="removeBg">Убрать фон</button>
+            <label class="bg-range" for="reel-bg-dim">
+              <span>Затемнение</span>
+              <input id="reel-bg-dim" v-model.number="bgDim" type="range" min="0" :max="REEL_DIM_MAX" step="5">
+              <output>{{ bgDim }} %</output>
+            </label>
+            <label class="bg-range" for="reel-bg-blur">
+              <span>Размытие под линией</span>
+              <input id="reel-bg-blur" v-model.number="bgBlur" type="range" min="0" :max="REEL_BLUR_MAX" step="1">
+              <output>{{ bgBlur }} px</output>
+            </label>
+          </div>
+        </div>
+        <button class="btn ghost" type="button" :disabled="busy || bgUploading" @click="saveBg">Сохранить фон</button>
+      </details>
+
       <div class="actions">
         <template v-if="editable">
           <button class="btn ghost" type="button" :disabled="busy" @click="save">Сохранить</button>
@@ -696,6 +800,67 @@ select option { background: var(--bg-dark-2); }
 }
 
 .texts-grid input { width: 100%; min-width: 0; }
+
+.bg-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+/* Окно барабана в миниатюре: пропорция и затемнение как у настоящего. */
+.bg-preview {
+  width: 120px;
+  aspect-ratio: 9 / 14;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(241, 230, 210, .15);
+  background-color: var(--bg-dark-2);
+  background-size: cover;
+  background-position: center;
+}
+
+.bg-preview.empty {
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: rgba(241, 230, 210, .45);
+}
+
+.bg-controls {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.bg-upload {
+  position: relative;
+  cursor: pointer;
+}
+
+.bg-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.bg-range {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 10px;
+  width: 100%;
+  max-width: 320px;
+  font-size: 13px;
+  color: rgba(241, 230, 210, .75);
+}
+
+.bg-range span { grid-column: 1 / -1; }
+.bg-range input { min-width: 0; accent-color: var(--ember); }
+.bg-range output { font-variant-numeric: tabular-nums; color: var(--parchment); }
 
 .per-day {
   display: flex;
