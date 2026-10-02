@@ -25,6 +25,14 @@ const auth = useAuthStore()
 const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
 const scrolled = ref(false)
 
+// Сервер не знает, кто вошёл (auth.client.ts), и рисует шапку для гостя. В
+// админке middleware дожидается пользователя ещё до гидрации — и браузер
+// оживлял бы гостевую разметку данными вошедшего: в сборке Vue такое
+// расхождение не чинит, и аватарка получала классы заглушки. Поэтому всё, что
+// зависит от входа, показываем только после монтирования.
+const hydrated = ref(false)
+const authed = computed(() => hydrated.value && auth.isAuthed)
+
 defineExpose({ close: () => { menuOpen.value = false } })
 
 watch(() => route.fullPath, () => { menuOpen.value = false })
@@ -42,6 +50,7 @@ const onScroll = () => {
 }
 
 onMounted(() => {
+  hydrated.value = true
   onScroll()
   window.addEventListener('scroll', onScroll, { passive: true })
 })
@@ -71,7 +80,7 @@ onUnmounted(() => {
 
     <div class="h-right">
       <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-support" />
-      <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip" :title="auth.name">
+      <NuxtLink v-if="authed" to="/profile" class="user-chip" :title="auth.name">
         <UserAvatar
           class="user-pic"
           :src="auth.user?.avatarUrl"
@@ -84,17 +93,21 @@ onUnmounted(() => {
       <NuxtLink v-else :to="loginHref" class="nav-link">Войти</NuxtLink>
     </div>
 
-    <AppDrawer
-      :open="menuOpen"
-      :telegram-url="telegramUrl"
-      :boosty-url="boostyUrl"
-      :tribute-url="tributeUrl"
-      :comments-href="commentsHref"
-      :comments-label="commentsLabel"
-      :back-to-chapter-href="backToChapterHref"
-      :back-to-chapter-label="backToChapterLabel"
-      @close="menuOpen = false"
-    />
+    <!-- Шторка при загрузке закрыта, а содержимое у неё целиком от входа:
+         рисуем её только в браузере, чтобы не спорить с серверной разметкой. -->
+    <ClientOnly>
+      <AppDrawer
+        :open="menuOpen"
+        :telegram-url="telegramUrl"
+        :boosty-url="boostyUrl"
+        :tribute-url="tributeUrl"
+        :comments-href="commentsHref"
+        :comments-label="commentsLabel"
+        :back-to-chapter-href="backToChapterHref"
+        :back-to-chapter-label="backToChapterLabel"
+        @close="menuOpen = false"
+      />
+    </ClientOnly>
   </header>
 </template>
 
