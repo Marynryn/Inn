@@ -101,6 +101,15 @@ export default defineNuxtConfig({
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
+    // Картинки через NuxtImg. Без своего правила их ловило '/**' с no-store, и на
+    // каждое обновление страницы таверна и логотип качались заново — пока
+    // шли, на их месте было пусто. Имя у картинки бывает прежним и после
+    // замены (hero.webp), поэтому сутки, а не год.
+    '/_ipx/**': {
+      headers: {
+        'Cache-Control': 'public, max-age=86400',
+      },
+    },
     '/api/**': {
       headers: {
         'Cache-Control': 'no-store',

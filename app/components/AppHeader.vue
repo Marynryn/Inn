@@ -94,20 +94,25 @@ onUnmounted(() => {
     </div>
 
     <!-- Шторка при загрузке закрыта, а содержимое у неё целиком от входа:
-         рисуем её только в браузере, чтобы не спорить с серверной разметкой. -->
-    <ClientOnly>
-      <AppDrawer
-        :open="menuOpen"
-        :telegram-url="telegramUrl"
-        :boosty-url="boostyUrl"
-        :tribute-url="tributeUrl"
-        :comments-href="commentsHref"
-        :comments-label="commentsLabel"
-        :back-to-chapter-href="backToChapterHref"
-        :back-to-chapter-label="backToChapterLabel"
-        @close="menuOpen = false"
-      />
-    </ClientOnly>
+         рисуем её только в браузере, чтобы не спорить с серверной разметкой.
+         До монтирования ClientOnly оставляет пустой элемент — обёртка выносит
+         его из раскладки шапки, иначе он вставал третьим и сдвигал правую
+         часть к центру. -->
+    <div class="drawer-slot">
+      <ClientOnly>
+        <AppDrawer
+          :open="menuOpen"
+          :telegram-url="telegramUrl"
+          :boosty-url="boostyUrl"
+          :tribute-url="tributeUrl"
+          :comments-href="commentsHref"
+          :comments-label="commentsLabel"
+          :back-to-chapter-href="backToChapterHref"
+          :back-to-chapter-label="backToChapterLabel"
+          @close="menuOpen = false"
+        />
+      </ClientOnly>
+    </div>
   </header>
 </template>
 
@@ -148,6 +153,12 @@ onUnmounted(() => {
 .h-right {
   gap: 18px;
   flex-shrink: 0;
+}
+
+.drawer-slot {
+  position: absolute;
+  width: 0;
+  height: 0;
 }
 
 /* ── Бургер ─────────────────────────────────── */
