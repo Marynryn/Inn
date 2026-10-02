@@ -7,7 +7,15 @@ const { data: chapters } = await useFetch('/api/chapters')
 
 const { load } = useReadProgress()
 const { volumes, totalChapters, chaptersLabel, chapterRange, getBadge } = useVolumes(chapters)
-const { ctaHref, ctaText } = useHeroCta(chapters)
+
+// Сервер рисует главную для гостя без закладки. Вход и закладка иногда
+// приходят раньше, чем страница оживёт, — и сборка Vue натягивала гостевую
+// разметку на чужие данные: кнопки вставали криво, пропадала картинка. Всё, что
+// зависит от читателя, меняется только после монтирования.
+const hydrated = ref(false)
+onMounted(() => { hydrated.value = true })
+
+const { ctaHref, ctaText } = useHeroCta(chapters, hydrated)
 // Строка под кнопкой «Продолжить»: докуда дочитано и сколько осталось. Гостю
 // без закладки показывать нечего — она появляется вместе с закладкой.
 const { bookmark, bookmarkStats, loadSettings } = useReadingStats(chapters)
@@ -101,8 +109,12 @@ const tickerLoop = computed(() => [...tickerItems.value, ...tickerItems.value])
 */
 const auth = useAuthStore()
 
+// Гостю, и только когда это точно известно: иначе вошедший видел бы, как
+// строка мелькает и пропадает.
 const showTicker = computed(() =>
-  !auth.isAuthed
+  hydrated.value
+  && auth.ready
+  && !auth.isAuthed
   && tickerItems.value.length > 0
   && settings.value?.hero_ticker_on !== '0'
 )
@@ -167,7 +179,7 @@ useSeoMeta({
           <NuxtLink class="btn btn-primary" :href="ctaHref">{{ ctaText }}</NuxtLink>
           <button class="btn btn-ghost" @click="scrollToLedger">К главам</button>
         </div>
-        <NuxtLink v-if="bookmark" to="/progress" class="hero-progress">
+        <NuxtLink v-if="hydrated && bookmark" to="/progress" class="hero-progress">
           Прочитано {{ Math.round(bookmarkStats.percent) }} %
           <template v-if="bookmarkStats.done"> · вы догнали перевод</template>
           <template v-else> · ещё {{ formatHours(bookmarkStats.hoursLeft) }} до последней переведённой главы</template>

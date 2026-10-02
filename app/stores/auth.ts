@@ -14,6 +14,8 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<SessionUser | null>(null)
   const isAdmin = computed(() => user.value?.role === 'admin')
   const isAuthed = computed(() => Boolean(user.value))
+  /** Ответ /api/auth/me уже пришёл: до него «не вошёл» значит «ещё не знаем». */
+  const ready = ref(false)
 
   /** Имя для показа: ник, часть почты до собаки или безликое «Читатель». */
   const name = computed(() =>
@@ -26,6 +28,7 @@ export const useAuthStore = defineStore('auth', () => {
     } catch {
       user.value = null
     }
+    ready.value = true
   }
 
   async function login(email: string, password: string) {
@@ -40,5 +43,5 @@ export const useAuthStore = defineStore('auth', () => {
     useReadProgress().clearLocal()
   }
 
-  return { user, isAdmin, isAuthed, name, fetchMe, login, logout }
+  return { user, isAdmin, isAuthed, ready, name, fetchMe, login, logout }
 })
