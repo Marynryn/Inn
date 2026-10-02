@@ -1,5 +1,5 @@
-import { test, expect, open, login } from './helpers'
-import { ADMIN } from './fixtures'
+import { test, expect, open, login, apiLogin } from './helpers'
+import { ADMIN, READER } from './fixtures'
 
 const SEARCH = 'Имя по-русски или в оригинале…'
 
@@ -128,5 +128,44 @@ test.describe('Карточки персонажей', () => {
 
     await card.locator('.hide-btn').click()
     await expect(card).not.toHaveClass(/hidden/)
+  })
+
+  test('админ видит, кто зажёг огонёк', async ({ page }) => {
+    await login(page, ADMIN)
+    await open(page, '/characters')
+    await page.getByPlaceholder(SEARCH).fill('Торен')
+    const card = page.locator('.card').first()
+    // Только POST: список «кто зажёг» — тоже /flames, и его ответ не в счёт.
+    const toggled = () => page.waitForResponse(r => r.url().endsWith('/flame') && r.request().method() === 'POST' && r.ok())
+
+    const flame = card.locator('.flame')
+    let done = toggled()
+    await flame.click()
+    await done
+    await expect(flame.locator('.num')).toHaveText('1')
+
+    // Зажали на 0,7 с: показан список, а сам огонёк не переключился.
+    await flame.click({ delay: 700 })
+    const who = page.locator('.flame-who')
+    await expect(who).toContainText(ADMIN.name)
+    await expect(flame.locator('.num')).toHaveText('1')
+
+    // Коротким кликом гасим за собой: тест огонька ждёт, что у Торена их ноль.
+    done = toggled()
+    await flame.click()
+    await done
+    await expect(who).toBeHidden()
+    await expect(flame.locator('.num')).toHaveText('0')
+  })
+
+  test('кто зажёг огонёк — только админу: гостю и читателю отказ', async ({ browser }) => {
+    const guest = await browser.newContext()
+    expect((await guest.request.get('/api/admin/characters/toren/flames')).status()).toBe(403)
+    await guest.close()
+
+    const reader = await browser.newContext()
+    await apiLogin(reader.request, READER)
+    expect((await reader.request.get('/api/admin/characters/toren/flames')).status()).toBe(403)
+    await reader.close()
   })
 })

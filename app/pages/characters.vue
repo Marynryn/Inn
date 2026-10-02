@@ -164,7 +164,7 @@ useHead({
               <span class="initial display">{{ c.name.slice(0, 1) }}</span>
             </div>
             <div class="flame-slot">
-              <CharacterFlame :count="c.flames" :lit="c.lit" @toggle="toggleFlame(c)" />
+              <CharacterFlame :count="c.flames" :lit="c.lit" :character-id="c.id" @toggle="toggleFlame(c)" />
             </div>
             <button
               v-if="auth.isAdmin"

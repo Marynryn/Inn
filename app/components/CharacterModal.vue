@@ -310,7 +310,7 @@ useScrollLock()
               <h2 class="name display">{{ character.name }}</h2>
               <div v-if="character.original !== character.name" class="original">{{ character.original }}</div>
             </div>
-            <CharacterFlame :count="character.flames" :lit="character.lit" @toggle="emit('flame', character)" />
+            <CharacterFlame :count="character.flames" :lit="character.lit" :character-id="character.id" @toggle="emit('flame', character)" />
           </div>
 
           <dl class="facts">
