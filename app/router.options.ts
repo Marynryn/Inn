@@ -1,10 +1,11 @@
 import type { RouterConfig } from 'nuxt/schema'
+import { useNuxtApp } from '#app'
 import { smoothScrollTo } from './utils/smoothScroll'
 
 const SCROLL_PREFIX = 'tavern:scroll:'
 
 export default <RouterConfig>{
-  scrollBehavior(to, _from, savedPosition) {
+  scrollBehavior(to, from, savedPosition) {
     if (import.meta.client && to.path.startsWith('/chapter/')) {
       const id = String(to.params.id).replace('-', '.')
       const raw = localStorage.getItem(SCROLL_PREFIX + id)
@@ -16,10 +17,15 @@ export default <RouterConfig>{
     if (savedPosition) return savedPosition
 
     if (to.hash && import.meta.client) {
-      // Ждём кадр, чтобы новая страница успела отрисоваться, иначе элемент
-      // ещё не существует в DOM — затем плавно скроллим к нему сами.
+      // Новая страница ещё грузит данные (await useFetch) и не отрисована —
+      // ждём, пока Nuxt её покажет, иначе элемента нет в DOM. На той же
+      // странице ждать нечего: page:finish не придёт, хватит кадра.
+      const nuxtApp = useNuxtApp()
       return new Promise((resolve) => {
-        requestAnimationFrame(() => {
+        const ready = (cb: () => void) => to.path === from.path
+          ? requestAnimationFrame(cb)
+          : nuxtApp.hooks.hookOnce('page:finish', () => requestAnimationFrame(cb))
+        ready(() => {
           const el = document.querySelector(to.hash)
           if (!el) {
             resolve({ el: to.hash, top: 64 })

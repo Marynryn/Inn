@@ -5,8 +5,6 @@ import { FRAME_FIT_DEFAULT, FRAME_FIT_MAX, FRAME_FIT_MIN } from '#shared/utils/a
 // кроме администратора.
 definePageMeta({ middleware: 'admin' })
 
-const auth = useAuthStore()
-
 const { data: settings, refresh: refreshSettings } = await useFetch('/api/settings')
 
 // --- Список глав ---
@@ -573,12 +571,12 @@ const formatStatsDate = (iso?: string | null) =>
 
 const { data: commentLogs, refresh: refreshLogs } = await useFetch('/api/admin/comments')
 
-const activeTab = ref<'upload' | 'chapters' | 'profile' | 'settings' | 'notify' | 'stats' | 'frames' | 'skins' | 'reel'>('upload')
-const appHeader = ref()
-const switchTab = (tab: typeof activeTab.value) => {
-  activeTab.value = tab
-  appHeader.value?.close()
-}
+// Вкладка живёт в адресе (/admin?tab=reel): перезагрузка оставляет на месте,
+// «назад» возвращает на прошлую вкладку, а шторка с любой страницы ведёт сразу
+// в нужную.
+const route = useRoute()
+const activeTab = computed(() => toAdminTab(route.query.tab))
+const adminTabs = ADMIN_TABS
 
 useHead({
   title: 'Админ · Странствующая Таверна',
@@ -590,23 +588,26 @@ useHead({
   <div class="admin-wrap" data-clarity-mask="true">
     <div class="admin-layout">
 
-      <!-- ШАПКА (только мобильная) -->
-      <div class="admin-header-wrap">
-      <AppHeader ref="appHeader" burger-left>
-        <template #menu>
-          <button class="adm-menu-link" :class="{ active: activeTab === 'upload' }" @click="switchTab('upload')">Добавить главу</button>
-          <button class="adm-menu-link" :class="{ active: activeTab === 'chapters' }" @click="switchTab('chapters')">Список глав</button>
-          <button class="adm-menu-link" :class="{ active: activeTab === 'settings' }" @click="switchTab('settings')">Настройки сайта</button>
-          <button class="adm-menu-link" :class="{ active: activeTab === 'notify' }" @click="switchTab('notify')">Уведомления</button>
-          <button class="adm-menu-link" :class="{ active: activeTab === 'stats' }" @click="switchTab('stats')">Статистика</button>
-          <button class="adm-menu-link" :class="{ active: activeTab === 'frames' }" @click="switchTab('frames')">Рамки</button>
-          <button class="adm-menu-link" :class="{ active: activeTab === 'skins' }" @click="switchTab('skins')">Скины</button>
-          <button class="adm-menu-link" :class="{ active: activeTab === 'reel' }" @click="switchTab('reel')">Барабан</button>
-          <NuxtLink href="/game" class="adm-menu-link">Игра</NuxtLink>
-          <button class="adm-menu-link adm-logout" @click="auth.logout().then(() => navigateTo('/login'))">Выйти</button>
-        </template>
-      </AppHeader>
-      </div>
+      <AppHeader
+        :telegram-url="settings?.telegram_url"
+        :boosty-url="settings?.boosty_url"
+        :tribute-url="settings?.tribute_url"
+      />
+
+      <!-- КОЛОНКА ВКЛАДОК (на телефоне вкладки живут в шторке меню) -->
+      <aside class="admin-sidebar thin-scroll">
+        <div class="sb-section">Админка</div>
+        <SideNavLink
+          v-for="t in adminTabs"
+          :key="t.key"
+          :to="`/admin?tab=${t.key}`"
+          :icon="t.icon"
+          :label="t.label"
+          :active="activeTab === t.key"
+          compact
+          class="sb-tab"
+        />
+      </aside>
 
       <!-- КОНТЕНТ -->
       <main class="admin-content">
@@ -1240,60 +1241,6 @@ useHead({
         </section>
       </main>
 
-      <!-- САЙДБАР -->
-      <aside class="admin-sidebar">
-        <div class="sb-profile" @click="activeTab = 'profile'">
-          <img v-if="currentAvatar" :src="currentAvatar" class="sb-avatar" alt="">
-          <div v-else class="sb-avatar sb-avatar--text display">
-            {{ (displayName || profile?.email || '?')[0].toUpperCase() }}
-          </div>
-          <span class="sb-name">{{ displayName || profile?.email?.split('@')[0] }}</span>
-        </div>
-
-        <nav class="sb-nav">
-          <button class="sb-tab" :class="{ active: activeTab === 'upload' }" @click="activeTab = 'upload'">
-            <span class="sb-icon">＋</span>
-            Добавить главу
-          </button>
-          <button class="sb-tab" :class="{ active: activeTab === 'chapters' }" @click="activeTab = 'chapters'">
-            <span class="sb-icon">≡</span>
-            Список глав
-          </button>
-          <button class="sb-tab" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">
-            <span class="sb-icon">⚙</span>
-            Настройки сайта
-          </button>
-          <button class="sb-tab" :class="{ active: activeTab === 'notify' }" @click="activeTab = 'notify'">
-            <span class="sb-icon">✈</span>
-            Уведомления
-          </button>
-          <button class="sb-tab" :class="{ active: activeTab === 'stats' }" @click="activeTab = 'stats'">
-            <span class="sb-icon">📊</span>
-            Статистика
-          </button>
-          <button class="sb-tab" :class="{ active: activeTab === 'frames' }" @click="activeTab = 'frames'">
-            <span class="sb-icon">◎</span>
-            Рамки
-          </button>
-          <button class="sb-tab" :class="{ active: activeTab === 'skins' }" @click="activeTab = 'skins'">
-            <span class="sb-icon">✶</span>
-            Скины
-          </button>
-          <button class="sb-tab" :class="{ active: activeTab === 'reel' }" @click="activeTab = 'reel'">
-            <span class="sb-icon">▤</span>
-            Барабан
-          </button>
-          <NuxtLink href="/game" class="sb-tab">
-            <span class="sb-icon">🎲</span>
-            Игра
-          </NuxtLink>
-        </nav>
-
-        <div class="sb-bottom">
-          <NuxtLink href="/" class="sb-link">← На сайт</NuxtLink>
-          <button class="sb-link" @click="auth.logout().then(() => navigateTo('/login'))">Выйти</button>
-        </div>
-      </aside>
 
     </div>
   </div>
@@ -1318,132 +1265,33 @@ useHead({
   min-width: 0;
 }
 
+.admin-layout {
+  padding-top: 56px;
+}
+
+/* Колонка вкладок слева, под шапкой. Выглядит как шторка меню — те же пункты. */
 .admin-sidebar {
-  width: 200px;
-  flex: 0 0 200px;
-  background: rgba(0, 0, 0, .25);
-  border-left: 1px solid rgba(241, 230, 210, .08);
-  display: flex;
-  flex-direction: column;
-  padding: 28px 0 24px;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-}
-
-/* Профиль в сайдбаре */
-.sb-profile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px 24px;
-  border-bottom: 1px solid rgba(241, 230, 210, .08);
-  cursor: pointer;
-}
-
-.sb-profile:hover .sb-name {
-  color: var(--ember-soft);
-}
-
-.sb-avatar {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid rgba(241, 230, 210, .15);
-}
-
-.sb-avatar--text {
-  background: linear-gradient(135deg, var(--ember-soft), var(--moss));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--bg-dark);
-}
-
-.sb-name {
-  font-size: 12px;
-  color: var(--parchment-2);
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-  transition: color .15s;
-}
-
-/* Навигация */
-.sb-nav {
-  flex: 1;
+  width: 240px;
+  flex: 0 0 240px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 16px 8px 0;
+  padding: 8px 12px 24px;
+  background: #241c16;
+  border-right: 1px solid rgba(241, 230, 210, .08);
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
 }
 
-.sb-tab {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: none;
-  background: none;
-  color: var(--parchment-2);
-  font-family: var(--font-body);
-  font-size: 13px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  text-align: left;
-  transition: background .15s, color .15s;
-  width: 100%;
-}
-
-.sb-tab:hover {
-  background: rgba(241, 230, 210, .06);
-  color: var(--parchment);
-}
-
-.sb-tab.active {
-  background: rgba(214, 136, 62, .15);
-  color: var(--ember-soft);
-}
-
-.sb-icon {
-  font-size: 15px;
-  flex: 0 0 auto;
-  width: 18px;
-  text-align: center;
-}
-
-/* Нижние ссылки */
-.sb-bottom {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 8px 0;
-  border-top: 1px solid rgba(241, 230, 210, .08);
-}
-
-.sb-link {
-  display: block;
-  padding: 8px 12px;
-  font-size: 12px;
-  color: var(--ink-soft);
-  background: none;
-  border: none;
-  font-family: var(--font-body);
-  cursor: pointer;
-  text-align: left;
-  border-radius: var(--radius-sm);
-  transition: color .15s;
-  text-decoration: none;
-}
-
-.sb-link:hover {
-  color: var(--parchment-2);
+.sb-section {
+  padding: 18px 12px 6px;
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 /* Контент */
@@ -2256,48 +2104,7 @@ useHead({
   max-width: 1040px;
 }
 
-.admin-header-wrap {
-  display: none;
-}
-
 @media (max-width: 640px) {
-  .admin-header-wrap {
-    display: block;
-  }
-}
-
-.adm-menu-link {
-  display: block;
-  width: 100%;
-  padding: 16px 24px;
-  font-size: 15px;
-  font-family: var(--font-body);
-  color: var(--parchment-2);
-  text-decoration: none;
-  background: none;
-  border: none;
-  border-bottom: 1px solid rgba(241, 230, 210, .06);
-  text-align: left;
-  cursor: pointer;
-  transition: color .15s, background .15s;
-}
-
-.adm-menu-link:last-child { border-bottom: none; }
-
-.adm-menu-link:hover,
-.adm-menu-link.active {
-  color: var(--ember-soft);
-  background: rgba(241, 230, 210, .04);
-}
-
-.adm-logout { opacity: .6; }
-
-@media (max-width: 640px) {
-  .admin-layout {
-    flex-direction: column;
-    padding-top: 56px;
-  }
-
   .admin-sidebar {
     display: none;
   }

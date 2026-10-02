@@ -1,19 +1,13 @@
 <script setup lang="ts">
-const props = defineProps<{
-  backHref?: string
-  backLabel?: string
-  showBrand?: boolean
-  chapterVol?: number
-  chapterId?: string
-  chapterTitle?: string
-  showHomeLink?: boolean
-  showNavLinks?: boolean
+// Шапка одна на всех ширинах: слева бургер и таверна, справа «Поддержать»
+// и аватарка. Вся навигация уехала в шторку (AppDrawer) — ряд ссылок в шапке
+// на планшете переставал помещаться, а на телефоне его всё равно прятали.
+defineProps<{
   telegramUrl?: string
   boostyUrl?: string
   tributeUrl?: string
   commentsHref?: string
   commentsLabel?: string
-  burgerLeft?: boolean
   backToChapterHref?: string
   backToChapterLabel?: string
   transparentTop?: boolean
@@ -29,7 +23,6 @@ const auth = useAuthStore()
 // Вход возвращает туда, откуда позвали: читателю незачем терять место в главе
 // ради того, чтобы подписать комментарий своим именем.
 const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
-const slots = useSlots()
 const scrolled = ref(false)
 
 defineExpose({ close: () => { menuOpen.value = false } })
@@ -48,159 +41,60 @@ const onScroll = () => {
   scrolled.value = window.scrollY > 10
 }
 
-const goToChapters = (e: Event) => {
-  menuOpen.value = false
-  if (route.path === '/') {
-    e.preventDefault()
-    const el = document.getElementById('ledger')
-    if (el) {
-      const top = el.getBoundingClientRect().top + window.scrollY - 56
-      smoothScrollTo(top)
-    }
-  }
-}
-
 onMounted(() => {
-  document.addEventListener('click', (e) => {
-    const header = document.querySelector('.app-header')
-    if (header && !header.contains(e.target as Node)) {
-      menuOpen.value = false
-    }
-  })
-
-  if (props.transparentTop) {
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-  }
+  onScroll()
+  window.addEventListener('scroll', onScroll, { passive: true })
 })
 
 onUnmounted(() => {
-  if (props.transparentTop) {
-    window.removeEventListener('scroll', onScroll)
-  }
+  window.removeEventListener('scroll', onScroll)
 })
 </script>
 
 <template>
-  <header class="app-header" :class="{ 'is-transparent': transparentTop && !scrolled }">
-
-    <!-- LEFT -->
+  <header class="app-header" :class="{ 'is-transparent': transparentTop && !scrolled && !menuOpen }">
     <div class="h-left">
-      <!-- страница комментариев: иконка таверны слева -->
-      <NuxtLink v-if="burgerLeft" href="/" class="brand-icon" @click="scrollTop">
-        <NuxtImg src="/hearth.webp" width="30" height="30" alt="Странствующая Таверна" />
-      </NuxtLink>
-      <NuxtLink v-else-if="backHref" :href="backHref" class="back-link">
-        {{ backLabel ?? '← Назад' }}
-      </NuxtLink>
-      <NuxtLink v-else-if="showNavLinks" href="/" class="brand" @click="scrollTop">
+      <button
+        type="button"
+        class="burger"
+        aria-label="Меню"
+        :aria-expanded="menuOpen"
+        @click="menuOpen = true"
+      >
+        <NavIcon name="burger" :size="22" />
+      </button>
+      <NuxtLink href="/" class="brand" @click="scrollTop">
         <NuxtImg src="/hearth.webp" class="brand-logo" width="32" height="32" alt="" />
         <span class="brand-name">Странствующая Таверна</span>
       </NuxtLink>
     </div>
 
-    <!-- CENTER -->
-    <div class="h-center">
-      <template v-if="showBrand">
-        <NuxtImg src="/hearth.webp" class="brand-logo" width="32" height="32" alt="" />
-        <span class="brand-name display">Странствующая Таверна</span>
-      </template>
-      <template v-else-if="chapterId && !burgerLeft">
-        <span class="chapter-vol">Том {{ chapterVol }} · {{ chapterId }}</span>
-        <span class="chapter-title">{{ chapterTitle }}</span>
-      </template>
-    </div>
-
-    <!-- RIGHT -->
     <div class="h-right">
-      <!-- страница комментариев: десктоп-ссылки + бургер справа -->
-      <template v-if="burgerLeft">
-        <a href="/#ledger" class="nav-link hide-mobile" @click="goToChapters">Главы</a>
-        <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
-          Telegram        </a>
-        <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-link nav-support hide-mobile" />
-        <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip hide-mobile" :title="auth.name">
-          <UserAvatar
-            class="user-pic"
-            :src="auth.user?.avatarUrl"
-            :name="auth.name"
-            :frame="auth.user?.avatarFrame"
-            :size="28"
-            alt="Профиль"
-          />
-        </NuxtLink>
-        <NuxtLink v-else :to="loginHref" class="nav-link hide-mobile">Войти</NuxtLink>
-        <button
-          class="burger"
-          :class="{ open: menuOpen }"
-          aria-label="Меню"
-          @click.stop="menuOpen = !menuOpen"
-        >
-          <span /><span /><span />
-        </button>
-      </template>
-      <!-- обычный режим: ссылки + бургер справа -->
-      <template v-else-if="showNavLinks">
-        <a href="/#ledger" class="nav-link hide-mobile" @click="goToChapters">Главы</a>
-        <NuxtLink href="/game" class="nav-link hide-mobile">Игра</NuxtLink>
-        <NuxtLink href="/progress" class="nav-link nav-progress hide-mobile">Прогресс</NuxtLink>
-        <NuxtLink v-if="commentsHref" :href="commentsHref" class="nav-link hide-mobile">Обсуждение</NuxtLink>
-        <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="nav-link hide-mobile">
-          Telegram <span class="ext">↗</span>
-        </a>
-        <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-link nav-support" />
-        <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip hide-mobile" :title="auth.name">
-          <UserAvatar
-            class="user-pic"
-            :src="auth.user?.avatarUrl"
-            :name="auth.name"
-            :frame="auth.user?.avatarFrame"
-            :size="28"
-            alt="Профиль"
-          />
-        </NuxtLink>
-        <NuxtLink v-else :to="loginHref" class="nav-link hide-mobile">Войти</NuxtLink>
-        <button
-          class="burger"
-          :class="{ open: menuOpen }"
-          aria-label="Меню"
-          @click.stop="menuOpen = !menuOpen"
-        >
-          <span /><span /><span />
-        </button>
-      </template>
-      <NuxtLink v-else-if="showHomeLink" href="/" class="nav-link">На главную</NuxtLink>
-      <span v-else />
-    </div>
-
-    <!-- MOBILE DROPDOWN -->
-    <div v-if="showNavLinks || burgerLeft || slots.menu" class="mobile-menu" :class="{ open: menuOpen }">
-      <slot name="menu">
-        <NuxtLink v-if="backToChapterHref" :href="backToChapterHref" class="menu-link menu-back" @click="menuOpen = false">
-          {{ backToChapterLabel || '← К главе' }}
-        </NuxtLink>
-        <a href="/#ledger" class="menu-link" @click="goToChapters">Главы</a>
-        <NuxtLink href="/game" class="menu-link" @click="menuOpen = false">Игра</NuxtLink>
-        <NuxtLink href="/progress" class="menu-link" @click="menuOpen = false">Прогресс</NuxtLink>
-        <NuxtLink v-if="commentsHref" :href="commentsHref" class="menu-link" @click="menuOpen = false">
-          {{ commentsLabel || 'Обсуждение главы' }}
-        </NuxtLink>
-        <NuxtLink v-if="route.path !== '/about'" href="/about" class="menu-link" @click="menuOpen = false">О проекте</NuxtLink>
-        <NuxtLink v-if="auth.isAuthed" href="/profile" class="menu-link" @click="menuOpen = false">Профиль</NuxtLink>
-        <NuxtLink v-else :href="loginHref" class="menu-link" @click="menuOpen = false">Войти</NuxtLink>
-        <a :href="telegramUrl || '#'" target="_blank" rel="noopener" class="menu-link" @click="menuOpen = false">
-          Telegram <span class="ext">↗</span>
-        </a>
-        <SupportLinks
-          :boosty-url="boostyUrl"
-          :tribute-url="tributeUrl"
-          link-class="menu-link menu-support"
-          inline
-          @select="menuOpen = false"
+      <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-support" />
+      <NuxtLink v-if="auth.isAuthed" to="/profile" class="user-chip" :title="auth.name">
+        <UserAvatar
+          class="user-pic"
+          :src="auth.user?.avatarUrl"
+          :name="auth.name"
+          :frame="auth.user?.avatarFrame"
+          :size="28"
+          alt="Профиль"
         />
-      </slot>
+      </NuxtLink>
+      <NuxtLink v-else :to="loginHref" class="nav-link">Войти</NuxtLink>
     </div>
 
+    <AppDrawer
+      :open="menuOpen"
+      :telegram-url="telegramUrl"
+      :boosty-url="boostyUrl"
+      :tribute-url="tributeUrl"
+      :comments-href="commentsHref"
+      :comments-label="commentsLabel"
+      :back-to-chapter-href="backToChapterHref"
+      :back-to-chapter-label="backToChapterLabel"
+      @close="menuOpen = false"
+    />
   </header>
 </template>
 
@@ -215,7 +109,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  gap: 12px;
+  padding: 0 24px 0 12px;
   background: var(--bg-dark);
   border-bottom: 1px solid rgba(241, 230, 210, .08);
   transition: background .25s ease, border-color .25s ease;
@@ -226,46 +121,48 @@ onUnmounted(() => {
   border-bottom-color: transparent;
 }
 
-/* ── Layout sections ────────────────────────── */
 .h-left,
 .h-right {
-  flex: 1;
   display: flex;
   align-items: center;
   min-width: 0;
 }
 
-.h-right {
-  justify-content: flex-end;
-  gap: 22px;
+.h-left {
+  gap: 6px;
 }
 
-.h-center {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.h-right {
+  gap: 18px;
   flex-shrink: 0;
 }
 
-/* ── Back link ──────────────────────────────── */
-.back-link {
-  font-size: 13px;
+/* ── Бургер ─────────────────────────────────── */
+.burger {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 6px;
   color: var(--parchment-2);
-  opacity: .8;
-  transition: opacity .15s, color .15s;
-  white-space: nowrap;
+  cursor: pointer;
+  transition: color .15s;
 }
 
-.back-link:hover {
-  opacity: 1;
+.burger:hover {
   color: var(--ember-soft);
 }
 
-/* ── Brand ──────────────────────────────────── */
+/* ── Таверна ────────────────────────────────── */
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   text-decoration: none;
 }
 
@@ -279,6 +176,7 @@ onUnmounted(() => {
 }
 
 .brand-name {
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 600;
   color: var(--parchment);
@@ -288,28 +186,10 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 
-/* ── Chapter info ───────────────────────────── */
-.chapter-vol {
-  font-size: 12px;
-  color: var(--ember-soft);
-  font-family: var(--font-display);
-  white-space: nowrap;
-}
-
-.chapter-title {
-  font-size: 13px;
-  color: var(--parchment-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 300px;
-}
-
-/* ── Nav links (desktop right) ──────────────── */
-/* :deep() variants also match the same class rendered inside SupportLinks.vue —
-   scoped CSS doesn't cross component boundaries just because the class name matches. */
-.nav-link,
-:deep(.nav-link) {
+/* ── Справа ─────────────────────────────────── */
+/* :deep() — тот же класс приходит изнутри SupportLinks.vue, а scoped-стили
+   сами через границу компонента не переходят. */
+.nav-link {
   font-size: 14px;
   color: var(--parchment-2);
   opacity: .85;
@@ -318,149 +198,29 @@ onUnmounted(() => {
   text-decoration: none;
 }
 
-.nav-link:hover,
-:deep(.nav-link:hover) {
+.nav-link:hover {
   color: var(--ember-soft);
   opacity: 1;
 }
 
-.nav-support,
 :deep(.nav-support) {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  white-space: nowrap;
+  text-decoration: none;
   border: 1px solid rgba(201, 160, 46, .5);
-  color: var(--gold) !important;
+  color: var(--gold);
   padding: 6px 14px;
   border-radius: var(--radius-sm);
-  opacity: 1 !important;
   transition: background .15s, color .15s;
 }
 
-.nav-support:hover,
 :deep(.nav-support:hover) {
   background: var(--gold);
-  color: var(--bg-dark) !important;
+  color: var(--bg-dark);
 }
 
-.ext {
-  font-size: 11px;
-  opacity: .7;
-  margin-left: 2px;
-}
-
-/* ── Burger button ──────────────────────────── */
-.burger {
-  display: none;
-  flex-direction: column;
-  gap: 5px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px 4px;
-  flex-shrink: 0;
-}
-
-.burger span {
-  display: block;
-  width: 22px;
-  height: 2px;
-  background: var(--parchment-2);
-  border-radius: 2px;
-  transition: transform .25s ease, opacity .25s ease;
-  transform-origin: center;
-}
-
-.burger.open span:nth-child(1) {
-  transform: translateY(7px) rotate(45deg);
-}
-
-.burger.open span:nth-child(2) {
-  opacity: 0;
-  transform: scaleX(0);
-}
-
-.burger.open span:nth-child(3) {
-  transform: translateY(-7px) rotate(-45deg);
-}
-
-/* ── Mobile dropdown menu ───────────────────── */
-.mobile-menu {
-  position: absolute;
-  top: 56px;
-  left: 0;
-  right: 0;
-  background: var(--bg-dark);
-  border-bottom: 1px solid rgba(241, 230, 210, .08);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  transform: translateY(-6px);
-  transition:
-    max-height .35s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity .25s ease,
-    transform .25s ease;
-  pointer-events: none;
-}
-
-.mobile-menu.open {
-  max-height: calc(100vh - 56px);
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-.menu-link,
-:deep(.menu-link) {
-  padding: 16px 24px;
-  font-size: 15px;
-  color: var(--parchment-2);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(241, 230, 210, .06);
-  transition: color .15s, background .15s;
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border-left: none;
-  border-right: none;
-  border-top: none;
-}
-
-.menu-link:last-child {
-  border-bottom: none;
-}
-
-.menu-link:hover,
-:deep(.menu-link:hover) {
-  color: var(--ember-soft);
-  background: rgba(241, 230, 210, .04);
-}
-
-.menu-support,
-:deep(.menu-support) {
-  color: var(--gold);
-}
-
-.menu-back {
-  color: var(--ember-soft);
-}
-
-/* ── Brand icon (logo only, right side) ─────── */
-.brand-icon {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.brand-icon img {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1.5px solid var(--gold);
-}
-
-/* ── Аватарка вошедшего ─────────────────────── */
 .user-chip {
   display: flex;
   align-items: center;
@@ -478,47 +238,21 @@ onUnmounted(() => {
   border: 1px solid rgba(241, 230, 210, .25);
 }
 
-/* Прогресс на планшете уходит из шапки: с ним ссылки уже не помещаются в
-   ряд, а бургера в этой ширине ещё нет. Он остаётся в профиле и на главной. */
-@media (max-width: 820px) {
-  .nav-progress {
-    display: none;
-  }
-}
-
-/* ── Responsive ─────────────────────────────── */
-/* Держим адаптив последним в файле. Правила здесь того же веса, что и обычные,
-   так что решает порядок: стоило .user-chip оказаться ниже — и аватарка
-   перебивала .hide-mobile, вылезая в мобильную шапку рядом с бургером. */
+/* Держим адаптив последним в файле: правила здесь того же веса, что и
+   обычные, так что решает порядок. */
 @media (max-width: 600px) {
-  .hide-mobile,
-  :deep(.hide-mobile) {
-    display: none;
+  .app-header {
+    padding: 0 12px 0 6px;
   }
 
-  .nav-support,
+  /* На телефоне «Поддержать» живёт в шторке — шапке хватит таверны и аватарки. */
+  .h-right :deep(.support-links),
   :deep(.nav-support) {
     display: none;
   }
 
-  .burger {
-    display: flex;
-  }
-
-  /* скрыть название только в центре (страницы с back-link) */
-  .h-center .brand-name,
-  .chapter-title {
-    display: none;
-  }
-
-  /* в левом блоке (главная) — оставить название, чуть меньший шрифт */
-  .h-left .brand-name {
-    display: block;
-    font-size: 13px;
-  }
-
-  .h-right {
-    gap: 12px;
+  .brand-name {
+    font-size: 14px;
   }
 }
 </style>

@@ -277,7 +277,6 @@ useHead({
 <template>
   <div class="profile-page">
     <AppHeader
-      show-nav-links
       :telegram-url="settings?.telegram_url"
       :boosty-url="settings?.boosty_url"
       :tribute-url="settings?.tribute_url"
@@ -529,9 +528,7 @@ useHead({
         <hr class="divider">
 
         <div class="foot-row">
-          <NuxtLink to="/progress" class="link-btn">Прогресс чтения</NuxtLink>
-          <NuxtLink v-if="profile.role === 'admin'" to="/characters" class="link-btn">Персонажи</NuxtLink>
-          <NuxtLink v-if="profile.role === 'admin'" to="/admin" class="link-btn">Панель</NuxtLink>
+          <NuxtLink v-if="profile.role !== 'admin'" to="/progress" class="link-btn">Прогресс чтения</NuxtLink>
           <button class="link-btn" type="button" @click="logout">Выйти</button>
         </div>
       </div>

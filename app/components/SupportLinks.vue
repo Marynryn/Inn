@@ -3,10 +3,6 @@ const props = defineProps<{
   boostyUrl?: string
   tributeUrl?: string
   linkClass?: string
-  /** Мобильное бургер-меню обрезает контент через overflow:hidden (нужен для
-   * анимации высоты) — всплывающая карточка там физически невидима, даже
-   * будучи в DOM. В этом режиме список раскрывается внутри потока, а не поверх. */
-  inline?: boolean
   /** Открывать карточку вверх, а не вниз — для футера, который внизу страницы
    * и там просто нет места снизу до конца скролла. */
   openUp?: boolean
@@ -34,17 +30,17 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
 </script>
 
 <template>
-  <span v-if="hasBoth" ref="root" class="support-links" :class="{ inline }">
+  <span v-if="hasBoth" ref="root" class="support-links">
     <button type="button" :class="linkClass" @click.stop="open = !open">
-      Поддержать <span class="ext">↗</span>
+      Поддержать
     </button>
-    <div v-if="open" class="support-menu" :class="{ inline, 'open-up': openUp }">
+    <div v-if="open" class="support-menu" :class="{ 'open-up': openUp }">
       <a :href="boostyUrl" target="_blank" rel="noopener" @click="selectOption">Boosty</a>
       <a :href="tributeUrl" target="_blank" rel="noopener" @click="selectOption">Tribute</a>
     </div>
   </span>
   <a v-else-if="singleUrl" :href="singleUrl" target="_blank" rel="noopener" :class="linkClass" @click="emit('select')">
-    Поддержать <span class="ext">↗</span>
+    Поддержать
   </a>
 </template>
 
@@ -62,17 +58,6 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   background: none;
   font-family: inherit;
   cursor: pointer;
-}
-
-.ext {
-  font-size: 11px;
-  opacity: .7;
-  margin-left: 2px;
-}
-
-.support-links.inline {
-  display: block;
-  width: 100%;
 }
 
 .support-menu {
@@ -95,20 +80,6 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   bottom: calc(100% + 8px);
 }
 
-/* В бургер-меню всплывающая карточка обрезается родительским overflow:hidden —
-   раскрываем список внутри обычного потока вместо оверлея. */
-.support-menu.inline {
-  position: static;
-  top: auto;
-  right: auto;
-  background: rgba(0, 0, 0, .15);
-  border: none;
-  box-shadow: none;
-  min-width: 0;
-  width: 100%;
-  padding: 0;
-}
-
 .support-menu a {
   padding: 8px 10px;
   font-size: 13px;
@@ -116,14 +87,6 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   border-radius: var(--radius-sm);
   text-decoration: none;
   white-space: nowrap;
-}
-
-.support-menu.inline a {
-  padding: 14px 24px 14px 36px;
-  font-size: 14px;
-  border-radius: 0;
-  white-space: normal;
-  display: block;
 }
 
 .support-menu a:hover {

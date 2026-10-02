@@ -3,24 +3,36 @@ import { CHAPTERS, chapterUrl } from './fixtures'
 
 /*
   Телефон. Проект «mobile» в конфиге подставляет Pixel 7 — узкий экран, тач.
-  Здесь проверяется то, что на десктопе не видно: бургер, выпадающее меню и
-  что ни одна страница не уезжает вбок.
+  Здесь проверяется шторка меню на узком экране и что ни одна страница не
+  уезжает вбок.
 */
 test.describe('Телефон', () => {
-  test('бургер открывает меню с нужными пунктами', async ({ page }) => {
+  test('бургер открывает шторку с нужными пунктами', async ({ page }) => {
     await open(page, '/')
     const burger = page.getByRole('button', { name: 'Меню' })
     await expect(burger).toBeVisible()
     await burger.click()
 
-    const menu = page.locator('.mobile-menu.open')
+    const menu = page.getByRole('complementary', { name: 'Меню' })
     await expect(menu).toBeVisible()
-    for (const item of ['Главы', 'Игра', 'О проекте', 'Войти']) {
+    for (const item of ['Войти', 'Главы', 'Прогресс', 'Игра', 'Персонажи', 'О проекте']) {
       await expect(menu.getByRole('link', { name: item })).toBeVisible()
     }
+    // Гостю админка не положена.
+    await expect(menu.getByRole('link', { name: 'Админка' })).toHaveCount(0)
 
     await menu.getByRole('link', { name: 'Игра' }).click()
     await expect(page).toHaveURL(/\/game$/)
+    await expect(menu).toBeHidden()
+  })
+
+  test('шторка закрывается крестиком', async ({ page }) => {
+    await open(page, '/')
+    await page.getByRole('button', { name: 'Меню' }).click()
+    const menu = page.getByRole('complementary', { name: 'Меню' })
+    await expect(menu).toBeVisible()
+    await menu.getByRole('button', { name: 'Закрыть меню' }).click()
+    await expect(menu).toBeHidden()
   })
 
   for (const url of ['/', chapterUrl(CHAPTERS[0]!.id), `${chapterUrl(CHAPTERS[0]!.id)}/comments`, '/game', '/progress', '/login', '/about']) {

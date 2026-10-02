@@ -143,7 +143,6 @@ useSeoMeta({
 <template>
   <div>
     <AppHeader
-      show-nav-links
       transparent-top
       :telegram-url="settings?.telegram_url"
       :boosty-url="settings?.boosty_url"

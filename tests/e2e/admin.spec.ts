@@ -37,7 +37,8 @@ test.describe('Панель администратора', () => {
     await open(page, '/admin')
     await expect(page).toHaveTitle(/Админ/)
 
-    await page.getByRole('button', { name: 'Список глав' }).click()
+    await page.locator('.sb-tab', { hasText: 'Список глав' }).click()
+    await expect(page).toHaveURL(/tab=chapters/)
     await expect(page.getByRole('heading', { name: `Главы (${CHAPTERS.length})` })).toBeVisible()
   })
 

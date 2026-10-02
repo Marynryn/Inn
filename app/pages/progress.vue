@@ -141,7 +141,6 @@ useHead({
 <template>
   <div class="progress-page">
     <AppHeader
-      show-nav-links
       :telegram-url="settings?.telegram_url"
       :boosty-url="settings?.boosty_url"
       :tribute-url="settings?.tribute_url"

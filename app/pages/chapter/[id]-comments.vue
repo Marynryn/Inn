@@ -61,11 +61,11 @@ useSeoMeta({
 <template>
   <div class="comments-page">
     <AppHeader
-      burger-left
-      show-nav-links
       :telegram-url="settings?.telegram_url"
       :boosty-url="settings?.boosty_url"
       :tribute-url="settings?.tribute_url"
+      :back-to-chapter-href="`/chapter/${slug}`"
+      :back-to-chapter-label="`К главе ${chapterId}`"
     />
 
 

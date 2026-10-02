@@ -29,7 +29,7 @@ const goToChapters = (e: Event) => {
         target="_blank"
         rel="noopener"
       >
-        Telegram ↗
+        Telegram
       </a>
       <SupportLinks
         :boosty-url="settings?.boosty_url"
