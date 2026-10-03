@@ -1069,6 +1069,11 @@ useHead({
           <AdminReel />
         </section>
 
+        <section v-if="activeTab === 'readers'" class="card card--wide">
+          <h2>Читатели</h2>
+          <AdminReaders />
+        </section>
+
         <section v-if="activeTab === 'settings'" class="card">
           <h2>Настройки сайта</h2>
           <div class="field-row">

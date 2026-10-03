@@ -26,6 +26,18 @@ test.describe('Панель администратора', () => {
     })).status()).toBe(403)
   })
 
+  test('администратор видит всех читателей и открывает профиль', async ({ page }) => {
+    expect((await page.request.get('/api/admin/readers')).status()).toBe(403)
+
+    await login(page, ADMIN)
+    await open(page, '/admin?tab=readers')
+    const row = page.locator('.readers .row', { hasText: READER.name }).first()
+    await expect(row).toBeVisible()
+    await expect(row).toHaveAttribute('href', /^\/reader\/[0-9a-f]{12}$/)
+    await row.click()
+    await expect(page).toHaveURL(/\/reader\/[0-9a-f]{12}$/)
+  })
+
   test('читателя со страницы панели уводят на вход', async ({ page }) => {
     await login(page, READER)
     await open(page, '/admin')
