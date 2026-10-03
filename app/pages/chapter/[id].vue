@@ -129,8 +129,14 @@ const description = computed(() => chapter.value
 */
 const READER_BOOT = `(function(){try{var s=JSON.parse(localStorage.getItem(${JSON.stringify(LS_READER)})||'null');if(!s)return;var d=document.documentElement;if(typeof s.theme==='string')d.setAttribute('data-reader-theme',s.theme);if(s.fontSize)d.style.setProperty('--reader-font',s.fontSize+'pt');if(s.lineHeight)d.style.setProperty('--reader-lh',String(s.lineHeight));if(s.width)d.style.setProperty('--reader-width',String(s.width))}catch(e){}})()`
 
+// В начале — то, чем главы отличаются друг от друга: в выдаче их бывает
+// несколько подряд, а видно около 60 знаков. «Читать онлайн» — так ищут в Яндексе.
+const pageTitle = computed(() => chapter.value
+  ? `${chapter.value.title} — Странствующая Таверна, читать онлайн | The Wandering Inn`
+  : undefined)
+
 useHead(() => ({
-  title: chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : 'Загрузка...',
+  title: pageTitle.value ?? 'Загрузка...',
   link: [
     { rel: 'canonical', href: `${siteUrl}/chapter/${slug.value}` },
   ],
@@ -141,7 +147,7 @@ useHead(() => ({
 
 useSeoMeta({
   description: () => description.value,
-  ogTitle: () => chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : undefined,
+  ogTitle: () => pageTitle.value,
   ogDescription: () => description.value,
   ogImage,
   ogUrl: () => `${siteUrl}/chapter/${slug.value}`,
@@ -166,9 +172,15 @@ useHead(() => ({
             url: `${siteUrl}/chapter/${slug.value}`,
             image: ogImage,
             datePublished: chapter.value.publishedAt,
+            // Те названия и слова, которыми книгу ищут по-русски: на экране их нет,
+            // а поисковику так проще связать главу с запросом.
             isPartOf: {
               '@type': 'Book',
               name: 'The Wandering Inn',
+              alternateName: ['Странствующая Таверна', 'Блуждающая таверна', 'Блуждающий трактир', 'TWI'],
+              genre: ['Фэнтези', 'LitRPG', 'Попаданцы'],
+              keywords: 'The Wandering Inn на русском, Странствующая Таверна читать онлайн, перевод The Wandering Inn, Эрин Солстис, LitRPG, фэнтези, попаданка, таверна',
+              url: siteUrl,
               inLanguage: 'ru',
             },
             publisher: {
@@ -212,11 +224,15 @@ useHead(() => ({
     <div class="reader">
       <div class="reader-title-row">
         <div>
-          <div class="reader-eyebrow">
-            <img class="eyebrow-leaf" :src="titleLeaf" alt="" width="18" height="18">
-            Том {{ chapter.volume }} · Глава {{ chapter.id }}
-          </div>
-          <h1 class="display">{{ chapter.title }}</h1>
+          <!-- Строка над названием — внутри h1: по заголовку поисковик понимает,
+               о чём страница, а «Глава 1.02» сама по себе книгу не называет. -->
+          <h1 class="display">
+            <span class="reader-eyebrow">
+              <img class="eyebrow-leaf" :src="titleLeaf" alt="" width="18" height="18">
+              <span>Странствующая Таверна · <span class="nowrap">Том {{ chapter.volume }}</span></span>
+            </span>
+            {{ chapter.title }}
+          </h1>
         </div>
         <button
           class="icon-btn dl-title-btn"
@@ -487,6 +503,14 @@ html[data-reader-theme="light"] .page-wrap {
   text-transform: uppercase;
   color: var(--rd-accent);
   margin-bottom: 8px;
+  /* Строка живёт внутри h1 — шрифт и жирность заголовка ей не нужны. */
+  font-family: var(--font-body);
+  font-weight: normal;
+  line-height: normal;
+}
+
+.reader-eyebrow .nowrap {
+  white-space: nowrap;
 }
 
 /* 1.875 от кегля — ровно прежние 30px при стандартных настройках. */

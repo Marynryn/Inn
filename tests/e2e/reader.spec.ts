@@ -7,7 +7,7 @@ test.describe('Чтение главы', () => {
     await open(page, chapterUrl(second.id))
 
     await expect(page.getByRole('heading', { level: 1, name: second.title })).toBeVisible()
-    await expect(page.locator('.reader-eyebrow')).toContainText(`Том ${second.volume} · Глава ${second.id}`)
+    await expect(page.locator('.reader-eyebrow')).toContainText(`Странствующая Таверна · Том ${second.volume}`)
     // Все абзацы из epub добрались до страницы, разметка не потерялась.
     await expect(page.locator('.reader-content p')).toHaveCount(second.paragraphs)
     await expect(page.locator('.reader-content em').first()).toBeVisible()
