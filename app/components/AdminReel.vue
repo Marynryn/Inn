@@ -4,7 +4,7 @@ import type { AdminReel } from '#shared/utils/reel'
 import type { ReelTextKey } from '#shared/utils/reel'
 import {
   REEL_BLUR_DEFAULT, REEL_BLUR_MAX, REEL_DIM_DEFAULT, REEL_DIM_MAX,
-  REEL_LABEL_MAX, REEL_SPINS_MAX, REEL_TEXT_KEYS, REEL_TEXT_MAX, REEL_TEXTS, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL,
+  REEL_IMAGE_MAX_SIDE, REEL_LABEL_MAX, REEL_SPINS_MAX, REEL_TEXT_KEYS, REEL_TEXT_MAX, REEL_TEXTS, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL,
   percentToWeight, weightToPercent,
 } from '#shared/utils/reel'
 
@@ -64,6 +64,8 @@ const busy = ref(false)
 const msg = ref('')
 const err = ref('')
 const uploading = ref<number | null>(null)
+/** Ошибка загрузки картинки — у того сегмента, куда грузили, а не внизу панели. */
+const segErr = ref<Record<number, string>>({})
 const confirmFinish = ref(false)
 const trialId = ref<number | null>(null)
 
@@ -135,6 +137,7 @@ const load = async () => {
 const select = async (id: number | null) => {
   selectedId.value = id
   confirmFinish.value = false
+  segErr.value = {}
   const r = selected.value
   drafts.value = r ? toDraft(r) : []
   title.value = r?.title ?? ''
@@ -209,17 +212,20 @@ const uploadImage = async (d: Draft, i: number, e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   uploading.value = i
-  err.value = ''
+  delete segErr.value[i]
   try {
     const form = new FormData()
-    form.append('image', file)
+    // Большую картинку ужимаем ещё в браузере, как фон, — сценке хватает
+    // 1024 px. GIF не трогаем: холст оставил бы от анимации первый кадр.
+    form.append('image', file.type === 'image/gif' ? file : await shrinkBg(file, REEL_IMAGE_MAX_SIDE))
     const res = await $fetch<{ file: string; url: string }>('/api/admin/reel-images', { method: 'POST', body: form })
     d.image = res.file
     d.imageUrl = res.url
   } catch (e: any) {
-    err.value = e.data?.message || 'Картинка не загрузилась'
+    segErr.value[i] = e.data?.message || 'Картинка не загрузилась'
   } finally {
     uploading.value = null
+    ;(e.target as HTMLInputElement).value = ''
   }
 }
 
@@ -259,9 +265,9 @@ const saveTexts = () => run(async () => {
  *  мегабайта, а окну барабана хватает 2000 по длинной стороне. Сервер сам
  *  картинки не пережимает, только проверяет — так через него проходит любая. */
 const BG_SIDE = 2000
-const shrinkBg = async (file: File): Promise<Blob> => {
+const shrinkBg = async (file: File, side = BG_SIDE): Promise<Blob> => {
   const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, BG_SIDE / Math.max(bitmap.width, bitmap.height))
+  const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height))
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(bitmap.width * scale)
   canvas.height = Math.round(bitmap.height * scale)
@@ -547,6 +553,8 @@ onMounted(load)
                 <input type="file" accept="image/*" @change="uploadImage(d, i, $event)">
               </label>
             </div>
+
+            <p v-if="segErr[i]" class="err seg-err">{{ segErr[i] }}</p>
 
             <p v-if="selected.status !== 'draft'" class="seg-stat">
               выпал {{ selected.segments[i]?.landed ?? 0 }} раз
@@ -1161,6 +1169,8 @@ select option { background: var(--bg-dark-2); }
 }
 
 .msg { color: var(--ember-soft); }
+
+.seg-err { margin-top: 8px; }
 .err { color: #e07070; }
 
 /* ── Журнал ─────────────────────────────────── */
