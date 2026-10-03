@@ -73,7 +73,7 @@ test.describe('Фигурка у имени', () => {
 
     await page.getByRole('button', { name: /Уведомления/ }).click()
     await page.getByRole('button', { name: /Барабан «Хеллоуин»/ }).click()
-    await page.getByRole('button', { name: 'Крутить' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Крутить' }).click()
 
     await expect(page.getByText('Тебе досталась фигурка')).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Надеть' }).click()

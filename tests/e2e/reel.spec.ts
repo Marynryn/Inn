@@ -120,6 +120,19 @@ test.describe('Барабан', () => {
     expect(opened.ok(), await opened.text()).toBeTruthy()
   })
 
+  test('гость видит баннер вместо игры, а в барабане — вход вместо кнопки', async ({ page }) => {
+    await open(page, '/')
+    const banner = page.locator('.reel-banner')
+    await expect(banner).toBeVisible()
+    await expect(page.locator('.game-cta')).toHaveCount(0)
+
+    await banner.getByRole('button').click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByText('Крутить могут только читатели таверны')).toBeVisible()
+    await expect(dialog.getByRole('link', { name: 'Войти и крутить' })).toHaveAttribute('href', /\/login\?next=/)
+    await expect(dialog.getByRole('button', { name: 'Крутить' })).toHaveCount(0)
+  })
+
   test('читатель видит приглашение, крутит, выигрывает и надевает', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await login(page, READER)
@@ -130,7 +143,7 @@ test.describe('Барабан', () => {
 
     await page.getByRole('button', { name: /Уведомления/ }).click()
     await page.getByRole('button', { name: /Барабан «Тестовый ивент»/ }).click()
-    await page.getByRole('button', { name: 'Крутить' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Крутить' }).click()
 
     await expect(page.getByText('Тебе досталась рамка')).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Надеть' }).click()
