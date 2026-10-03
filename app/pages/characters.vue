@@ -275,8 +275,7 @@ useSeoMeta({
 }
 
 .search-input {
-  flex: 1 1 280px;
-  max-width: 420px;
+  flex: 1 1 280px; /* вся ширина до сортировки — край в край с фильтрами под ним */
   font-family: var(--font-body);
   font-size: 15px;
   padding: 13px 16px;
@@ -331,6 +330,9 @@ useSeoMeta({
 }
 
 .filter {
+  /* Фильтры делят строку поровну и тянутся до правого края; узко — переносятся. */
+  flex: 1 1 0;
+  min-width: 130px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -343,7 +345,8 @@ useSeoMeta({
 .filter select {
   appearance: none;
   -webkit-appearance: none;
-  max-width: 160px;
+  flex: 1 1 0;
+  min-width: 0;
   font-family: var(--font-body);
   font-size: 12px;
   line-height: 1;
