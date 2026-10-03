@@ -120,6 +120,19 @@ test.describe('Барабан', () => {
     expect(opened.ok(), await opened.text()).toBeTruthy()
   })
 
+  test('вкладка барабана в панели открывается вместе с разделом баннера', async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', e => errors.push(e.message))
+    await login(page, ADMIN)
+    await open(page, '/admin?tab=reel')
+    await page.locator('.reel-chip', { hasText: 'Тестовый ивент' }).click()
+
+    await page.getByText('Баннер на главной', { exact: true }).click()
+    await expect(page.locator('.banner-slot')).toHaveCount(2)
+    await expect(page.locator('.banner-slot', { hasText: 'Компьютер' }).getByText('нет картинки')).toBeVisible()
+    expect(errors).toEqual([])
+  })
+
   test('гость видит баннер вместо игры, а в барабане — вход вместо кнопки', async ({ page }) => {
     await open(page, '/')
     const banner = page.locator('.reel-banner')

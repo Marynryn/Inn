@@ -48,8 +48,12 @@ const bgBlur = ref(REEL_BLUR_DEFAULT)
 const bgOpen = ref(false)
 const bgUploading = ref(false)
 /** Баннер на главной: картинки для широкого экрана и для телефона. */
-const bannerDesk = ref<{ file: string | null; url: string | null }>({ file: null, url: null })
-const bannerMob = ref<{ file: string | null; url: string | null }>({ file: null, url: null })
+type BannerKey = 'desk' | 'mob'
+type BannerPic = { file: string | null; url: string | null }
+// Одним объектом, а не двумя ref: в шаблоне ref внутри списка не разворачивается
+// так, как в скрипте, и обращение через .value уронило всю вкладку.
+const banner = ref<Record<BannerKey, BannerPic>>({ desk: { file: null, url: null }, mob: { file: null, url: null } })
+const BANNER_SLOTS: { key: BannerKey; label: string }[] = [{ key: 'desk', label: 'Компьютер' }, { key: 'mob', label: 'Телефон' }]
 const bannerOpen = ref(false)
 const bannerUploading = ref(false)
 /** Тексты баннера правятся в его разделе, а не в общем списке текстов окна. */
@@ -146,8 +150,10 @@ const select = async (id: number | null) => {
   bgUrl.value = r?.look.background ?? null
   bgDim.value = r?.look.dim ?? REEL_DIM_DEFAULT
   bgBlur.value = r?.look.blur ?? REEL_BLUR_DEFAULT
-  bannerDesk.value = { file: r?.bannerDesk ?? null, url: r?.banner.desk ?? null }
-  bannerMob.value = { file: r?.bannerMob ?? null, url: r?.banner.mob ?? null }
+  banner.value = {
+    desk: { file: r?.bannerDesk ?? null, url: r?.banner?.desk ?? null },
+    mob: { file: r?.bannerMob ?? null, url: r?.banner?.mob ?? null },
+  }
   await loadLog()
 }
 
@@ -315,7 +321,7 @@ const saveBg = () => run(async () => {
 }, 'Фон сохранён')
 
 /** Картинка баннера — тем же путём, что фон: ужать в браузере, положить файл. */
-const uploadBanner = async (e: Event, target: typeof bannerDesk) => {
+const uploadBanner = async (e: Event, key: BannerKey) => {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
@@ -325,7 +331,7 @@ const uploadBanner = async (e: Event, target: typeof bannerDesk) => {
     const form = new FormData()
     form.append('image', await shrinkBg(file))
     form.append('kind', 'banner')
-    target.value = await $fetch<{ file: string; url: string }>('/api/admin/reel-images', { method: 'POST', body: form })
+    banner.value[key] = await $fetch<{ file: string; url: string }>('/api/admin/reel-images', { method: 'POST', body: form })
   } catch (e: any) {
     err.value = e.data?.message || 'Картинка не загрузилась'
   } finally {
@@ -337,7 +343,7 @@ const uploadBanner = async (e: Event, target: typeof bannerDesk) => {
 const saveBanner = () => run(async () => {
   await $fetch(`/api/admin/reels/${selectedId.value}`, {
     method: 'PUT',
-    body: { title: title.value, texts: texts.value, bannerDesk: bannerDesk.value.file, bannerMob: bannerMob.value.file },
+    body: { title: title.value, texts: texts.value, bannerDesk: banner.value.desk.file, bannerMob: banner.value.mob.file },
   })
   await load()
 }, 'Баннер сохранён')
@@ -653,16 +659,16 @@ onMounted(load)
           Широкая картинка — для компьютера (около 2000 × 280), вторая — для телефона. Без картинки для телефона там будет широкая.
         </p>
         <div class="banner-row">
-          <div v-for="b in [{ key: 'desk', label: 'Компьютер', ref: bannerDesk }, { key: 'mob', label: 'Телефон', ref: bannerMob }]" :key="b.key" class="banner-slot">
+          <div v-for="b in BANNER_SLOTS" :key="b.key" class="banner-slot">
             <span class="banner-label">{{ b.label }}</span>
-            <div class="banner-preview" :class="[b.key, { empty: !b.ref.value.url }]" :style="b.ref.value.url ? { backgroundImage: `url(&quot;${b.ref.value.url}&quot;)` } : {}">
-              <span v-if="!b.ref.value.url">нет картинки</span>
+            <div class="banner-preview" :class="[b.key, { empty: !banner[b.key].url }]" :style="banner[b.key].url ? { backgroundImage: `url(&quot;${banner[b.key].url}&quot;)` } : {}">
+              <span v-if="!banner[b.key].url">нет картинки</span>
             </div>
             <label class="btn ghost bg-upload">
-              {{ bannerUploading ? 'Загружаем…' : b.ref.value.url ? 'Заменить' : 'Загрузить' }}
-              <input type="file" accept="image/*" :disabled="bannerUploading" @change="uploadBanner($event, b.ref)">
+              {{ bannerUploading ? 'Загружаем…' : banner[b.key].url ? 'Заменить' : 'Загрузить' }}
+              <input type="file" accept="image/*" :disabled="bannerUploading" @change="uploadBanner($event, b.key)">
             </label>
-            <button v-if="b.ref.value.url" class="link danger" type="button" @click="b.ref.value = { file: null, url: null }">Убрать</button>
+            <button v-if="banner[b.key].url" class="link danger" type="button" @click="banner[b.key] = { file: null, url: null }">Убрать</button>
           </div>
         </div>
         <div class="texts-grid">
