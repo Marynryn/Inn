@@ -47,6 +47,14 @@ const bgDim = ref(REEL_DIM_DEFAULT)
 const bgBlur = ref(REEL_BLUR_DEFAULT)
 const bgOpen = ref(false)
 const bgUploading = ref(false)
+/** Баннер на главной: картинки для широкого экрана и для телефона. */
+const bannerDesk = ref<{ file: string | null; url: string | null }>({ file: null, url: null })
+const bannerMob = ref<{ file: string | null; url: string | null }>({ file: null, url: null })
+const bannerOpen = ref(false)
+const bannerUploading = ref(false)
+/** Тексты баннера правятся в его разделе, а не в общем списке текстов окна. */
+const BANNER_TEXT_KEYS: ReelTextKey[] = ['bannerTitle', 'bannerText', 'bannerButton']
+const windowTextKeys = REEL_TEXT_KEYS.filter(k => !BANNER_TEXT_KEYS.includes(k))
 const log = ref<LogRow[]>([])
 /** В журнале — только выигрыши: кому какой приз выпал, повторки тоже; без сценок. */
 const onlyWon = ref(false)
@@ -135,6 +143,8 @@ const select = async (id: number | null) => {
   bgUrl.value = r?.look.background ?? null
   bgDim.value = r?.look.dim ?? REEL_DIM_DEFAULT
   bgBlur.value = r?.look.blur ?? REEL_BLUR_DEFAULT
+  bannerDesk.value = { file: r?.bannerDesk ?? null, url: r?.banner.desk ?? null }
+  bannerMob.value = { file: r?.bannerMob ?? null, url: r?.banner.mob ?? null }
   await loadLog()
 }
 
@@ -297,6 +307,34 @@ const saveBg = () => run(async () => {
   })
   await load()
 }, 'Фон сохранён')
+
+/** Картинка баннера — тем же путём, что фон: ужать в браузере, положить файл. */
+const uploadBanner = async (e: Event, target: typeof bannerDesk) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  bannerUploading.value = true
+  err.value = ''
+  try {
+    const form = new FormData()
+    form.append('image', await shrinkBg(file))
+    form.append('kind', 'banner')
+    target.value = await $fetch<{ file: string; url: string }>('/api/admin/reel-images', { method: 'POST', body: form })
+  } catch (e: any) {
+    err.value = e.data?.message || 'Картинка не загрузилась'
+  } finally {
+    bannerUploading.value = false
+    input.value = ''
+  }
+}
+
+const saveBanner = () => run(async () => {
+  await $fetch(`/api/admin/reels/${selectedId.value}`, {
+    method: 'PUT',
+    body: { title: title.value, texts: texts.value, bannerDesk: bannerDesk.value.file, bannerMob: bannerMob.value.file },
+  })
+  await load()
+}, 'Баннер сохранён')
 
 /** Превью фона: та же картинка под тем же затемнением, что и в окне. */
 const bgPreview = computed(() => {
@@ -556,7 +594,7 @@ onMounted(load)
         </summary>
         <p class="note">Пустое поле — текст по умолчанию, он виден серым. Править можно и у идущего барабана.</p>
         <div class="texts-grid">
-          <label v-for="k in REEL_TEXT_KEYS" :key="k" class="fld">
+          <label v-for="k in windowTextKeys" :key="k" class="fld">
             <span>{{ REEL_TEXTS[k].label }}</span>
             <input v-model="texts[k]" type="text" :maxlength="REEL_TEXT_MAX" :placeholder="REEL_TEXTS[k].value">
           </label>
@@ -594,6 +632,38 @@ onMounted(load)
           </div>
         </div>
         <button class="btn ghost" type="button" :disabled="busy || bgUploading" @click="saveBg">Сохранить фон</button>
+      </details>
+
+      <!-- Баннер на главной -->
+      <details v-if="selected.status !== 'finished'" class="texts" :open="bannerOpen" @toggle="bannerOpen = ($event.target as HTMLDetailsElement).open">
+        <summary>
+          Баннер на главной
+          <span v-if="selected.bannerDesk || selected.bannerMob" class="texts-count">есть</span>
+        </summary>
+        <p class="note">
+          Пока барабан идёт, баннер стоит на главной вместо плашки игры; у барабана «только для админов» его видят только админы.
+          Широкая картинка — для компьютера (около 2000 × 280), вторая — для телефона. Без картинки для телефона там будет широкая.
+        </p>
+        <div class="banner-row">
+          <div v-for="b in [{ key: 'desk', label: 'Компьютер', ref: bannerDesk }, { key: 'mob', label: 'Телефон', ref: bannerMob }]" :key="b.key" class="banner-slot">
+            <span class="banner-label">{{ b.label }}</span>
+            <div class="banner-preview" :class="[b.key, { empty: !b.ref.value.url }]" :style="b.ref.value.url ? { backgroundImage: `url(&quot;${b.ref.value.url}&quot;)` } : {}">
+              <span v-if="!b.ref.value.url">нет картинки</span>
+            </div>
+            <label class="btn ghost bg-upload">
+              {{ bannerUploading ? 'Загружаем…' : b.ref.value.url ? 'Заменить' : 'Загрузить' }}
+              <input type="file" accept="image/*" :disabled="bannerUploading" @change="uploadBanner($event, b.ref)">
+            </label>
+            <button v-if="b.ref.value.url" class="link danger" type="button" @click="b.ref.value = { file: null, url: null }">Убрать</button>
+          </div>
+        </div>
+        <div class="texts-grid">
+          <label v-for="k in BANNER_TEXT_KEYS" :key="k" class="fld">
+            <span>{{ REEL_TEXTS[k].label }}</span>
+            <input v-model="texts[k]" type="text" :maxlength="REEL_TEXT_MAX" :placeholder="REEL_TEXTS[k].value">
+          </label>
+        </div>
+        <button class="btn ghost" type="button" :disabled="busy || bannerUploading" @click="saveBanner">Сохранить баннер</button>
       </details>
 
       <div class="actions">
@@ -820,6 +890,50 @@ select option { background: var(--bg-dark-2); }
   background-position: center;
 }
 
+.banner-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.banner-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.banner-slot:first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.banner-label {
+  font-size: 12px;
+  color: rgba(241, 230, 210, .6);
+}
+
+/* Миниатюры в пропорциях настоящих плашек: широкая и телефонная. */
+.banner-preview {
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(241, 230, 210, .15);
+  background-color: var(--bg-dark-2);
+  background-size: cover;
+  background-position: center;
+}
+
+.banner-preview.desk {
+  width: 100%;
+  aspect-ratio: 50 / 7;
+}
+
+.banner-preview.mob {
+  width: 180px;
+  aspect-ratio: 16 / 9;
+}
+
+.banner-preview.empty,
 .bg-preview.empty {
   display: grid;
   place-items: center;

@@ -42,6 +42,10 @@ const sheetStyle = computed(() => {
   return style
 })
 const trial = computed(() => Boolean(props.trialId))
+/** Гость видит барабан, но крутить его нельзя: вместо кнопки — позвать войти.
+ *  После входа главная откроет барабан сама (?reel=1). */
+const guest = computed(() => !trial.value && auth.ready && !auth.isAuthed)
+const loginHref = `/login?next=${encodeURIComponent('/?reel=1')}`
 /** Сколько попыток осталось сегодня; null — без ограничений (админ, проба). */
 const left = ref<number | null>(null)
 const perDay = computed(() => state.value?.perDay ?? 1)
@@ -248,6 +252,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <h2 id="reel-title" class="display reel-title">«{{ title || 'Барабан' }}»</h2>
           <p class="reel-lead">
             <template v-if="trial">Видишь только ты. Ничего не выдаётся и не записывается.</template>
+            <template v-else-if="guest"><b class="guest-title">{{ t.guestTitle }}</b>{{ t.guestText }}</template>
             <template v-else>{{ t.lead }}</template>
           </p>
 
@@ -268,7 +273,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
           <p class="reel-err" aria-live="polite">{{ error }}</p>
 
-          <button class="reel-btn" type="button" :disabled="phase !== 'ready'" @click="spinNow">
+          <NuxtLink v-if="guest" class="reel-btn" :to="loginHref">{{ t.guestButton }}</NuxtLink>
+          <button v-else class="reel-btn" type="button" :disabled="phase !== 'ready'" @click="spinNow">
             {{ phase === 'spinning' ? 'Крутится…' : phase === 'loading' ? 'Смотрим…' : t.spinButton }}
           </button>
         </template>
@@ -553,6 +559,20 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 }
 
 .reel-btn:hover:not(:disabled) { background: var(--ember-soft); }
+
+/* Кнопка входа у гостя — ссылка, а выглядеть должна той же кнопкой. */
+a.reel-btn {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.guest-title {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--parchment);
+}
 .reel-btn:disabled { opacity: .5; cursor: default; }
 
 .reel-btn.ghost {

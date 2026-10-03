@@ -8,6 +8,7 @@ import { reelFromRoute } from '../../../utils/reel'
 
 const IMAGE_NAME = /^scene-[\w-]+\.(webp|png|jpg|gif)$/
 const BG_NAME = /^bg-[\w-]+\.(webp|png|jpg|gif)$/
+const BANNER_NAME = /^banner-[\w-]+\.(webp|png|jpg|gif)$/
 
 /**
  * Сохранить барабан: название и сегменты целиком. Сегменты правятся только у
@@ -17,7 +18,7 @@ const BG_NAME = /^bg-[\w-]+\.(webp|png|jpg|gif)$/
  */
 export default defineEventHandler(async (event) => {
   const reel = await reelFromRoute(event)
-  const body = await readBody<{ title?: string; adminsOnly?: boolean; spinsPerDay?: number; texts?: Record<string, string>; background?: string | null; bgDim?: number; bgBlur?: number; segments?: ReelSegmentInput[] }>(event)
+  const body = await readBody<{ title?: string; adminsOnly?: boolean; spinsPerDay?: number; texts?: Record<string, string>; background?: string | null; bgDim?: number; bgBlur?: number; bannerDesk?: string | null; bannerMob?: string | null; segments?: ReelSegmentInput[] }>(event)
   const db = useDb()
 
   const title = String(body?.title ?? reel.title).trim().slice(0, REEL_TITLE_MAX)
@@ -34,7 +35,15 @@ export default defineEventHandler(async (event) => {
   if (background && !BG_NAME.test(background)) throw createError({ statusCode: 400, message: 'Странная картинка фона' })
   const bgDim = body?.bgDim == null ? reel.bgDim : clampReelDim(body.bgDim)
   const bgBlur = body?.bgBlur == null ? reel.bgBlur : clampReelBlur(body.bgBlur)
-  await db.update(reels).set({ title, adminsOnly, texts, spinsPerDay, background, bgDim, bgBlur }).where(eq(reels.id, reel.id))
+  // Баннер на главной — тоже когда угодно, по тем же правилам, что фон.
+  const banner = (v: string | null | undefined, was: string | null) => {
+    const file = v === undefined ? was : v ? String(v) : null
+    if (file && !BANNER_NAME.test(file)) throw createError({ statusCode: 400, message: 'Странная картинка баннера' })
+    return file
+  }
+  const bannerDesk = banner(body?.bannerDesk, reel.bannerDesk)
+  const bannerMob = banner(body?.bannerMob, reel.bannerMob)
+  await db.update(reels).set({ title, adminsOnly, texts, spinsPerDay, background, bgDim, bgBlur, bannerDesk, bannerMob }).where(eq(reels.id, reel.id))
 
   if (!body?.segments) return { ok: true }
   if (reel.status !== 'draft') {

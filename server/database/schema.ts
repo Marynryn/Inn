@@ -124,6 +124,10 @@ export const reels = sqliteTable('reels', {
   background: text('background'),
   bgDim: integer('bg_dim').notNull().default(35),
   bgBlur: integer('bg_blur').notNull().default(6),
+  // Баннер барабана на главной вместо плашки игры: картинки для широкого
+  // экрана и для телефона, файлы в storage/reel. Нет картинки — тёмный фон.
+  bannerDesk: text('banner_desk'),
+  bannerMob: text('banner_mob'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 

@@ -43,6 +43,15 @@ export type ReelLook = {
   blur: number
 }
 
+/** Баннер идущего барабана на главной — вместо плашки игры. */
+export type ReelBanner = {
+  id: number
+  title: string
+  text: string
+  button: string
+  images: { desk: string | null; mob: string | null }
+}
+
 export type ReelState = {
   reel: { id: number; title: string; symbols: ReelSymbol[]; texts: ReelTexts; look: ReelLook } | null
   /** Последняя сегодняшняя попытка, если уже была. */
@@ -80,6 +89,10 @@ export type AdminReel = {
   spinsPerDay: number
   /** Только изменённые тексты окна; чего нет — то по умолчанию. */
   texts: Partial<ReelTexts>
+  /** Файлы баннера на главной (для сохранения) и их адреса. */
+  bannerDesk: string | null
+  bannerMob: string | null
+  banner: ReelBanner['images']
   /** Файл фона окна (для сохранения) и как фон показан. */
   background: string | null
   look: ReelLook
@@ -160,6 +173,12 @@ export const REEL_TEXTS = {
   wearButton: { label: 'Кнопка «Надеть»', value: 'Надеть' },
   againButton: { label: 'Кнопка «ещё раз»', value: 'Крутить ещё' },
   footer: { label: 'Приписка внизу, когда попытки кончились', value: 'Следующие попытки — завтра, пока идёт ивент.' },
+  bannerTitle: { label: 'Баннер на главной — заголовок', value: 'Барабан ивента' },
+  bannerText: { label: 'Баннер на главной — текст', value: 'Раз в день — попытка выиграть рамку или фигурку к имени.' },
+  bannerButton: { label: 'Баннер на главной — кнопка', value: 'Крутить' },
+  guestTitle: { label: 'Гостю в окне — заголовок', value: 'Крутить могут только читатели таверны' },
+  guestText: { label: 'Гостю в окне — текст', value: 'Войдите через Google или Телеграм — это пара секунд, и попытка ваша.' },
+  guestButton: { label: 'Гостю в окне — кнопка входа', value: 'Войти и крутить' },
 } as const
 
 export type ReelTextKey = keyof typeof REEL_TEXTS

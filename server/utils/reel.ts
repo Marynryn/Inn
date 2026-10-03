@@ -42,6 +42,12 @@ export const lookOf = (reel: Reel): ReelLook => ({
   blur: reel.bgBlur,
 })
 
+/** Картинки баннера на главной; без своей картинки у телефона — та же широкая. */
+export const bannerOf = (reel: Reel) => ({
+  desk: reel.bannerDesk ? reelImageUrl(reel.bannerDesk) : null,
+  mob: reel.bannerMob ? reelImageUrl(reel.bannerMob) : null,
+})
+
 /** Тексты окна барабана целиком — то, что видит читатель. */
 export const textsOf = (reel: Reel) => fullReelTexts(cleanReelTexts(reel.texts))
 
@@ -223,8 +229,9 @@ export async function trialSpin(reelId: number): Promise<SpinResult> {
 
 /** Картинка сценки или фона окна на диск. Как и с рамками, сервер её не
  *  пережимает — только проверяет, что это картинка нужного веса и размера. */
-export async function saveReelImage(data: Buffer | Uint8Array, kind: 'scene' | 'bg' = 'scene'): Promise<string> {
-  const ext = kind === 'bg'
+export async function saveReelImage(data: Buffer | Uint8Array, kind: 'scene' | 'bg' | 'banner' = 'scene'): Promise<string> {
+  // Баннер — широкая картинка во всю плашку, ему те же пределы, что фону окна.
+  const ext = kind !== 'scene'
     ? checkImage(data, REEL_BG_MAX_BYTES, REEL_BG_MAX_SIDE)
     : checkImage(data, REEL_IMAGE_MAX_BYTES, REEL_IMAGE_MAX_SIDE)
   const dir = join(getStorageDir(), 'reel')

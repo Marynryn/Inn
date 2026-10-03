@@ -3,6 +3,24 @@ import { formatHours } from '~/composables/useReadingStats'
 
 const { data: settings } = await useFetch('/api/settings')
 const { data: chapters } = await useFetch('/api/chapters')
+// Пока идёт барабан, его баннер стоит вместо плашки игры. Сбой — не беда:
+// останется плашка игры, главная из-за баннера не падает.
+const { data: reelBanner } = await useFetch('/api/reel/banner', { default: () => null })
+
+const reelOpen = ref(false)
+const route = useRoute()
+// Гость нажал «Войти и крутить» и вернулся с ?reel=1 — открываем барабан сами,
+// как только станет ясно, что он вошёл. Метку из адреса убираем, чтобы
+// обновление страницы не открывало окно снова.
+onMounted(() => {
+  if (route.query.reel === undefined) return
+  navigateTo({ query: { ...route.query, reel: undefined } }, { replace: true })
+  const stop = watch(() => auth.ready, (ready) => {
+    if (!ready) return
+    queueMicrotask(() => stop())
+    if (auth.isAuthed && reelBanner.value) reelOpen.value = true
+  }, { immediate: true })
+})
 
 
 const { load } = useReadProgress()
@@ -221,12 +239,15 @@ useSeoMeta({
       <SignCharacters />
 
       <div class="game-wrap">
+        <ReelBanner v-if="reelBanner" :banner="reelBanner" @open="reelOpen = true" />
         <GameCta
+          v-else
           :title="settings?.game_cta_title"
           :text="settings?.game_cta_text"
           :max-volume="settings?.game_volume_effective"
         />
       </div>
+      <ReelModal v-if="reelOpen" @close="reelOpen = false" />
 
     <!-- ОГЛАВЛЕНИЕ -->
     <div class="ledger" id="ledger">

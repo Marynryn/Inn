@@ -3,7 +3,7 @@ import type { AdminReel } from '#shared/utils/reel'
 import { cleanReelTexts } from '#shared/utils/reel'
 import { reelSpins, reels } from '../../database/schema'
 import { useDb } from '../../utils/db'
-import { lookOf, reelImageUrl, segmentsOf } from '../../utils/reel'
+import { bannerOf, lookOf, reelImageUrl, segmentsOf } from '../../utils/reel'
 
 /** Все барабаны со сегментами и счётом: сколько раз что выпало. */
 export default defineEventHandler(async (): Promise<AdminReel[]> => {
@@ -36,6 +36,9 @@ export default defineEventHandler(async (): Promise<AdminReel[]> => {
       texts: cleanReelTexts(reel.texts),
       background: reel.background,
       look: lookOf(reel),
+      bannerDesk: reel.bannerDesk,
+      bannerMob: reel.bannerMob,
+      banner: bannerOf(reel),
       status: reel.status,
       startedAt: reel.startedAt,
       finishedAt: reel.finishedAt,

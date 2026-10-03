@@ -726,6 +726,8 @@ export async function runMigrations() {
     'ALTER TABLE reels ADD COLUMN background TEXT',
     'ALTER TABLE reels ADD COLUMN bg_dim INTEGER NOT NULL DEFAULT 35',
     'ALTER TABLE reels ADD COLUMN bg_blur INTEGER NOT NULL DEFAULT 6',
+    'ALTER TABLE reels ADD COLUMN banner_desk TEXT',
+    'ALTER TABLE reels ADD COLUMN banner_mob TEXT',
   ]) {
     try {
       await client.execute(sql)
