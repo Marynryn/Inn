@@ -122,8 +122,13 @@ const spinNow = async () => {
   const neighbour = nearMiss.value ? pick(prizes) : pick(pool)
   const around = Math.random() < 0.5 ? [neighbour, pick(pool)] : [pick(pool), neighbour]
 
+  // «Меньше движения» в системе (в Windows — выключенные анимации, их часто
+  // гасят ради скорости) ленту не выключает: вращение и есть барабан, без него
+  // результат выскакивал сразу. Такому читателю — короткий ровный проезд, без
+  // долгого дотягивания в конце.
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const seconds = reduce ? 0 : nearMiss.value ? 4.6 : 3.8
+  const seconds = reduce ? 2.5 : nearMiss.value ? 4.6 : 3.8
+  const curve = reduce ? '.3,.1,.3,1' : nearMiss.value ? '.2,.7,.1,1' : '.15,.6,.2,1'
 
   const run = Array.from({ length: 26 }, () => pick(symbols.value))
   strip.value = [...strip.value.slice(-3), ...run, around[0]!, target, around[1]!]
@@ -136,11 +141,11 @@ const spinNow = async () => {
   void windowEl.value?.offsetHeight
 
   const cell = windowEl.value ? parseFloat(getComputedStyle(windowEl.value).getPropertyValue('--cell')) : 116
-  transition.value = `transform ${seconds}s cubic-bezier(${nearMiss.value ? '.2,.7,.1,1' : '.15,.6,.2,1'})`
+  transition.value = `transform ${seconds}s cubic-bezier(${curve})`
   offset.value = -(strip.value.length - 3) * cell
 
   await wait(seconds * 1000 + 120)
-  await wait(reduce ? 200 : 900)
+  await wait(reduce ? 400 : 900)
   if (!trial.value) left.value = res.left ?? null
   result.value = res
   phase.value = 'result'
