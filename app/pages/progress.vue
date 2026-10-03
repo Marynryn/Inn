@@ -132,9 +132,30 @@ const confetti = Array.from({ length: 28 }, (_, i) => ({
   hue: (i * 47) % 360,
 }))
 
+const siteUrl = useRuntimeConfig().public.siteUrl
+const ogImage = ogImageUrl()
+const pageTitle = 'Прогресс чтения · Странствующая Таверна — The Wandering Inn'
+// Гость — а робот тоже гость — видит общие цифры: сколько глав в оригинале,
+// сколько переведено. По ним страницу и ищут.
+const pageDescription = 'Сколько глав The Wandering Inn уже переведено на русский, сколько слов в книге и сколько вам осталось читать.'
+
 useHead({
-  title: 'Прогресс чтения · Странствующая Таверна',
-  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+  title: pageTitle,
+  link: [{ rel: 'canonical', href: `${siteUrl}/progress` }],
+})
+
+useSeoMeta({
+  description: pageDescription,
+  ogTitle: pageTitle,
+  ogDescription: pageDescription,
+  ogUrl: `${siteUrl}/progress`,
+  ogType: 'website',
+  ogLocale: 'ru_RU',
+  ogImage,
+  twitterCard: 'summary_large_image',
+  twitterTitle: pageTitle,
+  twitterDescription: pageDescription,
+  twitterImage: ogImage,
 })
 </script>
 

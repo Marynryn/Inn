@@ -90,12 +90,30 @@ const toggleHidden = async (c: Character) => {
 }
 
 const siteUrl = useRuntimeConfig().public.siteUrl
+const ogImage = ogImageUrl()
 
-useHead({
-  title: `${settings.value?.characters_title || 'Персонажи'} · Странствующая Таверна`,
+const pageTitle = computed(() => `${settings.value?.characters_title || 'Персонажи'} · Странствующая Таверна — The Wandering Inn`)
+// Своя фраза, не подзаголовок из админки: тот объясняет, куда нажимать, а без
+// описания поисковик выдернул бы в выдачу случайный кусок карточек.
+const pageDescription = 'Персонажи The Wandering Inn на русском: карточки героев Странствующей Таверны — кто они и откуда.'
+
+useHead(() => ({
+  title: pageTitle.value,
   link: [{ rel: 'canonical', href: `${siteUrl}/characters` }],
-  // Страница пока прячется: вход только из профиля, в поиск не отдаём.
-  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+}))
+
+useSeoMeta({
+  description: pageDescription,
+  ogTitle: () => pageTitle.value,
+  ogDescription: pageDescription,
+  ogUrl: `${siteUrl}/characters`,
+  ogType: 'website',
+  ogLocale: 'ru_RU',
+  ogImage,
+  twitterCard: 'summary_large_image',
+  twitterTitle: () => pageTitle.value,
+  twitterDescription: pageDescription,
+  twitterImage: ogImage,
 })
 </script>
 
