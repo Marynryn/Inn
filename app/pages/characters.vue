@@ -299,6 +299,7 @@ useSeoMeta({
 }
 
 .sorts {
+  align-self: stretch; /* ростом с поле поиска рядом */
   display: flex;
   border: 1px solid rgba(241, 230, 210, .18);
   border-radius: var(--radius-sm);
