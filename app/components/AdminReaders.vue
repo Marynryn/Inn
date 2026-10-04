@@ -15,9 +15,18 @@ type Reader = {
   avatarFrame: AvatarFrame | null
   providers: string[]
   createdAt: string
+  online: boolean
 }
 
-const { data: readers, pending, error } = await useFetch<Reader[]>('/api/admin/readers', { default: () => [] })
+const { data: readers, pending, error, refresh } = await useFetch<Reader[]>('/api/admin/readers', { default: () => [] })
+
+// Кто на сайте, меняется на глазах — пока вкладка открыта, тихо перечитываем.
+// Свёрнутую вкладку браузера не трогаем: смотреть всё равно некому.
+let timer: ReturnType<typeof setInterval> | null = null
+onMounted(() => {
+  timer = setInterval(() => { if (document.visibilityState === 'visible') refresh() }, 30_000)
+})
+onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 
 const PROVIDER: Record<string, string> = { google: 'Google', telegram: 'Телеграм' }
 const via = (r: Reader) => r.providers.length ? r.providers.map(p => PROVIDER[p] ?? p).join(' · ') : 'пароль'
@@ -38,7 +47,10 @@ const date = (iso: string) => iso.slice(0, 10).split('-').reverse().join('.')
           class="row"
           :to="r.code ? `/reader/${r.code}` : undefined"
         >
-          <UserAvatar :src="r.avatarUrl" :name="r.name" :frame="r.avatarFrame" :size="36" alt="" />
+          <span class="ava">
+            <UserAvatar :src="r.avatarUrl" :name="r.name" :frame="r.avatarFrame" :size="36" alt="" />
+            <span v-if="r.online" class="online" title="Сейчас на сайте" aria-label="Сейчас на сайте" />
+          </span>
           <span class="who">
             <span class="name">{{ r.name }}<span v-if="r.isAdmin" class="tag">админ</span></span>
             <span class="meta">{{ via(r) }} · с {{ date(r.createdAt) }}</span>
@@ -81,6 +93,23 @@ const date = (iso: string) => iso.slice(0, 10).split('-').reverse().join('.')
 
 a.row:hover {
   background: rgba(241, 230, 210, .05);
+}
+
+.ava {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+}
+
+.online {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #6cc46a;
+  box-shadow: 0 0 0 2px var(--bg-dark);
 }
 
 .who {

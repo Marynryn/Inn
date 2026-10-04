@@ -34,6 +34,13 @@ test.describe('Панель администратора', () => {
     const row = page.locator('.readers .row', { hasText: READER.name }).first()
     await expect(row).toBeVisible()
     await expect(row).toHaveAttribute('href', /^\/reader\/[0-9a-f]{12}$/)
+    // Сам администратор сейчас на сайте — его сокет уведомлений открыт.
+    // Список мог прийти раньше, чем сокет подписался, поэтому перечитываем.
+    await expect(async () => {
+      await page.reload()
+      await expect(page.locator('.readers .row', { hasText: ADMIN.name }).first().locator('.online')).toBeVisible({ timeout: 2000 })
+    }).toPass({ timeout: 15_000 })
+
     await row.click()
     await expect(page).toHaveURL(/\/reader\/[0-9a-f]{12}$/)
   })

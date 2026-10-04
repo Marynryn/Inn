@@ -3,6 +3,7 @@ import { userIdentities, users } from '../../database/schema'
 import { useDb } from '../../utils/db'
 import { framesByIds } from '../../utils/frames'
 import { readerName } from '../../utils/identity'
+import { wsUsers } from '../../utils/ws-rooms'
 
 /**
  * Все, у кого есть аккаунт, — новые сверху. Админке нужен список, чтобы
@@ -42,5 +43,9 @@ export default defineEventHandler(async () => {
     avatarFrame: r.avatarFrameId ? frames.get(r.avatarFrameId) ?? null : null,
     providers: providers.get(r.id) ?? [],
     createdAt: r.createdAt,
+    // На сайте сейчас — значит, значок уведомлений держит открытый сокет хоть
+    // в одной вкладке. Это память сервера: после деплоя список пуст, пока
+    // браузеры не переподключатся (секунды).
+    online: wsUsers.has(r.id),
   }))
 })
