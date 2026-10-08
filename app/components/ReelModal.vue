@@ -60,6 +60,19 @@ const windowEl = ref<HTMLElement | null>(null)
 
 const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)]!
 
+/** Следующая клетка ленты: не та же картинка, что в двух клетках над ней, и
+ *  не из `avoid` (то, что встанет следом). Без этого случайная лента то и дело
+ *  выкладывала три одинаковые рамки подряд. Сравнение по картинке, а не по id:
+ *  две клетки с одной рамкой для глаза — тоже повтор. Если символов мало и
+ *  уйти от повтора нельзя, правило ослабляется, но лента всё равно строится. */
+const pickApart = (before: ReelSymbol[], from: ReelSymbol[], avoid: ReelSymbol[] = []) => {
+  const recent = before.slice(-2).map(s => s.url)
+  const strict = from.filter(s => !recent.includes(s.url) && !avoid.some(a => a.url === s.url))
+  if (strict.length) return pick(strict)
+  const loose = from.filter(s => s.url !== before.at(-1)?.url)
+  return pick(loose.length ? loose : from)
+}
+
 const load = async () => {
   try {
     state.value = await $fetch<ReelState>(base.value)
@@ -84,7 +97,9 @@ const load = async () => {
     return
   }
 
-  strip.value = [pick(symbols.value), pick(symbols.value), pick(symbols.value)]
+  const first: ReelSymbol[] = []
+  for (let i = 0; i < 3; i++) first.push(pickApart(first, symbols.value))
+  strip.value = first
   phase.value = 'ready'
   predecode()
 }
@@ -123,8 +138,9 @@ const spinNow = async () => {
   // или под ней. Не всегда, иначе это перестанет что-либо значить.
   const prizes = pool.filter(s => s.isPrize)
   nearMiss.value = !target.isPrize && prizes.length > 0 && Math.random() < 0.5
-  const neighbour = nearMiss.value ? pick(prizes) : pick(pool)
-  const around = Math.random() < 0.5 ? [neighbour, pick(pool)] : [pick(pool), neighbour]
+  const neighbour = nearMiss.value ? pick(prizes) : pickApart([target], pool)
+  const other = pickApart([target, neighbour], pool)
+  const around = Math.random() < 0.5 ? [neighbour, other] : [other, neighbour]
 
   // «Меньше движения» в системе (в Windows — выключенные анимации, их часто
   // гасят ради скорости) ленту не выключает: вращение и есть барабан, без него
@@ -134,8 +150,11 @@ const spinNow = async () => {
   const seconds = reduce ? 2.5 : nearMiss.value ? 4.6 : 3.8
   const curve = reduce ? '.3,.1,.3,1' : nearMiss.value ? '.2,.7,.1,1' : '.15,.6,.2,1'
 
-  const run = Array.from({ length: 26 }, () => pick(symbols.value))
-  strip.value = [...strip.value.slice(-3), ...run, around[0]!, target, around[1]!]
+  // Две последние клетки разгона стоят вплотную к тройке у линии — им нельзя
+  // повторять ни её верхнюю клетку, ни выпавший приз.
+  const lane = strip.value.slice(-3)
+  for (let i = 0; i < 26; i++) lane.push(pickApart(lane, symbols.value, i >= 24 ? [around[0]!, target] : []))
+  strip.value = [...lane, around[0]!, target, around[1]!]
 
   // Сначала без анимации ставим ленту в начало, потом едем: иначе браузер
   // склеит оба положения в одно и лента прыгнет сразу в конец.
