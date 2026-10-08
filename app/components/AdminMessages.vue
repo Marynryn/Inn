@@ -302,13 +302,17 @@ const lastWhen = (iso: string) =>
 </template>
 
 <style scoped>
-/* Две колонки на всю высоту окна за вычетом шапки и полей карточки: разговор
-   прокручивается внутри себя, а поле ввода всегда на виду. */
+/* Две колонки на всю высоту окна за вычетом шапки сайта, полей страницы и
+   карточки с заголовком: разговор прокручивается внутри себя, а поле ввода
+   всегда на виду. Высота — видимая (dvh): на телефоне 100vh включает спрятанные
+   панели браузера, и поле ввода уезжало под нижнюю. vh — запас для старых
+   браузеров без dvh. */
 .dm {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
-  height: calc(100vh - 220px);
-  min-height: 420px;
+  height: calc(100vh - 240px);
+  height: calc(100dvh - 240px);
+  min-height: 320px;
   border: 1px solid rgba(241, 230, 210, .08);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -655,7 +659,8 @@ const lastWhen = (iso: string) =>
 @media (max-width: 720px) {
   .dm {
     grid-template-columns: 1fr;
-    height: calc(100vh - 170px);
+    height: calc(100vh - 182px);
+    height: calc(100dvh - 182px);
   }
 
   .people {

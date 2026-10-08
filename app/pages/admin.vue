@@ -400,6 +400,7 @@ const form = reactive({
   characters_title: '',
   characters_subtitle: '',
   season_theme: '',
+  halloween_reader_bg: '',
 })
 watch(settings, (s) => { if (s) Object.assign(form, s) }, { immediate: true })
 
@@ -408,6 +409,14 @@ watch(settings, (s) => { if (s) Object.assign(form, s) }, { immediate: true })
   посредник. Пустая настройка считается включённой: если строка уже написана, а
   флажка в базе ещё нет, показать её правильнее, чем спрятать.
 */
+// Фон читалки на Хеллоуин: образцы, своя палитра и превью куска главы.
+// Палитре нужен цвет всегда, поэтому пустая настройка показывает обычный фон.
+const readerBg = computed(() => safeHex(form.halloween_reader_bg))
+const readerBgPick = computed({
+  get: () => readerBg.value ?? '#2b221c',
+  set: (v: string) => { form.halloween_reader_bg = v },
+})
+
 const tickerOn = computed({
   get: () => form.hero_ticker_on !== '0',
   set: (v: boolean) => { form.hero_ticker_on = v ? '1' : '0' },
@@ -1101,6 +1110,40 @@ useHead({
               Праздничное убранство для всех читателей: Торен вместо Аписты у
               оглавления, тыква у заголовка главы, мыши, тыквы и призраки в фоне
               читалки. Включается после «Сохранить».
+            </span>
+          </div>
+          <div class="field-row">
+            <label for="reader-bg">Фон читалки на Хеллоуин</label>
+            <div class="bg-picker">
+              <button
+                v-for="p in READER_BG_PRESETS"
+                :key="p.hex"
+                type="button"
+                class="bg-swatch"
+                :class="{ active: readerBg === p.hex }"
+                :style="{ background: p.hex }"
+                :title="`${p.hex} — ${p.label}`"
+                @click="form.halloween_reader_bg = p.hex"
+              >
+                <span>{{ p.label }}</span>
+              </button>
+              <input id="reader-bg" v-model="readerBgPick" type="color" class="bg-color" title="Свой цвет">
+              <button v-if="form.halloween_reader_bg" type="button" class="bg-reset" @click="form.halloween_reader_bg = ''">
+                Обычный
+              </button>
+            </div>
+            <div class="bg-preview" :style="{ background: readerBg || '#2b221c' }">
+              <span class="bg-preview-eyebrow">Странствующая Таверна · Том 1</span>
+              <b>Глава 1.55</b>
+              <p>
+                Даже облака над Кровавыми Полями, разделявшими север от юга, казались
+                окрашенными гнойной желчью. Красноватые — как сама земля — от крови.
+              </p>
+              <span class="bg-preview-code">{{ readerBg || 'обычный фон' }}</span>
+            </div>
+            <span class="field-hint">
+              Только в стандартной теме читалки и только когда выбран Хеллоуин. В
+              тёмной, сепии и белой фон остаётся их собственным.
             </span>
           </div>
           <div class="field-row">
@@ -2251,6 +2294,101 @@ useHead({
 }
 
 /* Пояснение под полем настройки — там, где одного названия мало. */
+.bg-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.bg-swatch {
+  display: flex;
+  align-items: flex-end;
+  width: 96px;
+  height: 52px;
+  padding: 6px 8px;
+  border: 1px solid rgba(241, 230, 210, .18);
+  border-radius: var(--radius-md);
+  color: rgba(231, 217, 194, .8);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bg-swatch.active {
+  border-color: var(--ember-soft);
+  box-shadow: 0 0 0 1px var(--ember-soft);
+}
+
+.bg-swatch:focus-visible,
+.bg-reset:focus-visible {
+  outline: 2px solid var(--ember-soft);
+  outline-offset: 2px;
+}
+
+/* Общий стиль полей растягивает input на всю ширину — палитре нужен квадрат. */
+.field-row input.bg-color {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  padding: 3px;
+  border: 1px solid rgba(241, 230, 210, .18);
+  border-radius: var(--radius-md);
+  background: none;
+  cursor: pointer;
+}
+
+.bg-reset {
+  padding: 6px 10px;
+  border: 1px solid rgba(241, 230, 210, .18);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--parchment-2);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+/* Превью — кусок главы теми же цветами текста, что в читалке. */
+.bg-preview {
+  margin-top: 4px;
+  padding: 18px 20px 14px;
+  border-radius: var(--radius-md);
+  color: #e7d9c2;
+  font-family: var(--font-reading, Georgia, serif);
+  transition: background .2s;
+}
+
+.bg-preview b {
+  display: block;
+  margin: 6px 0 8px;
+  font-size: 20px;
+  color: var(--parchment);
+}
+
+.bg-preview p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.bg-preview-eyebrow {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ember-soft);
+}
+
+.bg-preview-code {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: rgba(231, 217, 194, .45);
+}
+
 .field-hint {
   font-size: 12px;
   line-height: 1.5;

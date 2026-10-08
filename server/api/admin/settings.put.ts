@@ -9,7 +9,7 @@ const ALLOWED_KEYS = [
   'game_max_volume', 'game_cta_title', 'game_cta_text',
   'tg_cta_title', 'tg_cta_text',
   'characters_title', 'characters_subtitle',
-  'season_theme',
+  'season_theme', 'halloween_reader_bg',
 ]
 
 export default defineEventHandler(async (event) => {

@@ -12,6 +12,10 @@ test.describe('Праздничное оформление', () => {
       const select = page.locator('#season-theme')
       await expect(select).toHaveValue('')
       await select.selectOption('halloween')
+      // Фон читалки — образцом «посередине»; превью сразу перекрашивается.
+      await page.locator('.bg-swatch', { hasText: 'посередине' }).click()
+      await expect(page.locator('.bg-preview')).toHaveCSS('background-color', 'rgb(38, 32, 54)')
+      await page.locator('.bg-picker').scrollIntoViewIfNeeded()
       await page.screenshot({ path: '.data/shots/season-admin.png', fullPage: false })
       await page.getByRole('button', { name: /Сохранить/ }).first().click()
       await expect.poll(async () => (await (await page.request.get('/api/settings')).json()).season_theme).toBe('halloween')
@@ -23,9 +27,10 @@ test.describe('Праздничное оформление', () => {
 
       await open(page, chapterUrl(CHAPTERS[0]!.id))
       await expect(page.locator('.faint-leaves.halloween')).toHaveCount(1)
+      await expect(page.locator('.page-wrap')).toHaveCSS('background-color', 'rgb(38, 32, 54)')
     } finally {
       // База одна на все тесты: оформление возвращаем, даже если проверка упала.
-      await page.request.put('/api/admin/settings', { data: { season_theme: '' } })
+      await page.request.put('/api/admin/settings', { data: { season_theme: '', halloween_reader_bg: '' } })
     }
 
     await open(page, '/')

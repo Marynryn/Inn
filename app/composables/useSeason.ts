@@ -7,9 +7,16 @@
 export type Season = '' | 'halloween'
 
 export const useSeason = () => {
-  const { data } = useFetch<{ season_theme?: string }>('/api/settings', {
+  const { data } = useFetch<{ season_theme?: string, halloween_reader_bg?: string }>('/api/settings', {
     key: 'season',
-    pick: ['season_theme'],
+    pick: ['season_theme', 'halloween_reader_bg'],
   })
   return computed<Season>(() => (data.value?.season_theme === 'halloween' ? 'halloween' : ''))
+}
+
+/** Фон читалки, выбранный на Хеллоуин в админке; null — оставить обычный. */
+export const useSeasonReaderBg = () => {
+  const season = useSeason()
+  const { data } = useNuxtData<{ halloween_reader_bg?: string }>('season')
+  return computed(() => (season.value === 'halloween' ? safeHex(data.value?.halloween_reader_bg) : null))
 }

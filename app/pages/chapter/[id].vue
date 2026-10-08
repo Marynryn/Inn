@@ -34,6 +34,7 @@ if (chapter.value && slugifyChapterId(chapter.value.id) !== slugifyChapterId(raw
 const { data: allChapters } = await useFetch('/api/chapters', { key: `chapters-nav:${rawParam}` })
 const { data: settings } = useFetch('/api/settings')
 const season = useSeason()
+const seasonBg = useSeasonReaderBg()
 
 // Источник истины по id — ответ API (он резолвит слаг в реальный id главы),
 // а не сырой параметр роута, иначе локальный прогресс чтения/пометки
@@ -207,7 +208,12 @@ useHead(() => ({
 </script>
 
 <template>
-  <div v-if="chapter" class="page-wrap">
+  <div
+    v-if="chapter"
+    class="page-wrap"
+    :class="{ 'season-bg': seasonBg }"
+    :style="seasonBg ? { '--season-bg': seasonBg } : undefined"
+  >
     <ProgressModal
       v-if="showProgressModal && lastRead"
       :current-id="chapter.id"
@@ -405,6 +411,13 @@ html[data-reader-theme="sepia"] .page-wrap {
   Прячем правилом по атрибуту, а не условием в разметке: атрибут стоит на <html>
   ещё до первой отрисовки, поэтому листья не успевают мелькнуть.
 */
+/* Праздничный фон из админки — только в стандартной теме. Цвет приходит
+   переменной, а не прямо в --rd-bg: правила тем ниже сильнее этого класса и
+   перебивают его, а встроенный стиль перебил бы всё, даже выбранную тему. */
+.page-wrap.season-bg {
+  --rd-bg: var(--season-bg);
+}
+
 html[data-reader-theme="dark"] .faint-leaves,
 html[data-reader-theme="sepia"] .faint-leaves,
 html[data-reader-theme="light"] .faint-leaves {
