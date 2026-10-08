@@ -15,6 +15,14 @@ if (error.value) {
     fatal: true,
   })
 }
+
+// Как и на странице главы: перезалитая с буквой глава уводит 301-м на свой адрес.
+if (chapter.value && slugifyChapterId(chapter.value.id) !== slugifyChapterId(rawId)) {
+  await navigateTo(
+    { path: `/chapter/${encodeURIComponent(slugifyChapterId(chapter.value.id))}/comments`, query: route.query, hash: route.hash },
+    { redirectCode: 301, replace: true },
+  )
+}
 const { data: settings } = useFetch('/api/settings')
 
 // Как и на странице главы: id для комментариев берём из ответа API

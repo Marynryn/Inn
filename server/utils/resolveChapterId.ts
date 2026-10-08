@@ -15,5 +15,16 @@ export async function resolveChapterId(db: ReturnType<typeof useDb>, param: stri
 
   const target = slugifyChapterId(param)
   const rows = await db.select({ id: chapters.id }).from(chapters)
-  return rows.find(r => slugifyChapterId(r.id) === target)?.id ?? null
+  const same = rows.find(r => slugifyChapterId(r.id) === target)
+  if (same) return same.id
+
+  // Главу перезалили с буквой на конце («1.35» → «1.35 R»), и старый адрес,
+  // который уже в поиске, стал 404. Отдаём главу с тем же номером и одной
+  // буквенной припиской — страница затем уводит 301-м на новый адрес. Только
+  // если такая глава одна: из двух («4.06 KM» и «4.06 R») угадывать нельзя.
+  const renamed = rows.filter((r) => {
+    const slug = slugifyChapterId(r.id)
+    return slug.startsWith(`${target}-`) && /^[a-z]+$/.test(slug.slice(target.length + 1))
+  })
+  return renamed.length === 1 ? renamed[0].id : null
 }

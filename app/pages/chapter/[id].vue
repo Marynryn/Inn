@@ -17,6 +17,15 @@ if (error.value) {
   })
 }
 
+// Глава отозвалась на чужой адрес (её перезалили с буквой: «1-35» → «1-35-r»).
+// Постоянный редирект, чтобы поиск сменил ссылку, а не держал два адреса.
+if (chapter.value && slugifyChapterId(chapter.value.id) !== slugifyChapterId(rawParam)) {
+  await navigateTo(
+    { path: `/chapter/${encodeURIComponent(slugifyChapterId(chapter.value.id))}`, query: route.query, hash: route.hash },
+    { redirectCode: 301, replace: true },
+  )
+}
+
 // Ключ — свой на каждую главу. С общим ключом Nuxt при переходе между главами
 // не перезапрашивает список (предыдущая страница ещё смонтирована, её данные
 // считаются свежими), и навигация «← →» до перезагрузки вкладки живёт на
