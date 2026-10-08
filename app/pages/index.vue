@@ -2,6 +2,7 @@
 import { formatHours } from '~/composables/useReadingStats'
 
 const { data: settings } = await useFetch('/api/settings')
+const season = useSeason()
 const { data: chapters } = await useFetch('/api/chapters')
 // Пока идёт барабан, его баннер стоит вместо плашки игры. Сбой — не беда:
 // останется плашка игры, главная из-за баннера не падает.
@@ -257,7 +258,8 @@ useSeoMeta({
       </div>
       <div class="ledger-rule-row">
         <div class="ledger-rule" />
-        <div class="ledger-bee"><BeeApista /></div>
+        <div v-if="season === 'halloween'" class="ledger-toren"><TorenDance /></div>
+        <div v-else class="ledger-bee"><BeeApista /></div>
       </div>
 
       <VolumeAccordion
@@ -607,6 +609,16 @@ useSeoMeta({
   line-height: 0;
 }
 
+/* Торен — в квадрате с полем для мышей и звёзд, ноги у него не у самого низа,
+   поэтому квадрат опущен ниже линейки. Сдвиг подобран замером: в самой
+   низкой точке танца ступни стоят ровно на линейке, а не проваливаются за неё. */
+.ledger-toren {
+  position: absolute;
+  right: -14px;
+  bottom: -3px;
+  line-height: 0;
+}
+
 /* Плашка игры стоит перед оглавлением и повторяет его ширину. */
 .game-wrap {
   max-width: 760px;
@@ -666,6 +678,12 @@ useSeoMeta({
 
   .ledger-bee {
     --bee-w: 72px;
+  }
+
+  .ledger-toren {
+    --toren-w: 96px;
+    right: -8px;
+    bottom: -2px;
   }
 
   /* Подпись переносим раньше, чтобы строка не подлезала под пчелу справа. */

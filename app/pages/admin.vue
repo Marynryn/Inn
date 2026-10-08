@@ -399,6 +399,7 @@ const form = reactive({
   tg_cta_text: '',
   characters_title: '',
   characters_subtitle: '',
+  season_theme: '',
 })
 watch(settings, (s) => { if (s) Object.assign(form, s) }, { immediate: true })
 
@@ -1077,6 +1078,18 @@ useHead({
         <section v-if="activeTab === 'settings'" class="card">
           <h2>Настройки сайта</h2>
           <div class="field-row">
+            <label for="season-theme">Оформление сайта</label>
+            <select id="season-theme" v-model="form.season_theme">
+              <option value="">Обычное</option>
+              <option value="halloween">Хеллоуин</option>
+            </select>
+            <span class="field-hint">
+              Праздничное убранство для всех читателей: Торен вместо Аписты у
+              оглавления, тыква у заголовка главы, мыши, тыквы и призраки в фоне
+              читалки. Включается после «Сохранить».
+            </span>
+          </div>
+          <div class="field-row">
             <label>Заголовок hero</label>
             <input v-model="form.hero_title" type="text">
           </div>
@@ -1346,6 +1359,7 @@ useHead({
 }
 
 .field-row input,
+.field-row select,
 .field-row textarea {
   background: rgba(241, 230, 210, .05);
   border: 1px solid rgba(241, 230, 210, .18);
@@ -1361,7 +1375,16 @@ useHead({
   resize: vertical;
 }
 
+/* Раскрытый список Windows рисует сам, на белом, а цвет текста берёт у поля —
+   светлый пергамент на белом не читается. Пунктам задаём тёмный фон явно. */
+.field-row select option,
+.grant-select option {
+  background: var(--bg-dark);
+  color: var(--parchment);
+}
+
 .field-row input:focus-visible,
+.field-row select:focus-visible,
 .field-row textarea:focus-visible {
   outline: none;
   border-color: var(--ember-soft);

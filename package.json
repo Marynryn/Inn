@@ -30,6 +30,7 @@
     "drizzle-orm": "^0.45.2",
     "emoji-picker-element": "^1.29.1",
     "jszip": "^3.10.1",
+    "lottie-web": "^5.13.0",
     "nuxt": "^4.4.8",
     "nuxt-auth-utils": "^0.5.29",
     "pinia": "^3.0.4",

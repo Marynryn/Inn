@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import titleLeaf from '~/assets/leaves/maple-lime.svg'
+import titlePumpkin from '~/assets/halloween/jack-o-lantern.svg'
 
 const route = useRoute()
 const rawParam = route.params.id as string
@@ -32,6 +33,7 @@ if (chapter.value && slugifyChapterId(chapter.value.id) !== slugifyChapterId(raw
 // порядке, который был при первом заходе, — перестановки в панели не доезжают.
 const { data: allChapters } = await useFetch('/api/chapters', { key: `chapters-nav:${rawParam}` })
 const { data: settings } = useFetch('/api/settings')
+const season = useSeason()
 
 // Источник истины по id — ответ API (он резолвит слаг в реальный id главы),
 // а не сырой параметр роута, иначе локальный прогресс чтения/пометки
@@ -237,7 +239,7 @@ useHead(() => ({
                о чём страница, а «Глава 1.02» сама по себе книгу не называет. -->
           <h1 class="display">
             <span class="reader-eyebrow">
-              <img class="eyebrow-leaf" :src="titleLeaf" alt="" width="18" height="18">
+              <img class="eyebrow-leaf" :src="season === 'halloween' ? titlePumpkin : titleLeaf" alt="" width="18" height="18">
               <span>Странствующая Таверна · <span class="nowrap">Том {{ chapter.volume }}</span></span>
             </span>
             {{ chapter.title }}
