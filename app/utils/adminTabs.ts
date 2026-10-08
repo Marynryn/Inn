@@ -11,6 +11,7 @@ export const ADMIN_TABS = [
   { key: 'skins', label: 'Скины', icon: 'spark' },
   { key: 'reel', label: 'Барабан', icon: 'wheel' },
   { key: 'readers', label: 'Читатели', icon: 'users' },
+  { key: 'messages', label: 'Сообщения', icon: 'chat' },
   { key: 'profile', label: 'Аккаунт', icon: 'user' },
 ] as const
 

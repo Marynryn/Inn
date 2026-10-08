@@ -26,6 +26,7 @@ const adminTab = computed(() => toAdminTab(route.query.tab))
 const close = () => emit('close')
 
 const tabs = ADMIN_TABS
+const { has: unreadMessages } = useAdminUnread()
 
 // До списка глав доводит сам роутер (router.options.ts). Если адрес уже
 // /#ledger, перехода не будет — тогда докручиваем сами.
@@ -148,6 +149,7 @@ const onTouchEnd = (e: TouchEvent) => {
             :icon="t.icon"
             :label="t.label"
             :active="adminTab === t.key"
+            :dot="t.key === 'messages' && unreadMessages"
             compact
             @click="close"
           />

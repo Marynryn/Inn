@@ -24,12 +24,24 @@ type Item = {
   frame: AvatarFrame | null
 }
 
+/** Непрочитанное от другого админа — одна строка на человека. */
+type MessageItem = {
+  fromUserId: number
+  name: string
+  avatarUrl: string | null
+  avatarFrame: AvatarFrame | null
+  count: number
+  body: string
+  createdAt: string
+}
+
 const auth = useAuthStore()
 const route = useRoute()
 const now = useNow()
 
 const open = ref(false)
 const items = ref<Item[]>([])
+const messages = ref<MessageItem[]>([])
 const unread = ref(0)
 
 // Приглашение покрутить барабан — строкой над уведомлениями, пока сегодня не
@@ -42,6 +54,7 @@ const loading = ref(false)
 const load = async () => {
   if (!auth.isAuthed) {
     items.value = []
+    messages.value = []
     unread.value = 0
     reel.value = null
     return
@@ -49,8 +62,9 @@ const load = async () => {
 
   loading.value = true
   try {
-    const data = await $fetch<{ unread: number, items: Item[], reel: { id: number, title: string, invite: string } | null }>('/api/notifications')
+    const data = await $fetch<{ unread: number, items: Item[], reel: { id: number, title: string, invite: string } | null, messages?: MessageItem[] }>('/api/notifications')
     items.value = data.items
+    messages.value = data.messages ?? []
     unread.value = data.unread
     reel.value = data.reel ?? null
   }
@@ -108,6 +122,15 @@ const openItem = async (n: Item) => {
   await navigateTo(hrefOf(n))
 }
 
+// Сообщение прочитанным помечает сам разговор, когда его откроют, — здесь
+// только убираем строку и ведём туда.
+const openMessage = async (m: MessageItem) => {
+  open.value = false
+  messages.value = messages.value.filter(x => x.fromUserId !== m.fromUserId)
+  unread.value = Math.max(0, unread.value - 1)
+  await navigateTo(`/admin?tab=messages&with=${m.fromUserId}`)
+}
+
 const openReel = () => {
   open.value = false
   reelOpen.value = true
@@ -122,6 +145,7 @@ const onReelClose = () => {
 const readAll = async () => {
   unread.value = 0
   items.value = []
+  messages.value = []
   try { await $fetch('/api/notifications/read', { method: 'POST' }) }
   catch {}
 }
@@ -186,6 +210,7 @@ const connect = async () => {
     try {
       const msg = JSON.parse(e.data)
       if (msg?.type === 'notification') load()
+      notifyBus.emit(msg)
     }
     catch {}
   }
@@ -288,8 +313,8 @@ onUnmounted(() => {
           <button class="panel-close" type="button" aria-label="Закрыть" @click="open = false">×</button>
         </div>
 
-        <p v-if="loading && !items.length && !reel" class="panel-note">Смотрим…</p>
-        <p v-else-if="!items.length && !reel" class="panel-note">
+        <p v-if="loading && !items.length && !messages.length && !reel" class="panel-note">Смотрим…</p>
+        <p v-else-if="!items.length && !messages.length && !reel" class="panel-note">
           Пока тихо. Здесь появятся ответы на твои комментарии и новые рамки.
         </p>
 
@@ -306,6 +331,26 @@ onUnmounted(() => {
                 <span class="item-top"><b>Барабан «{{ reel.title }}»</b></span>
                 <span class="item-body">{{ reel.invite }}</span>
                 <span class="item-go">Крутить →</span>
+              </span>
+            </button>
+          </li>
+          <li v-for="m in messages" :key="'m' + m.fromUserId">
+            <button class="item" type="button" @click="openMessage(m)">
+              <UserAvatar
+                class="item-pic"
+                :src="m.avatarUrl"
+                :name="m.name"
+                :frame="m.avatarFrame"
+                :size="28"
+                alt=""
+              />
+              <span class="item-text">
+                <span class="item-top">
+                  <b>{{ m.name }}</b> пишет<template v-if="m.count > 1"> ({{ m.count }})</template>
+                  <span class="item-time">{{ timeAgo(m.createdAt, now) }}</span>
+                </span>
+                <span class="item-body">{{ m.body }}</span>
+                <span class="item-go">Ответить →</span>
               </span>
             </button>
           </li>

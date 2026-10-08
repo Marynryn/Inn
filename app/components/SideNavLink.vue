@@ -7,6 +7,8 @@ defineProps<{
   active?: boolean
   accent?: boolean
   compact?: boolean
+  /** Точка «есть новое» — без числа, только знак, что туда стоит заглянуть. */
+  dot?: boolean
 }>()
 </script>
 
@@ -19,6 +21,7 @@ defineProps<{
   >
     <NavIcon :name="icon" />
     <span class="side-label">{{ label }}</span>
+    <span v-if="dot" class="side-dot" aria-label="есть новое" />
   </NuxtLink>
 </template>
 
@@ -53,6 +56,15 @@ defineProps<{
   background: rgba(214, 136, 62, .14);
   color: var(--ember-soft);
   font-weight: 500;
+}
+
+.side-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ember-soft);
+  box-shadow: 0 0 6px rgba(214, 136, 62, .7);
 }
 
 .side-label {

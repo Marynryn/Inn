@@ -294,3 +294,15 @@ export const characterFlames = sqliteTable('character_flames', {
   ip: text('ip'), // только у гостя; у вошедшего NULL
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
+
+// Личная переписка админов. Один разговор — пара людей, отдельной строки
+// «разговор» нет: его собирают по паре отправитель — получатель.
+export const adminMessages = sqliteTable('admin_messages', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  fromUserId: integer('from_user_id').notNull(),
+  toUserId: integer('to_user_id').notNull(),
+  body: text('body').notNull(),
+  // Прочитал ли получатель. Своё отправленное прочитанным не помечается.
+  isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+})

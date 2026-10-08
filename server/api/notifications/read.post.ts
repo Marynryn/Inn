@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { notifications } from '../../database/schema'
+import { adminMessages, notifications } from '../../database/schema'
 import { useDb } from '../../utils/db'
 
 /**
@@ -28,6 +28,15 @@ export default defineEventHandler(async (event) => {
     .where(id != null
       ? and(eq(notifications.userId, userId), eq(notifications.id, id))
       : eq(notifications.userId, userId))
+
+  // «Прочитать все» гасит и личные сообщения: иначе строки «написал» остались
+  // бы в колокольчике одни, и кнопка выглядела бы сломанной.
+  if (id == null) {
+    await db
+      .update(adminMessages)
+      .set({ isRead: true })
+      .where(and(eq(adminMessages.toUserId, userId), eq(adminMessages.isRead, false)))
+  }
 
   return { ok: true }
 })

@@ -5,6 +5,7 @@ import { excerptText } from '#shared/utils/excerpt'
 import { useDb } from '../../utils/db'
 import { framesByIds, toAvatarFrame } from '../../utils/frames'
 import { runningReelFor, spinsLeft, textsOf } from '../../utils/reel'
+import { otherAdmins, unreadBySender } from '../../utils/admin-messages'
 
 /**
  * Уведомления читателя: кто ответил на его комментарий и какие рамки ему
@@ -38,7 +39,7 @@ export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   const userId = (session.user as { id?: number } | undefined)?.id ?? null
 
-  if (!userId) return { unread: 0, items: [], reel: null }
+  if (!userId) return { unread: 0, items: [], reel: null, messages: [] }
 
   const db = useDb()
 
@@ -103,9 +104,14 @@ export default defineEventHandler(async (event) => {
     ? { id: reel.id, title: reel.title, invite: textsOf(reel).invite }
     : null
 
+  // Личные сообщения админов — по строке на написавшего, тоже на лету: они
+  // уже лежат в своей таблице с отметкой «прочитано», копия здесь разошлась бы.
+  const messages = role === 'admin' ? await adminMessageItems(userId) : []
+
   return {
-    unread: unread?.total ?? 0,
+    unread: (unread?.total ?? 0) + messages.length,
     reel: reelInvite,
+    messages,
     items: rows.map(({ avatarFrameId, grantedFrame, ...r }) => ({
       ...r,
       avatarFrame: frames.get(avatarFrameId ?? 0) ?? null,
@@ -122,3 +128,21 @@ export default defineEventHandler(async (event) => {
     })),
   }
 })
+
+/** Непрочитанное от других админов — с именем и лицом написавшего. */
+async function adminMessageItems(me: number) {
+  const senders = await unreadBySender(me)
+  if (!senders.length) return []
+  const people = new Map((await otherAdmins(me)).map(a => [a.id, a]))
+  return senders
+    .filter(s => people.has(s.fromUserId))
+    .map(s => ({
+      fromUserId: s.fromUserId,
+      name: people.get(s.fromUserId)!.name,
+      avatarUrl: people.get(s.fromUserId)!.avatarUrl,
+      avatarFrame: people.get(s.fromUserId)!.avatarFrame,
+      count: s.count,
+      body: excerptText(s.body, EXCERPT),
+      createdAt: s.createdAt,
+    }))
+}

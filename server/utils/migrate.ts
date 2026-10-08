@@ -715,6 +715,22 @@ export async function runMigrations() {
     );
   `)
 
+  // Личная переписка админов. Индексы — под два вопроса: разговор пары по
+  // порядку и «что у меня непрочитанного» для колокольчика.
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS admin_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_user_id INTEGER NOT NULL,
+      to_user_id INTEGER NOT NULL,
+      body TEXT NOT NULL,
+      is_read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS admin_messages_pair ON admin_messages (from_user_id, to_user_id, id);
+    CREATE INDEX IF NOT EXISTS admin_messages_unread ON admin_messages (to_user_id, is_read);
+  `)
+
   for (const sql of [
     'ALTER TABLE users ADD COLUMN figure TEXT',
     'ALTER TABLE reel_segments ADD COLUMN figure TEXT',

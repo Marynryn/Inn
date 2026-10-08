@@ -579,6 +579,14 @@ const route = useRoute()
 const activeTab = computed(() => toAdminTab(route.query.tab))
 const adminTabs = ADMIN_TABS
 
+// Точка на вкладке «Сообщения»: проверяем при входе и всякий раз, когда сокет
+// говорит, что пришло новое или что-то прочитано в другой вкладке.
+const { has: unreadMessages, refresh: refreshUnread } = useAdminUnread()
+onMounted(refreshUnread)
+notifyBus.on((msg) => {
+  if (msg?.type === 'message' || msg?.type === 'notification') refreshUnread()
+})
+
 useHead({
   title: 'Админ · Странствующая Таверна',
   meta: [{ name: 'robots', content: 'noindex, nofollow' }],
@@ -605,6 +613,7 @@ useHead({
           :icon="t.icon"
           :label="t.label"
           :active="activeTab === t.key"
+          :dot="t.key === 'messages' && unreadMessages"
           compact
           class="sb-tab"
         />
@@ -1068,6 +1077,11 @@ useHead({
         <section v-if="activeTab === 'reel'" class="card card--wide">
           <h2>Барабан</h2>
           <AdminReel />
+        </section>
+
+        <section v-if="activeTab === 'messages'" class="card card--wide">
+          <h2>Сообщения</h2>
+          <AdminMessages />
         </section>
 
         <section v-if="activeTab === 'readers'" class="card card--wide">
