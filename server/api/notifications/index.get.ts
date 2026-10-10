@@ -6,6 +6,7 @@ import { useDb } from '../../utils/db'
 import { framesByIds, toAvatarFrame } from '../../utils/frames'
 import { runningReelFor, spinsLeft, textsOf } from '../../utils/reel'
 import { otherAdmins, unreadBySender } from '../../utils/admin-messages'
+import { likeSummaries, type LikeSummary } from '../../utils/like-notify'
 
 /**
  * Уведомления читателя: кто ответил на его комментарий и какие рамки ему
@@ -95,6 +96,15 @@ export default defineEventHandler(async (event) => {
 
   const frames = await framesByIds(rows.map(r => r.avatarFrameId))
 
+  // Лайки: у такой строки комментарий — свой, а кто и сколько лайкнул,
+  // считаем сейчас, чтобы снятый лайк не висел в уведомлении.
+  const likes = await likeSummaries(
+    rows.filter(r => r.type === 'like' && r.commentId).map(r => r.commentId!),
+    userId,
+  )
+  // Все лайки сняли — сообщать не о чем, строку прячем и из счёта тоже.
+  const gone = rows.filter(r => r.type === 'like' && !likes.has(r.commentId ?? 0)).length
+
   // Приглашение крутить барабан не хранится строкой: оно считается на лету —
   // так его видит и тот, кто зарегистрировался посреди ивента, а назавтра оно
   // появляется снова само, без рассылки каждому.
@@ -109,12 +119,13 @@ export default defineEventHandler(async (event) => {
   const messages = role === 'admin' ? await adminMessageItems(userId) : []
 
   return {
-    unread: (unread?.total ?? 0) + messages.length,
+    unread: Math.max(0, (unread?.total ?? 0) - gone) + messages.length,
     reel: reelInvite,
     messages,
-    items: rows.map(({ avatarFrameId, grantedFrame, ...r }) => ({
+    items: rows.filter(r => r.type !== 'like' || likes.has(r.commentId ?? 0)).map(({ avatarFrameId, grantedFrame, ...r }) => ({
       ...r,
       avatarFrame: frames.get(avatarFrameId ?? 0) ?? null,
+      ...likeFields(r.type === 'like' ? likes.get(r.commentId ?? 0) : undefined),
       // Выданная рамка — целиком, как её рисует аватарка: шар покажет её на
       // своём же лице читателя.
       frame: grantedFrame ? toAvatarFrame(grantedFrame) : null,
@@ -122,7 +133,7 @@ export default defineEventHandler(async (event) => {
       body: r.body == null ? null : (r.isSpoiler ? '[спойлер]' : excerptText(r.body, EXCERPT)),
       // Свой же текст — коротким напоминанием, о чём был разговор. Спойлер
       // прячем и здесь: уведомление могут читать через плечо.
-      answeredBody: r.answeredBody
+      answeredBody: r.answeredBody && r.type !== 'like'
         ? (r.answeredSpoiler ? '[спойлер]' : excerptText(r.answeredBody, ANSWERED_EXCERPT))
         : null,
     })),
@@ -145,4 +156,18 @@ async function adminMessageItems(me: number) {
       body: excerptText(s.body, EXCERPT),
       createdAt: s.createdAt,
     }))
+}
+
+/**
+ * У лайка лицо и имя — того, кто лайкнул последним из вошедших, а не автора
+ * комментария (автор — сам читатель). Лайкали одни гости — лица нет вовсе.
+ */
+function likeFields(summary: LikeSummary | undefined) {
+  if (!summary) return { likes: null }
+  return {
+    likes: summary.likes,
+    authorName: summary.liker?.name ?? null,
+    avatarUrl: summary.liker?.avatarUrl ?? null,
+    avatarFrame: summary.liker?.avatarFrame ?? null,
+  }
 }

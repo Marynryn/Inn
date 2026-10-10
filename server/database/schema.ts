@@ -270,12 +270,17 @@ export const gameResults = sqliteTable('game_results', {
 // Второе событие — выдали рамку. Устроено так же: храним только id рамки,
 // имя и картинку берём из каталога при чтении, и удалённая рамка выпадает из
 // списка сама.
+// Третье — лайки на комментарий: одна строка на комментарий, а не на лайк, иначе
+// популярная реплика забила бы весь ящик. Кто и сколько — считается при чтении.
 export const notifications = sqliteTable('notifications', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(), // получатель
-  type: text('type', { enum: ['reply', 'frame'] }).notNull().default('reply'),
-  commentId: integer('comment_id'), // ответ, о котором уведомляем (type = reply)
+  type: text('type', { enum: ['reply', 'frame', 'like'] }).notNull().default('reply'),
+  commentId: integer('comment_id'), // ответ (type = reply) или свой лайкнутый комментарий (type = like)
   frameId: integer('frame_id'), // выданная рамка (type = frame)
+  // Сколько лайков было, когда о них уведомили (type = like). Снова зажигаем
+  // уведомление, только если лайков стало больше: сняли и поставили — не новость.
+  likes: integer('likes'),
   isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })

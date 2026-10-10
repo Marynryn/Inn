@@ -1,6 +1,7 @@
 import { useDb } from '../../../utils/db'
 import { commentReactions } from '../../../database/schema'
 import { eq, and, isNull } from 'drizzle-orm'
+import { notifyLike } from '../../../utils/like-notify'
 
 export default defineEventHandler(async (event) => {
   const commentId = Number(getRouterParam(event, 'id'))
@@ -31,10 +32,13 @@ export default defineEventHandler(async (event) => {
       await db.update(commentReactions)
         .set({ type })
         .where(eq(commentReactions.id, existing[0].id))
+      if (type === 'like') await notifyLike(commentId, userId)
       return { action: 'switched', type }
     }
   }
 
   await db.insert(commentReactions).values({ commentId, type, userId, ip: userId ? null : ip })
+  // Дизлайк автору не несём: от него только огорчение, а пользы никакой.
+  if (type === 'like') await notifyLike(commentId, userId)
   return { action: 'added', type }
 })

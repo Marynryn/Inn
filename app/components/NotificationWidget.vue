@@ -7,11 +7,12 @@
 
 import type { AvatarFrame } from '#shared/utils/avatarFrames'
 
-/** Два события: ответили на комментарий или выдали рамку. У ответа заполнены
- *  поля комментария, у рамки — сама рамка; остальное пустое. */
+/** Три события: ответили на комментарий, лайкнули его или выдали рамку. У
+ *  ответа заполнены поля комментария, у рамки — сама рамка; у лайка тело —
+ *  свой комментарий, а имя и лицо — последнего лайкнувшего (у гостей их нет). */
 type Item = {
   id: number
-  type: 'reply' | 'frame'
+  type: 'reply' | 'frame' | 'like'
   isRead: boolean
   createdAt: string
   commentId: number | null
@@ -22,6 +23,7 @@ type Item = {
   avatarFrame: AvatarFrame | null
   answeredBody: string | null
   frame: AvatarFrame | null
+  likes: number | null
 }
 
 /** Непрочитанное от другого админа — одна строка на человека. */
@@ -95,6 +97,28 @@ const isAdminPage = computed(() => route.path === '/admin' || route.path.startsW
 
 /** Куда ведёт уведомление: рамка — в профиль, где её надевают; ответ — к
  *  комментариям главы или к отзывам на главной. */
+/** «Гриша и ещё 3 ставят лайк…»; лайкали одни гости — «…поставили 2 лайка».
+ *  Настоящее время — чтобы не гадать с родом: «поставил» или «поставила». */
+const likeLine = (n: Item) => {
+  const total = n.likes ?? 0
+  if (!n.authorName) {
+    return total > 1
+      ? `Твоему комментарию поставили ${total} ${plural(total, 'лайк', 'лайка', 'лайков')}`
+      : 'Твоему комментарию поставили лайк'
+  }
+  return total > 1
+    ? `${n.authorName} и ещё ${total - 1} ставят лайк твоему комментарию`
+    : `${n.authorName} ставит лайк твоему комментарию`
+}
+
+const plural = (n: number, one: string, few: string, many: string) => {
+  const m10 = n % 10
+  const m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return one
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
+  return many
+}
+
 const hrefOf = (n: Item) => {
   if (n.type === 'frame') return '/profile'
   // Якорь ведёт к самому ответу: страница обсуждения прокрутит к нему и
@@ -315,7 +339,7 @@ onUnmounted(() => {
 
         <p v-if="loading && !items.length && !messages.length && !reel" class="panel-note">Смотрим…</p>
         <p v-else-if="!items.length && !messages.length && !reel" class="panel-note">
-          Пока тихо. Здесь появятся ответы на твои комментарии и новые рамки.
+          Пока тихо. Здесь появятся ответы и лайки на твои комментарии и новые рамки.
         </p>
 
         <!-- Чужие реплики в записях Clarity не показываем. -->
@@ -373,6 +397,26 @@ onUnmounted(() => {
                 </span>
                 <span class="item-body">Тебе досталась «{{ n.frame.name }}»</span>
                 <span class="item-answered">надеть можно в профиле</span>
+              </span>
+            </button>
+
+            <button v-else-if="n.type === 'like'" class="item" type="button" @click="openItem(n)">
+              <UserAvatar
+                v-if="n.authorName"
+                class="item-pic"
+                :src="n.avatarUrl"
+                :name="n.authorName"
+                :frame="n.avatarFrame"
+                :size="28"
+                alt=""
+              />
+              <span v-else class="like-icon" aria-hidden="true">♥</span>
+              <span class="item-text">
+                <span class="item-top">
+                  {{ likeLine(n) }}
+                  <span class="item-time">{{ timeAgo(n.createdAt, now) }}</span>
+                </span>
+                <span class="item-answered">«{{ n.body }}»</span>
               </span>
             </button>
 
@@ -646,6 +690,19 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: 500;
   color: var(--ember-soft);
+}
+
+/* Лайкали одни гости — лица нет, вместо него сердечко в том же кружке. */
+.like-icon {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(214, 136, 62, .16);
+  color: var(--ember-soft);
+  font-size: 14px;
 }
 
 .item-pic {

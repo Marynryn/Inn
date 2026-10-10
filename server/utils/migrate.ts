@@ -520,6 +520,40 @@ export async function runMigrations() {
     ], 'write')
   }
 
+  // Третий тип — лайки. CHECK в SQLite на месте не поправить, поэтому таблицу
+  // перекладываем ещё раз, как с рамками, и заодно добавляем счётчик лайков.
+  // Ответ и лайк делят индекс notifications_once и не сталкиваются: у ответа
+  // comment_id — чужая реплика, у лайка — своя.
+  const likeRebuilt = await client.execute("SELECT value FROM site_settings WHERE key = 'notifications_like_rebuild'")
+  if (likeRebuilt.rows.length === 0) {
+    await client.batch([
+      `CREATE TABLE notifications_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        type TEXT NOT NULL DEFAULT 'reply' CHECK(type IN ('reply','frame','like')),
+        comment_id INTEGER,
+        frame_id INTEGER,
+        likes INTEGER,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO notifications_new (id, user_id, type, comment_id, frame_id, is_read, created_at)
+        SELECT id, user_id, type, comment_id, frame_id, is_read, created_at FROM notifications`,
+      'DROP TABLE notifications',
+      'ALTER TABLE notifications_new RENAME TO notifications',
+      `CREATE UNIQUE INDEX IF NOT EXISTS notifications_once
+        ON notifications (user_id, comment_id) WHERE comment_id IS NOT NULL`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS notifications_frame_once
+        ON notifications (user_id, frame_id) WHERE frame_id IS NOT NULL`,
+      'CREATE INDEX IF NOT EXISTS notifications_unread ON notifications (user_id, is_read)',
+      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('notifications_like_rebuild', '1')",
+    ], 'write')
+  }
+
+  // Лайки считают по комментарию — и счётчики под репликами, и уведомление о
+  // них. Без индекса каждый подсчёт проходил бы всю таблицу реакций.
+  await client.execute('CREATE INDEX IF NOT EXISTS comment_reactions_comment ON comment_reactions (comment_id)')
+
   // Дефолтные настройки сайта
   const defaults: Record<string, string> = {
     hero_title: 'Истории трактира,\nрассказанные заново',

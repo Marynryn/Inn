@@ -108,6 +108,48 @@ test.describe('Комментарии', () => {
     expect(list.unread).toBeGreaterThan(0)
   })
 
+  test('лайк приходит автору уведомлением, а снять и поставить снова — не новость', async ({ browser, page }) => {
+    // SECOND пишет комментарий...
+    await login(page, SECOND)
+    await open(page, discussionUrl)
+    const section = page.locator('.comments-section')
+    const text = `Лучшая глава тома ${stamp()}`
+    await section.getByPlaceholder('Что думаешь об этой главе?').fill(text)
+    await section.getByRole('button', { name: 'Отправить' }).click()
+    await expect(section.locator('.comment-item', { hasText: text })).toBeVisible()
+    await page.request.post('/api/notifications/read')
+
+    // ...READER лайкает его из другого браузера...
+    const other = await browser.newContext({ extraHTTPHeaders: { 'x-forwarded-for': '10.9.9.8' } })
+    const reader = await other.newPage()
+    await login(reader, READER)
+    await open(reader, discussionUrl)
+    const like = reader.locator('.comment-item', { hasText: text }).locator('.reaction-btn').first()
+    await like.click()
+    await expect(like).toHaveClass(/active/)
+
+    // ...и у SECOND в колокольчике одна строка про лайк.
+    await expect(page.locator('.notif-widget .badge')).toHaveText(/[1-9]/)
+    const likesOf = async () => (await (await page.request.get('/api/notifications')).json())
+      .items.filter((n: { type: string, body: string }) => n.type === 'like' && n.body.includes(text))
+    const [item] = await likesOf()
+    expect(item.likes).toBe(1)
+    expect(item.authorName).toBeTruthy()
+
+    await page.locator('.notif-widget .orb-btn').click()
+    await expect(page.locator('.notif-widget .item', { hasText: 'ставит лайк твоему комментарию' })).toBeVisible()
+
+    // Прочитал — READER снимает лайк и ставит снова: второй раз не уведомляем.
+    await page.request.post('/api/notifications/read')
+    await like.click()
+    await expect(like).not.toHaveClass(/active/)
+    await like.click()
+    await expect(like).toHaveClass(/active/)
+    await other.close()
+
+    expect(await likesOf()).toHaveLength(0)
+  })
+
   test('реакция ставится один раз и снимается повторным кликом', async ({ page }) => {
     await open(page, discussionUrl)
     const item = page.locator('.comment-item').first()
