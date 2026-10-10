@@ -4,6 +4,15 @@ toren.json — «Death Dance», jignesh gajjar, LottieFiles:
   https://lottiefiles.com/free-animation/death-dance-xrKmv0uJOR
   Lottie Simple License. Числа округлены до сотых — файл легче, на вид без разницы.
 
+bats.json — «batstransitons», Diego PerMar, LottieFiles:
+  https://lottiefiles.com/36004-batstransitons
+  Lottie Simple License. Числа округлены до десятых — файл легче, на вид без
+  разницы. Заставка проигрывает её задом наперёд.
+
+public/toren-smoke.webp — клуб дыма за Тореном: smoke_08 из Particle Pack,
+  Kenney, https://kenney.nl/assets/particle-pack, лицензия CC0. Перекрашен
+  из белого в тёплый серый и сделан плотнее.
+
 bat.svg, jack-o-lantern.svg, ghost.svg — Fluent Emoji (Flat),
   https://github.com/microsoft/fluentui-emoji, лицензия MIT:
 

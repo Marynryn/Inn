@@ -172,7 +172,8 @@ useSeoMeta({
 </script>
 
 <template>
-  <div>
+  <div class="home-page">
+    <BatIntro v-if="season === 'halloween'" />
     <AppHeader
       transparent-top
       :telegram-url="settings?.telegram_url"
@@ -617,6 +618,31 @@ useSeoMeta({
   right: -14px;
   bottom: -3px;
   line-height: 0;
+  /* Свой слой: облако ниже ложится под Торена, но не под пергамент. */
+  z-index: 0;
+}
+
+/* Дым за Тореном шире его самого и на телефоне вылез бы за экран — прокрутка
+   вбок. Режем по краю страницы: край дыма там и так прозрачный. */
+.home-page {
+  overflow-x: clip;
+}
+
+/*
+  Клуб дыма за Тореном — текстура из Particle Pack от Kenney (CC0), перекрашенная
+  в тёплый серый: на нём кремовые кости видны и без пергамента под ними.
+*/
+.ledger-toren::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  /* Крупнее самого Торена: клуб охватывает фигуру целиком, с головой. */
+  left: 50%;
+  top: -10%;
+  bottom: -16%;
+  width: 150%;
+  transform: translateX(-50%);
+  background: url('/toren-smoke.webp') center / contain no-repeat;
 }
 
 /* Плашка игры стоит перед оглавлением и повторяет его ширину. */
