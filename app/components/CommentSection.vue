@@ -5,7 +5,6 @@ const props = defineProps<{
   placeholder?: string
   spoilerNote?: string
   limit?: number
-  showLogin?: boolean
 }>()
 
 const auth = useAuthStore()
@@ -18,6 +17,14 @@ const authorTo = (c: any) => (c.authorCode ? `/reader/${c.authorCode}` : undefin
 const now = useNow()
 const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
 
+// Приглашение войти — гостю, и только когда /api/auth/me уже ответил: до него
+// «не вошёл» значит «ещё не знаем», и вошедшему оно мелькало бы.
+const isGuest = computed(() => auth.ready && !auth.isAuthed)
+
+// Гость только что написал — лучший момент сказать, что об ответе он так не
+// узнает. Держится, пока он не начнёт писать следующий.
+const guestPosted = ref(false)
+
 const url = computed(() =>
   props.chapterId ? `/api/comments?chapterId=${props.chapterId}` : '/api/comments?siteWide=1'
 )
@@ -29,6 +36,7 @@ const isSpoiler = ref(false)
 const sending = ref(false)
 const sendError = ref('')
 const remainingChars = computed(() => 500 - body.value.length)
+watch(body, (v) => { if (v) guestPosted.value = false })
 
 // Ветка: корневой комментарий и его ответы. Вложенность одноуровневая, поэтому
 // достаточно разложить ответы по parentId — дерево строить не из чего.
@@ -95,9 +103,9 @@ const showEmoji = ref<EmojiTarget | null>(null)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const replyTextareaRef = ref<HTMLTextAreaElement | null>(null)
 
-if (import.meta.client) {
-  import('emoji-picker-element')
-}
+// Библиотека при загрузке регистрирует свой элемент в DOM — не в разгар
+// гидратации, а когда компонент уже на месте.
+onMounted(() => { import('emoji-picker-element') })
 
 function onEmojiClick(e: any) {
   const emoji = e.detail?.emoji?.unicode ?? ''
@@ -152,6 +160,7 @@ const post = async () => {
     authorName.value = ''
     body.value = ''
     isSpoiler.value = false
+    guestPosted.value = !auth.isAuthed
   } catch (e: any) {
     sendError.value = e.data?.message || 'Ошибка при отправке'
     await refresh()
@@ -250,12 +259,16 @@ const revealTarget = async () => {
 onMounted(revealTarget)
 watch(() => route.hash, revealTarget)
 
-// WebSocket
+// WebSocket. Закрываем на верхнем уровне: onUnmounted, зарегистрированный
+// внутри onMounted, Vue уже не привязывает к компоненту надёжно.
+let ws: WebSocket | null = null
+onUnmounted(() => ws?.close())
+
 onMounted(() => {
   if (typeof WebSocket === 'undefined') return
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
   const param = props.chapterId ? `?chapterId=${props.chapterId}` : ''
-  const ws = new WebSocket(`${proto}://${location.host}/_ws${param}`)
+  ws = new WebSocket(`${proto}://${location.host}/_ws${param}`)
 
   ws.onmessage = (e) => {
     try {
@@ -267,8 +280,6 @@ onMounted(() => {
       }
     } catch {}
   }
-
-  onUnmounted(() => ws.close())
 })
 </script>
 
@@ -289,9 +300,12 @@ onMounted(() => {
         placeholder="Твоё имя"
         maxlength="40"
       >
-      <NuxtLink v-if="showLogin && !auth.isAuthed" :to="loginHref" class="comment-login-hint">
-        Войти, чтобы подписывать комментарии своим именем
-      </NuxtLink>
+      <p v-if="isGuest && guestPosted" class="comment-login-hint is-posted">
+        Опубликовано! <NuxtLink :to="loginHref">Войди</NuxtLink>, чтобы узнать, когда тебе ответят
+      </p>
+      <p v-else-if="isGuest" class="comment-login-hint">
+        <NuxtLink :to="loginHref">Войди</NuxtLink>, чтобы комментировать под своим именем и получать ответы
+      </p>
       <div class="textarea-wrap">
         <textarea
           ref="textareaRef"
@@ -505,16 +519,28 @@ onMounted(() => {
 }
 
 .comment-login-hint {
-  align-self: flex-start;
-  font-size: 12px;
-  color: var(--ember-soft);
-  opacity: .75;
-  text-decoration: none;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
 }
 
-.comment-login-hint:hover {
-  opacity: 1;
+.comment-login-hint a {
+  color: var(--ember-soft);
   text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.comment-login-hint a:hover {
+  color: var(--ember);
+}
+
+.comment-login-hint.is-posted {
+  padding: 8px 12px;
+  border-left: 2px solid var(--ember);
+  border-radius: 4px;
+  background: rgba(214, 136, 62, .08);
+  color: var(--parchment);
 }
 
 .textarea-wrap {

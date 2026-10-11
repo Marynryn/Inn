@@ -313,6 +313,8 @@ useHead(() => ({
 
     <!-- КНОПКА КОММЕНТАРИЕВ -->
     <div class="comments-cta">
+      <SignupNudge :on-dark="!lightTheme" />
+
       <TelegramCta
         :url="settings?.telegram_url"
         :title="settings?.tg_cta_title"
@@ -648,7 +650,8 @@ html[data-reader-theme="light"] .page-wrap {
   padding: 20px 48px 64px;
 }
 
-.comments-cta > :deep(.tg-cta) {
+.comments-cta > :deep(.tg-cta),
+.comments-cta > :deep(.signup-nudge) {
   margin: 0 0 18px;
 }
 
