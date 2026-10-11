@@ -1,6 +1,6 @@
 import { useDb } from '../../utils/db'
 import { comments, users, commentReactions } from '../../database/schema'
-import { eq, isNull, desc, and } from 'drizzle-orm'
+import { eq, isNull, desc, inArray } from 'drizzle-orm'
 import { framesByIds } from '../../utils/frames'
 import { figureById } from '#shared/utils/nameFigures'
 
@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
     const userRows = await db
       .select({ id: users.id, avatarUrl: users.avatarUrl, avatarFrameId: users.avatarFrameId, publicId: users.publicId, figure: users.figure })
       .from(users)
+      .where(inArray(users.id, userIds))
     for (const u of userRows) {
       avatarMap.set(u.id, u.avatarUrl ?? null)
       frameIdMap.set(u.id, u.avatarFrameId ?? null)
@@ -43,7 +44,12 @@ export default defineEventHandler(async (event) => {
   const frames = await framesByIds(userIds.map(id => frameIdMap.get(id) ?? null))
 
   const commentIds = rows.map(r => r.id)
-  const allReactions = await db.select().from(commentReactions)
+  // Только реакции этих комментариев: раньше читалась вся таблица и
+  // фильтровалась здесь, и с ростом сайта это стало бы главной статьёй расхода.
+  const allReactions = await db
+    .select({ commentId: commentReactions.commentId, type: commentReactions.type, userId: commentReactions.userId, ip: commentReactions.ip })
+    .from(commentReactions)
+    .where(inArray(commentReactions.commentId, commentIds))
 
   const session = await getUserSession(event)
   const sessionUserId = (session.user as any)?.id ?? null

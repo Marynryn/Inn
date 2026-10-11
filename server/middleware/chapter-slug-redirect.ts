@@ -22,6 +22,6 @@ export default defineEventHandler((event) => {
   const encodedNormalized = encodeURIComponent(normalized)
 
   if (encodedNormalized && encodedNormalized !== rawSegment) {
-    sendRedirect(event, `/chapter/${encodedNormalized}${suffix}${search}`, 301)
+    return sendRedirect(event, `/chapter/${encodedNormalized}${suffix}${search}`, 301)
   }
 })

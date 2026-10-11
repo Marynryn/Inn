@@ -76,8 +76,12 @@ const siteUrl = useRuntimeConfig().public.siteUrl
 // позже, вне контекста Nuxt, и useRuntimeConfig там падает.
 const ogImage = ogImageUrl()
 
+// Один заголовок на вкладку и на превью ссылки: подпись из настроек героя
+// не называет ни сайта, ни книги, и в превью соцсетей было не понять, что это.
+const pageTitle = 'Странствующая Таверна — русский перевод The Wandering Inn'
+
 useHead({
-  title: 'Странствующая Таверна — русский перевод The Wandering Inn',
+  title: pageTitle,
   link: [{ rel: 'canonical', href: siteUrl }],
   script: [
     {
@@ -152,20 +156,18 @@ const tickerSeconds = computed(() => {
   return Math.max(18, Math.round(chars / 6))
 })
 
-const socialTitle = computed(() => (settings.value?.hero_title || 'Странствующая Таверна').replace(/\n/g, ' '))
-
 const seoDescription = 'Бесплатный фанатский перевод The Wandering Inn (Блуждающий трактир) на русский. Обновляется каждую неделю. Читай онлайн или скачивай epub.'
 
 useSeoMeta({
   description: seoDescription,
-  ogTitle: () => socialTitle.value,
+  ogTitle: pageTitle,
   ogDescription: seoDescription,
   ogImage,
   ogUrl: siteUrl,
   ogType: 'website',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
-  twitterTitle: () => socialTitle.value,
+  twitterTitle: pageTitle,
   twitterDescription: seoDescription,
   twitterImage: ogImage,
 })
