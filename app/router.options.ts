@@ -1,5 +1,8 @@
 import type { RouterConfig } from 'nuxt/schema'
-import { useNuxtApp } from '#app'
+// Не из общего '#app': он тянет все композаблы, среди них layout.js, а тот
+// ждёт route-rules.mjs, который с Nuxt 4.5 сам импортирует этот файл. Кольцо
+// импортов роняло приложение в браузере при запуске.
+import { useNuxtApp } from '#app/nuxt'
 import { smoothScrollTo } from './utils/smoothScroll'
 
 const SCROLL_PREFIX = 'tavern:scroll:'
