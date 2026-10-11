@@ -5,7 +5,11 @@ import titlePumpkin from '~/assets/halloween/jack-o-lantern.svg'
 const route = useRoute()
 const rawParam = route.params.id as string
 
-const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURIComponent(rawParam)}`)
+// Без текста: его рисует серверный компонент ChapterText, и в данных страницы
+// он ехал бы второй раз.
+const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURIComponent(rawParam)}`, {
+  pick: ['id', 'volume', 'title', 'publishedAt', 'isPublished', 'commentsCount', 'description'],
+})
 
 // Отдаём настоящую ошибку, а не заглушку внутри страницы: иначе несуществующая
 // глава открывается с кодом 200 (для поисковиков это «мягкий 404» — они считают
@@ -31,8 +35,18 @@ if (chapter.value && slugifyChapterId(chapter.value.id) !== slugifyChapterId(raw
 // не перезапрашивает список (предыдущая страница ещё смонтирована, её данные
 // считаются свежими), и навигация «← →» до перезагрузки вкладки живёт на
 // порядке, который был при первом заходе, — перестановки в панели не доезжают.
-const { data: allChapters } = await useFetch('/api/chapters', { key: `chapters-nav:${rawParam}` })
-const { data: settings } = useFetch('/api/settings')
+// Для стрелок и проверки закладки нужны только номер и место в порядке —
+// остальные поля всех глав незачем везти в браузер вместе со страницей.
+const { data: allChapters } = await useFetch('/api/chapters', {
+  key: `chapters-nav:${rawParam}`,
+  transform: (list: { id: string, sortOrder: number }[]) => list.map(c => ({ id: c.id, sortOrder: c.sortOrder })),
+})
+// Только то, что рисуют шапка и плашка телеграма: целиком настройки везут с
+// собой, например, весь текст страницы «О проекте».
+const { data: settings } = useFetch('/api/settings', {
+  key: 'chapter-settings',
+  pick: ['telegram_url', 'boosty_url', 'tribute_url', 'tg_cta_title', 'tg_cta_text'],
+})
 const season = useSeason()
 const seasonBg = useSeasonReaderBg()
 
@@ -130,7 +144,7 @@ const ogImage = ogImageUrl()
 // «Глава N», так что description строим из текста самой главы, а не из title,
 // иначе на каждой странице номер главы дублируется дважды.
 const description = computed(() => chapter.value
-  ? buildChapterDescription(chapter.value.id, chapter.value.contentHtml)
+  ? chapter.value.description
   : undefined)
 
 /*
@@ -266,10 +280,9 @@ useHead(() => ({
           </svg>
         </button>
       </div>
-      <div
-        class="reader-content"
-        v-html="chapter.contentHtml || '<p><em>Текст главы загружается...</em></p>'"
-      />
+      <div class="reader-content">
+        <ChapterText :id="chapter.id" />
+      </div>
 
       <div class="reader-nav">
         <NuxtLink

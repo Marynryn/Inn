@@ -5,7 +5,12 @@ const route = useRoute()
 const rawId = route.params.id as string
 
 
-const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURIComponent(rawId)}`)
+// Обсуждению нужны номер и название, а не текст главы: без pick он целиком
+// уезжал в страницу и в браузер.
+const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURIComponent(rawId)}`, {
+  key: `chapter-head:${rawId}`,
+  pick: ['id', 'title'],
+})
 
 // Как и на странице главы — настоящий код ответа вместо пустой страницы с кодом 200.
 if (error.value) {
@@ -23,7 +28,10 @@ if (chapter.value && slugifyChapterId(chapter.value.id) !== slugifyChapterId(raw
     { redirectCode: 301, replace: true },
   )
 }
-const { data: settings } = useFetch('/api/settings')
+const { data: settings } = useFetch('/api/settings', {
+  key: 'header-links',
+  pick: ['telegram_url', 'boosty_url', 'tribute_url'],
+})
 
 // Как и на странице главы: id для комментариев берём из ответа API
 // (реальный id главы), а не из сырого параметра роута.
