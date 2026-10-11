@@ -42,6 +42,16 @@ export default defineEventHandler(async (event) => {
     .where(eq(comments.chapterId, id))
 
   // Описание для поисковиков считаем здесь: странице главы тогда не нужен сам
-  // текст в данных — его рисует серверный компонент ChapterText.
-  return { ...chapter, commentsCount, description: buildChapterDescription(chapter.id, chapter.contentHtml) }
+  // текст — его рисует серверный компонент ChapterText.
+  const description = buildChapterDescription(chapter.id, chapter.contentHtml)
+
+  // ?meta=1 — всё, кроме текста. Так спрашивает страница главы: pick на её
+  // стороне выбросил бы текст уже после скачивания, и при переходе стрелкой
+  // глава качалась бы дважды — здесь и в острове. Панель и прочие берут целиком.
+  if (getQuery(event).meta === '1') {
+    const { contentHtml: _, ...meta } = chapter
+    return { ...meta, commentsCount, description }
+  }
+
+  return { ...chapter, commentsCount, description }
 })

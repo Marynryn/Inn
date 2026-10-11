@@ -5,9 +5,11 @@ import titlePumpkin from '~/assets/halloween/jack-o-lantern.svg'
 const route = useRoute()
 const rawParam = route.params.id as string
 
-// Без текста: его рисует серверный компонент ChapterText, и в данных страницы
-// он ехал бы второй раз.
+// Без текста (?meta=1): его рисует серверный компонент ChapterText. С текстом
+// он ехал бы второй раз — в данных страницы, а при переходе стрелкой ещё и
+// вторым запросом рядом с островом.
 const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURIComponent(rawParam)}`, {
+  query: { meta: 1 },
   pick: ['id', 'volume', 'title', 'publishedAt', 'isPublished', 'commentsCount', 'description'],
 })
 

@@ -8,6 +8,7 @@ const rawId = route.params.id as string
 // Обсуждению нужны номер и название, а не текст главы: без pick он целиком
 // уезжал в страницу и в браузер.
 const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURIComponent(rawId)}`, {
+  query: { meta: 1 },
   key: `chapter-head:${rawId}`,
   pick: ['id', 'title'],
 })
