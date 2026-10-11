@@ -3,10 +3,7 @@ import { assertNameFree, saveUnique } from '../../utils/display-name'
 import { useDb } from '../../utils/db'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
-import { writeFile, mkdir } from 'node:fs/promises'
-import { join } from 'node:path'
-import { getStorageDir } from '../../utils/storage'
-import { avatarFileBase } from '../../utils/avatar'
+import { saveAvatar } from '../../utils/avatar'
 import bcrypt from 'bcryptjs'
 
 export default defineEventHandler(async (event) => {
@@ -52,16 +49,11 @@ export default defineEventHandler(async (event) => {
     updates.passwordHash = await bcrypt.hash(pw, 12)
   }
 
+  // Та же проверка и та же раскладка по диску, что у читателей: без них сюда
+  // однажды легла фотография на 4,8 МБ, и её качал каждый, кто открывал главную.
   const filePart = form.find(f => f.name === 'avatar' && f.data?.length)
   if(filePart){
-    const ext = (filePart.filename ?? 'jpg').split('.').pop()?.toLowerCase() ?? 'jpg'
-    const allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif']
-    if(!allowed.includes(ext)) throw createError({ statusCode: 400, message: 'Формат не поддерживается' })
-    const filename = `${await avatarFileBase(sessionUser.id)}.${ext}`
-    const avatarsDir = join(getStorageDir(), 'avatars')
-    await mkdir(avatarsDir, { recursive: true })
-    await writeFile(join(avatarsDir, filename), filePart.data)
-    updates.avatarUrl = `/api/avatars/${filename}?v=${Date.now()}`
+    updates.avatarUrl = await saveAvatar(sessionUser.id, filePart.data)
   }
 
   if(!Object.keys(updates).length) throw createError({ statusCode: 400, message: 'Нет данных для обновления' })
@@ -78,5 +70,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  return { ok: true, ...updates }
+  // Хеш пароля наружу не отдаём, даже самой хозяйке.
+  const { passwordHash: _, ...shown } = updates
+  return { ok: true, ...shown }
 })

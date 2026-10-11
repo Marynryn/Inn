@@ -142,7 +142,7 @@ const saveProfile = async () => {
     fd.append('displayName', displayName.value)
     if(profileEmail.value) fd.append('email', profileEmail.value)
     if(newPassword.value) fd.append('newPassword', newPassword.value)
-    if(avatarFile.value) fd.append('avatar', avatarFile.value)
+    if(avatarFile.value) fd.append('avatar', await toSmallSquare(avatarFile.value), 'avatar.webp')
     await $fetch('/api/admin/profile', { method: 'PUT', body: fd })
     newPassword.value = ''
     confirmPassword.value = ''
