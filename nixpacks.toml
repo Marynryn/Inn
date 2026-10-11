@@ -1,0 +1,13 @@
+# Настройки сборщика Railway (nixpacks). Блок nixpacksPlan в railway.toml он
+# не применял: при nodejs_22 там сборка шла на Node 24.10.
+
+# Node 22 из набора пакетов nixpacks — это 22.19.0, ровно минимум Nuxt 4.5.
+# Node 24 там 24.10.0, а Nuxt 4.5 требует 24.11 и выше.
+[phases.setup]
+nixPkgs = ["nodejs_22", "openssl"]
+
+# npm install вместо npm ci: npm ci (и 10.x, и 11.x) спотыкается о
+# необязательные peer-зависимости @bomb.sh/tab из CLI Nuxt — cac 6 и
+# commander 13–15 — и отвергает даже lock-файл, который сам же собрал.
+[phases.install]
+cmds = ["npm install --no-audit --no-fund"]
