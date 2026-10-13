@@ -16,16 +16,23 @@
 
 const shown = ref(true)
 const done = ref(false)
+const root = ref<HTMLElement | null>(null)
 const dark = ref<HTMLElement | null>(null)
 const box = ref<HTMLElement | null>(null)
 
-/** Последний кадр исходника — сплошная чернота, с него и начинаем. */
-const LAST = 54
+/** С этого кадра и начинаем. Кадры 37–53 исходника сплошь чёрные, мыши
+ *  проступают с 36-го; оставляем пару чёрных кадров для стыка с подложкой,
+ *  а остальные ~0,4 с темноты пропускаем. */
+const START = 39
+/** Дольше этого анимацию не ждём: медленная сеть — пусть лучше без мышей,
+ *  чем пару секунд смотреть в чёрный экран. */
+const MAX_WAIT = 2000
 /** Исходник длится 1,8 с; чуть ускоряем, чтобы заставка не задерживала. */
 const SPEED = 1.2
 
 let anim: { destroy: () => void } | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
+let giveUp: ReturnType<typeof setTimeout> | null = null
 
 const close = (delay: number) => {
   if (done.value) return
@@ -44,6 +51,14 @@ const skip = () => {
 
 onMounted(async () => {
   window.addEventListener('keydown', skip, { once: true })
+  // Скрипты ожили — CSS-страховка больше не нужна, сроки держим отсюда:
+  // иначе на медленной сети она гасила бы мышей посреди полёта. Если же она
+  // уже начала гасить темноту, страница опоздала — заставку просто убираем.
+  if (root.value) {
+    if (getComputedStyle(root.value).opacity !== '1') return close(0)
+    root.value.style.animation = 'none'
+  }
+  giveUp = setTimeout(skip, MAX_WAIT)
 
   const [{ default: lottie }, { default: data }] = await Promise.all([
     import('lottie-web/build/player/lottie_light'),
@@ -68,13 +83,16 @@ onMounted(async () => {
   // Первый кадр анимации такой же чёрный, как подложка, — подложку убираем,
   // как только анимация нарисовалась: дальше темноту держит она сама.
   a.addEventListener('DOMLoaded', () => {
+    if (giveUp) clearTimeout(giveUp)
+    if (done.value) return
     if (dark.value) dark.value.style.opacity = '0'
-    a.playSegments([LAST, 0], true)
+    a.playSegments([START, 0], true)
   })
 })
 
 onBeforeUnmount(() => {
   if (timer) clearTimeout(timer)
+  if (giveUp) clearTimeout(giveUp)
   anim?.destroy()
   if (import.meta.client) window.removeEventListener('keydown', skip)
 })
@@ -83,6 +101,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     v-if="shown"
+    ref="root"
     class="bat-intro"
     aria-hidden="true"
     @click="skip"
@@ -109,7 +128,7 @@ onBeforeUnmount(() => {
   overscroll-behavior: none;
   /* Страховка: не загрузились анимация или скрипты — через несколько секунд
      темнота уходит сама, и страница доступна. */
-  animation: intro-fallback .6s ease 4.5s forwards;
+  animation: intro-fallback .6s ease 3s forwards;
 }
 
 /* Темнота до того, как загрузилась анимация. */
