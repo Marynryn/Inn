@@ -363,6 +363,7 @@ useHead(() => ({
 .page-wrap {
   --rd-bg: var(--bg-dark-2);
   --rd-text: #e7d9c2;
+  --rd-hidden: rgba(231, 217, 194, .12);
   --rd-title: var(--parchment);
   --rd-muted: var(--parchment-2);
   --rd-faint: var(--moss);
@@ -404,6 +405,7 @@ html:-webkit-full-screen .page-wrap { padding-top: 16px; }
 html[data-reader-theme="dark"] .page-wrap {
   --rd-bg: #000;
   --rd-text: #f8f8f8;
+  --rd-hidden: rgba(248, 248, 248, .12);
   --rd-title: #f8f8f8;
   --rd-muted: #d9d9d9;
   --rd-faint: #7d9a78;
@@ -414,6 +416,7 @@ html[data-reader-theme="dark"] .page-wrap {
 html[data-reader-theme="sepia"] .page-wrap {
   --rd-bg: #f4ecd8;
   --rd-text: #111;
+  --rd-hidden: rgba(17, 17, 17, .12);
   --rd-title: var(--ink);
   --rd-muted: var(--ink-soft);
   --rd-faint: var(--moss);
@@ -446,6 +449,7 @@ html[data-reader-theme="light"] .faint-leaves {
 html[data-reader-theme="light"] .page-wrap {
   --rd-bg: #fff;
   --rd-text: #111;
+  --rd-hidden: rgba(17, 17, 17, .12);
   --rd-title: #111;
   --rd-muted: #444;
   --rd-faint: var(--moss);
@@ -579,6 +583,10 @@ html[data-reader-theme="light"] .page-wrap {
    строки: при прежних 17px и 1.85 это те же 22px. */
 .reader-content :deep(p) {
   margin: 0 0 calc(var(--reader-lh, 1.85) * .7em);
+  /* Пустая строка из редактора приходит как <p></p>: без высоты её поля
+     сливаются с соседними, и отступ пропадал. Теперь она высотой в строку,
+     как в редакторе. У абзацев с текстом высота и так не меньше. */
+  min-height: calc(var(--reader-lh, 1.85) * 1em);
 }
 
 /*
@@ -586,13 +594,13 @@ html[data-reader-theme="light"] .page-wrap {
   в нём то, о чём читатель ещё не должен знать, и разглядеть можно, лишь
   всмотревшись или выделив мышью.
 
-  Цвет берём от currentColor темы, а не числом: на чёрном фоне след получается
-  чуть светлее фона, на сепии и белом — чуть темнее, и подгонять под каждую
-  тему нечего. Первая строка — запасная для браузеров без color-mix.
+  Цвет — текст темы с прозрачностью 12 %, задан у каждой темы готовым числом
+  (--rd-hidden). Раньше считали через color-mix, но сборка выкидывала запасную
+  строку, и браузеры без color-mix (старый Safari, встроенные браузеры
+  приложений) показывали спрятанное обычным текстом.
 */
 .reader-content :deep(.invisible-text) {
-  color: rgba(128, 128, 128, .15);
-  color: color-mix(in srgb, currentColor 12%, transparent);
+  color: var(--rd-hidden);
 }
 
 /* Выделишь — проступит целиком, как в книге. */

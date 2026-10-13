@@ -3,6 +3,12 @@ import JSZip from 'jszip'
 const escapeXml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
+// Пустая строка из редактора — это <p></p>, а читалки такой абзац схлопывают,
+// и отступ пропадает. Неразрывный пробел даёт ему высоту строки; числом, а не
+// &nbsp;: в XHTML без DTD именованной сущности нет.
+const fillEmptyParagraphs = (html: string) =>
+  html.replace(/<p([^>]*)>\s*<\/p>/g, '<p$1>&#160;</p>')
+
 export async function buildEpub({ id, title, contentHtml }: { id: string; title: string; contentHtml: string }): Promise<Buffer> {
   const zip = new JSZip()
   const uid = `urn:uuid:tavern-chapter-${id.replace(/[^a-zA-Z0-9.-]/g, '')}`
@@ -64,7 +70,7 @@ export async function buildEpub({ id, title, contentHtml }: { id: string; title:
 <head><title>${escapeXml(title)}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
 <body>
 <h1>${escapeXml(title)}</h1>
-${contentHtml}
+${fillEmptyParagraphs(contentHtml)}
 </body>
 </html>`)
 
