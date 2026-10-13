@@ -81,7 +81,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="shown" class="bat-intro" aria-hidden="true" @click="skip">
+  <div
+    v-if="shown"
+    class="bat-intro"
+    aria-hidden="true"
+    @click="skip"
+    @touchmove.prevent
+    @wheel.prevent
+  >
     <div ref="dark" class="bat-intro-dark" />
     <div ref="box" class="bat-intro-anim" />
   </div>
@@ -94,6 +101,12 @@ onBeforeUnmount(() => {
   z-index: 1000;
   overflow: hidden;
   cursor: pointer;
+  /* Свайп по заставке не должен листать страницу под ней: на телефоне от этого
+     прячется адресная строка, экран меняет высоту, и мыши дёргаются вслед.
+     CSS держит страницу ещё до скриптов, обработчики в шаблоне — для тех
+     браузеров, что touch-action на прокрутку страницы не распространяют. */
+  touch-action: none;
+  overscroll-behavior: none;
   /* Страховка: не загрузились анимация или скрипты — через несколько секунд
      темнота уходит сама, и страница доступна. */
   animation: intro-fallback .6s ease 4.5s forwards;
