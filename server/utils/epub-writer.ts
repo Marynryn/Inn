@@ -58,8 +58,8 @@ export async function buildEpub({ id, title, contentHtml }: { id: string; title:
   // текстом. Цвет считается от currentColor — читалка со своей темой (бумага,
   // ночь) получит след нужной светлоты сама.
   zip.file('OEBPS/style.css', `.invisible-text {
-  color: rgba(128, 128, 128, 0.15);
-  color: color-mix(in srgb, currentColor 12%, transparent);
+  color: rgba(128, 128, 128, 0.08);
+  color: color-mix(in srgb, currentColor 6%, transparent);
 }
 
 .invisible-text::selection { color: inherit; }

@@ -363,7 +363,7 @@ useHead(() => ({
 .page-wrap {
   --rd-bg: var(--bg-dark-2);
   --rd-text: #e7d9c2;
-  --rd-hidden: rgba(231, 217, 194, .12);
+  --rd-hidden: rgba(231, 217, 194, .06);
   --rd-title: var(--parchment);
   --rd-muted: var(--parchment-2);
   --rd-faint: var(--moss);
@@ -405,7 +405,7 @@ html:-webkit-full-screen .page-wrap { padding-top: 16px; }
 html[data-reader-theme="dark"] .page-wrap {
   --rd-bg: #000;
   --rd-text: #f8f8f8;
-  --rd-hidden: rgba(248, 248, 248, .12);
+  --rd-hidden: rgba(248, 248, 248, .06);
   --rd-title: #f8f8f8;
   --rd-muted: #d9d9d9;
   --rd-faint: #7d9a78;
@@ -416,7 +416,7 @@ html[data-reader-theme="dark"] .page-wrap {
 html[data-reader-theme="sepia"] .page-wrap {
   --rd-bg: #f4ecd8;
   --rd-text: #111;
-  --rd-hidden: rgba(17, 17, 17, .12);
+  --rd-hidden: rgba(17, 17, 17, .06);
   --rd-title: var(--ink);
   --rd-muted: var(--ink-soft);
   --rd-faint: var(--moss);
@@ -449,7 +449,7 @@ html[data-reader-theme="light"] .faint-leaves {
 html[data-reader-theme="light"] .page-wrap {
   --rd-bg: #fff;
   --rd-text: #111;
-  --rd-hidden: rgba(17, 17, 17, .12);
+  --rd-hidden: rgba(17, 17, 17, .06);
   --rd-title: #111;
   --rd-muted: #444;
   --rd-faint: var(--moss);
@@ -594,7 +594,7 @@ html[data-reader-theme="light"] .page-wrap {
   в нём то, о чём читатель ещё не должен знать, и разглядеть можно, лишь
   всмотревшись или выделив мышью.
 
-  Цвет — текст темы с прозрачностью 12 %, задан у каждой темы готовым числом
+  Цвет — текст темы с прозрачностью 6 %, задан у каждой темы готовым числом
   (--rd-hidden). Раньше считали через color-mix, но сборка выкидывала запасную
   строку, и браузеры без color-mix (старый Safari, встроенные браузеры
   приложений) показывали спрятанное обычным текстом.
