@@ -405,7 +405,9 @@ html:-webkit-full-screen .page-wrap { padding-top: 16px; }
 html[data-reader-theme="dark"] .page-wrap {
   --rd-bg: #000;
   --rd-text: #f8f8f8;
-  --rd-hidden: rgba(248, 248, 248, .06);
+  /* Ярче, чем в других темах: почти чёрное на чистом чёрном экраны телефонов
+     съедают, и при тех же 6 % текст пропадал совсем. */
+  --rd-hidden: rgba(248, 248, 248, .1);
   --rd-title: #f8f8f8;
   --rd-muted: #d9d9d9;
   --rd-faint: #7d9a78;
