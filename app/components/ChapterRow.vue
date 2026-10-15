@@ -65,7 +65,7 @@ const href = computed(() => `/chapter/${encodeURIComponent(slugifyChapterId(prop
   align-items: center;
   gap: 8px;
   padding: 14px 0;
-  border-bottom: 1px solid rgba(43, 30, 22, .08);
+  border-bottom: 1px solid var(--line-on-parchment);
   transition: background .15s;
 }
 
@@ -90,7 +90,7 @@ const href = computed(() => `/chapter/${encodeURIComponent(slugifyChapterId(prop
   flex: 0 0 auto;
   width: 54px;
   height: 54px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   border: 1.5px solid var(--gold);
   display: flex;
   align-items: center;
@@ -169,7 +169,7 @@ const href = computed(() => `/chapter/${encodeURIComponent(slugifyChapterId(prop
 .icon-btn {
   width: 34px;
   height: 34px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -202,7 +202,7 @@ const href = computed(() => `/chapter/${encodeURIComponent(slugifyChapterId(prop
   height: 12px;
   border: 1.5px solid currentColor;
   border-top-color: transparent;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   animation: spin .7s linear infinite;
 }
 </style>

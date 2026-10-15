@@ -779,7 +779,7 @@ onMounted(load)
 }
 
 .status.draft { color: var(--ember-soft); background: rgba(232, 176, 122, .12); }
-.status.running { color: #8fb07a; background: rgba(143, 176, 122, .13); }
+.status.running { color: var(--success); background: rgba(143, 176, 122, .13); }
 .status.finished { color: rgba(241, 230, 210, .5); background: rgba(241, 230, 210, .07); }
 
 .new-reel {
@@ -793,7 +793,7 @@ input,
 select {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background: rgba(241, 230, 210, .05);
   color: var(--parchment);
@@ -1048,7 +1048,7 @@ select option { background: var(--bg-dark-2); }
   font-size: 10.5px;
   line-height: 1.2;
   text-align: center;
-  color: #e07070;
+  color: var(--danger);
 }
 
 .seg-main {
@@ -1095,7 +1095,7 @@ select option { background: var(--bg-dark-2); }
   cursor: pointer;
 }
 
-.rm:hover { color: #e07070; background: rgba(224, 112, 112, .1); }
+.rm:hover { color: var(--danger); background: rgba(224, 112, 112, .1); }
 
 .seg-stat {
   margin: 0;
@@ -1116,8 +1116,8 @@ select option { background: var(--bg-dark-2); }
   font-variant-numeric: tabular-nums;
 }
 
-.sum.ok { color: #8fb07a; }
-.sum.bad { color: #e07070; }
+.sum.ok { color: var(--success); }
+.sum.bad { color: var(--danger); }
 
 /* ── Кнопки ─────────────────────────────────── */
 .actions {
@@ -1148,7 +1148,7 @@ select option { background: var(--bg-dark-2); }
   color: var(--parchment);
 }
 
-.btn.danger { background: #c0574a; color: var(--parchment); }
+.btn.danger { background: var(--danger-fill); color: var(--parchment); }
 
 .link {
   padding: 0;
@@ -1161,7 +1161,7 @@ select option { background: var(--bg-dark-2); }
 }
 
 .link:hover { text-decoration: underline; }
-.link.danger { color: #e07070; }
+.link.danger { color: var(--danger); }
 
 .confirm {
   font-size: 13px;
@@ -1177,7 +1177,7 @@ select option { background: var(--bg-dark-2); }
 .msg { color: var(--ember-soft); }
 
 .seg-err { margin-top: 8px; }
-.err { color: #e07070; }
+.err { color: var(--danger); }
 
 /* ── Журнал ─────────────────────────────────── */
 .log {
@@ -1234,7 +1234,7 @@ select option { background: var(--bg-dark-2); }
   font-size: 11.5px;
 }
 
-.log-what em.won { color: #8fb07a; }
+.log-what em.won { color: var(--success); }
 .log-what em.duplicate { color: var(--ember-soft); }
 .log-what em.scene { color: rgba(241, 230, 210, .45); }
 

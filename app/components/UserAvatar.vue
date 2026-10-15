@@ -54,7 +54,7 @@ const scale = computed(() => (props.frame ? frameScale(props.frame.fit) : 1))
   width: var(--ua-size);
   height: var(--ua-size);
   flex: 0 0 auto;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   line-height: 1;
 }
 
@@ -73,7 +73,7 @@ const scale = computed(() => (props.frame ? frameScale(props.frame.fit) : 1))
 .ua-pic {
   width: 100%;
   aspect-ratio: 1;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   object-fit: cover;
   display: block;
 }

@@ -434,7 +434,7 @@ useSeoMeta({
   appearance: none;
   background: var(--bg-dark);
   color: var(--parchment);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   padding: 11px 36px 11px 14px;
   font-family: var(--font-body);
@@ -497,7 +497,7 @@ useSeoMeta({
 
 .bar {
   height: 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(241, 230, 210, .08);
   overflow: hidden;
 }
@@ -561,7 +561,7 @@ useSeoMeta({
 .orig-table td {
   padding: 5px 0;
   text-align: right;
-  border-top: 1px solid rgba(241, 230, 210, .08);
+  border-top: 1px solid var(--line-faint);
   white-space: nowrap;
 }
 
@@ -585,7 +585,7 @@ useSeoMeta({
   display: inline-block;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   margin-right: 8px;
   vertical-align: 1px;
 }
@@ -690,7 +690,7 @@ useSeoMeta({
 .segmented {
   display: flex;
   flex: 1 1 260px;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
@@ -699,7 +699,7 @@ useSeoMeta({
   flex: 1;
   background: none;
   border: none;
-  border-right: 1px solid rgba(241, 230, 210, .12);
+  border-right: 1px solid var(--line);
   color: var(--parchment-2);
   font-family: var(--font-body);
   font-size: 13px;
@@ -738,7 +738,7 @@ useSeoMeta({
   width: 110px;
   background: var(--bg-dark);
   color: var(--parchment);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   padding: 9px 12px;
   font-family: var(--font-body);

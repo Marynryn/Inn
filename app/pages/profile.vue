@@ -558,7 +558,7 @@ useHead({
 }
 
 .avatar-face {
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   background: rgba(241, 230, 210, .05);
 }
 
@@ -570,7 +570,7 @@ useHead({
   z-index: 2;
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   font-size: 11px;
   background: rgba(31, 24, 19, .78);
   opacity: 0;
@@ -596,7 +596,7 @@ useHead({
 
 .name-field input {
   background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   color: var(--parchment);
   padding: 10px 13px;
@@ -624,7 +624,7 @@ useHead({
 
 .about-field textarea {
   background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   color: var(--parchment);
   padding: 10px 13px;
@@ -674,7 +674,7 @@ useHead({
 }
 
 .ok-msg { font-size: 13px; color: var(--moss); }
-.err-msg { font-size: 13px; color: #e07070; }
+.err-msg { font-size: 13px; color: var(--danger); }
 
 /* ── Рамка ──────────────────────────────────── */
 /* Просвет между рамками щедрее обычного: рамка вылезает за круг, и на тесной
@@ -767,7 +767,7 @@ useHead({
   height: 60px;
   overflow: hidden;
   border-radius: 6px;
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
   background: var(--bg-dark);
 }
 
@@ -785,8 +785,8 @@ useHead({
   height: 60px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  border: 1px solid rgba(241, 230, 210, .12);
+  border-radius: var(--radius-round);
+  border: 1px solid var(--line);
   background: var(--bg-dark);
 }
 

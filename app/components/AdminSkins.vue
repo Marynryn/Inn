@@ -311,7 +311,7 @@ onMounted(load)
 input[type="text"],
 select {
   padding: 8px 10px;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background: rgba(241, 230, 210, .05);
   color: var(--parchment);
@@ -383,13 +383,13 @@ input[type="file"] {
   width: 20px;
   height: 20px;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: none;
   color: rgba(241, 230, 210, .5);
   cursor: pointer;
 }
 
-.x:hover { color: #e07070; background: rgba(224, 112, 112, .12); }
+.x:hover { color: var(--danger); background: rgba(224, 112, 112, .12); }
 
 .btn {
   align-self: flex-start;
@@ -417,12 +417,12 @@ input[type="file"] {
 }
 
 .link:hover { text-decoration: underline; }
-.link.danger { color: #e07070; }
+.link.danger { color: var(--danger); }
 .confirm { font-size: 13px; color: var(--ember-soft); }
 
 .msg, .err { margin: 0; font-size: 13px; }
 .msg { color: var(--ember-soft); }
-.err { color: #e07070; }
+.err { color: var(--danger); }
 
 .found {
   display: flex;

@@ -370,7 +370,7 @@ useScrollLock()
   max-height: calc(100vh - 40px);
   overflow: hidden;
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   color: var(--parchment);
   /* Тень листа светится цветом расы (--glow приходит с карточкой): гоблины
@@ -428,7 +428,7 @@ useScrollLock()
   width: 36px;
   height: 36px;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: rgba(31, 24, 19, .7);
   color: var(--parchment-2);
   font-size: 24px;
@@ -479,7 +479,7 @@ useScrollLock()
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: rgba(20, 14, 10, .66);
   color: var(--parchment-2);
   transition: opacity .15s ease, color .15s ease;
@@ -558,8 +558,8 @@ useScrollLock()
   width: 40px;
   height: 40px;
   border: none;
-  border-radius: 50%;
-  background: rgba(20, 14, 10, .7);
+  border-radius: var(--radius-round);
+  background: var(--scrim);
   color: var(--parchment-2);
   font-size: 26px;
   line-height: 1;

@@ -698,7 +698,7 @@ useSeoMeta({
   font-size: 14px;
   padding: 10px 18px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--parchment-2);
   cursor: pointer;
@@ -746,13 +746,13 @@ useSeoMeta({
   padding: 6px 10px;
   border-radius: var(--radius-sm);
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .08);
+  border: 1px solid var(--line-faint);
   color: var(--text-muted);
 }
 
 .pools {
   display: flex;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
@@ -792,7 +792,7 @@ useSeoMeta({
   font-size: 12px;
   line-height: 1;
   padding: 6px 20px 6px 9px;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background-color: var(--bg-dark-2);
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23e8dac0' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
@@ -831,7 +831,7 @@ useSeoMeta({
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px -6px rgba(214, 136, 62, .6);
+  box-shadow: var(--shadow-ember-lift);
 }
 
 .btn-ghost {
@@ -927,7 +927,7 @@ useSeoMeta({
   margin-bottom: 22px;
   border-radius: var(--radius-md);
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
 }
 
 .result.won {
@@ -999,7 +999,7 @@ useSeoMeta({
   line-height: 1.25;
   text-align: center;
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .08);
+  border: 1px solid var(--line-faint);
 }
 
 /* Имя набрано заголовочным шрифтом и тёплым цветом: в таблице из одинаковых
@@ -1040,7 +1040,7 @@ useSeoMeta({
 }
 
 .mark.hit {
-  background: #4b7145;
+  background: var(--success-fill);
   border-color: #5c8a55;
   color: #f4ecdc;
 }
@@ -1053,7 +1053,7 @@ useSeoMeta({
 
 .mark.miss {
   background: #3a2f27;
-  border-color: rgba(241, 230, 210, .08);
+  border-color: var(--line-faint);
   color: var(--text-muted);
 }
 
@@ -1123,7 +1123,7 @@ useSeoMeta({
   font-size: 11px;
 }
 
-.sw.hit { background: #4b7145; }
+.sw.hit { background: var(--success-fill); }
 .sw.partial { background: #a9821f; }
 .sw.miss { background: #3a2f27; color: var(--text-muted); }
 

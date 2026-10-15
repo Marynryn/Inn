@@ -62,7 +62,7 @@ const motes = Array.from({ length: 14 }, (_, i) => ({
   position: absolute;
   width: 3px;
   height: 3px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: rgba(230, 225, 240, .35);
   animation: float 14s linear infinite;
 }

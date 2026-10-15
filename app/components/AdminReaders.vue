@@ -78,7 +78,7 @@ const date = (iso: string) => iso.slice(0, 10).split('-').reverse().join('.')
 }
 
 .list li + li {
-  border-top: 1px solid rgba(241, 230, 210, .08);
+  border-top: 1px solid var(--line-faint);
 }
 
 .row {
@@ -107,7 +107,7 @@ a.row:hover {
   bottom: -1px;
   width: 11px;
   height: 11px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: #6cc46a;
   box-shadow: 0 0 0 2px var(--bg-dark);
 }
@@ -130,7 +130,7 @@ a.row:hover {
 .tag {
   margin-left: 8px;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   color: var(--ember-soft);
   background: rgba(232, 176, 122, .12);

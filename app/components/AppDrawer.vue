@@ -245,8 +245,8 @@ const onTouchEnd = (e: TouchEvent) => {
   display: flex;
   flex-direction: column;
   background: #241c16;
-  border-right: 1px solid rgba(241, 230, 210, .08);
-  box-shadow: 12px 0 40px rgba(0, 0, 0, .45);
+  border-right: 1px solid var(--line-faint);
+  box-shadow: var(--shadow-drawer);
   transform: translateX(-105%);
   /* Закрытая шторка невидима и для клавиатуры с читалками, а не только
      уехала за край: visibility переключается, когда выезд уже доиграл. */
@@ -271,7 +271,7 @@ const onTouchEnd = (e: TouchEvent) => {
   align-items: center;
   gap: 6px;
   padding: 12px 8px 12px 12px;
-  border-bottom: 1px solid rgba(241, 230, 210, .08);
+  border-bottom: 1px solid var(--line-faint);
   flex-shrink: 0;
 }
 
@@ -282,7 +282,7 @@ const onTouchEnd = (e: TouchEvent) => {
   align-items: center;
   gap: 12px;
   padding: 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   text-decoration: none;
   transition: background .15s;
 }
@@ -324,7 +324,7 @@ const onTouchEnd = (e: TouchEvent) => {
   width: 40px;
   height: 40px;
   box-sizing: border-box;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   border: 1.5px dashed rgba(241, 230, 210, .3);
   display: flex;
   align-items: center;
@@ -383,7 +383,7 @@ const onTouchEnd = (e: TouchEvent) => {
   flex-direction: column;
   gap: 4px;
   padding: 10px 16px 14px;
-  border-top: 1px solid rgba(241, 230, 210, .08);
+  border-top: 1px solid var(--line-faint);
 }
 
 .tg {

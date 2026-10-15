@@ -71,7 +71,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   display: flex;
   flex-direction: column;
   min-width: 160px;
-  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, .5);
+  box-shadow: var(--shadow-popover);
   z-index: 50;
 }
 

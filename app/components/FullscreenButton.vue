@@ -103,11 +103,11 @@ onUnmounted(() => {
   pointer-events: auto;
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--rd-border, rgba(241, 230, 210, .18));
+  border: 1px solid var(--rd-border, var(--line-strong));
   background: var(--rd-bg, var(--bg-dark-2));
   color: var(--rd-muted, var(--parchment-2));
   cursor: pointer;

@@ -463,7 +463,7 @@ html[data-reader-theme="light"] .page-wrap {
 .icon-btn {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -496,7 +496,7 @@ html[data-reader-theme="light"] .page-wrap {
   height: 12px;
   border: 1.5px solid currentColor;
   border-top-color: transparent;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   animation: spin .7s linear infinite;
 }
 

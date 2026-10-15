@@ -25,8 +25,44 @@
   --font-body:    'Poppins', sans-serif;
 
   /* Radius */
-  --radius-sm:   4px;
-  --radius-md:   8px;
+  --radius-sm:    4px;
+  --radius-md:    8px;
+  --radius-pill:  999px;
+  --radius-round: 50%;
+
+  /* Status: в коде эти значения были записаны литералами */
+  --danger:       #e07070; /* ошибки и опасные действия на тёмном */
+  --danger-fill:  #c0574a; /* заливка деструктивной кнопки; текст parchment на ней около 3.6:1 */
+  --success:      #8fb07a; /* «идёт», «выиграно» на тёмном */
+  --success-fill: #4b7145; /* попадание в игре */
+
+  /* Scrim and lines */
+  --scrim:             rgba(20, 14, 10, 0.7);       /* подложка под модальными окнами */
+  --line-faint:        rgba(241, 230, 210, 0.08);   /* разделители, рамки карточек на тёмном */
+  --line:              rgba(241, 230, 210, 0.12);   /* рамки модалок и панелей на тёмном */
+  --line-strong:       rgba(241, 230, 210, 0.18);   /* рамки полей и кнопок на тёмном */
+  --line-on-parchment: rgba(43, 30, 22, 0.08);      /* разделитель строк на пергаменте */
+
+  /* Spacing: самые частые значения gap/padding/margin */
+  --space-4:  4px;
+  --space-6:  6px;
+  --space-8:  8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-18: 18px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+
+  /* Shadows */
+  --shadow-ember-lift: 0 6px 18px -6px rgba(214, 136, 62, .6);
+  --shadow-card-lift:  0 18px 30px -20px rgba(0, 0, 0, .9);
+  --shadow-popover:    0 8px 24px -8px rgba(0, 0, 0, .5);
+  --shadow-drawer:     12px 0 40px rgba(0, 0, 0, .45);
+  --shadow-dialog:     0 30px 80px rgba(0, 0, 0, .6);
 }
 
 /* ─── Reset & Base ───────────────────────────────────────── */
@@ -60,6 +96,27 @@ a {
 
 .ui {
   font-family: var(--font-body);
+}
+
+/* ─── Модальные окна: общая основа ───────────────────────────
+   Подложка и поверхность окна одинаковы у AdminCommentsModal, ChapterEditModal,
+   ProgressModal и TodayByChapterModal. Ширина, отступы, z-index и анимации у
+   каждого окна свои и остаются в самом компоненте: его стили (с атрибутом
+   scoped) сильнее этих, поэтому переопределяют их как раньше. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  background: var(--bg-dark-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
 }
 
 /* ─── Тонкий скролл на тёмном фоне ───────────────────────────

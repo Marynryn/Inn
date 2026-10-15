@@ -109,7 +109,7 @@ gap:4px;
 /* На тёмной подложке страницы игры. Пергаментные цвета там сливаются с фоном
    насмерть: --ink по --bg-dark это почти чёрный по почти чёрному. */
 .site-footer.on-dark {
-  border-top-color: rgba(241, 230, 210, .12);
+  border-top-color: var(--line);
   color: var(--text-muted);
 }
 

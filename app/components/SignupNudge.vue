@@ -131,7 +131,7 @@ const hide = () => {
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: transparent;
   color: var(--ink-soft);
   font-size: 13px;

@@ -539,7 +539,7 @@ onUnmounted(() => {
   width: 92%;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: radial-gradient(circle at 50% 50%,
     rgba(226, 176, 255, .97) 0%,
     rgba(176, 82, 255, .92) 20%,
@@ -697,7 +697,7 @@ onUnmounted(() => {
   flex: 0 0 28px;
   width: 28px;
   height: 28px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   display: grid;
   place-items: center;
   background: rgba(214, 136, 62, .16);

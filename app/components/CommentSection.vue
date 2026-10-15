@@ -508,7 +508,7 @@ onMounted(() => {
   width: 100%;
   max-width: 200px;
   background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: 6px;
   color: var(--parchment);
   padding: 9px 12px;
@@ -538,7 +538,7 @@ onMounted(() => {
 .comment-login-hint.is-posted {
   padding: 8px 12px;
   border-left: 2px solid var(--ember);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: rgba(214, 136, 62, .08);
   color: var(--parchment);
 }
@@ -552,7 +552,7 @@ onMounted(() => {
   min-height: 64px;
   resize: none;
   background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: 6px;
   color: var(--parchment);
   padding: 12px 40px 12px 14px;
@@ -706,7 +706,7 @@ onMounted(() => {
   flex: none;
   align-self: flex-start;
   display: block;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
 }
 
 a.comment-name:hover {
@@ -770,7 +770,7 @@ a.comment-name:hover {
 
 .reaction-btn {
   background: none;
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
   border-radius: 20px;
   padding: 3px 10px;
   font-size: 12px;
@@ -905,7 +905,7 @@ a.comment-name:hover {
 .reply-form textarea {
   display: block;
   background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: 6px;
   color: var(--parchment);
   font-family: var(--font-body);
@@ -941,7 +941,7 @@ a.comment-name:hover {
   margin-top: 16px;
   padding: 10px;
   background: none;
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-family: var(--font-body);

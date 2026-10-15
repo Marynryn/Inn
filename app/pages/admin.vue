@@ -1354,7 +1354,7 @@ useHead({
   gap: 2px;
   padding: 8px 12px 24px;
   background: #241c16;
-  border-right: 1px solid rgba(241, 230, 210, .08);
+  border-right: 1px solid var(--line-faint);
   position: sticky;
   top: 56px;
   height: calc(100vh - 56px);
@@ -1419,7 +1419,7 @@ useHead({
 .field-row select,
 .field-row textarea {
   background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   color: var(--parchment);
   padding: 9px 12px;
@@ -1493,7 +1493,7 @@ useHead({
 
 .err-msg {
   font-size: 13px;
-  color: #e07070;
+  color: var(--danger);
   margin-top: 10px;
 }
 
@@ -1513,7 +1513,7 @@ useHead({
 .avatar-img {
   width: 72px;
   height: 72px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   object-fit: cover;
   border: 2px solid rgba(241, 230, 210, .15);
 }
@@ -1521,7 +1521,7 @@ useHead({
 .avatar-placeholder {
   width: 72px;
   height: 72px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: linear-gradient(135deg, var(--ember-soft), var(--moss));
   display: flex;
   align-items: center;
@@ -1537,7 +1537,7 @@ useHead({
   right: 0;
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--ember);
   color: var(--bg-dark);
   display: flex;
@@ -1601,7 +1601,7 @@ useHead({
   align-items: center;
   gap: 20px;
   padding: 14px 0;
-  border-top: 1px solid rgba(241, 230, 210, .08);
+  border-top: 1px solid var(--line-faint);
 }
 
 .frame-row-main {
@@ -1658,7 +1658,7 @@ useHead({
   background: none;
   border: none;
   padding: 0;
-  color: #e07070;
+  color: var(--danger);
   font-family: var(--font-body);
   font-size: 12px;
   cursor: pointer;
@@ -1675,7 +1675,7 @@ useHead({
   flex-wrap: wrap;
   margin-top: 18px;
   padding: 14px 16px;
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: rgba(241, 230, 210, .03);
 }
@@ -1692,7 +1692,7 @@ useHead({
 .user-found {
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   overflow: hidden;
   margin: -6px 0 16px;
@@ -1734,7 +1734,7 @@ useHead({
 
 .grant-select {
   background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   color: var(--parchment);
   font-family: var(--font-body);
@@ -1747,7 +1747,7 @@ useHead({
   align-items: center;
   gap: 12px;
   padding: 9px 0;
-  border-top: 1px solid rgba(241, 230, 210, .08);
+  border-top: 1px solid var(--line-faint);
 }
 
 .owner-name { font-size: 13.5px; }
@@ -1779,7 +1779,7 @@ useHead({
   opacity: 1;
 }
 
-.owner-frame:hover { color: #e07070; }
+.owner-frame:hover { color: var(--danger); }
 
 @media (max-width: 640px) {
   .frame-new {
@@ -1796,7 +1796,7 @@ useHead({
 
 /* Список глав */
 .vol-block {
-  border-bottom: 1px solid rgba(241, 230, 210, .08);
+  border-bottom: 1px solid var(--line-faint);
 }
 
 .vol-block:last-child {
@@ -1896,7 +1896,7 @@ useHead({
   font-size: 11px;
   color: var(--ember-soft);
   border: 1px solid rgba(214, 136, 62, .3);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 6px;
   white-space: nowrap;
   flex: 0 0 auto;
@@ -2042,7 +2042,7 @@ useHead({
 
 .stats-search {
   background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   color: var(--parchment);
   padding: 7px 12px;
@@ -2083,7 +2083,7 @@ useHead({
 
 .stats-table::-webkit-scrollbar-thumb {
   background: rgba(214, 136, 62, .3);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .stats-table::-webkit-scrollbar-thumb:hover {
@@ -2105,7 +2105,7 @@ useHead({
   top: 0;
   z-index: 1;
   background: var(--bg-dark-2);
-  border-bottom: 1px solid rgba(241, 230, 210, .12);
+  border-bottom: 1px solid var(--line);
   padding-top: 10px;
   padding-bottom: 10px;
 }
@@ -2307,7 +2307,7 @@ useHead({
   width: 96px;
   height: 52px;
   padding: 6px 8px;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   color: rgba(231, 217, 194, .8);
   font: inherit;
@@ -2333,7 +2333,7 @@ useHead({
   width: 52px;
   height: 52px;
   padding: 3px;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   background: none;
   cursor: pointer;
@@ -2341,7 +2341,7 @@ useHead({
 
 .bg-reset {
   padding: 6px 10px;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   background: none;
   color: var(--parchment-2);
@@ -2429,7 +2429,7 @@ useHead({
 }
 
 .notify-preview {
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   padding: 12px 14px;
   margin-bottom: 16px;

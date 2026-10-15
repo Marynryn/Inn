@@ -361,21 +361,11 @@ const save = async () => {
 
 <style scoped>
 .modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(20, 14, 10, .7);
-  backdrop-filter: blur(3px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 200;
   padding: 24px;
 }
 
 .modal {
-  background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .12);
-  border-radius: var(--radius-md);
   padding: 16px 18px;
   max-width: 760px;
   width: 100%;
@@ -431,7 +421,7 @@ const save = async () => {
   width: 100%;
   margin: 4px 0 16px;
   background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   color: var(--parchment);
   padding: 8px 10px;
@@ -470,7 +460,7 @@ const save = async () => {
 
 .date-input {
   background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   color: var(--parchment);
   padding: 6px 10px;
@@ -503,7 +493,7 @@ const save = async () => {
   width: 32px;
   height: 32px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   background: none;
   color: var(--parchment-2);
   cursor: pointer;
@@ -525,7 +515,7 @@ const save = async () => {
   width: 32px;
   height: 32px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   overflow: hidden;
   display: flex;
   cursor: pointer;
@@ -560,7 +550,7 @@ const save = async () => {
 
 .search-input {
   background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   color: var(--parchment);
   padding: 6px 10px;
@@ -597,7 +587,7 @@ const save = async () => {
 .editor-body {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 16px;
   color: #e7d9c2;

@@ -36,21 +36,11 @@ useScrollLock()
 
 <style scoped>
 .modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(20, 14, 10, .7);
-  backdrop-filter: blur(3px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 100;
   animation: fade-in .15s ease;
 }
 
 .modal {
-  background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .12);
-  border-radius: var(--radius-md);
   padding: 28px 32px;
   max-width: 380px;
   width: calc(100% - 40px);

@@ -346,7 +346,7 @@ useSeoMeta({
   position: absolute;
   width: 480px;
   height: 480px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   top: -180px;
   right: -140px;
   background: radial-gradient(circle, rgba(214,136,62,.35) 0%, rgba(214,136,62,.10) 45%, rgba(214,136,62,0) 75%);
@@ -506,7 +506,7 @@ useSeoMeta({
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px -6px rgba(214, 136, 62, .6);
+  box-shadow: var(--shadow-ember-lift);
 }
 
 .btn-ghost {

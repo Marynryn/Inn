@@ -64,7 +64,7 @@ const fadeId = `bee-fade-${uid}`
   width: calc(var(--bee-w) * .085);
   height: calc(var(--bee-w) * .085);
   margin: calc(var(--bee-w) * -.0425) 0 0 calc(var(--bee-w) * -.0425);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: radial-gradient(circle, rgba(255, 196, 92, .95), rgba(255, 92, 0, .55) 45%, rgba(255, 92, 0, 0) 72%);
   filter: blur(1.5px);
   animation: bee-ember 3.4s ease-in-out infinite;

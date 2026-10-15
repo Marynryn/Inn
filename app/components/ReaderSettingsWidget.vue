@@ -211,7 +211,7 @@ onUnmounted(() => {
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   box-shadow: 0 20px 50px rgba(0, 0, 0, .5);
   padding: 20px 24px 22px;
@@ -293,7 +293,7 @@ onUnmounted(() => {
   width: 18px;
   height: 18px;
   margin-top: -7.5px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   border: 2px solid var(--bg-dark-2);
   background: var(--ember);
   box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
@@ -302,7 +302,7 @@ onUnmounted(() => {
 .rs-range::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   border: 2px solid var(--bg-dark-2);
   background: var(--ember);
   box-shadow: 0 1px 4px rgba(0, 0, 0, .4);

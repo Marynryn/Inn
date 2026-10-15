@@ -130,7 +130,7 @@ onUnmounted(() => {
   gap: 12px;
   padding: 0 24px 0 12px;
   background: var(--bg-dark);
-  border-bottom: 1px solid rgba(241, 230, 210, .08);
+  border-bottom: 1px solid var(--line-faint);
   transition: background .25s ease, border-color .25s ease;
 }
 
@@ -193,7 +193,7 @@ onUnmounted(() => {
 .brand-logo {
   width: 30px;
   height: 30px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   object-fit: cover;
   border: 1.5px solid var(--gold);
   flex-shrink: 0;

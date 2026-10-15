@@ -313,7 +313,7 @@ const lastWhen = (iso: string) =>
   height: calc(100vh - 240px);
   height: calc(100dvh - 240px);
   min-height: 320px;
-  border: 1px solid rgba(241, 230, 210, .08);
+  border: 1px solid var(--line-faint);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -335,7 +335,7 @@ const lastWhen = (iso: string) =>
   margin: 0;
   padding: 6px;
   overflow-y: auto;
-  border-right: 1px solid rgba(241, 230, 210, .08);
+  border-right: 1px solid var(--line-faint);
   background: rgba(0, 0, 0, .12);
 }
 
@@ -379,7 +379,7 @@ const lastWhen = (iso: string) =>
   bottom: -1px;
   width: 11px;
   height: 11px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: #6cc46a;
   box-shadow: 0 0 0 2px var(--bg-dark);
 }
@@ -433,7 +433,7 @@ const lastWhen = (iso: string) =>
   flex: none;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--ember-soft);
   box-shadow: 0 0 6px rgba(214, 136, 62, .7);
 }
@@ -459,7 +459,7 @@ const lastWhen = (iso: string) =>
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(241, 230, 210, .08);
+  border-bottom: 1px solid var(--line-faint);
 }
 
 .back {
@@ -553,7 +553,7 @@ const lastWhen = (iso: string) =>
   align-items: flex-end;
   gap: 8px;
   padding: 10px 12px;
-  border-top: 1px solid rgba(241, 230, 210, .08);
+  border-top: 1px solid var(--line-faint);
 }
 
 .field-wrap {
@@ -567,7 +567,7 @@ const lastWhen = (iso: string) =>
   width: 100%;
   resize: none;
   padding: 9px 40px 9px 12px;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   background: rgba(241, 230, 210, .05);
   color: var(--parchment);
@@ -627,7 +627,7 @@ const lastWhen = (iso: string) =>
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--ember);
   color: #1f1813;
   cursor: pointer;

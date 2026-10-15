@@ -97,7 +97,7 @@ const send = async () => {
   padding: 10px 12px;
   resize: none;
   overflow-y: auto;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   background: rgba(241, 230, 210, .05);
   color: var(--parchment);
@@ -126,7 +126,7 @@ const send = async () => {
 .tg-err {
   margin: 8px 0 0;
   font-size: 13px;
-  color: #e07070;
+  color: var(--danger);
 }
 
 .tg-actions {
@@ -150,7 +150,7 @@ const send = async () => {
 }
 
 .tg-btn.danger {
-  background: #c0574a;
+  background: var(--danger-fill);
   color: var(--parchment);
 }
 

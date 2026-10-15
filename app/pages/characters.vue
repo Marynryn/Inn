@@ -301,7 +301,7 @@ useSeoMeta({
 .sorts {
   align-self: stretch; /* ростом с поле поиска рядом */
   display: flex;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
@@ -352,7 +352,7 @@ useSeoMeta({
   font-size: 12px;
   line-height: 1;
   padding: 7px 22px 7px 10px;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background-color: var(--bg-dark-2);
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23e8dac0' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
@@ -409,7 +409,7 @@ useSeoMeta({
   flex-direction: column;
   border-radius: var(--radius-md);
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .08);
+  border: 1px solid var(--line-faint);
   overflow: hidden;
   cursor: pointer;
   outline: none;
@@ -420,7 +420,7 @@ useSeoMeta({
 .card:focus-visible {
   border-color: rgba(232, 176, 122, .45);
   transform: translateY(-2px);
-  box-shadow: 0 18px 30px -20px rgba(0, 0, 0, .9);
+  box-shadow: var(--shadow-card-lift);
 }
 
 .portrait {
@@ -465,7 +465,7 @@ useSeoMeta({
   left: 8px;
   top: 8px;
   padding: 4px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px dashed rgba(241, 230, 210, .35);
   background: rgba(31, 24, 19, .75);
   color: var(--text-muted);

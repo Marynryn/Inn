@@ -403,11 +403,11 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   overflow: auto;
   padding: 28px 22px 24px;
   border-radius: 14px;
-  border: 1px solid rgba(241, 230, 210, .18);
+  border: 1px solid var(--line-strong);
   background: var(--bg-dark-2);
   color: var(--parchment);
   text-align: center;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, .6);
+  box-shadow: var(--shadow-dialog);
 }
 
 .reel-sheet.is-result {
@@ -449,7 +449,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   width: 34px;
   height: 34px;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: none;
   color: rgba(241, 230, 210, .6);
   font-size: 22px;
@@ -466,7 +466,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   display: inline-block;
   margin-bottom: 10px;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--gold);
   color: var(--bg-dark);
   font-size: 11px;
@@ -562,7 +562,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   min-height: 20px;
   margin: 10px 0;
   font-size: 13px;
-  color: #e07070;
+  color: var(--danger);
 }
 
 .reel-btn {
@@ -644,7 +644,7 @@ a.reel-btn {
   top: 50%;
   width: var(--face);
   height: var(--face);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
 }
 
 .prize-hole {
@@ -788,7 +788,7 @@ a.reel-btn {
   padding: 10px 6px;
   font-size: 14px;
   font-weight: 500;
-  color: #8fb07a;
+  color: var(--success);
 }
 
 .reel-fine {

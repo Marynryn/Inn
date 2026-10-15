@@ -140,7 +140,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   padding: 4px 8px 4px 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(241, 230, 210, .22);
   background: rgba(20, 15, 11, .88);
   -webkit-backdrop-filter: blur(4px);

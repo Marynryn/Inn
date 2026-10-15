@@ -263,7 +263,7 @@ useScrollLock()
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(20, 14, 10, .7);
+  background: var(--scrim);
   backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
@@ -275,7 +275,7 @@ useScrollLock()
 
 .card {
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   padding: 24px;
   width: 100%;
@@ -359,7 +359,7 @@ useScrollLock()
   text-align: center;
 }
 
-.note.err { color: #e07070; opacity: 1; }
+.note.err { color: var(--danger); opacity: 1; }
 
 /* Таблица в своей рамке: так она читается блоком, а не текстом внавал. */
 .table-wrap {
@@ -368,7 +368,7 @@ useScrollLock()
   overflow: auto;
   overscroll-behavior: contain;
   margin-top: 14px;
-  border: 1px solid rgba(241, 230, 210, .12);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
 }
 
@@ -401,7 +401,7 @@ useScrollLock()
 
 .table td {
   padding: 8px 10px;
-  border-top: 1px solid rgba(241, 230, 210, .08);
+  border-top: 1px solid var(--line-faint);
 }
 
 /* Линию под шапкой рисует сама шапка — своя граница первой строке не нужна,

@@ -62,7 +62,7 @@ defineProps<{
   flex: 0 0 auto;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--ember-soft);
   box-shadow: 0 0 6px rgba(214, 136, 62, .7);
 }

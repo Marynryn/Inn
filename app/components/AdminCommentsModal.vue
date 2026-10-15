@@ -112,15 +112,8 @@ useScrollLock()
 
 <style scoped>
 .modal-backdrop {
-  position: fixed;
-  inset: 0;
   z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 20px;
-  background: rgba(20, 14, 10, .7);
-  backdrop-filter: blur(3px);
   animation: fade-in .15s ease;
 }
 
@@ -132,9 +125,6 @@ useScrollLock()
   max-height: calc(100vh - 40px);
   max-height: calc(100dvh - 40px);
   padding: 24px 24px 18px;
-  background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .12);
-  border-radius: var(--radius-md);
   animation: slide-up .2s ease;
 }
 
@@ -145,7 +135,7 @@ useScrollLock()
   width: 34px;
   height: 34px;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: transparent;
   color: var(--parchment-2);
   font-size: 24px;
@@ -215,7 +205,7 @@ useScrollLock()
   flex-direction: column;
   gap: 3px;
   padding: 9px 0;
-  border-top: 1px solid rgba(241, 230, 210, .08);
+  border-top: 1px solid var(--line-faint);
 }
 
 .row:first-child {

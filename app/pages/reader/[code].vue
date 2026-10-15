@@ -394,7 +394,7 @@ useHead(() => ({
   font-size: 10.5px;
   font-weight: 500;
   padding: 1px 7px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--moss);
   color: var(--parchment);
 }
@@ -428,8 +428,8 @@ useHead(() => ({
 
 .link-btn:hover { text-decoration: underline; }
 .link-btn:disabled { opacity: .5; cursor: default; }
-.link-btn.danger { color: #e07070; }
-.err-msg { font-size: 13px; color: #e07070; }
+.link-btn.danger { color: var(--danger); }
+.err-msg { font-size: 13px; color: var(--danger); }
 
 @media (max-width: 560px) {
   .reader-wrap {
