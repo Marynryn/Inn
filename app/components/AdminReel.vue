@@ -99,8 +99,8 @@ const total = computed(() => drafts.value.reduce((sum, d) => sum + percentToWeig
 const totalOk = computed(() => total.value === REEL_WEIGHT_TOTAL)
 const fmt = (weight: number) => String(weightToPercent(weight)).replace('.', ',')
 
-/** Рамки, уже стоящие в других барабанах: рамки ивента уникальны. */
-const takenElsewhere = computed(() => {
+/** Рамки, стоящие в других барабанах. Брать их можно — подпись только для справки. */
+const usedElsewhere = computed(() => {
   const map = new Map<number, string>()
   for (const r of reels.value) {
     if (r.id === selectedId.value) continue
@@ -188,7 +188,9 @@ const create = () => run(async () => {
 }, 'Барабан заведён — добавь сегменты')
 
 const addSegment = (kind: 'frame' | 'figure' | 'skin' | 'scene') => {
-  const free = frames.value.find(f => !takenElsewhere.value.has(f.id) && !drafts.value.some(d => d.frameId === f.id))
+  // Сначала нигде не разыгранная рамка, а нет таких — любая не занятая здесь.
+  const unused = frames.value.filter(f => !drafts.value.some(d => d.frameId === f.id))
+  const free = unused.find(f => !usedElsewhere.value.has(f.id)) ?? unused[0]
   const freeFigure = ALL_FIGURES.find(g => !drafts.value.some(d => d.figure === g.id))
   const freeSkin = skins.value.find(s => !drafts.value.some(d => d.skinId === s.id))
   const label = kind === 'frame' ? free?.name : kind === 'figure' ? freeFigure?.name : kind === 'skin' ? freeSkin?.name : ''
@@ -496,9 +498,9 @@ onMounted(load)
                       v-for="f in frames"
                       :key="f.id"
                       :value="`f${f.id}`"
-                      :disabled="takenElsewhere.has(f.id) || drafts.some((o, j) => j !== i && o.frameId === f.id)"
+                      :disabled="drafts.some((o, j) => j !== i && o.frameId === f.id)"
                     >
-                      {{ f.name }}{{ takenElsewhere.has(f.id) ? ` — в «${takenElsewhere.get(f.id)}»` : '' }}
+                      {{ f.name }}{{ usedElsewhere.has(f.id) ? ` — есть в «${usedElsewhere.get(f.id)}»` : '' }}
                     </option>
                   </optgroup>
                   <optgroup v-if="skins.length" label="Скины страницы">

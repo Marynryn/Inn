@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { isFigureId } from '#shared/utils/nameFigures'
 import type { ReelSegmentInput } from '#shared/utils/reel'
 import { REEL_LABEL_MAX, REEL_TEXT_MAX, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL, clampReelBlur, clampReelDim, clampSpinsPerDay, cleanReelTexts } from '#shared/utils/reel'
@@ -116,16 +116,8 @@ export default defineEventHandler(async (event) => {
   if (frameIds.length) {
     const found = await db.select({ id: avatarFrames.id }).from(avatarFrames).where(inArray(avatarFrames.id, frameIds))
     if (found.length !== frameIds.length) throw createError({ statusCode: 400, message: 'Такой рамки нет в каталоге' })
-
-    // Рамки ивента уникальны: стоящую в другом барабане второй раз не разыграть.
-    const taken = await db
-      .select({ label: reelSegments.label, title: reels.title })
-      .from(reelSegments)
-      .innerJoin(reels, eq(reels.id, reelSegments.reelId))
-      .where(and(inArray(reelSegments.frameId, frameIds), ne(reelSegments.reelId, reel.id)))
-    if (taken.length) {
-      throw createError({ statusCode: 409, message: `Рамка «${taken[0]!.label}» уже разыгрывается в «${taken[0]!.title}»` })
-    }
+    // Рамка из другого барабана разыгрывается снова — как фигурка. У кого она
+    // уже есть, тому выпадет повтор, второй раз её не выдадут.
   }
 
   await db.delete(reelSegments).where(eq(reelSegments.reelId, reel.id))
