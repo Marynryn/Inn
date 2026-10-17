@@ -5,12 +5,13 @@ const { data: settings } = await useFetch('/api/settings')
 const season = useSeason()
 
 // Тыква на Хеллоуин смеётся по клику. Звук качается только при первом клике,
-// повторный клик начинает смех заново, а не накладывает второй поверх.
+// повторный клик начинает смех заново, а не накладывает второй поверх. Если
+// файл не скачался, следующий клик пробует снова, а не молчит до перезагрузки.
 let laughAudio: HTMLAudioElement | null = null
 const laughing = ref(false)
 let laughTimer: ReturnType<typeof setTimeout> | undefined
 const laugh = () => {
-  laughAudio ??= new Audio('/pumpkin-laugh.mp3')
+  if (!laughAudio || laughAudio.error) laughAudio = new Audio('/pumpkin-laugh.mp3')
   laughAudio.currentTime = 0
   laughAudio.play().catch(() => {})
   laughing.value = true
@@ -704,6 +705,18 @@ useSeoMeta({
   line-height: 0;
 }
 
+/* Без серого прямоугольника, которым телефон подсвечивает нажатие, и без рамки
+   фокуса после клика — рамка остаётся только для перехода с клавиатуры. */
+.hero-pumpkin,
+.hero-pumpkin-small {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hero-pumpkin:focus:not(:focus-visible),
+.hero-pumpkin-small:focus:not(:focus-visible) {
+  outline: none;
+}
+
 .hero-pumpkin-small img {
   width: 100%;
   height: auto;
@@ -875,12 +888,12 @@ useSeoMeta({
     flex-basis: 100%;
   }
 
-  /* Сидит в правом нижнем углу, вровень с низом цифр, высотой в обе их строки. */
+  /* Сидит в правом нижнем углу, прямо на линии бегущей строки. */
   .hero-pumpkin-small {
     display: block;
     position: absolute;
     right: 20px;
-    bottom: 0;
+    bottom: -30px;
     width: 84px;
     filter: drop-shadow(0 0 10px rgba(255, 138, 42, .45));
   }
