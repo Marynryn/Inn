@@ -71,6 +71,7 @@ const uploading = ref<number | null>(null)
 /** Ошибка загрузки картинки — у того сегмента, куда грузили, а не внизу панели. */
 const segErr = ref<Record<number, string>>({})
 const confirmFinish = ref(false)
+const confirmDelete = ref(false)
 const trialId = ref<number | null>(null)
 
 const selected = computed(() => reels.value.find(r => r.id === selectedId.value) ?? null)
@@ -141,6 +142,7 @@ const load = async () => {
 const select = async (id: number | null) => {
   selectedId.value = id
   confirmFinish.value = false
+  confirmDelete.value = false
   segErr.value = {}
   const r = selected.value
   drafts.value = r ? toDraft(r) : []
@@ -389,11 +391,14 @@ const finish = () => run(async () => {
   await load()
 }, 'Ивент завершён')
 
-const remove = () => run(async () => {
-  await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'DELETE' })
-  selectedId.value = null
-  await load()
-}, 'Черновик удалён')
+const remove = () => {
+  const done = selected.value?.status === 'finished' ? 'Барабан удалён' : 'Черновик удалён'
+  return run(async () => {
+    await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'DELETE' })
+    selectedId.value = null
+    await load()
+  }, done)
+}
 
 /** Пробуют то, что сохранено: у черновика сначала сохраняем правки. */
 const trial = async () => {
@@ -696,6 +701,14 @@ onMounted(load)
             <span class="confirm">Завершить? Крутить больше будет нельзя.</span>
             <button class="btn btn--danger" type="button" :disabled="busy" @click="finish">Да, завершить</button>
             <button class="link" type="button" @click="confirmFinish = false">Отмена</button>
+          </template>
+        </template>
+        <template v-else-if="selected.status === 'finished'">
+          <button v-if="!confirmDelete" class="link danger" type="button" @click="confirmDelete = true">Удалить барабан</button>
+          <template v-else>
+            <span class="confirm">Удалить вместе с журналом прокруток? Выигранное у читателей останется.</span>
+            <button class="btn btn--danger" type="button" :disabled="busy" @click="remove">Да, удалить</button>
+            <button class="link" type="button" @click="confirmDelete = false">Отмена</button>
           </template>
         </template>
       </div>
