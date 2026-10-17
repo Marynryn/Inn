@@ -63,7 +63,7 @@ const send = async () => {
     <p v-if="error" class="tg-err">{{ error }}</p>
 
     <div class="tg-actions">
-      <button class="tg-btn" :class="{ danger: confirming }" type="button" :disabled="sending || !trimmed" @click="send">
+      <button class="btn" :class="confirming ? 'btn--danger' : 'btn--primary'" type="button" :disabled="sending || !trimmed" @click="send">
         {{ sending ? 'Отправляем...' : confirming ? 'Да, отправить всем подписчикам' : 'Отправить в канал' }}
       </button>
       <button v-if="confirming && !sending" class="tg-link" type="button" @click="confirming = false">Отмена</button>
@@ -135,28 +135,6 @@ const send = async () => {
   align-items: center;
   gap: 12px;
   margin-top: 12px;
-}
-
-.tg-btn {
-  padding: 10px 22px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--ember);
-  color: var(--bg-dark);
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.tg-btn.danger {
-  background: var(--danger-fill);
-  color: var(--parchment);
-}
-
-.tg-btn:disabled {
-  opacity: .5;
-  cursor: not-allowed;
 }
 
 .tg-link {

@@ -28,7 +28,7 @@ const body = computed(() => props.text || 'Бот в телеграм-канал
       <p class="tg-sub">{{ body }}</p>
     </div>
 
-    <a :href="url" target="_blank" rel="noopener" class="tg-btn">
+    <a :href="url" target="_blank" rel="noopener" class="btn btn--lg btn--primary tg-btn">
       Подписаться
     </a>
   </aside>
@@ -79,15 +79,6 @@ const body = computed(() => props.text || 'Бот в телеграм-канал
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  padding: 10px 18px;
-  border-radius: var(--radius-sm);
-  background: var(--ember);
-  color: var(--bg-dark);
-  font-size: 14px;
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background .15s;
   animation: tg-pulse 2.8s ease-out infinite;
 }
 
@@ -100,7 +91,6 @@ const body = computed(() => props.text || 'Бот в телеграм-канал
 }
 
 .tg-btn:hover {
-  background: var(--ember-soft);
   animation-play-state: paused;
 }
 

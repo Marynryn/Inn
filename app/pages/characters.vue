@@ -169,7 +169,7 @@ useSeoMeta({
         <article
           v-for="c in visible"
           :key="c.id"
-          class="card"
+          class="card card--tile"
           :class="{ hidden: c.hidden }"
           tabindex="0"
           role="button"
@@ -407,20 +407,8 @@ useSeoMeta({
 .card {
   display: flex;
   flex-direction: column;
-  border-radius: var(--radius-md);
-  background: var(--bg-dark-2);
-  border: 1px solid var(--line-faint);
-  overflow: hidden;
   cursor: pointer;
   outline: none;
-  transition: border-color .15s, transform .15s, box-shadow .15s;
-}
-
-.card:hover,
-.card:focus-visible {
-  border-color: rgba(232, 176, 122, .45);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card-lift);
 }
 
 .portrait {

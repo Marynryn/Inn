@@ -22,10 +22,10 @@ useScrollLock()
           Обновить прогресс или оставить закладку на главе <b>{{ lastId }}</b>?
         </p>
         <div class="modal-actions">
-          <button class="btn-keep" @click="emit('update')">
+          <button class="btn btn--ghost" @click="emit('update')">
              Обновить до {{ currentId }}
           </button>
-          <button class="btn-update" @click="emit('keep')">
+          <button class="btn btn--primary" @click="emit('keep')">
              Оставить {{ lastId }}
           </button>
         </div>
@@ -71,39 +71,6 @@ useScrollLock()
   display: flex;
   gap: 10px;
   justify-content: flex-end;
-}
-
-.btn-keep {
-  background: none;
-  border: 1px solid rgba(241, 230, 210, .2);
-  color: var(--parchment-2);
-  padding: 9px 16px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-body);
-  font-size: 13px;
-  cursor: pointer;
-  transition: border-color .15s;
-}
-
-.btn-keep:hover {
-  border-color: rgba(241, 230, 210, .4);
-}
-
-.btn-update {
-  background: var(--ember);
-  border: none;
-  color: var(--bg-dark);
-  padding: 9px 16px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity .15s;
-}
-
-.btn-update:hover {
-  opacity: .88;
 }
 
 @keyframes fade-in {

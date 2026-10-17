@@ -338,7 +338,7 @@ onMounted(() => {
           {{ remainingChars < 100 ? `осталось ${remainingChars} символов` : 'до 500 символов' }}
         </span>
         <button
-          class="btn-send"
+          class="btn btn--primary btn-send"
           :disabled="!body.trim() || sending"
           @click="post"
         >
@@ -449,7 +449,7 @@ onMounted(() => {
           <span v-if="replyError" class="comment-error">{{ replyError }}</span>
           <span v-else class="comment-hint">до 500 символов</span>
           <button
-            class="btn-send"
+            class="btn btn--primary btn-send"
             :disabled="!replyBody.trim() || replySending"
             @click="sendReply"
           >
@@ -657,23 +657,6 @@ onMounted(() => {
 .comment-error {
   font-size: 11.5px;
   color: #c66;
-}
-
-.btn-send {
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
-  background: var(--ember);
-  color: var(--bg-dark);
-  border: none;
-  padding: 9px 18px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.btn-send:disabled {
-  opacity: .4;
-  cursor: not-allowed;
 }
 
 /* Комментарий, к которому пришли по ссылке: вспышка и плавное угасание. */

@@ -141,7 +141,7 @@ onMounted(load)
             <input v-model="fresh.effects" type="checkbox" :value="key"> {{ label }}
           </label>
         </div>
-        <button class="btn" type="button" :disabled="busy || !fresh.name.trim()" @click="create">Добавить скин</button>
+        <button class="btn btn--primary" type="button" :disabled="busy || !fresh.name.trim()" @click="create">Добавить скин</button>
       </div>
     </div>
 
@@ -393,18 +393,7 @@ input[type="file"] {
 
 .btn {
   align-self: flex-start;
-  padding: 9px 18px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--ember);
-  color: var(--bg-dark);
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
 }
-
-.btn:disabled { opacity: .5; cursor: not-allowed; }
 
 .link {
   padding: 0;

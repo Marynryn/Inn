@@ -632,7 +632,7 @@ useHead({
       <main class="admin-content">
 
         <!-- Добавить главу -->
-        <section v-if="activeTab === 'upload'" class="card">
+        <section v-if="activeTab === 'upload'" class="card card--panel">
           <h2>Загрузить главу (.epub)</h2>
           <div class="field-row">
             <label>ID главы (том.номер)</label>
@@ -658,17 +658,17 @@ useHead({
             <input v-model="chapterPublished" type="checkbox">
             <span>Опубликовать сразу (видно всем читателям)</span>
           </label>
-          <button class="btn-action" :disabled="uploading" @click="uploadChapter">
+          <button class="btn btn--primary" :disabled="uploading" @click="uploadChapter">
             {{ uploading ? 'Загружаем...' : 'Загрузить' }}
           </button>
           <p v-if="uploadResult" class="result-msg">{{ uploadResult }}</p>
         </section>
 
         <!-- Список и сортировка -->
-        <section v-if="activeTab === 'chapters'" class="card">
+        <section v-if="activeTab === 'chapters'" class="card card--panel">
           <div class="card-head">
             <h2>Главы ({{ chapterList.length }})</h2>
-            <button v-if="orderChanged" class="btn-action btn-sm" :disabled="savingOrder" @click="saveOrder">
+            <button v-if="orderChanged" class="btn btn--sm btn--primary" :disabled="savingOrder" @click="saveOrder">
               {{ savingOrder ? 'Сохраняем...' : 'Сохранить порядок' }}
             </button>
           </div>
@@ -696,11 +696,11 @@ useHead({
                 <span class="chapter-row-title">{{ ch.title }}</span>
                 <span v-if="!ch.isPublished" class="chapter-row-draft">черновик</span>
                 <button
-                  class="btn-action btn-sm"
+                  class="btn btn--sm btn--primary"
                   @click.stop="editingChapter = { id: ch.id, title: ch.title }"
                 >Редактировать</button>
                 <button
-                  class="btn-delete"
+                  class="btn btn--icon btn--outline-danger btn-delete"
                   title="Удалить"
                   :disabled="deletingId === ch.id"
                   @click.stop="deleteChapter(ch.id)"
@@ -722,7 +722,7 @@ useHead({
         />
 
         <!-- Профиль -->
-        <section v-if="activeTab === 'profile'" class="card">
+        <section v-if="activeTab === 'profile'" class="card card--panel">
           <h2>Мой профиль</h2>
           <div class="profile-row">
             <div class="avatar-wrap">
@@ -755,7 +755,7 @@ useHead({
             </div>
           </div>
           <div v-if="profileError" class="form-error">{{ profileError }}</div>
-          <button class="btn-action" :disabled="savingProfile" @click="saveProfile">
+          <button class="btn btn--primary" :disabled="savingProfile" @click="saveProfile">
             {{ profileSaved ? '✓ Сохранено' : savingProfile ? 'Сохраняем...' : 'Сохранить профиль' }}
           </button>
 
@@ -772,13 +772,13 @@ useHead({
             </div>
           </div>
           <div v-if="userError" class="form-error">{{ userError }}</div>
-          <button class="btn-action" :disabled="creatingUser" @click="createUser" style="margin-top:12px">
+          <button class="btn btn--primary" :disabled="creatingUser" @click="createUser" style="margin-top:12px">
             {{ userCreated ? '✓ Пользователь создан' : creatingUser ? 'Создаём...' : 'Создать администратора' }}
           </button>
         </section>
 
         <!-- Статистика -->
-        <section v-if="activeTab === 'stats'" class="card card--wide">
+        <section v-if="activeTab === 'stats'" class="card card--panel card--wide">
           <h2>Статистика сайта</h2>
           <div class="stats-totals">
             <div class="stat-card">
@@ -894,7 +894,7 @@ useHead({
         </section>
 
         <!-- Рамки для аватарок -->
-        <section v-if="activeTab === 'frames'" class="card card--wide">
+        <section v-if="activeTab === 'frames'" class="card card--panel card--wide">
           <h2>Рамки для аватарок</h2>
 
           <p class="frames-note">
@@ -935,7 +935,7 @@ useHead({
                 >
               </div>
 
-              <button class="btn-action" :disabled="savingFrame" @click="createFrame">
+              <button class="btn btn--primary" :disabled="savingFrame" @click="createFrame">
                 {{ savingFrame ? 'Сохраняем...' : 'Добавить рамку' }}
               </button>
               <p v-if="frameMsg" class="result-msg">{{ frameMsg }}</p>
@@ -1018,7 +1018,7 @@ useHead({
               <span class="newcomer-text">
                 Новички получают «{{ defaultFrame.name }}» при регистрации и сразу в ней ходят.
               </span>
-              <button class="btn-action btn-sm" :disabled="backfilling" @click="backfillDefault">
+              <button class="btn btn--sm btn--primary" :disabled="backfilling" @click="backfillDefault">
                 {{ backfilling ? '...' : 'Выдать и тем, кто уже есть' }}
               </button>
             </template>
@@ -1055,7 +1055,7 @@ useHead({
               <option v-for="f in frames" :key="f.id" :value="f.id">{{ f.name }}</option>
             </select>
 
-            <button class="btn-action" :disabled="granting" @click="sendGrant(grantTarget.id, grantFrameId)">
+            <button class="btn btn--primary" :disabled="granting" @click="sendGrant(grantTarget.id, grantFrameId)">
               {{ granting ? '...' : 'Выдать' }}
             </button>
           </div>
@@ -1084,27 +1084,27 @@ useHead({
         </section>
 
         <!-- Настройки сайта -->
-        <section v-if="activeTab === 'skins'" class="card card--wide">
+        <section v-if="activeTab === 'skins'" class="card card--panel card--wide">
           <h2>Скины страницы читателя</h2>
           <AdminSkins />
         </section>
 
-        <section v-if="activeTab === 'reel'" class="card card--wide">
+        <section v-if="activeTab === 'reel'" class="card card--panel card--wide">
           <h2>Барабан</h2>
           <AdminReel />
         </section>
 
-        <section v-if="activeTab === 'messages'" class="card card--wide">
+        <section v-if="activeTab === 'messages'" class="card card--panel card--wide">
           <h2>Сообщения</h2>
           <AdminMessages />
         </section>
 
-        <section v-if="activeTab === 'readers'" class="card card--wide">
+        <section v-if="activeTab === 'readers'" class="card card--panel card--wide">
           <h2>Читатели</h2>
           <AdminReaders />
         </section>
 
-        <section v-if="activeTab === 'settings'" class="card">
+        <section v-if="activeTab === 'settings'" class="card card--panel">
           <h2>Настройки сайта</h2>
           <div class="field-row">
             <label for="season-theme">Оформление сайта</label>
@@ -1269,13 +1269,13 @@ useHead({
             <textarea v-model="form.characters_subtitle" rows="2" />
             <span class="field-hint">Страница карточек персонажей, под заголовком.</span>
           </div>
-          <button class="btn-action" :disabled="savingSettings" @click="saveSettings">
+          <button class="btn btn--primary" :disabled="savingSettings" @click="saveSettings">
             {{ settingsSaved ? '✓ Сохранено' : savingSettings ? 'Сохраняем...' : 'Сохранить' }}
           </button>
         </section>
 
         <!-- Уведомления -->
-        <section v-if="activeTab === 'notify'" class="card">
+        <section v-if="activeTab === 'notify'" class="card card--panel">
           <h2>Уведомления в Telegram</h2>
           <p class="notify-hint">
             Отправляет сообщение прямо сейчас — в любое время и сколько угодно раз.
@@ -1315,7 +1315,7 @@ useHead({
           </div>
 
           <div v-if="notifyError" class="form-error">{{ notifyError }}</div>
-          <button class="btn-action" :disabled="sendingNotify || !selectedNotifyIds.length || !notifyText.trim()" @click="sendNotify">
+          <button class="btn btn--primary" :disabled="sendingNotify || !selectedNotifyIds.length || !notifyText.trim()" @click="sendNotify">
             {{ sendingNotify ? 'Отправляем...' : `Отправить в Telegram (${selectedNotifyIds.length})` }}
           </button>
           <p v-if="notifyResult" class="result-msg">{{ notifyResult }}</p>
@@ -1379,10 +1379,6 @@ useHead({
 
 /* Контент */
 .card {
-  background: var(--bg-dark-2);
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(241, 230, 210, .1);
-  padding: 28px;
   max-width: 680px;
 }
 
@@ -1469,28 +1465,6 @@ useHead({
   color: var(--parchment-2);
   margin-bottom: 16px;
   cursor: pointer;
-}
-
-.btn-action {
-  background: var(--ember);
-  color: var(--bg-dark);
-  border: none;
-  padding: 10px 22px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.btn-action:disabled {
-  opacity: .5;
-  cursor: not-allowed;
-}
-
-.btn-sm {
-  padding: 7px 14px;
-  font-size: 12px;
 }
 
 .result-msg {
@@ -1911,30 +1885,7 @@ useHead({
 }
 
 .btn-delete {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: 1px solid rgba(200, 80, 80, .3);
-  color: #c66;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
   flex: 0 0 auto;
-}
-
-.btn-delete:disabled {
-  opacity: .4;
-  cursor: not-allowed;
-}
-
-.btn-delete:not(:disabled):hover {
-  border-color: #c66;
-  background: rgba(200, 80, 80, .1);
 }
 
 /* Статистика */
@@ -2204,10 +2155,6 @@ useHead({
 
   .admin-content {
     padding: 16px;
-  }
-
-  .card {
-    padding: 20px 16px;
   }
 
   /* Пять колонок в телефон не влезают: название сжимается в многоточие, а

@@ -492,7 +492,7 @@ useSeoMeta({
               </select>
               <span>тома</span>
             </label>
-            <button class="btn btn-ghost" :disabled="sending" @click="newGame()">Другой персонаж</button>
+            <button class="btn btn--ghost" :disabled="sending" @click="newGame()">Другой персонаж</button>
           </div>
         </div>
 
@@ -552,10 +552,10 @@ useSeoMeta({
               <template v-else>Можно взять другого — кнопка выше.</template>
             </div>
             <div class="result-actions">
-              <button class="btn btn-primary" @click="share">
+              <button class="btn btn--primary" @click="share">
                 {{ copied ? 'Скопировано' : 'Поделиться результатом' }}
               </button>
-              <button v-if="mode === 'endless'" class="btn btn-ghost" :disabled="sending" @click="newGame()">
+              <button v-if="mode === 'endless'" class="btn btn--ghost" :disabled="sending" @click="newGame()">
                 Ещё раз
               </button>
             </div>
@@ -622,7 +622,7 @@ useSeoMeta({
              пояснений, особенно на телефоне, где ряд переносится. -->
         <button
           v-if="!finished && state.guesses.length >= 5"
-          class="btn btn-ghost giveup"
+          class="btn btn--ghost giveup"
           :disabled="sending"
           @click="giveUp"
         >
@@ -806,43 +806,6 @@ useSeoMeta({
 .volume select:disabled {
   opacity: .5;
   cursor: default;
-}
-
-.btn {
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 9px 16px;
-  border-radius: var(--radius-sm);
-  border: none;
-  cursor: pointer;
-  transition: transform .15s, box-shadow .15s, border-color .15s, color .15s;
-}
-
-.btn:disabled {
-  opacity: .5;
-  cursor: default;
-}
-
-.btn-primary {
-  background: var(--ember);
-  color: var(--bg-dark);
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-ember-lift);
-}
-
-.btn-ghost {
-  border: 1px solid rgba(241, 230, 210, .25);
-  color: var(--parchment-2);
-  background: transparent;
-}
-
-.btn-ghost:hover:not(:disabled) {
-  border-color: var(--ember-soft);
-  color: var(--ember-soft);
 }
 
 /* ── Поиск ──────────────────────────────────── */

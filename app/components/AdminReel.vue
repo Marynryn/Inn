@@ -433,7 +433,7 @@ onMounted(load)
 
       <form class="new-reel" @submit.prevent="create">
         <input v-model="newTitle" type="text" :maxlength="REEL_TITLE_MAX" placeholder="Осень 2026" aria-label="Название нового барабана">
-        <button class="btn" type="submit" :disabled="busy || !newTitle.trim()">+ Новый барабан</button>
+        <button class="btn btn--primary" type="submit" :disabled="busy || !newTitle.trim()">+ Новый барабан</button>
       </form>
     </div>
 
@@ -613,7 +613,7 @@ onMounted(load)
             <input v-model="texts[k]" type="text" :maxlength="REEL_TEXT_MAX" :placeholder="REEL_TEXTS[k].value">
           </label>
         </div>
-        <button class="btn ghost" type="button" :disabled="busy" @click="saveTexts">Сохранить тексты</button>
+        <button class="btn btn--ghost" type="button" :disabled="busy" @click="saveTexts">Сохранить тексты</button>
       </details>
 
       <!-- Фон окна -->
@@ -628,7 +628,7 @@ onMounted(load)
             <span v-if="!bgUrl">нет фона</span>
           </div>
           <div class="bg-controls">
-            <label class="btn ghost bg-upload">
+            <label class="btn btn--ghost bg-upload">
               {{ bgUploading ? 'Загружаем…' : bgUrl ? 'Заменить картинку' : 'Загрузить картинку' }}
               <input type="file" accept="image/*" :disabled="bgUploading" @change="uploadBg">
             </label>
@@ -645,7 +645,7 @@ onMounted(load)
             </label>
           </div>
         </div>
-        <button class="btn ghost" type="button" :disabled="busy || bgUploading" @click="saveBg">Сохранить фон</button>
+        <button class="btn btn--ghost" type="button" :disabled="busy || bgUploading" @click="saveBg">Сохранить фон</button>
       </details>
 
       <!-- Баннер на главной -->
@@ -664,7 +664,7 @@ onMounted(load)
             <div class="banner-preview" :class="[b.key, { empty: !banner[b.key].url }]" :style="banner[b.key].url ? { backgroundImage: `url(&quot;${banner[b.key].url}&quot;)` } : {}">
               <span v-if="!banner[b.key].url">нет картинки</span>
             </div>
-            <label class="btn ghost bg-upload">
+            <label class="btn btn--ghost bg-upload">
               {{ bannerUploading ? 'Загружаем…' : banner[b.key].url ? 'Заменить' : 'Загрузить' }}
               <input type="file" accept="image/*" :disabled="bannerUploading" @change="uploadBanner($event, b.key)">
             </label>
@@ -677,22 +677,22 @@ onMounted(load)
             <input v-model="texts[k]" type="text" :maxlength="REEL_TEXT_MAX" :placeholder="REEL_TEXTS[k].value">
           </label>
         </div>
-        <button class="btn ghost" type="button" :disabled="busy || bannerUploading" @click="saveBanner">Сохранить баннер</button>
+        <button class="btn btn--ghost" type="button" :disabled="busy || bannerUploading" @click="saveBanner">Сохранить баннер</button>
       </details>
 
       <div class="actions">
         <template v-if="editable">
-          <button class="btn ghost" type="button" :disabled="busy" @click="save">Сохранить</button>
-          <button class="btn ghost" type="button" :disabled="busy || drafts.length < 1" @click="trial">Пробная прокрутка</button>
-          <button class="btn" type="button" :disabled="busy || !totalOk || drafts.length < 2" @click="start">Запустить</button>
+          <button class="btn btn--ghost" type="button" :disabled="busy" @click="save">Сохранить</button>
+          <button class="btn btn--ghost" type="button" :disabled="busy || drafts.length < 1" @click="trial">Пробная прокрутка</button>
+          <button class="btn btn--primary" type="button" :disabled="busy || !totalOk || drafts.length < 2" @click="start">Запустить</button>
           <button class="link danger" type="button" :disabled="busy" @click="remove">Удалить черновик</button>
         </template>
         <template v-else-if="selected.status === 'running'">
-          <button class="btn ghost" type="button" @click="trial">Пробная прокрутка</button>
-          <button v-if="!confirmFinish" class="btn ghost" type="button" @click="confirmFinish = true">Завершить ивент</button>
+          <button class="btn btn--ghost" type="button" @click="trial">Пробная прокрутка</button>
+          <button v-if="!confirmFinish" class="btn btn--ghost" type="button" @click="confirmFinish = true">Завершить ивент</button>
           <template v-else>
             <span class="confirm">Завершить? Крутить больше будет нельзя.</span>
-            <button class="btn danger" type="button" :disabled="busy" @click="finish">Да, завершить</button>
+            <button class="btn btn--danger" type="button" :disabled="busy" @click="finish">Да, завершить</button>
             <button class="link" type="button" @click="confirmFinish = false">Отмена</button>
           </template>
         </template>
@@ -1126,29 +1126,6 @@ select option { background: var(--bg-dark-2); }
   align-items: center;
   gap: 10px;
 }
-
-.btn {
-  padding: 9px 18px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--ember);
-  color: var(--bg-dark);
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.btn:disabled { opacity: .45; cursor: not-allowed; }
-
-.btn.ghost {
-  border: 1px solid rgba(241, 230, 210, .22);
-  background: none;
-  color: var(--parchment);
-}
-
-.btn.danger { background: var(--danger-fill); color: var(--parchment); }
 
 .link {
   padding: 0;

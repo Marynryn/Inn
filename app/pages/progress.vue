@@ -172,7 +172,7 @@ useSeoMeta({
       <p class="page-sub">Сколько перевода позади, сколько впереди — и когда вы его догоните.</p>
 
       <!-- Позиция -->
-      <section class="card">
+      <section class="card card--panel">
         <label class="field-label" for="position">Дочитано до главы</label>
         <div class="select-wrap">
           <select id="position" v-model="picked" class="select">
@@ -200,7 +200,7 @@ useSeoMeta({
       </section>
 
       <!-- Итог -->
-      <section class="card hero-card" :class="{ done: stats.done }">
+      <section class="card card--panel hero-card" :class="{ done: stats.done }">
         <div v-if="stats.done" class="confetti" aria-hidden="true">
           <span
             v-for="(c, i) in confetti"
@@ -221,7 +221,7 @@ useSeoMeta({
       </section>
 
       <!-- Главы и слова -->
-      <section class="card">
+      <section class="card card--panel">
         <div class="stat-grid">
           <div class="stat">
             <b class="display">{{ stats.chaptersRead }}</b>
@@ -251,7 +251,7 @@ useSeoMeta({
       </section>
 
       <!-- Оригинал -->
-      <section v-if="originalTotal" class="card original">
+      <section v-if="originalTotal" class="card card--panel original">
         <h2 class="section-title">А если считать от всей книги</h2>
         <p class="section-note">
           В оригинале The Wandering Inn сейчас {{ formatNumber(originalTotal) }} {{ pluralize(originalTotal, 'глава', 'главы', 'глав') }}<template v-if="bookWords"> — по-русски это примерно {{ formatMillions(bookWords) }} слов</template>.
@@ -296,7 +296,7 @@ useSeoMeta({
       </section>
 
       <!-- Время -->
-      <section class="card">
+      <section class="card card--panel">
         <h2 class="section-title">Сколько это по времени</h2>
         <p class="section-note">Прикидка по скорости чтения. Настройки запоминаются в этом браузере.</p>
 
@@ -395,10 +395,6 @@ useSeoMeta({
 }
 
 .card {
-  background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .1);
-  border-radius: var(--radius-md);
-  padding: 22px 24px;
   margin-bottom: 14px;
 }
 
@@ -782,10 +778,6 @@ useSeoMeta({
 @media (max-width: 480px) {
   .wrap {
     padding: 84px 16px 48px;
-  }
-
-  .card {
-    padding: 18px 16px;
   }
 
   .percent-num {

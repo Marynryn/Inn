@@ -288,7 +288,7 @@ useHead({
         </div>
 
         <div class="form-foot">
-          <button class="save-btn" type="button" :disabled="saving" @click="save">
+          <button class="btn btn--primary" type="button" :disabled="saving" @click="save">
             {{ saving ? 'Сохраняем...' : 'Сохранить' }}
           </button>
           <span v-if="message" class="ok-msg">{{ message }}</span>
@@ -654,23 +654,6 @@ useHead({
   align-items: center;
   gap: 12px;
   margin-top: 18px;
-}
-
-.save-btn {
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 500;
-  background: var(--ember);
-  color: var(--bg-dark);
-  border: none;
-  padding: 10px 20px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.save-btn:disabled {
-  opacity: .5;
-  cursor: not-allowed;
 }
 
 .ok-msg { font-size: 13px; color: var(--moss); }

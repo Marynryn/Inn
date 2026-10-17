@@ -119,7 +119,7 @@ useScrollLock()
 <template>
   <Teleport to="body">
     <div class="backdrop" @click.self="emit('close')">
-      <div class="card" role="dialog" aria-modal="true" aria-label="Рейтинг игроков">
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Рейтинг игроков">
         <div class="head">
           <h2 class="title display">Рейтинг<span class="month">за {{ monthName }}</span></h2>
           <button class="close" type="button" aria-label="Закрыть" @click="emit('close')">×</button>
@@ -273,10 +273,7 @@ useScrollLock()
   animation: fade-in .15s ease;
 }
 
-.card {
-  background: var(--bg-dark-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+.modal {
   padding: 24px;
   width: 100%;
   max-width: 560px;
@@ -621,7 +618,7 @@ useScrollLock()
 @media (max-width: 560px) {
   .backdrop { padding: 0; }
 
-  .card {
+  .modal {
     max-width: none;
     max-height: 100vh;
     height: 100%;

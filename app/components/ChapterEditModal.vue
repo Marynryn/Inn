@@ -257,7 +257,7 @@ const save = async () => {
         <div v-if="!loading" class="date-row">
           <label :for="`pub-date-${chapterId}`">Дата публикации</label>
           <input :id="`pub-date-${chapterId}`" v-model="publishedAt" type="date" class="date-input">
-          <button type="button" class="btn-cancel btn-xs" @click="publishedAt = today()">Сегодня</button>
+          <button type="button" class="btn btn--sm btn--ghost" @click="publishedAt = today()">Сегодня</button>
         </div>
 
         <div v-if="loading" class="loading-hint">Загрузка текста главы...</div>
@@ -339,8 +339,8 @@ const save = async () => {
             </span>
             <button type="button" class="tb-btn" title="Предыдущее" :disabled="!matches.length" @click="prevMatch">◀</button>
             <button type="button" class="tb-btn" title="Следующее" :disabled="!matches.length" @click="nextMatch">▶</button>
-            <button type="button" class="btn-cancel btn-xs" :disabled="!matches.length" @click="replaceCurrent">Заменить</button>
-            <button type="button" class="btn-cancel btn-xs" :disabled="!matches.length" @click="replaceAll">Заменить всё</button>
+            <button type="button" class="btn btn--sm btn--ghost" :disabled="!matches.length" @click="replaceCurrent">Заменить</button>
+            <button type="button" class="btn btn--sm btn--ghost" :disabled="!matches.length" @click="replaceAll">Заменить всё</button>
           </div>
 
           <EditorContent :editor="editor" class="editor-body" />
@@ -349,8 +349,8 @@ const save = async () => {
         <div v-if="saveError" class="form-error">{{ saveError }}</div>
 
         <div class="modal-actions">
-          <button class="btn-cancel" @click="emit('close')">Отмена</button>
-          <button class="btn-save" :disabled="loading || saving" @click="save">
+          <button class="btn btn--ghost" @click="emit('close')">Отмена</button>
+          <button class="btn btn--primary" :disabled="loading || saving" @click="save">
             {{ saved ? '✓ Сохранено' : saving ? 'Сохраняем...' : 'Сохранить' }}
           </button>
         </div>
@@ -574,16 +574,6 @@ const save = async () => {
   min-width: 70px;
 }
 
-.btn-xs {
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.btn-cancel:disabled {
-  opacity: .4;
-  cursor: default;
-}
-
 .editor-body {
   flex: 1;
   overflow-y: auto;
@@ -625,27 +615,4 @@ const save = async () => {
   margin-top: 18px;
 }
 
-.btn-cancel {
-  background: none;
-  border: 1px solid rgba(241, 230, 210, .2);
-  color: var(--parchment-2);
-  padding: 9px 16px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.btn-save {
-  background: var(--ember);
-  border: none;
-  color: var(--bg-dark);
-  padding: 9px 18px;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.btn-save:disabled {
-  opacity: .6;
-  cursor: default;
-}
 </style>

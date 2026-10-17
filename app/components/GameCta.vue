@@ -34,7 +34,7 @@ const body = computed(() => {
       <p class="game-sub">{{ body }}</p>
     </div>
 
-    <NuxtLink href="/game" class="game-btn">Играть</NuxtLink>
+    <NuxtLink href="/game" class="btn btn--lg btn--primary game-btn">Играть</NuxtLink>
   </aside>
 </template>
 
@@ -91,18 +91,6 @@ const body = computed(() => {
   position: relative;
   z-index: 1;
   flex: none;
-  padding: 10px 18px;
-  border-radius: var(--radius-sm);
-  background: var(--ember);
-  color: var(--bg-dark);
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: background .15s;
-}
-
-.game-btn:hover {
-  background: var(--ember-soft);
 }
 
 @media (max-width: 620px) {

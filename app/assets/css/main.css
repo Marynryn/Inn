@@ -41,6 +41,7 @@
   --line-faint:        rgba(241, 230, 210, 0.08);   /* разделители, рамки карточек на тёмном */
   --line:              rgba(241, 230, 210, 0.12);   /* рамки модалок и панелей на тёмном */
   --line-strong:       rgba(241, 230, 210, 0.18);   /* рамки полей и кнопок на тёмном */
+  --line-bold:         rgba(241, 230, 210, 0.25);   /* рамка кнопки-призрака на тёмном */
   --line-on-parchment: rgba(43, 30, 22, 0.08);      /* разделитель строк на пергаменте */
 
   /* Spacing: самые частые значения gap/padding/margin */
@@ -117,6 +118,127 @@ a {
   background: var(--bg-dark-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
+}
+
+/* ─── Кнопки ─────────────────────────────────────────────────
+   Роль: .btn--primary (ember), .btn--ghost (рамка), .btn--danger (красная
+   заливка), .btn--outline-danger (красная рамка, для квадратной иконки).
+   Размер: по умолчанию M (13px), .btn--sm (12px), .btn--lg (14px: главная и
+   баннеры). У S и M отступы указаны вместе с рамкой 1px, поэтому основная и
+   вторичная кнопки одного размера одной высоты; у L отступ 12×22 плюс рамка:
+   так высота кнопок главной остаётся прежней, 47px. Раскладка в контексте (flex, ширина,
+   z-index, анимация) остаётся в компоненте: его стили (scoped) сильнее. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 17px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: normal;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s, background .15s, border-color .15s, color .15s;
+}
+
+.btn--sm {
+  padding: 6px 13px;
+  font-size: 12px;
+}
+
+.btn--lg {
+  padding: 12px 22px;
+  font-size: 14px;
+}
+
+.btn--icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.btn--primary {
+  background: var(--ember);
+  color: var(--bg-dark);
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--line-bold);
+  color: var(--parchment-2);
+}
+
+.btn--danger {
+  background: var(--danger-fill);
+  color: var(--parchment);
+}
+
+.btn--outline-danger {
+  background: none;
+  border-color: rgba(224, 112, 112, .3);
+  color: var(--danger);
+}
+
+.btn--primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-ember-lift);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  border-color: var(--ember-soft);
+  color: var(--ember-soft);
+}
+
+.btn--danger:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.btn--outline-danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: rgba(224, 112, 112, .1);
+}
+
+.btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+/* ─── Карточки ───────────────────────────────────────────────
+   .card: поверхность. .card--panel: панель с отступом 24 (16 на телефоне).
+   .card--tile: плитка без отступов, при наведении поднимается. Окно-диалог
+   берёт не .card, а .modal выше. */
+.card {
+  background: var(--bg-dark-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.card--panel {
+  padding: var(--space-24);
+}
+
+.card--tile {
+  overflow: hidden;
+  border-color: var(--line-faint);
+  transition: border-color .15s, transform .15s, box-shadow .15s;
+}
+
+.card--tile:hover,
+.card--tile:focus-visible {
+  border-color: rgba(232, 176, 122, .45);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-lift);
+}
+
+@media (max-width: 600px) {
+  .card--panel {
+    padding: var(--space-16);
+  }
 }
 
 /* ─── Тонкий скролл на тёмном фоне ───────────────────────────

@@ -235,8 +235,8 @@ useSeoMeta({
         />
         <p class="hero-sub" v-html="(settings?.hero_subtitle || '').replace(/\n/g, '<br>')" />
         <div class="hero-actions">
-          <NuxtLink class="btn btn-primary" :href="ctaHref">{{ ctaText }}</NuxtLink>
-          <button class="btn btn-ghost" @click="scrollToLedger">К главам</button>
+          <NuxtLink class="btn btn--lg btn--primary" :href="ctaHref">{{ ctaText }}</NuxtLink>
+          <button class="btn btn--lg btn--ghost" @click="scrollToLedger">К главам</button>
         </div>
         <NuxtLink v-if="hydrated && bookmark" to="/progress" class="hero-progress">
           Прочитано {{ Math.round(bookmarkStats.percent) }} %
@@ -531,43 +531,6 @@ useSeoMeta({
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-.btn {
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 12px 22px;
-  border-radius: var(--radius-sm);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: transform .15s, box-shadow .15s;
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.btn-primary {
-  background: var(--ember);
-  color: var(--bg-dark);
-  box-shadow: 0 0 0 1px rgba(214, 136, 62, .4);
-}
-
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-ember-lift);
-}
-
-.btn-ghost {
-  border: 1px solid rgba(241, 230, 210, .25);
-  color: var(--parchment-2);
-  background: transparent;
-}
-
-.btn-ghost:hover {
-  border-color: var(--ember-soft);
-  color: var(--ember-soft);
 }
 
 /* Ссылка на трекер — тихая строка, а не вторая кнопка: она не зовёт, а
