@@ -729,7 +729,7 @@ useSeoMeta({
     position: absolute;
     right: 96px;
     bottom: 0;
-    width: 34px;
+    width: 38px;
     height: auto;
     filter: drop-shadow(0 0 6px rgba(255, 138, 42, .45));
   }
