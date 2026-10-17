@@ -17,6 +17,10 @@ public/pumpkin.webp и тыква в public/hero-halloween.webp — картин
   Marynryn, источник не записан. В hero-halloween.webp тыква стоит на месте
   белой луны из hero.webp, а сама луна закрашена цветом неба.
 
+public/pumpkin-laugh.mp3 — смех тыквы, «Sinister Laugh», WeaponGuy, OpenGameArt:
+  https://opengameart.org/content/sinister-laugh
+  Лицензия CC0.
+
 bat.svg, jack-o-lantern.svg, ghost.svg — Fluent Emoji (Flat),
   https://github.com/microsoft/fluentui-emoji, лицензия MIT:
 

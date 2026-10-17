@@ -3,6 +3,24 @@ import { formatHours } from '~/composables/useReadingStats'
 
 const { data: settings } = await useFetch('/api/settings')
 const season = useSeason()
+
+// Тыква на Хеллоуин смеётся по клику. Звук качается только при первом клике,
+// повторный клик начинает смех заново, а не накладывает второй поверх.
+let laughAudio: HTMLAudioElement | null = null
+const laughing = ref(false)
+let laughTimer: ReturnType<typeof setTimeout> | undefined
+const laugh = () => {
+  laughAudio ??= new Audio('/pumpkin-laugh.mp3')
+  laughAudio.currentTime = 0
+  laughAudio.play().catch(() => {})
+  laughing.value = true
+  clearTimeout(laughTimer)
+  laughTimer = setTimeout(() => { laughing.value = false }, 2400)
+}
+onBeforeUnmount(() => {
+  clearTimeout(laughTimer)
+  laughAudio?.pause()
+})
 const { data: chapters } = await useFetch('/api/chapters')
 // Пока идёт барабан, его баннер стоит вместо плашки игры. Сбой — не беда:
 // останется плашка игры, главная из-за баннера не падает.
@@ -191,6 +209,20 @@ useSeoMeta({
              поэтому стоит на месте луны при любой ширине кадра. -->
         <NuxtImg :src="season === 'halloween' ? '/hero-halloween.webp' : '/hero.webp'" alt="" />
       </div>
+      <!-- Кнопка поверх вклеенной тыквы. Рамка повторяет .hero-art, но лежит выше
+           текста героя — иначе клик перехватил бы его блок. -->
+      <div v-if="season === 'halloween'" class="hero-pumpkin-frame">
+        <button
+          type="button"
+          class="hero-pumpkin"
+          :class="{ laughing }"
+          aria-label="Тыква"
+          title="Тыква"
+          @click="laugh"
+        >
+          <img src="/pumpkin.webp" alt="">
+        </button>
+      </div>
 
       <div class="hero-content">
         <div class="eyebrow">Фанатский перевод · The Wandering Inn</div>
@@ -209,11 +241,24 @@ useSeoMeta({
           <template v-else> · ещё {{ formatHours(bookmarkStats.hoursLeft) }} до последней переведённой главы</template>
           <span class="hero-progress-arrow">→</span>
         </NuxtLink>
-        <div class="hero-meta">
+        <div class="hero-meta" :class="{ 'with-pumpkin': season === 'halloween' }">
           <div><b class="display">{{ chaptersLabel }}</b>переведено</div>
           <div><b class="display">{{ chapterRange }}</b>текущий диапазон</div>
           <div><b class="display">{{ settings?.update_schedule || '2–3' }}</b>главы в неделю</div>
         </div>
+        <!-- На телефоне луны в кадре героя не видно — тыква садится в правый нижний
+             угол, рядом с цифрами. -->
+        <button
+          v-if="season === 'halloween'"
+          type="button"
+          class="hero-pumpkin-small"
+          :class="{ laughing }"
+          aria-label="Тыква"
+          title="Тыква"
+          @click="laugh"
+        >
+          <img src="/pumpkin.webp" alt="">
+        </button>
       </div>
 
       <!-- Бегущая строка по нижнему краю hero.
@@ -265,8 +310,6 @@ useSeoMeta({
         <div class="ledger-rule" />
         <div v-if="season === 'halloween'" class="ledger-toren"><TorenDance /></div>
         <div v-else class="ledger-bee"><BeeApista /></div>
-        <!-- На телефоне луны в кадре героя не видно — тыква перебирается к Торену. -->
-        <img v-if="season === 'halloween'" src="/pumpkin.webp" alt="" class="ledger-pumpkin">
       </div>
 
       <VolumeAccordion
@@ -651,9 +694,108 @@ useSeoMeta({
   background: url('/toren-smoke.webp') center / contain no-repeat;
 }
 
-/* Тыква у Торена — только на телефоне, на широком экране она висит в небе героя. */
-.ledger-pumpkin {
+/* Тыква в углу героя — только на телефоне, на широком экране она висит в небе. */
+.hero-pumpkin-small {
   display: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.hero-pumpkin-small img {
+  width: 100%;
+  height: auto;
+}
+
+.hero-pumpkin-small.laughing {
+  animation: pumpkin-shake .3s ease-in-out 8;
+}
+
+.hero-pumpkin-small.laughing img {
+  animation: pumpkin-flare-small .6s ease-in-out 4;
+}
+
+@keyframes pumpkin-flare-small {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.6) drop-shadow(0 0 14px rgba(255, 150, 50, .95)); }
+}
+
+@keyframes pumpkin-shake {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-9deg) translateY(-2px); }
+  75% { transform: rotate(9deg) translateY(-2px); }
+}
+
+/*
+  Рамка с той же геометрией, что у .hero-art: картинка там вписана как cover и
+  прижата вправо, значит масштаб кадра — большее из отношений ширины и высоты
+  рамки к 1774×887. Через него и считаем, где в кадре тыква: x 1036–1168,
+  y 112–256 в пикселях картинки.
+*/
+.hero-pumpkin-frame {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 64%;
+  container-type: size;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.hero-pumpkin {
+  --s: max(100cqw / 1774, 100cqh / 887);
+  position: absolute;
+  left: calc(100cqw - 738 * var(--s));
+  top: calc(50cqh - 331.5 * var(--s));
+  width: calc(132 * var(--s));
+  height: calc(144 * var(--s));
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* Та же тыква поверх вклеенной, в кадре она стоит с x 1032, y 108, сторона 141.
+   Обычно не видна, а пока тыква смеётся — вспыхивает: картинка героя
+   приглушена, и тыква в полную силу на её фоне выглядит разгоревшейся. */
+.hero-pumpkin img {
+  position: absolute;
+  left: calc(-4 * var(--s));
+  top: calc(-4 * var(--s));
+  width: calc(141 * var(--s));
+  height: calc(141 * var(--s));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hero-pumpkin.laughing img {
+  animation: pumpkin-flare .6s ease-in-out 4;
+}
+
+/* Яркость поднимает свет в глазах и пасти, тень даёт отсвет вокруг. */
+@keyframes pumpkin-flare {
+  0%, 100% { opacity: 0; filter: brightness(1) drop-shadow(0 0 0 rgba(255, 138, 42, 0)); }
+  50% { opacity: 1; filter: brightness(1.6) drop-shadow(0 0 20px rgba(255, 150, 50, .95)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-pumpkin-small.laughing,
+  .hero-pumpkin-small.laughing img,
+  .hero-pumpkin.laughing img {
+    animation: none;
+  }
+}
+
+/* Уже этого тыква в кадре уходит под заголовок, и кнопка перекрыла бы текст. */
+@media (max-width: 820px) {
+  .hero-pumpkin-frame {
+    display: none;
+  }
 }
 
 /* Плашка игры стоит перед оглавлением и повторяет его ширину. */
@@ -723,17 +865,25 @@ useSeoMeta({
     bottom: -2px;
   }
 
-  /* Стоит на линейке слева от Торена, вне клуба дыма. */
-  .ledger-pumpkin {
-    display: block;
-    position: absolute;
-    right: 96px;
-    bottom: 0;
-    width: 38px;
-    height: auto;
-    filter: drop-shadow(0 0 6px rgba(255, 138, 42, .45));
+  /* «Главы в неделю» — на свою строку: правый нижний угол героя освобождается
+     под тыкву. */
+  .hero-meta.with-pumpkin {
+    row-gap: 14px;
   }
 
+  .hero-meta.with-pumpkin > div:nth-child(3) {
+    flex-basis: 100%;
+  }
+
+  /* Сидит в правом нижнем углу, вровень с низом цифр, высотой в обе их строки. */
+  .hero-pumpkin-small {
+    display: block;
+    position: absolute;
+    right: 20px;
+    bottom: 0;
+    width: 84px;
+    filter: drop-shadow(0 0 10px rgba(255, 138, 42, .45));
+  }
   /* Подпись переносим раньше, чтобы строка не подлезала под пчелу справа. */
   .ledger-head span {
     max-width: 200px;
