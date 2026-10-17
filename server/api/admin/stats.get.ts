@@ -100,7 +100,9 @@ export default defineEventHandler(async (event) => {
     .orderBy(desc(chapterDownloadDays.count))
 
   // Тыква на Хеллоуин: строк по одной на день, их за сезон — десяток-другой.
-  const pumpkinRows = await db.select().from(pumpkinClickDays)
+  // Вне Хеллоуина счётчик не нужен — панель его не показывает.
+  const halloween = await isHalloween()
+  const pumpkinRows = halloween ? await db.select().from(pumpkinClickDays) : []
 
   const topChapters = await db
     .select({
@@ -134,10 +136,12 @@ export default defineEventHandler(async (event) => {
       telegram: providerRows.find(r => r.provider === 'telegram')?.total ?? 0,
       active: activeRows.length,
     },
-    pumpkin: {
-      today: pumpkinRows.find(r => r.day === mskDay())?.count ?? 0,
-      total: pumpkinRows.reduce((sum, r) => sum + r.count, 0),
-    },
+    pumpkin: halloween
+      ? {
+          today: pumpkinRows.find(r => r.day === mskDay())?.count ?? 0,
+          total: pumpkinRows.reduce((sum, r) => sum + r.count, 0),
+        }
+      : null,
     topChapters,
   }
 })
