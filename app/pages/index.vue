@@ -187,7 +187,9 @@ useSeoMeta({
     <div class="hero">
       <div class="lantern" />
       <div class="hero-art">
-        <NuxtImg src="/hero.webp" alt="" />
+        <!-- На Хеллоуин белую луну сменяет тыква — она вклеена прямо в картинку,
+             поэтому стоит на месте луны при любой ширине кадра. -->
+        <NuxtImg :src="season === 'halloween' ? '/hero-halloween.webp' : '/hero.webp'" alt="" />
       </div>
 
       <div class="hero-content">
@@ -263,6 +265,8 @@ useSeoMeta({
         <div class="ledger-rule" />
         <div v-if="season === 'halloween'" class="ledger-toren"><TorenDance /></div>
         <div v-else class="ledger-bee"><BeeApista /></div>
+        <!-- На телефоне луны в кадре героя не видно — тыква перебирается к Торену. -->
+        <img v-if="season === 'halloween'" src="/pumpkin.webp" alt="" class="ledger-pumpkin">
       </div>
 
       <VolumeAccordion
@@ -647,6 +651,11 @@ useSeoMeta({
   background: url('/toren-smoke.webp') center / contain no-repeat;
 }
 
+/* Тыква у Торена — только на телефоне, на широком экране она висит в небе героя. */
+.ledger-pumpkin {
+  display: none;
+}
+
 /* Плашка игры стоит перед оглавлением и повторяет его ширину. */
 .game-wrap {
   max-width: 760px;
@@ -712,6 +721,17 @@ useSeoMeta({
     --toren-w: 96px;
     right: -8px;
     bottom: -2px;
+  }
+
+  /* Стоит на линейке слева от Торена, вне клуба дыма. */
+  .ledger-pumpkin {
+    display: block;
+    position: absolute;
+    right: 96px;
+    bottom: 0;
+    width: 34px;
+    height: auto;
+    filter: drop-shadow(0 0 6px rgba(255, 138, 42, .45));
   }
 
   /* Подпись переносим раньше, чтобы строка не подлезала под пчелу справа. */

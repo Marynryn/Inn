@@ -116,7 +116,7 @@ export default defineNuxtConfig({
     ...Object.fromEntries([
       '/characters/**', '/figures/**', '/avatars/**',
       '/403.webp', '/404.webp', '/500.webp', '/bee.webp', '/header.webp', '/hearth.webp',
-      '/hero.webp', '/login.webp', '/login-mobile.webp', '/orb.webp', '/reader-book.webp',
+      '/hero.webp', '/hero-halloween.webp', '/pumpkin.webp', '/login.webp', '/login-mobile.webp', '/orb.webp', '/reader-book.webp',
       '/sign-characters.webp', '/toren-smoke.webp', '/og.jpg',
       '/fav.png', '/favicon.ico', '/favicon-16x16.png', '/favicon-32x32.png', '/favicon-192x192.png',
     ].map(path => [path, { headers: { 'Cache-Control': 'public, max-age=86400' } }])),

@@ -13,6 +13,12 @@ public/toren-smoke.webp — клуб дыма за Тореном: smoke_08 из
   Kenney, https://kenney.nl/assets/particle-pack, лицензия CC0. Перекрашен
   из белого в тёплый серый и сделан плотнее.
 
+public/pumpkin.webp и тыква в public/hero-halloween.webp — «Jack-O-Lantern at
+  night», Alabama Extension, лицензия CC0:
+  https://commons.wikimedia.org/wiki/File:Jack-O-Lantern_at_night.jpg
+  Тыква вырезана из фона. В hero-halloween.webp она стоит на месте белой луны
+  из hero.webp, а сама луна закрашена цветом неба.
+
 bat.svg, jack-o-lantern.svg, ghost.svg — Fluent Emoji (Flat),
   https://github.com/microsoft/fluentui-emoji, лицензия MIT:
 
