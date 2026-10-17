@@ -810,6 +810,12 @@ useHead({
             <span>пишут или играют {{ stats?.readers?.active ?? 0 }}</span>
           </p>
 
+          <!-- Клики админов не считаются. Строка появляется с первым кликом. -->
+          <p v-if="stats?.pumpkin?.total" class="readers-line">
+            <span>Тыкву тыкнули <b>{{ stats.pumpkin.total.toLocaleString('ru') }}</b></span>
+            <span>сегодня {{ stats.pumpkin.today.toLocaleString('ru') }}</span>
+          </p>
+
           <h3 class="stats-sub">Игра «Кто из таверны»</h3>
           <div class="game-stats">
             <div class="game-stats-row game-stats-head">

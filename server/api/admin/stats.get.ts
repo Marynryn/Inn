@@ -1,5 +1,5 @@
 import { useDb } from '../../utils/db'
-import { chapterDownloadDays, chapters, chapterStats, chapterViewDays, comments, gameStats, userIdentities, users } from '../../database/schema'
+import { chapterDownloadDays, chapters, chapterStats, chapterViewDays, comments, gameStats, pumpkinClickDays, userIdentities, users } from '../../database/schema'
 import { and, eq, desc, gte, sql, sum, count } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -99,6 +99,9 @@ export default defineEventHandler(async (event) => {
     .where(eq(chapterDownloadDays.day, mskDay()))
     .orderBy(desc(chapterDownloadDays.count))
 
+  // Тыква на Хеллоуин: строк по одной на день, их за сезон — десяток-другой.
+  const pumpkinRows = await db.select().from(pumpkinClickDays)
+
   const topChapters = await db
     .select({
       id: chapters.id,
@@ -130,6 +133,10 @@ export default defineEventHandler(async (event) => {
       google: providerRows.find(r => r.provider === 'google')?.total ?? 0,
       telegram: providerRows.find(r => r.provider === 'telegram')?.total ?? 0,
       active: activeRows.length,
+    },
+    pumpkin: {
+      today: pumpkinRows.find(r => r.day === mskDay())?.count ?? 0,
+      total: pumpkinRows.reduce((sum, r) => sum + r.count, 0),
     },
     topChapters,
   }

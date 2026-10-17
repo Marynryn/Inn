@@ -168,6 +168,14 @@ export async function runMigrations() {
     );
   `)
 
+  // Клики по хеллоуинской тыкве по дням.
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS pumpkin_click_days (
+      day TEXT PRIMARY KEY,
+      count INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+
   // Хранить историю по дням незачем: показывается только сегодняшний день.
   await client.execute("DELETE FROM chapter_view_days WHERE day < date('now', '-7 day')")
   await client.execute("DELETE FROM chapter_download_days WHERE day < date('now', '-7 day')")

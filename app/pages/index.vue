@@ -14,6 +14,8 @@ const laugh = () => {
   if (!laughAudio || laughAudio.error) laughAudio = new Audio('/pumpkin-laugh.mp3')
   laughAudio.currentTime = 0
   laughAudio.play().catch(() => {})
+  // Счётчик для админки; не дошло — не беда, смех от этого не зависит.
+  $fetch('/api/pumpkin/click', { method: 'POST' }).catch(() => {})
   laughing.value = true
   clearTimeout(laughTimer)
   laughTimer = setTimeout(() => { laughing.value = false }, 2400)
@@ -774,16 +776,16 @@ useSeoMeta({
 }
 
 /* Та же тыква поверх вклеенной, в кадре она стоит с x 1032, y 108, сторона 141.
-   Обычно не видна, а пока тыква смеётся — вспыхивает: картинка героя
-   приглушена, и тыква в полную силу на её фоне выглядит разгоревшейся. */
+   Картинка героя приглушена до половины, и вклеенная тыква вышла бы тусклой —
+   эта, в полную силу, такая же яркая, как на телефоне. Свечение — как там. */
 .hero-pumpkin img {
   position: absolute;
   left: calc(-4 * var(--s));
   top: calc(-4 * var(--s));
   width: calc(141 * var(--s));
   height: calc(141 * var(--s));
-  opacity: 0;
   pointer-events: none;
+  filter: drop-shadow(0 0 10px rgba(255, 138, 42, .45));
 }
 
 .hero-pumpkin.laughing img {
@@ -792,8 +794,8 @@ useSeoMeta({
 
 /* Яркость поднимает свет в глазах и пасти, тень даёт отсвет вокруг. */
 @keyframes pumpkin-flare {
-  0%, 100% { opacity: 0; filter: brightness(1) drop-shadow(0 0 0 rgba(255, 138, 42, 0)); }
-  50% { opacity: 1; filter: brightness(1.6) drop-shadow(0 0 20px rgba(255, 150, 50, .95)); }
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 10px rgba(255, 138, 42, .45)); }
+  50% { filter: brightness(1.6) drop-shadow(0 0 20px rgba(255, 150, 50, .95)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

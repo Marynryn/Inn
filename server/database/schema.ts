@@ -221,6 +221,13 @@ export const chapterDownloadDays = sqliteTable('chapter_download_days', {
   count: integer('count').notNull().default(0),
 }, t => [primaryKey({ columns: [t.chapterId, t.day] })])
 
+// Клики по тыкве на Хеллоуин — строка на день, без людей. Клики
+// администраторов сюда не попадают.
+export const pumpkinClickDays = sqliteTable('pumpkin_click_days', {
+  day: text('day').primaryKey(), // '2026-10-17', по Москве
+  count: integer('count').notNull().default(0),
+})
+
 // Партия в игре «Кто из таверны». Ответ и список попыток живут здесь, а не у
 // игрока: браузер знает только разбор своих догадок.
 export const gameSessions = sqliteTable('game_sessions', {
