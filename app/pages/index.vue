@@ -860,12 +860,12 @@ useSeoMeta({
     position: absolute;
     right: 20px;
     bottom: -30px;
-    width: 168px;
+    width: 124px;
     filter: drop-shadow(0 0 10px rgba(255, 138, 42, .45));
   }
   /* На узком телефоне большая тыква закрыла бы и «текущий диапазон» — он тоже
      уходит на свою строку, цифры встают столбиком слева от неё. */
-  @media (max-width: 410px) {
+  @media (max-width: 370px) {
     .hero-meta.with-pumpkin > div:nth-child(2) {
       flex-basis: 100%;
     }
