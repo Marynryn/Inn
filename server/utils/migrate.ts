@@ -756,6 +756,12 @@ export async function runMigrations() {
     );
 
     CREATE INDEX IF NOT EXISTS reel_spins_segment ON reel_spins (segment_id, outcome);
+
+    CREATE TABLE IF NOT EXISTS reel_guest_tries (
+      reel_id INTEGER NOT NULL,
+      visitor TEXT NOT NULL,
+      PRIMARY KEY (reel_id, visitor)
+    );
   `)
 
   // Фигурка у имени — второй вид приза барабана. Каталог в коде, в базе только

@@ -1,20 +1,6 @@
-import { createHash } from 'node:crypto'
 import { useDb } from '../../../utils/db'
 import { chapters, chapterStats, chapterViewDays, readerDays } from '../../../database/schema'
 import { eq, sql } from 'drizzle-orm'
-
-/** Код браузера: случайная строка из localStorage. Всё иное — не он. */
-const VISITOR_RE = /^[\w-]{8,64}$/
-
-/**
- * Отпечаток браузера на сегодня. Дата в отпечатке — чтобы вчерашнего и
- * сегодняшнего читателя нельзя было сопоставить; секрет — чтобы по известному
- * коду нельзя было найти его строку.
- */
-function visitorOfDay(visitor: string, day: string) {
-  const secret = useRuntimeConfig().sessionPassword || ''
-  return createHash('sha256').update(`${day}:${visitor}:${secret}`).digest('hex').slice(0, 16)
-}
 
 /**
  * Просмотр главы. Его дёргает уже загруженная страница, а не серверный рендер:
@@ -43,8 +29,7 @@ export default defineEventHandler(async (event) => {
   if (session.user?.role === 'admin' || isBotRequest(event)) return { ok: true, counted: false }
 
   const day = mskDay()
-  const body = await readBody<{ visitor?: unknown } | undefined>(event).catch(() => undefined)
-  const visitor = typeof body?.visitor === 'string' && VISITOR_RE.test(body.visitor) ? body.visitor : null
+  const visitor = await readVisitor(event)
 
   // Все записи одной транзакцией: порознь это несколько сбросов на диск вместо одного.
   const viewDay = db
@@ -64,7 +49,7 @@ export default defineEventHandler(async (event) => {
 
   if (visitor) {
     // Тот же браузер за тот же день — строка уже есть, и второй раз он не считается.
-    const reader = db.insert(readerDays).values({ day, visitor: visitorOfDay(visitor, day) }).onConflictDoNothing()
+    const reader = db.insert(readerDays).values({ day, visitor: visitorPrint(visitor, day) }).onConflictDoNothing()
     await db.batch([viewDay, viewTotal, reader])
   }
   else {

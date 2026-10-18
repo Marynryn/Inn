@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { reelSegments, reelSpins, reels } from '../../../database/schema'
+import { reelGuestTries, reelSegments, reelSpins, reels } from '../../../database/schema'
 import { useDb } from '../../../utils/db'
 import { reelFromRoute } from '../../../utils/reel'
 
@@ -15,6 +15,7 @@ export default defineEventHandler(async (event) => {
   const db = useDb()
   await db.batch([
     db.delete(reelSpins).where(eq(reelSpins.reelId, reel.id)),
+    db.delete(reelGuestTries).where(eq(reelGuestTries.reelId, reel.id)),
     db.delete(reelSegments).where(eq(reelSegments.reelId, reel.id)),
     db.delete(reels).where(eq(reels.id, reel.id)),
   ])

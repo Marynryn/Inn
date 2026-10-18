@@ -725,6 +725,9 @@ onMounted(load)
             <span>Только выигрыши</span>
           </label>
         </div>
+        <p v-if="selected.guests" class="note">
+          Гостей, которые открыли барабан, но без входа крутить не могли: {{ selected.guests }}
+        </p>
         <p v-if="!log.length" class="empty">{{ onlyWon ? 'Выигрышей пока нет.' : 'Пока никто не крутил.' }}</p>
         <p v-else-if="onlyWon" class="note">Выигрышей: {{ log.length }}{{ log.length >= 500 ? ' (показаны последние 500)' : '' }}</p>
         <div v-for="row in log" :key="row.id" class="log-row">

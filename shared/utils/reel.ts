@@ -102,6 +102,8 @@ export type AdminReel = {
   segments: AdminReelSegment[]
   spins: number
   players: number
+  /** Гости, которые открыли барабан, но без входа крутить не могли. */
+  guests: number
 }
 
 /** Что панель присылает при сохранении сегментов. */

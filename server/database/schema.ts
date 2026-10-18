@@ -162,6 +162,13 @@ export const reelSpins = sqliteTable('reel_spins', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
+// Гости, которые открыли барабан, но крутить без входа не могли. Строка — один
+// браузер на барабан; вместо кода браузера — его отпечаток (utils/visitor).
+export const reelGuestTries = sqliteTable('reel_guest_tries', {
+  reelId: integer('reel_id').notNull(),
+  visitor: text('visitor').notNull(),
+}, t => [primaryKey({ columns: [t.reelId, t.visitor] })])
+
 export const comments = sqliteTable('comments', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   chapterId: text('chapter_id'), // NULL = отзыв о сайте

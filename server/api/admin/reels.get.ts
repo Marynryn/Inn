@@ -1,7 +1,7 @@
 import { count, countDistinct, desc, eq } from 'drizzle-orm'
 import type { AdminReel } from '#shared/utils/reel'
 import { cleanReelTexts } from '#shared/utils/reel'
-import { reelSpins, reels } from '../../database/schema'
+import { reelGuestTries, reelSpins, reels } from '../../database/schema'
 import { useDb } from '../../utils/db'
 import { bannerOf, lookOf, reelImageUrl, segmentsOf } from '../../utils/reel'
 
@@ -23,6 +23,11 @@ export default defineEventHandler(async (): Promise<AdminReel[]> => {
       .select({ spins: count(), players: countDistinct(reelSpins.userId) })
       .from(reelSpins)
       .where(eq(reelSpins.reelId, reel.id))
+
+    const [guestTries] = await db
+      .select({ n: count() })
+      .from(reelGuestTries)
+      .where(eq(reelGuestTries.reelId, reel.id))
 
     const tally = (segmentId: number, outcome?: string) => byOutcome
       .filter(r => r.segmentId === segmentId && (!outcome || r.outcome === outcome))
@@ -59,6 +64,7 @@ export default defineEventHandler(async (): Promise<AdminReel[]> => {
       })),
       spins: totals?.spins ?? 0,
       players: totals?.players ?? 0,
+      guests: guestTries?.n ?? 0,
     }
   }))
 })

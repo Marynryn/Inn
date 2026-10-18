@@ -46,6 +46,13 @@ const trial = computed(() => Boolean(props.trialId))
  *  После входа главная откроет барабан сама (?reel=1). */
 const guest = computed(() => !trial.value && auth.ready && !auth.isAuthed)
 const loginHref = `/login?next=${encodeURIComponent('/?reel=1')}`
+// Для админки: сколько гостей хотели покрутить, но упёрлись во вход. Шлём,
+// когда барабан загрузился и гостю показано «войти»; один раз за открытие.
+const stopGuestWatch = watch(() => guest.value && phase.value === 'ready', (shown) => {
+  if (!shown) return
+  stopGuestWatch()
+  $fetch('/api/reel/guest', { method: 'POST', body: { visitor: visitorId() } }).catch(() => {})
+})
 /** Сколько попыток осталось сегодня; null — без ограничений (админ, проба). */
 const left = ref<number | null>(null)
 const perDay = computed(() => state.value?.perDay ?? 1)
