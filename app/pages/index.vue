@@ -860,9 +860,17 @@ useSeoMeta({
     position: absolute;
     right: 20px;
     bottom: -30px;
-    width: 84px;
+    width: 168px;
     filter: drop-shadow(0 0 10px rgba(255, 138, 42, .45));
   }
+  /* На узком телефоне большая тыква закрыла бы и «текущий диапазон» — он тоже
+     уходит на свою строку, цифры встают столбиком слева от неё. */
+  @media (max-width: 410px) {
+    .hero-meta.with-pumpkin > div:nth-child(2) {
+      flex-basis: 100%;
+    }
+  }
+
   /* Подпись переносим раньше, чтобы строка не подлезала под пчелу справа. */
   .ledger-head span {
     max-width: 200px;
