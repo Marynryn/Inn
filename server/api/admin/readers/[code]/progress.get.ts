@@ -3,7 +3,7 @@ import { chapters, readingProgress, users } from '../../../../database/schema'
 import { useDb } from '../../../../utils/db'
 
 /**
- * Закладки читателя для админки: какие главы открывал, докуда дочитал и когда.
+ * Последние главы, которые открывал читатель, — для админки.
  * Доступ — только администратору (его проверяет admin-guard на всём /api/admin).
  * Читатель — по публичному коду, как на его странице и в соседнем about.delete.
  *
@@ -22,30 +22,15 @@ export default defineEventHandler(async (event) => {
 
   // Левое присоединение: закладка на снятую с сайта главу тоже остаётся в списке,
   // просто без названия.
-  const rows = await db
+  return db
     .select({
-      chapterId: readingProgress.chapterId,
+      id: readingProgress.chapterId,
       title: chapters.title,
-      isRead: readingProgress.isRead,
-      scroll: readingProgress.scroll,
       updatedAt: readingProgress.updatedAt,
     })
     .from(readingProgress)
     .leftJoin(chapters, eq(chapters.id, readingProgress.chapterId))
     .where(eq(readingProgress.userId, user.id))
     .orderBy(desc(readingProgress.updatedAt))
-
-  return {
-    readCount: rows.filter(r => r.isRead).length,
-    openedCount: rows.length,
-    lastRead: rows[0] ? { id: rows[0].chapterId, title: rows[0].title, at: rows[0].updatedAt } : null,
-    chapters: rows.map(r => ({
-      id: r.chapterId,
-      title: r.title,
-      isRead: r.isRead,
-      // Доля прокрутки в процентах — так читать проще, чем 0.4375.
-      scrollPercent: Math.round(r.scroll * 100),
-      updatedAt: r.updatedAt,
-    })),
-  }
+    .limit(5)
 })

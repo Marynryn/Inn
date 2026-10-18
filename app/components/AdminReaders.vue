@@ -33,13 +33,9 @@ const via = (r: Reader) => r.providers.length ? r.providers.map(p => PROVIDER[p]
 
 const date = (iso: string) => iso.slice(0, 10).split('-').reverse().join('.')
 
-// Закладки читателя: раскрываются под строкой по кнопке, грузятся при первом
-// раскрытии и дальше берутся из памяти — перечитывать их каждые 30 секунд незачем.
-type Progress = {
-  readCount: number
-  openedCount: number
-  chapters: { id: string, title: string | null, isRead: boolean, scrollPercent: number, updatedAt: string }[]
-}
+// Последние пять глав читателя: раскрываются под строкой по кнопке, грузятся при
+// первом раскрытии и дальше берутся из памяти — перечитывать их каждые 30 секунд незачем.
+type Progress = { id: string, title: string | null, updatedAt: string }[]
 const openCode = ref<string | null>(null)
 const progress = reactive<Record<string, Progress | 'error'>>({})
 const marks = computed(() => openCode.value ? progress[openCode.value] : undefined)
@@ -102,18 +98,14 @@ const when = (sqlTime: string) => new Date(`${sqlTime.replace(' ', 'T')}Z`).toLo
         <div v-if="r.code && openCode === r.code" class="marks">
           <p v-if="!marks" class="note">Смотрим…</p>
           <p v-else-if="marks === 'error'" class="note">Закладки не загрузились.</p>
-          <p v-else-if="!marks.openedCount" class="note">Ещё не открывал ни одной главы.</p>
-          <template v-else>
-            <p class="note">Дочитано {{ marks.readCount }} из {{ marks.openedCount }} открытых</p>
-            <ul class="marks-list thin-scroll">
-              <li v-for="c in marks.chapters" :key="c.id">
-                <NuxtLink v-if="c.title" :to="`/chapter/${c.id}`" class="mark-title">{{ c.title }}</NuxtLink>
-                <span v-else class="mark-title gone">снята с сайта</span>
-                <span class="mark-pct" :class="{ done: c.isRead }">{{ c.isRead ? '✓' : `${c.scrollPercent}%` }}</span>
-                <span class="mark-when">{{ when(c.updatedAt) }}</span>
-              </li>
-            </ul>
-          </template>
+          <p v-else-if="!marks.length" class="note">Ещё не открывал ни одной главы.</p>
+          <ul v-else class="marks-list">
+            <li v-for="c in marks" :key="c.id">
+              <NuxtLink v-if="c.title" :to="`/chapter/${c.id}`" class="mark-title">{{ c.title }}</NuxtLink>
+              <span v-else class="mark-title gone">снята с сайта</span>
+              <span class="mark-when">{{ when(c.updatedAt) }}</span>
+            </li>
+          </ul>
         </div>
       </li>
     </ul>
@@ -242,10 +234,8 @@ a.row:hover .go {
 
 .marks-list {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
-  max-height: 260px;
-  overflow-y: auto;
 }
 
 .marks-list li {
@@ -275,21 +265,11 @@ a.mark-title:hover {
   font-style: italic;
 }
 
-.mark-pct,
 .mark-when {
   flex: none;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: rgba(241, 230, 210, .5);
-}
-
-.mark-pct {
-  min-width: 34px;
-  text-align: right;
-}
-
-.mark-pct.done {
-  color: #6cc46a;
 }
 
 @media (max-width: 560px) {
