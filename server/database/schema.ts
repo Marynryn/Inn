@@ -221,6 +221,15 @@ export const chapterDownloadDays = sqliteTable('chapter_download_days', {
   count: integer('count').notNull().default(0),
 }, t => [primaryKey({ columns: [t.chapterId, t.day] })])
 
+// Сколько разных людей открывало главы за день. Строка — один браузер за день.
+// visitor — не сам код браузера, а отпечаток кода вместе с датой и секретом:
+// по нему нельзя ни узнать человека, ни связать его вчерашний и сегодняшний
+// день. Хватает ровно на одно — посчитать, сколько их было.
+export const readerDays = sqliteTable('reader_days', {
+  day: text('day').notNull(), // '2026-10-18', по Москве
+  visitor: text('visitor').notNull(),
+}, t => [primaryKey({ columns: [t.day, t.visitor] })])
+
 // Клики по тыкве на Хеллоуин — строка на день, без людей. Клики
 // администраторов сюда не попадают.
 export const pumpkinClickDays = sqliteTable('pumpkin_click_days', {

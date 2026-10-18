@@ -539,6 +539,11 @@ const sendNotify = async () => {
 
 // --- Статистика ---
 const { data: stats } = await useFetch('/api/admin/stats')
+
+// Столбики «разных читателей»: самый высокий день — 64px, остальные от него.
+// Пустой день — тонкая полоска, чтобы ряд не выглядел оборванным.
+const readerDaysMax = computed(() => Math.max(1, ...(stats.value?.readersByDay ?? []).map(d => d.count)))
+const readerBarHeight = (n: number) => n ? Math.max(6, Math.round(n / readerDaysMax.value * 64)) : 2
 // Плитки-кнопки: у сегодняшних просмотров и у скачиваний за суммой открывается
 // список по главам. У скачиваний сумма общая, а список — только за сегодня.
 const viewsModal = ref(false)
@@ -815,6 +820,33 @@ useHead({
             <span>Тыкву тыкнули <b>{{ stats.pumpkin.total.toLocaleString('ru') }}</b></span>
             <span>сегодня {{ stats.pumpkin.today.toLocaleString('ru') }}</span>
           </p>
+
+          <!-- Сколько разных людей открывали главы: просмотры считают и повторы,
+               а по этому числу видно саму аудиторию. Столбик — день, последний —
+               сегодня. Админы и боты сюда не попадают. -->
+          <h3 class="stats-sub">Разных читателей за день</h3>
+          <div class="daily-readers">
+            <div class="daily-readers-today">
+              <span class="stat-value">{{ stats?.readersToday ?? 0 }}</span>
+              <span class="daily-readers-label">сегодня</span>
+            </div>
+            <div class="daily-readers-bars" role="img" :aria-label="`Разные читатели за две недели: ${(stats?.readersByDay ?? []).map(d => d.count).join(', ')}`">
+              <div
+                v-for="d in stats?.readersByDay ?? []"
+                :key="d.day"
+                class="daily-readers-bar"
+                :class="{ 'is-today': d.day === stats?.readersByDay?.at(-1)?.day }"
+                :title="`${d.day.slice(8, 10)}.${d.day.slice(5, 7)} — ${d.count}`"
+              >
+                <span class="daily-readers-count">{{ d.count || '' }}</span>
+                <span
+                  class="daily-readers-fill"
+                  :style="{ height: `${readerBarHeight(d.count)}px` }"
+                />
+                <span class="daily-readers-day">{{ d.day.slice(8, 10) }}</span>
+              </div>
+            </div>
+          </div>
 
           <h3 class="stats-sub">Игра «Кто из таверны»</h3>
           <div class="game-stats">
@@ -1968,6 +2000,63 @@ useHead({
 
 .readers-new {
   color: var(--moss);
+}
+
+/* Разные читатели за день: число за сегодня и две недели столбиками. */
+.daily-readers {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  margin: 0 0 28px;
+}
+
+.daily-readers-today {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.daily-readers-label {
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.daily-readers-bars {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  gap: 4px;
+  align-items: end;
+}
+
+.daily-readers-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.daily-readers-fill {
+  width: 100%;
+  max-width: 22px;
+  border-radius: 3px 3px 0 0;
+  background: var(--ember);
+  opacity: .45;
+}
+
+.daily-readers-bar.is-today .daily-readers-fill {
+  opacity: 1;
+}
+
+.daily-readers-count,
+.daily-readers-day {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .stats-sub {

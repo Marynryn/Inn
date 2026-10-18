@@ -95,7 +95,11 @@ onMounted(() => {
   // доходит только тот, у кого страница действительно открылась в браузере.
   // Шлём уже разрешённый id, а не слаг из адреса: по нему сервер найдёт главу
   // сразу по ключу, без перебора всех глав ради сопоставления слагов.
-  $fetch(`/api/chapters/${encodeURIComponent(chapterId)}/view`, { method: 'POST' }).catch(() => {})
+  // Код браузера — для счётчика разных читателей за день, см. utils/visitorId.
+  $fetch(`/api/chapters/${encodeURIComponent(chapterId)}/view`, {
+    method: 'POST',
+    body: { visitor: visitorId() },
+  }).catch(() => {})
 
   const restoreTo = (value: number) => {
     document.fonts.ready.then(() => {
@@ -335,6 +339,7 @@ useHead(() => ({
         :title="settings?.tg_cta_title"
         :text="settings?.tg_cta_text"
         :on-dark="!lightTheme"
+        place="chapter"
       />
 
       <NuxtLink

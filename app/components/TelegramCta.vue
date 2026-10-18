@@ -5,11 +5,18 @@ const props = defineProps<{
   text?: string
   /** Вариант для тёмной подложки — страница главы. По умолчанию светлая, как оглавление. */
   onDark?: boolean
+  /**
+   * Где стоит плашка: 'chapter', 'home'. Уходит в Clarity событием
+   * tg_click_<place> — так видно, какая из плашек вообще приводит людей.
+   */
+  place?: string
 }>()
 
 // Тексты редактируются в админке; значения тут — запасные, если настройка пустая.
 const heading = computed(() => props.title || 'Не пропусти новую главу')
 const body = computed(() => props.text || 'Бот в телеграм-канале присылает уведомление о каждой новой главе сразу после публикации.')
+
+const track = () => useClarity().event(`tg_click_${props.place || 'other'}`)
 </script>
 
 <template>
@@ -28,7 +35,7 @@ const body = computed(() => props.text || 'Бот в телеграм-канал
       <p class="tg-sub">{{ body }}</p>
     </div>
 
-    <a :href="url" target="_blank" rel="noopener" class="btn btn--lg btn--primary tg-btn">
+    <a :href="url" target="_blank" rel="noopener" class="btn btn--lg btn--primary tg-btn" @click="track">
       Подписаться
     </a>
   </aside>

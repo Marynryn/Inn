@@ -334,6 +334,7 @@ useSeoMeta({
           :url="settings?.telegram_url"
           :title="settings?.tg_cta_title"
           :text="settings?.tg_cta_text"
+          place="home"
         />
       </div>
     </div>

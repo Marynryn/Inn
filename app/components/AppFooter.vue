@@ -28,6 +28,7 @@ const goToChapters = (e: Event) => {
         :href="settings?.telegram_url || '#'"
         target="_blank"
         rel="noopener"
+        @click="useClarity().event('tg_click_footer')"
       >
         Telegram
       </a>

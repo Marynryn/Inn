@@ -176,6 +176,18 @@ export async function runMigrations() {
     )
   `)
 
+  // Разные читатели за день. Строка на браузер за день, вместо кода браузера —
+  // отпечаток с датой, см. readerDays в schema.ts.
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS reader_days (
+      day TEXT NOT NULL,
+      visitor TEXT NOT NULL,
+      PRIMARY KEY (day, visitor)
+    )
+  `)
+  // В админке — сегодня и две недели назад; месяц с запасом.
+  await client.execute("DELETE FROM reader_days WHERE day < date('now', '-30 day')")
+
   // Хранить историю по дням незачем: показывается только сегодняшний день.
   await client.execute("DELETE FROM chapter_view_days WHERE day < date('now', '-7 day')")
   await client.execute("DELETE FROM chapter_download_days WHERE day < date('now', '-7 day')")

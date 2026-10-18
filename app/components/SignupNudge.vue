@@ -41,7 +41,14 @@ const visible = computed(() =>
 
 const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
 
+// События для Clarity: показали плашку, нажали «Войти», закрыли крестиком.
+// Без показа не понять, мало кликов оттого, что не зовёт, или оттого, что
+// её почти никто не видит.
+const clarity = useClarity()
+watch(visible, (v) => { if (v) clarity.event('signup_nudge_shown') }, { immediate: true })
+
 const hide = () => {
+  clarity.event('signup_nudge_hide')
   hiddenAt.value = readCount.value
   try { localStorage.setItem(LS_HIDDEN, String(readCount.value)) } catch {}
 }
@@ -63,7 +70,7 @@ const hide = () => {
       </p>
     </div>
 
-    <NuxtLink :to="loginHref" class="sn-btn">Войти</NuxtLink>
+    <NuxtLink :to="loginHref" class="sn-btn" @click="clarity.event('signup_nudge_click')">Войти</NuxtLink>
 
     <button type="button" class="sn-close" title="Скрыть" aria-label="Скрыть" @click="hide">✕</button>
   </aside>

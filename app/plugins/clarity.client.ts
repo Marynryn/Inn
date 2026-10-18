@@ -10,6 +10,17 @@ export default defineNuxtPlugin(() => {
   const id = useRuntimeConfig().public.clarityId
   if (!id) return
 
+  // Очередь вызовов — сразу, а не вместе со сниппетом: useHead вставляет скрипт
+  // не мгновенно, и метка, поставленная до этого, раньше просто терялась —
+  // window.clarity ещё не было. Сниппет ниже видит готовую очередь и не
+  // перезаписывает её (c[a]=c[a]||…), а загрузившийся тег разбирает её сам.
+  const w = window as unknown as { clarity?: ((...a: unknown[]) => void) & { q?: unknown[][] } }
+  if (!w.clarity) {
+    const queue = (...a: unknown[]) => { (queue.q = queue.q || []).push(a) }
+    queue.q = undefined as unknown[][] | undefined
+    w.clarity = queue
+  }
+
   // Официальный сниппет: очередь вызовов clarity() до загрузки тега.
   useHead({
     script: [{
@@ -18,10 +29,17 @@ export default defineNuxtPlugin(() => {
     }],
   })
 
-  // Метка «гость / вошёл» на сессии: по ней в Clarity фильтруются записи,
-  // например «гости, которые кликнули бегущую строку и не зарегистрировались».
+  // Метка на сессии, по ней в Clarity фильтруются записи:
+  //   no    — гость,
+  //   yes   — вошедший читатель,
+  //   admin — хозяйка сайта и помощники: их сессии стоит исключать из статистики.
+  //
+  // Ставится только после ответа /api/auth/me: до него «не вошёл» значит «ещё
+  // не знаем», и каждый вошедший успевал бы получить метку гостя.
   const auth = useAuthStore()
-  watch(() => auth.isAuthed, (authed) => {
-    useClarity().set('authed', authed ? 'yes' : 'no')
-  }, { immediate: true })
+  watch(
+    () => auth.ready ? (auth.isAdmin ? 'admin' : auth.isAuthed ? 'yes' : 'no') : null,
+    (tag) => { if (tag) useClarity().set('authed', tag) },
+    { immediate: true },
+  )
 })

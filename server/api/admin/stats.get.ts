@@ -1,5 +1,5 @@
 import { useDb } from '../../utils/db'
-import { chapterDownloadDays, chapters, chapterStats, chapterViewDays, comments, gameStats, pumpkinClickDays, userIdentities, users } from '../../database/schema'
+import { chapterDownloadDays, chapters, chapterStats, chapterViewDays, comments, gameStats, pumpkinClickDays, readerDays, userIdentities, users } from '../../database/schema'
 import { and, eq, desc, gte, sql, sum, count } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -99,6 +99,22 @@ export default defineEventHandler(async (event) => {
     .where(eq(chapterDownloadDays.day, mskDay()))
     .orderBy(desc(chapterDownloadDays.count))
 
+  // Разные читатели по дням — сколько людей, а не просмотров, открывали главы.
+  // Две недели: по ним уже видно, растёт ли аудитория или скачет вокруг одного.
+  const since = mskDay(Date.now() - 13 * 24 * 60 * 60 * 1000)
+  const readerDayRows = await db
+    .select({ day: readerDays.day, total: count() })
+    .from(readerDays)
+    .where(gte(readerDays.day, since))
+    .groupBy(readerDays.day)
+  const readerByDay = new Map(readerDayRows.map(r => [r.day, r.total]))
+  // Все четырнадцать дней подряд, пустые — нулём: иначе дыра в днях выглядела бы
+  // как отсутствие данных, а не как день без читателей.
+  const readersByDay = Array.from({ length: 14 }, (_, i) => {
+    const day = mskDay(Date.now() - (13 - i) * 24 * 60 * 60 * 1000)
+    return { day, count: readerByDay.get(day) ?? 0 }
+  })
+
   // Тыква на Хеллоуин: строк по одной на день, их за сезон — десяток-другой.
   // Вне Хеллоуина счётчик не нужен — панель его не показывает.
   const halloween = await isHalloween()
@@ -121,6 +137,8 @@ export default defineEventHandler(async (event) => {
     totalViews: Number(totals?.totalViews ?? 0),
     viewsToday: Number(today?.total ?? 0),
     viewsTodayChapters,
+    readersToday: readerByDay.get(mskDay()) ?? 0,
+    readersByDay,
     totalDownloads: Number(totals?.totalDownloads ?? 0),
     downloadsToday: downloadsTodayChapters.reduce((sum, r) => sum + r.count, 0),
     downloadsTodayChapters,
