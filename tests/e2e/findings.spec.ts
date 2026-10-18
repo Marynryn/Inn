@@ -129,7 +129,9 @@ test.describe('Находки исследователя', () => {
     await open(page, '/')
     await expect(page.getByRole('link', { name: 'Читать с начала' })).toBeVisible()
     await expect(page.getByRole('link', { name: /Продолжить главу/ })).toHaveCount(0)
-    const leftovers = await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('tavern:')))
+    // tavern:visitor — код браузера для счётчика разных читателей: к аккаунту не
+    // привязан и ничего о прочитанном не говорит, так что после выхода остаётся.
+    const leftovers = await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('tavern:') && k !== 'tavern:visitor'))
     expect(leftovers).toEqual([])
   })
 
