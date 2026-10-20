@@ -563,9 +563,17 @@ html[data-reader-theme="light"] .page-wrap {
 .reader-content {
   overflow-wrap: break-word;
   word-break: break-word;
+  font-family: var(--font-reader);
+  font-weight: 300;
   font-size: var(--rd-font);
   line-height: var(--reader-lh, 1.85);
   color: var(--rd-text);
+}
+
+/* «bolder» от 300 дал бы всего 400 — жирное слилось бы с текстом. */
+.reader-content :deep(b),
+.reader-content :deep(strong) {
+  font-weight: 600;
 }
 
 /* Отступ между абзацами — в долях строки, чтобы рос и с кеглем, и с высотой

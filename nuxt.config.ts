@@ -37,7 +37,9 @@ export default defineNuxtConfig({
     // подставляет общий serif, и поправка у модуля выходит нулевой.
     families: [
       { name: 'Alegreya', provider: 'google', weights: [600, 700, 800], global: true },
-      { name: 'Golos Text', provider: 'google', weights: [400, 500, 600], global: true },
+      // Интерфейс 400–600, текст главы 300: у Golos Text, который стоял здесь
+      // сначала, тоньше 400 ничего нет. Файл переменный — веса не добавляют файлов.
+      { name: 'Inter', provider: 'google', weights: [300, 400, 500, 600], global: true },
     ],
   },
 

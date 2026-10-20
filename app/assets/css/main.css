@@ -1,5 +1,5 @@
 /* ─── Запасные шрифты ────────────────────────────────────────
-   Пока Alegreya и Golos Text грузятся, текст рисуется Georgia и Arial, ужатыми
+   Пока Alegreya и Inter грузятся, текст рисуется Georgia и Arial, ужатыми
    и растянутыми под их метрики: при подмене строки не прыгают. Числа посчитаны
    fontaine (тем же, чем считает @nuxt/fonts) по метрикам обоих шрифтов. */
 @font-face {
@@ -12,11 +12,11 @@
 }
 
 @font-face {
-  font-family: 'Golos Text Fallback';
+  font-family: 'Inter Fallback';
   src: local('Arial');
-  size-adjust: 108.5687%;
-  ascent-override: 90.2654%;
-  descent-override: 20.2637%;
+  size-adjust: 107.1194%;
+  ascent-override: 90.4365%;
+  descent-override: 22.518%;
   line-gap-override: 0%;
 }
 
@@ -41,7 +41,8 @@
 
   /* Typography: оба с кириллицей, подключены @nuxt/fonts (nuxt.config.ts) */
   --font-display: 'Alegreya', 'Alegreya Fallback', Georgia, serif;
-  --font-body:    'Golos Text', 'Golos Text Fallback', system-ui, sans-serif;
+  --font-body:    'Inter', 'Inter Fallback', system-ui, sans-serif;
+  --font-reader:  var(--font-body); /* текст главы — тот же Inter, но вес 300 */
 
   /* Radius */
   --radius-sm:    4px;
