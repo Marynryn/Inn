@@ -62,6 +62,10 @@ const windowTextKeys = REEL_TEXT_KEYS.filter(k => !BANNER_TEXT_KEYS.includes(k))
 const log = ref<LogRow[]>([])
 /** В журнале — только выигрыши: кому какой приз выпал, повторки тоже; без сценок. */
 const onlyWon = ref(false)
+// Оба выбора помнит браузер: после обновления страницы не настраивать заново.
+const ONLY_WON_KEY = 'tavern:admin:reel-only-won'
+const SEGS_KEY = 'tavern:admin:reel-segs-open'
+const segsPref = ref(true)
 
 const newTitle = ref('')
 const busy = ref(false)
@@ -413,7 +417,26 @@ const OUTCOME: Record<LogRow['outcome'], string> = { won: 'выиграл', dupl
 const when = (raw: string) => new Date(`${raw.replace(' ', 'T')}Z`)
   .toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' })
 
-onMounted(load)
+// Черновику сегменты нужны раскрытыми — их правят. У идущего и завершённого
+// барабана их можно свернуть, чтобы не листать до журнала попыток.
+const segsOpen = computed(() => editable.value || segsPref.value)
+const onSegsToggle = (e: Event) => {
+  if (editable.value) return
+  segsPref.value = (e.target as HTMLDetailsElement).open
+  try { localStorage.setItem(SEGS_KEY, segsPref.value ? '1' : '0') } catch {}
+}
+
+watch(onlyWon, (v) => {
+  try { localStorage.setItem(ONLY_WON_KEY, v ? '1' : '0') } catch {}
+})
+
+onMounted(() => {
+  try {
+    onlyWon.value = localStorage.getItem(ONLY_WON_KEY) === '1'
+    segsPref.value = localStorage.getItem(SEGS_KEY) !== '0'
+  } catch {}
+  load()
+})
 </script>
 
 <template>
@@ -480,119 +503,125 @@ onMounted(load)
       </p>
 
       <!-- Сегменты -->
-      <div class="segs">
-        <div v-for="(d, i) in drafts" :key="i" class="seg" :class="{ scene: !isPrize(d) }">
-          <div class="seg-pic">
-            <img v-if="picOf(d)" :src="picOf(d)!" alt="">
-            <span v-else class="no-pic">нет картинки</span>
-          </div>
-
-          <div class="seg-main">
-            <div class="seg-row">
-              <label class="fld grow">
-                <span>Название</span>
-                <input v-model="d.label" type="text" :maxlength="REEL_LABEL_MAX" :disabled="!editable">
-              </label>
-
-              <label class="fld">
-                <span>Приз</span>
-                <select :value="prizeKey(d)" :disabled="!editable" @change="onPrizePick(d, ($event.target as HTMLSelectElement).value)">
-                  <option value="">Сценка — без приза</option>
-                  <optgroup label="Рамки">
-                    <option
-                      v-for="f in frames"
-                      :key="f.id"
-                      :value="`f${f.id}`"
-                      :disabled="drafts.some((o, j) => j !== i && o.frameId === f.id)"
-                    >
-                      {{ f.name }}{{ usedElsewhere.has(f.id) ? ` — есть в «${usedElsewhere.get(f.id)}»` : '' }}
-                    </option>
-                  </optgroup>
-                  <optgroup v-if="skins.length" label="Скины страницы">
-                    <option
-                      v-for="sk in skins"
-                      :key="sk.id"
-                      :value="`s${sk.id}`"
-                      :disabled="drafts.some((o, j) => j !== i && o.skinId === sk.id)"
-                    >
-                      {{ sk.name }}
-                    </option>
-                  </optgroup>
-                  <optgroup label="Фигурки у имени">
-                    <option
-                      v-for="g in ALL_FIGURES"
-                      :key="g.id"
-                      :value="`g${g.id}`"
-                      :disabled="drafts.some((o, j) => j !== i && o.figure === g.id)"
-                    >
-                      {{ g.name }}
-                    </option>
-                  </optgroup>
-                </select>
-              </label>
-
-              <label class="fld num">
-                <span>Шанс, %</span>
-                <input v-model="d.pct" type="text" inputmode="decimal" :disabled="!editable">
-              </label>
-
-              <label v-if="isPrize(d)" class="fld num">
-                <span>Тираж</span>
-                <input v-model="d.stock" type="number" min="1" step="1" placeholder="∞" :disabled="!editable">
-              </label>
-
-              <button
-                v-if="editable"
-                class="rm"
-                type="button"
-                aria-label="Убрать сегмент"
-                @click="drafts.splice(i, 1)"
-              >×</button>
+      <details class="texts" :open="segsOpen" @toggle="onSegsToggle">
+        <summary>
+          Сегменты
+          <span class="texts-count">{{ drafts.length }} · итого {{ fmt(total) }}%</span>
+        </summary>
+        <div class="segs">
+          <div v-for="(d, i) in drafts" :key="i" class="seg" :class="{ scene: !isPrize(d) }">
+            <div class="seg-pic">
+              <img v-if="picOf(d)" :src="picOf(d)!" alt="">
+              <span v-else class="no-pic">нет картинки</span>
             </div>
 
-            <div v-if="!isPrize(d)" class="seg-row">
-              <label class="fld grow">
-                <span>Текст сценки</span>
-                <input
-                  v-model="d.text"
-                  type="text"
-                  :maxlength="REEL_TEXT_MAX"
-                  placeholder="Эрин налила тебе супа. Рамки нет, но суп правда хороший."
-                  :disabled="!editable"
-                >
-              </label>
-              <label v-if="editable" class="fld">
-                <span>{{ uploading === i ? 'Грузим…' : 'Картинка' }}</span>
-                <input type="file" accept="image/*" @change="uploadImage(d, i, $event)">
-              </label>
+            <div class="seg-main">
+              <div class="seg-row">
+                <label class="fld grow">
+                  <span>Название</span>
+                  <input v-model="d.label" type="text" :maxlength="REEL_LABEL_MAX" :disabled="!editable">
+                </label>
+
+                <label class="fld">
+                  <span>Приз</span>
+                  <select :value="prizeKey(d)" :disabled="!editable" @change="onPrizePick(d, ($event.target as HTMLSelectElement).value)">
+                    <option value="">Сценка — без приза</option>
+                    <optgroup label="Рамки">
+                      <option
+                        v-for="f in frames"
+                        :key="f.id"
+                        :value="`f${f.id}`"
+                        :disabled="drafts.some((o, j) => j !== i && o.frameId === f.id)"
+                      >
+                        {{ f.name }}{{ usedElsewhere.has(f.id) ? ` — есть в «${usedElsewhere.get(f.id)}»` : '' }}
+                      </option>
+                    </optgroup>
+                    <optgroup v-if="skins.length" label="Скины страницы">
+                      <option
+                        v-for="sk in skins"
+                        :key="sk.id"
+                        :value="`s${sk.id}`"
+                        :disabled="drafts.some((o, j) => j !== i && o.skinId === sk.id)"
+                      >
+                        {{ sk.name }}
+                      </option>
+                    </optgroup>
+                    <optgroup label="Фигурки у имени">
+                      <option
+                        v-for="g in ALL_FIGURES"
+                        :key="g.id"
+                        :value="`g${g.id}`"
+                        :disabled="drafts.some((o, j) => j !== i && o.figure === g.id)"
+                      >
+                        {{ g.name }}
+                      </option>
+                    </optgroup>
+                  </select>
+                </label>
+
+                <label class="fld num">
+                  <span>Шанс, %</span>
+                  <input v-model="d.pct" type="text" inputmode="decimal" :disabled="!editable">
+                </label>
+
+                <label v-if="isPrize(d)" class="fld num">
+                  <span>Тираж</span>
+                  <input v-model="d.stock" type="number" min="1" step="1" placeholder="∞" :disabled="!editable">
+                </label>
+
+                <button
+                  v-if="editable"
+                  class="rm"
+                  type="button"
+                  aria-label="Убрать сегмент"
+                  @click="drafts.splice(i, 1)"
+                >×</button>
+              </div>
+
+              <div v-if="!isPrize(d)" class="seg-row">
+                <label class="fld grow">
+                  <span>Текст сценки</span>
+                  <input
+                    v-model="d.text"
+                    type="text"
+                    :maxlength="REEL_TEXT_MAX"
+                    placeholder="Эрин налила тебе супа. Рамки нет, но суп правда хороший."
+                    :disabled="!editable"
+                  >
+                </label>
+                <label v-if="editable" class="fld">
+                  <span>{{ uploading === i ? 'Грузим…' : 'Картинка' }}</span>
+                  <input type="file" accept="image/*" @change="uploadImage(d, i, $event)">
+                </label>
+              </div>
+
+              <p v-if="segErr[i]" class="err seg-err">{{ segErr[i] }}</p>
+
+              <p v-if="selected.status !== 'draft'" class="seg-stat">
+                выпал {{ selected.segments[i]?.landed ?? 0 }} раз
+                <template v-if="isPrize(d)">
+                  · выдано {{ selected.segments[i]?.won ?? 0 }}{{ d.stock ? ` из ${d.stock}` : '' }}
+                  · повторок {{ selected.segments[i]?.duplicates ?? 0 }}
+                </template>
+              </p>
             </div>
-
-            <p v-if="segErr[i]" class="err seg-err">{{ segErr[i] }}</p>
-
-            <p v-if="selected.status !== 'draft'" class="seg-stat">
-              выпал {{ selected.segments[i]?.landed ?? 0 }} раз
-              <template v-if="isPrize(d)">
-                · выдано {{ selected.segments[i]?.won ?? 0 }}{{ d.stock ? ` из ${d.stock}` : '' }}
-                · повторок {{ selected.segments[i]?.duplicates ?? 0 }}
-              </template>
-            </p>
           </div>
         </div>
-      </div>
 
-      <div v-if="editable" class="add-row">
-        <button class="link" type="button" @click="addSegment('frame')">+ Рамка</button>
-        <button class="link" type="button" @click="addSegment('figure')">+ Фигурка</button>
-        <button v-if="skins.length" class="link" type="button" @click="addSegment('skin')">+ Скин</button>
-        <button class="link" type="button" @click="addSegment('scene')">+ Сценка</button>
-      </div>
+        <div v-if="editable" class="add-row">
+          <button class="link" type="button" @click="addSegment('frame')">+ Рамка</button>
+          <button class="link" type="button" @click="addSegment('figure')">+ Фигурка</button>
+          <button v-if="skins.length" class="link" type="button" @click="addSegment('skin')">+ Скин</button>
+          <button class="link" type="button" @click="addSegment('scene')">+ Сценка</button>
+        </div>
 
-      <p class="sum" :class="totalOk ? 'ok' : 'bad'">
-        Итого {{ fmt(total) }}%
-        <template v-if="totalOk">✓</template>
-        <template v-else-if="total < REEL_WEIGHT_TOTAL"> — не хватает {{ fmt(REEL_WEIGHT_TOTAL - total) }}%</template>
-        <template v-else> — лишние {{ fmt(total - REEL_WEIGHT_TOTAL) }}%</template>
-      </p>
+        <p class="sum" :class="totalOk ? 'ok' : 'bad'">
+          Итого {{ fmt(total) }}%
+          <template v-if="totalOk">✓</template>
+          <template v-else-if="total < REEL_WEIGHT_TOTAL"> — не хватает {{ fmt(REEL_WEIGHT_TOTAL - total) }}%</template>
+          <template v-else> — лишние {{ fmt(total - REEL_WEIGHT_TOTAL) }}%</template>
+        </p>
+      </details>
 
       <label v-if="selected.status !== 'finished'" class="per-day">
         <span>Попыток в день у читателя</span>
