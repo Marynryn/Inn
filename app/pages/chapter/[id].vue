@@ -690,7 +690,7 @@ html[data-reader-theme="light"] .page-wrap {
 /* Число комментариев — тем же цветом, но тише: это подсказка, а не надпись. */
 .comments-cta-count {
   opacity: .7;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 @media (max-width: 600px) {

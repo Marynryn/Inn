@@ -644,7 +644,7 @@ useHead({
   align-self: flex-end;
   font-size: 11px;
   opacity: .4;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .form-foot {

@@ -1035,7 +1035,7 @@ select option { background: var(--bg-dark-2); }
 
 .bg-range span { grid-column: 1 / -1; }
 .bg-range input { min-width: 0; accent-color: var(--ember); }
-.bg-range output { font-variant-numeric: tabular-nums; color: var(--parchment); }
+.bg-range output { font-variant-numeric: tabular-nums lining-nums; color: var(--parchment); }
 
 .per-day {
   display: flex;
@@ -1129,7 +1129,7 @@ select option { background: var(--bg-dark-2); }
 
 .fld.grow { flex: 1 1 180px; }
 .fld.num { flex: 0 0 84px; min-width: 84px; }
-.fld.num input { font-variant-numeric: tabular-nums; }
+.fld.num input { font-variant-numeric: tabular-nums lining-nums; }
 
 .rm {
   width: 32px;
@@ -1148,7 +1148,7 @@ select option { background: var(--bg-dark-2); }
   margin: 0;
   font-size: 12px;
   color: rgba(241, 230, 210, .55);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .add-row {
@@ -1160,7 +1160,7 @@ select option { background: var(--bg-dark-2); }
   margin: 0;
   font-size: 13px;
   font-weight: 500;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .sum.ok { color: var(--success); }
@@ -1265,7 +1265,7 @@ select option { background: var(--bg-dark-2); }
 .log-when {
   margin-left: auto;
   color: rgba(241, 230, 210, .45);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 @media (max-width: 600px) {

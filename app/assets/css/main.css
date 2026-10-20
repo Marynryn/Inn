@@ -1,5 +1,24 @@
-/* ─── Fonts ─────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Poppins:wght@300;400;500;600&display=swap');
+/* ─── Запасные шрифты ────────────────────────────────────────
+   Пока Alegreya и Golos Text грузятся, текст рисуется Georgia и Arial, ужатыми
+   и растянутыми под их метрики: при подмене строки не прыгают. Числа посчитаны
+   fontaine (тем же, чем считает @nuxt/fonts) по метрикам обоих шрифтов. */
+@font-face {
+  font-family: 'Alegreya Fallback';
+  src: local('Georgia');
+  size-adjust: 91.9693%;
+  ascent-override: 110.4716%;
+  descent-override: 37.5125%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Golos Text Fallback';
+  src: local('Arial');
+  size-adjust: 108.5687%;
+  ascent-override: 90.2654%;
+  descent-override: 20.2637%;
+  line-gap-override: 0%;
+}
 
 /* ─── Design Tokens ──────────────────────────────────────── */
 :root {
@@ -20,9 +39,9 @@
   --moss:        #4b6149; /* подпись 14px на parchment-2 — 4.9:1 */
   --gold:        #c9a02e;
 
-  /* Typography */
-  --font-display: 'Fraunces', serif;
-  --font-body:    'Poppins', sans-serif;
+  /* Typography: оба с кириллицей, подключены @nuxt/fonts (nuxt.config.ts) */
+  --font-display: 'Alegreya', 'Alegreya Fallback', Georgia, serif;
+  --font-body:    'Golos Text', 'Golos Text Fallback', system-ui, sans-serif;
 
   /* Radius */
   --radius-sm:    4px;
@@ -111,6 +130,9 @@ html {
 body {
   margin: 0;
   font-family: var(--font-body);
+  /* У Alegreya по умолчанию «старые» цифры, они прыгают по высоте: номера глав
+     (1.01–5.03) и статистика читаются хуже. Наследуется везде. */
+  font-variant-numeric: lining-nums;
   background: var(--parchment);
   color: var(--ink);
 }

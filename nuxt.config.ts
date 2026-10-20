@@ -10,7 +10,25 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
-  modules: ['nuxt-auth-utils', '@pinia/nuxt', '@nuxt/image'],
+  modules: ['nuxt-auth-utils', '@pinia/nuxt', '@nuxt/image', '@nuxt/fonts'],
+
+  // Шрифты с настоящей кириллицей: у прежних Fraunces и Poppins её не было, и
+  // русский текст рисовался системными. Файлы скачиваются при сборке и отдаются
+  // с нашего домена. Подборки — только latin и cyrillic, веса — только нужные:
+  // лишние подборки раздувают число woff2.
+  fonts: {
+    defaults: {
+      subsets: ['latin', 'cyrillic'],
+      styles: ['normal'],
+    },
+    // global: имена стоят только в переменных main.css, а там модуль их не ищет.
+    // Запасные шрифты с поправкой метрик — в main.css: провайдер Google
+    // подставляет общий serif, и поправка у модуля выходит нулевой.
+    families: [
+      { name: 'Alegreya', provider: 'google', weights: [600, 700, 800], global: true },
+      { name: 'Golos Text', provider: 'google', weights: [400, 500, 600], global: true },
+    ],
+  },
 
   css: ['~/assets/css/main.css'],
 
@@ -98,6 +116,13 @@ export default defineNuxtConfig({
     '/_nuxt/**': {
       headers: {
         'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    },
+    // Шрифты от @nuxt/fonts. Имя файла — отпечаток содержимого, поэтому на год,
+    // как /_nuxt; иначе их ловило бы '/**' с no-store и качало на каждом заходе.
+    '/_fonts/**': {
+      headers: {
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },

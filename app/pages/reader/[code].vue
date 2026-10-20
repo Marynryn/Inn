@@ -296,7 +296,7 @@ useHead(() => ({
 .meta b {
   color: var(--parchment);
   font-weight: 500;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .about {

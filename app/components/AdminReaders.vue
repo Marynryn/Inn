@@ -268,7 +268,7 @@ a.mark-title:hover {
 .mark-when {
   flex: none;
   font-size: 12px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
   color: rgba(241, 230, 210, .5);
 }
 

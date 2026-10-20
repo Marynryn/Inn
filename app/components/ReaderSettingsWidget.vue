@@ -262,7 +262,7 @@ onUnmounted(() => {
 
 .rs-value {
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 

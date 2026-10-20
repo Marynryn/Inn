@@ -426,7 +426,7 @@ useScrollLock()
 .place-num {
   min-width: 18px;
   text-align: right;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 /* Корона у призёров: рисуем сами, а не эмодзи — цветная картинка из системного
@@ -581,7 +581,7 @@ useScrollLock()
 /* Число побед — той же меркой, что колонка «Побед»: цифры не пляшут. */
 .hall-wins {
   flex: 0 0 auto;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
   opacity: .8;
 }
 

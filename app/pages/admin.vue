@@ -2070,7 +2070,7 @@ useHead({
   font-size: 10px;
   line-height: 1;
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .stats-sub {
@@ -2213,7 +2213,7 @@ useHead({
   color: var(--ink-soft);
   font-size: 12px;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .stats-id {
@@ -2238,7 +2238,7 @@ useHead({
   color: var(--parchment);
   font-size: 12px;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .stats-views svg,
@@ -2341,7 +2341,7 @@ useHead({
 /* Числа стоят по центру своей колонки — ровно под подписью «Сегодня» и «За всё время». */
 .game-stats-row span:not(:first-child) {
   text-align: center;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .game-stats-head {

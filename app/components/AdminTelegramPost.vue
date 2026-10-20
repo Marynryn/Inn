@@ -126,7 +126,7 @@ const send = async () => {
 .tg-count {
   font-size: 11px;
   color: rgba(241, 230, 210, .4);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .tg-err {

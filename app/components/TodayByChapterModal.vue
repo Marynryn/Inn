@@ -144,7 +144,7 @@ useScrollLock()
 
 .row-id {
   color: var(--ink-soft);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .row-title {
@@ -162,7 +162,7 @@ useScrollLock()
 .row-num {
   color: var(--ember-soft);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .empty {
