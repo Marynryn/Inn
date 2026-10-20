@@ -6,9 +6,20 @@ import { readFileSync } from 'node:fs'
 // до них не доходит. С отпечатком в адресе новая картинка — это новый адрес.
 const ogImageVersion = createHash('sha1').update(readFileSync('public/og.jpg')).digest('hex').slice(0, 8)
 
+// Своя папка ассетов на каждую сборку. Vite иногда оставляет скрипту прежнее
+// имя, хотя внутри у него уже ссылка на новый CSS, а /_nuxt кэшируется на год
+// (Cloudflare и браузеры). Старая копия скрипта подтягивала CSS прошлой сборки
+// поверх нового — так на проде не включились новые шрифты. С папкой по
+// коммиту адреса у каждой сборки свои, и старое не подмешивается.
+const buildId = (process.env.RAILWAY_GIT_COMMIT_SHA || Date.now().toString(36)).slice(0, 8)
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+
+  $production: {
+    app: { buildAssetsDir: `/_nuxt/${buildId}/` },
+  },
 
   modules: ['nuxt-auth-utils', '@pinia/nuxt', '@nuxt/image', '@nuxt/fonts'],
 
