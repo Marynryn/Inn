@@ -55,7 +55,9 @@ export async function notifyChapters(opts: {
 
   // Текст, поправленный в панели, уходит как есть; без него — собранный сам.
   const message = opts.text?.trim() || buildChapterNotification(list, useRuntimeConfig().public.siteUrl)
-  const sent = await sendTelegramMessage(message)
+  // Разметку (**жирный** и прочее) из панели переводим в HTML телеграма;
+  // собранный текст при этом просто экранируется.
+  const sent = await sendTelegramMessage(telegramMarkupToHtml(message), 'HTML')
   // Бот не настроен — сообщение никуда не ушло, и помечать главы отправленными нельзя.
   if (!sent) return { notified: false, count: 0, reason: 'telegram-not-configured' }
 

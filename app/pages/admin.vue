@@ -506,6 +506,7 @@ const notifyPreview = computed(() => {
 // следует за выбором глав; тронули — остаётся твоим, пока не соберёшь заново.
 const notifyText = ref('')
 const notifyEdited = ref(false)
+const notifyTextEl = ref<HTMLTextAreaElement | null>(null)
 
 watch(notifyPreview, (text) => {
   if (!notifyEdited.value) notifyText.value = text
@@ -1336,8 +1337,15 @@ useHead({
                 Собрать заново
               </button>
             </div>
+            <AdminTgMarks
+              v-model="notifyText"
+              :target="notifyTextEl"
+              :max="4096"
+              @update:model-value="notifyEdited = true"
+            />
             <textarea
               id="notify-text"
+              ref="notifyTextEl"
               v-model="notifyText"
               class="notify-preview-text thin-scroll"
               rows="4"

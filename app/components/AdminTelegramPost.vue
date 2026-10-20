@@ -13,25 +13,7 @@ const error = ref('')
 
 const trimmed = computed(() => text.value.trim())
 
-// Кнопки разметки оборачивают выделенное, как в самом телеграме. Без выделения
-// ставят пару знаков и курсор между ними — дописать слово внутрь.
 const textEl = ref<HTMLTextAreaElement | null>(null)
-const marks = [
-  { mark: '**', label: 'Ж', title: 'Жирный', cls: 'tg-mark--bold' },
-  { mark: '~~', label: 'З', title: 'Зачёркнутый', cls: 'tg-mark--strike' },
-  { mark: '||', label: 'Спойлер', title: 'Спойлер', cls: '' },
-]
-
-const wrap = async (mark: string) => {
-  const el = textEl.value
-  if (!el) return
-  const { selectionStart: start, selectionEnd: end } = el
-  if (text.value.length + mark.length * 2 > TEXT_MAX) return
-  text.value = text.value.slice(0, start) + mark + text.value.slice(start, end) + mark + text.value.slice(end)
-  await nextTick()
-  el.focus()
-  el.setSelectionRange(start + mark.length, end + mark.length)
-}
 
 watch(text, () => {
   confirming.value = false
@@ -69,20 +51,7 @@ const send = async () => {
       ||спойлер|| — или выдели слова и нажми кнопку. Ссылки станут кликабельными сами.
     </p>
 
-    <div class="tg-marks">
-      <button
-        v-for="m in marks"
-        :key="m.mark"
-        class="tg-mark"
-        :class="m.cls"
-        type="button"
-        :title="m.title"
-        @mousedown.prevent
-        @click="wrap(m.mark)"
-      >
-        {{ m.label }}
-      </button>
-    </div>
+    <AdminTgMarks v-model="text" :target="textEl" :max="TEXT_MAX" />
 
     <textarea
       ref="textEl"
@@ -127,28 +96,6 @@ const send = async () => {
   font-size: 12.5px;
   color: rgba(241, 230, 210, .55);
 }
-
-.tg-marks {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.tg-mark {
-  min-width: 30px;
-  padding: 4px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  background: rgba(241, 230, 210, .05);
-  color: var(--parchment);
-  font-family: var(--font-body);
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-.tg-mark:hover { border-color: var(--ember-soft); }
-.tg-mark--bold { font-weight: 700; }
-.tg-mark--strike { text-decoration: line-through; }
 
 .tg-text {
   width: 100%;
