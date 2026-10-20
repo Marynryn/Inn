@@ -98,6 +98,14 @@
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Синий квадрат, которым телефон подсвечивает касание: у кнопок и так есть
+     своё наведение, а клавиатуре рамку рисует :focus-visible ниже. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Мышью и пальцем рамку браузера не показываем — только с клавиатуры. */
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 body {
