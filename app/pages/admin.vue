@@ -26,8 +26,14 @@ const knownVolumes = ref(new Set<number>())
 watch(chapterList, (list) => {
   const vols = new Set(list.map(c => c.volume))
   const next = new Set(openVolumes.value)
-  for (const vol of vols) {
-    if (!knownVolumes.value.has(vol)) next.add(vol)
+  // При открытии панели раскрыт только последний том — с ним и работают.
+  // Том, появившийся потом (загрузили главу нового тома), раскрываем сразу.
+  if (!knownVolumes.value.size) {
+    if (vols.size) next.add(Math.max(...vols))
+  } else {
+    for (const vol of vols) {
+      if (!knownVolumes.value.has(vol)) next.add(vol)
+    }
   }
   for (const vol of next) {
     if (!vols.has(vol)) next.delete(vol)
