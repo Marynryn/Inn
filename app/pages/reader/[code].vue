@@ -195,7 +195,7 @@ useHead(() => ({
 /* Кружок аватарки без картинки — полупрозрачный, и паутина просвечивала бы
    сквозь лицо. В скине подкладываем под него фон карточки. */
 .reader-card.skinned .big-face {
-  background: linear-gradient(rgba(241, 230, 210, .08), rgba(241, 230, 210, .08)), var(--skin-tint);
+  background: linear-gradient(var(--fill-strong), var(--fill-strong)), var(--skin-tint);
 }
 
 .reader-card.skinned .meta b {
@@ -238,7 +238,7 @@ useHead(() => ({
 .reader-card {
   position: relative;
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .1);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -255,7 +255,7 @@ useHead(() => ({
 
 .big-face {
   margin: 12px;
-  background: rgba(241, 230, 210, .08);
+  background: var(--fill-strong);
 }
 
 .big-face :deep(.ua-letter) {
@@ -301,7 +301,7 @@ useHead(() => ({
 
 .about {
   margin: 16px 0 0;
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.65;
   color: rgba(241, 230, 210, .88);
   white-space: pre-line;
@@ -319,7 +319,7 @@ useHead(() => ({
 /* ── Коллекция рамок ────────────────────────── */
 .frames {
   padding: 24px 36px 32px;
-  border-top: 1px solid rgba(241, 230, 210, .1);
+  border-top: 1px solid var(--line);
 }
 
 .frames-title {
@@ -358,7 +358,7 @@ useHead(() => ({
   align-items: center;
   gap: 2px;
   padding: 14px 10px 12px;
-  border: 1px solid rgba(241, 230, 210, .1);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--bg-dark);
   text-align: center;
@@ -383,7 +383,7 @@ useHead(() => ({
 }
 
 .frame-when {
-  font-size: 11.5px;
+  font-size: 11px;
   opacity: .45;
 }
 
@@ -391,7 +391,7 @@ useHead(() => ({
   position: absolute;
   top: 8px;
   right: 8px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
   padding: 1px 7px;
   border-radius: var(--radius-md);

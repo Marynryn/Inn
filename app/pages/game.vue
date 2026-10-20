@@ -440,7 +440,7 @@ useSeoMeta({
     <main class="game">
       <header class="intro">
         <div class="eyebrow">Игра · The Wandering Inn</div>
-        <h1 class="title display">Кто из таверны?</h1>
+        <h1 class="page-title title">Кто из таверны?</h1>
         <p class="lead">
           Называй персонажей — таверна подскажет, что совпало. Зелёное совпало целиком,
           жёлтое частично, стрелка у тома говорит, в какую сторону искать.
@@ -673,8 +673,6 @@ useSeoMeta({
 }
 
 .title {
-  font-size: 38px;
-  font-weight: 600;
   margin: 0 0 12px;
 }
 
@@ -821,7 +819,7 @@ useSeoMeta({
   font-size: 15px;
   padding: 13px 16px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(241, 230, 210, .2);
+  border: 1px solid var(--line-strong);
   background: var(--bg-dark-2);
   color: var(--parchment);
   outline: none;
@@ -845,7 +843,7 @@ useSeoMeta({
   padding: 4px;
   list-style: none;
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .16);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .9);
   /* Совпадений может быть много — список прокручивается сам, а не растёт на весь экран. */
@@ -854,7 +852,7 @@ useSeoMeta({
   overscroll-behavior: contain;
 }
 
-@media (max-width: 620px) {
+@media (max-width: 600px) {
   .suggest {
     max-height: 250px;
   }
@@ -1081,7 +1079,7 @@ useSeoMeta({
   justify-content: center;
   width: 16px;
   height: 16px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-style: normal;
   font-size: 11px;
 }
@@ -1119,7 +1117,7 @@ useSeoMeta({
    сравнивая признаки, невозможно. Поэтому строка разворачивается в карточку:
    имя в шапке, признаки по три в ряд, подпись каждого берётся из data-label —
    шапка таблицы там не нужна. Разметка та же, меняется только раскладка. */
-@media (max-width: 620px) {
+@media (max-width: 600px) {
   .board-wrap {
     overflow-x: visible;
   }
@@ -1141,9 +1139,9 @@ useSeoMeta({
     gap: 4px;
     margin-bottom: 12px;
     padding: 8px;
-    border: 1px solid rgba(241, 230, 210, .1);
+    border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    background: rgba(241, 230, 210, .03);
+    background: var(--fill-faint);
   }
 
   .row.hit {
@@ -1155,7 +1153,7 @@ useSeoMeta({
     grid-column: span 2; /* три признака в ряд */
     min-height: 56px;
     padding: 6px 4px;
-    font-size: 11.5px;
+    font-size: 11px;
     /* Длинное слово переносим, а не раздвигаем им клетку. */
     overflow-wrap: anywhere;
   }
@@ -1172,7 +1170,7 @@ useSeoMeta({
 
   .volume {
     gap: 6px;
-    font-size: 11.5px;
+    font-size: 11px;
   }
 
   .volume select {
@@ -1188,7 +1186,7 @@ useSeoMeta({
   /* Подпись признака: в таблице её давала шапка, в карточке — сама клетка. */
   .cell.mark::before {
     content: attr(data-label);
-    font-size: 8.5px;
+    font-size: 8px;
     letter-spacing: .08em;
     text-transform: uppercase;
     opacity: .55;

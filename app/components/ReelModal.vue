@@ -299,8 +299,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
           <p class="reel-err" aria-live="polite">{{ error }}</p>
 
-          <NuxtLink v-if="guest" class="reel-btn" :to="loginHref">{{ t.guestButton }}</NuxtLink>
-          <button v-else class="reel-btn" type="button" :disabled="phase !== 'ready'" @click="spinNow">
+          <NuxtLink v-if="guest" class="reel-btn btn btn--primary btn--lg" :to="loginHref">{{ t.guestButton }}</NuxtLink>
+          <button v-else class="reel-btn btn btn--primary btn--lg" type="button" :disabled="phase !== 'ready'" @click="spinNow">
             {{ phase === 'spinning' ? 'Крутится…' : phase === 'loading' ? 'Смотрим…' : t.spinButton }}
           </button>
         </template>
@@ -309,7 +309,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
         <template v-else-if="phase === 'error'">
           <h2 id="reel-title" class="display reel-title">Барабан</h2>
           <p class="reel-lead">{{ error }}</p>
-          <button class="reel-btn ghost" type="button" @click="close">Закрыть</button>
+          <button class="reel-btn btn btn--ghost btn--lg" type="button" @click="close">Закрыть</button>
         </template>
 
         <!-- Что выпало -->
@@ -368,7 +368,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <div class="actions">
             <button
               v-if="prize && !trial && !isWorn"
-              class="reel-btn"
+              class="reel-btn btn btn--primary btn--lg"
               type="button"
               :disabled="wearing"
               @click="wear"
@@ -376,7 +376,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
               {{ wearing ? 'Надеваем…' : t.wearButton }}
             </button>
             <span v-else-if="prize && !trial" class="worn-tag">✓ Надета</span>
-            <button v-if="canAgain" class="reel-btn" :class="{ ghost: prize && !isWorn }" type="button" @click="again">
+            <button v-if="canAgain" class="reel-btn btn btn--lg" :class="prize && !isWorn ? 'btn--ghost' : 'btn--primary'" type="button" @click="again">
               {{ t.againButton }}<template v-if="left !== null"> · {{ left }}</template>
             </button>
           </div>
@@ -394,7 +394,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 .reel-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 300;
+  z-index: var(--z-reel);
   display: grid;
   place-items: center;
   padding: 16px;
@@ -409,7 +409,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   max-height: calc(100dvh - 32px);
   overflow: auto;
   padding: 28px 22px 24px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--line-strong);
   background: var(--bg-dark-2);
   color: var(--parchment);
@@ -465,7 +465,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 }
 
 .reel-close:hover {
-  background: rgba(241, 230, 210, .07);
+  background: var(--fill-strong);
   color: var(--parchment);
 }
 
@@ -527,7 +527,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   top: 50%;
   height: var(--cell);
   transform: translateY(-50%);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: rgba(20, 14, 10, .2);
   -webkit-backdrop-filter: blur(var(--bg-blur, 6px));
   backdrop-filter: blur(var(--bg-blur, 6px));
@@ -560,7 +560,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   height: var(--cell);
   transform: translateY(-50%);
   border: 2px solid rgba(232, 176, 122, .7);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 0 18px rgba(214, 136, 62, .35), inset 0 0 12px rgba(214, 136, 62, .2);
   pointer-events: none;
 }
@@ -572,25 +572,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   color: var(--danger);
 }
 
-.reel-btn {
-  padding: 11px 28px;
-  border: none;
-  border-radius: 6px;
-  background: var(--ember);
-  color: var(--bg-dark);
-  font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.reel-btn:hover:not(:disabled) { background: var(--ember-soft); }
-
-/* Кнопка входа у гостя — ссылка, а выглядеть должна той же кнопкой. */
-a.reel-btn {
-  display: inline-block;
-  text-decoration: none;
-}
+/* Вид — общий .btn (--lg); здесь только то, чего у него нет. */
+.reel-btn { padding-inline: 28px; }
 
 .guest-title {
   display: block;
@@ -598,15 +581,6 @@ a.reel-btn {
   font-weight: 600;
   color: var(--parchment);
 }
-.reel-btn:disabled { opacity: .5; cursor: default; }
-
-.reel-btn.ghost {
-  border: 1px solid rgba(241, 230, 210, .22);
-  background: none;
-  color: var(--parchment);
-}
-
-.reel-btn.ghost:hover { background: rgba(241, 230, 210, .06); }
 
 /* ── Результат ──────────────────────────────── */
 .rays {
@@ -656,7 +630,7 @@ a.reel-btn {
 
 .prize-hole {
   transform: translate(-50%, -50%);
-  border: 1.5px dashed rgba(241, 230, 210, .22);
+  border: 1.5px dashed var(--line-bold);
   background: radial-gradient(circle, rgba(232, 176, 122, .12), transparent 70%);
 }
 
@@ -694,8 +668,8 @@ a.reel-btn {
   justify-items: center;
   gap: 8px;
   overflow: hidden;
-  border-radius: 10px;
-  border: 1px solid rgba(241, 230, 210, .14);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
   animation: rise .8s cubic-bezier(.2, .9, .25, 1.25) both;
 }
 
@@ -726,8 +700,8 @@ a.reel-btn {
 .skin-line {
   width: 110px;
   height: 6px;
-  border-radius: 3px;
-  background: rgba(241, 230, 210, .14);
+  border-radius: var(--radius-sm);
+  background: var(--fill-bold);
 }
 
 .skin-line--short { width: 70px; }
@@ -778,7 +752,7 @@ a.reel-btn {
 .prize-sub {
   max-width: 34ch;
   margin: 6px auto 20px;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.55;
   color: rgba(241, 230, 210, .7);
 }

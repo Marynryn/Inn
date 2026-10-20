@@ -507,9 +507,9 @@ onMounted(() => {
 .comment-form input[type="text"] {
   width: 100%;
   max-width: 200px;
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--parchment);
   padding: 9px 12px;
   font-family: var(--font-body);
@@ -520,7 +520,7 @@ onMounted(() => {
 
 .comment-login-hint {
   margin: 0 0 10px;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--text-muted);
 }
@@ -551,13 +551,13 @@ onMounted(() => {
   width: 100%;
   min-height: 64px;
   resize: none;
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--parchment);
   padding: 12px 40px 12px 14px;
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.6;
   margin-bottom: 10px;
   display: block;
@@ -599,7 +599,7 @@ onMounted(() => {
   position: absolute;
   top: 28px;
   right: 0;
-  z-index: 50;
+  z-index: var(--z-dropdown);
   --num-columns: 8;
   --emoji-size: 1.3rem;
   --background: #1a1108;
@@ -629,7 +629,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--parchment-2);
   cursor: pointer;
   margin-bottom: 10px;
@@ -650,18 +650,18 @@ onMounted(() => {
 }
 
 .comment-hint {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
 .comment-error {
-  font-size: 11.5px;
+  font-size: 11px;
   color: #c66;
 }
 
 /* Комментарий, к которому пришли по ссылке: вспышка и плавное угасание. */
 .comment-item.is-target {
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 0 0 2px rgba(214, 154, 74, 0.55);
   animation: target-fade 4s ease-out forwards;
 }
@@ -675,7 +675,7 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   padding: 16px 0;
-  border-bottom: 1px solid rgba(241, 230, 210, .07);
+  border-bottom: 1px solid var(--line-faint);
 }
 
 /* Фон и цвет — для буквы, которая показывается вместо картинки: сам
@@ -722,7 +722,7 @@ a.comment-name:hover {
 }
 
 .comment-body {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--parchment-2);
   margin-top: 4px;
   line-height: 1.6;
@@ -754,7 +754,7 @@ a.comment-name:hover {
 .reaction-btn {
   background: none;
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   padding: 3px 10px;
   font-size: 12px;
   color: var(--text-muted);
@@ -796,7 +796,7 @@ a.comment-name:hover {
 /* Черта отделяет разговор целиком, а не каждую реплику: иначе ответ читается
    как ещё один самостоятельный комментарий, а не как продолжение. */
 .comment-thread {
-  border-bottom: 1px solid rgba(241, 230, 210, .07);
+  border-bottom: 1px solid var(--line-faint);
 }
 
 .comment-thread .comment-item {
@@ -814,7 +814,7 @@ a.comment-name:hover {
 /* «в ответ Имя» — приглушённой строчкой рядом с подписью: это уточнение к
    имени автора, а не отдельная мысль. */
 .in-reply {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-muted);
   margin-left: 6px;
 }
@@ -879,7 +879,7 @@ a.comment-name:hover {
   resize: none;
   /* Справа место под кнопку смайлов, как в основной форме. */
   padding: 10px 38px 10px 12px;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.6;
   margin-bottom: 8px;
 }
@@ -887,9 +887,9 @@ a.comment-name:hover {
 .reply-form input[type="text"],
 .reply-form textarea {
   display: block;
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--parchment);
   font-family: var(--font-body);
 }

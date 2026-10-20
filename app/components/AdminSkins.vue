@@ -250,7 +250,7 @@ onMounted(load)
   display: flex;
   gap: 16px;
   padding: 14px;
-  border: 1px solid rgba(241, 230, 210, .1);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
 }
 
@@ -259,8 +259,8 @@ onMounted(load)
   flex: 0 0 120px;
   height: 80px;
   overflow: hidden;
-  border-radius: 6px;
-  border: 1px solid rgba(241, 230, 210, .14);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
   display: grid;
   place-items: center;
   font-size: 11px;
@@ -313,7 +313,7 @@ select {
   padding: 8px 10px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   color: var(--parchment);
   font-family: var(--font-body);
   font-size: 13px;
@@ -365,7 +365,7 @@ input[type="file"] {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 10px;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .owners-label { color: rgba(241, 230, 210, .5); }
@@ -375,8 +375,8 @@ input[type="file"] {
   align-items: center;
   gap: 4px;
   padding: 2px 4px 2px 10px;
-  border-radius: 12px;
-  background: rgba(241, 230, 210, .06);
+  border-radius: var(--radius-lg);
+  background: var(--fill);
 }
 
 .x {
@@ -424,7 +424,7 @@ input[type="file"] {
   align-items: center;
   gap: 10px;
   padding: 6px 10px;
-  border: 1px solid rgba(241, 230, 210, .1);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: none;
   color: var(--parchment);

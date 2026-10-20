@@ -244,7 +244,7 @@ const save = async () => {
     <div class="modal-backdrop">
       <div class="modal">
         <div class="modal-head">
-          <h2>Редактировать главу {{ chapterId }}</h2>
+          <h2 class="modal-title">Редактировать главу {{ chapterId }}</h2>
           <button class="modal-close" title="Закрыть" @click="emit('close')">✕</button>
         </div>
         <input v-model="title" type="text" class="title-input" placeholder="Название главы">
@@ -361,12 +361,12 @@ const save = async () => {
 
 <style scoped>
 .modal-backdrop {
-  z-index: 200;
+  z-index: var(--z-overlay);
   padding: 24px;
 }
 
 .modal {
-  padding: 16px 18px;
+  padding: var(--space-16);
   max-width: 760px;
   width: 100%;
   max-height: 90vh;
@@ -397,11 +397,7 @@ const save = async () => {
   justify-content: space-between;
 }
 
-.modal-head h2 {
-  margin: 0;
-  font-size: 18px;
-  color: var(--parchment);
-}
+
 
 .modal-close {
   background: none;
@@ -420,7 +416,7 @@ const save = async () => {
   display: block;
   width: 100%;
   margin: 4px 0 16px;
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   color: var(--parchment);
@@ -459,7 +455,7 @@ const save = async () => {
 }
 
 .date-input {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   color: var(--parchment);
@@ -486,7 +482,7 @@ const save = async () => {
   gap: 6px;
   padding-bottom: 10px;
   margin-bottom: 10px;
-  border-bottom: 1px solid rgba(241, 230, 210, .1);
+  border-bottom: 1px solid var(--line);
 }
 
 .tb-btn {
@@ -534,7 +530,7 @@ const save = async () => {
 .tb-sep {
   width: 1px;
   height: 20px;
-  background: rgba(241, 230, 210, .15);
+  background: var(--fill-bold);
   margin: 0 4px;
 }
 
@@ -549,7 +545,7 @@ const save = async () => {
 }
 
 .search-input {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   color: var(--parchment);

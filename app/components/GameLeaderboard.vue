@@ -121,7 +121,7 @@ useScrollLock()
     <div class="backdrop" @click.self="emit('close')">
       <div class="modal" role="dialog" aria-modal="true" aria-label="Рейтинг игроков">
         <div class="head">
-          <h2 class="title display">Рейтинг<span class="month">за {{ monthName }}</span></h2>
+          <h2 class="modal-title title">Рейтинг<span class="month">за {{ monthName }}</span></h2>
           <button class="close" type="button" aria-label="Закрыть" @click="emit('close')">×</button>
         </div>
 
@@ -268,13 +268,13 @@ useScrollLock()
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: var(--z-modal);
   padding: 20px;
   animation: fade-in .15s ease;
 }
 
 .modal {
-  padding: 24px;
+  padding: var(--space-24);
   width: 100%;
   max-width: 560px;
   max-height: calc(100vh - 40px);
@@ -291,8 +291,6 @@ useScrollLock()
 }
 
 .title {
-  margin: 0;
-  font-size: 22px;
   flex: 1;
 }
 
@@ -336,8 +334,8 @@ useScrollLock()
   font-family: var(--font-body);
   font-size: 13px;
   color: var(--parchment);
-  background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .14);
+  background: var(--fill);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 7px 14px;
   cursor: pointer;
@@ -454,7 +452,7 @@ useScrollLock()
 
 /* Своя строка обведена рамкой: в двадцати строках взгляд иначе её не найдёт. */
 .me td {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border-top: 1px solid var(--ember-soft);
   border-bottom: 1px solid var(--ember-soft);
 }
@@ -486,7 +484,7 @@ useScrollLock()
 .table td:last-child { padding-right: 14px; }
 
 .avatar {
-  background: rgba(241, 230, 210, .08);
+  background: var(--fill-strong);
 }
 
 /* Буква вместо картинки — приглушённая: в таблице она соседствует с числами,
@@ -516,7 +514,7 @@ useScrollLock()
 /* Зал славы свёрнут: пришли за нынешней таблицей, история — по желанию. */
 .hall {
   margin-top: 14px;
-  border-top: 1px solid rgba(241, 230, 210, .1);
+  border-top: 1px solid var(--line);
 }
 
 .hall-head {

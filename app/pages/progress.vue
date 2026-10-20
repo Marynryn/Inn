@@ -168,7 +168,7 @@ useSeoMeta({
     />
 
     <div class="wrap">
-      <h1 class="display page-title">Прогресс чтения</h1>
+      <h1 class="page-title">Прогресс чтения</h1>
       <p class="page-sub">Сколько перевода позади, сколько впереди — и когда вы его догоните.</p>
 
       <!-- Позиция -->
@@ -383,7 +383,6 @@ useSeoMeta({
 }
 
 .page-title {
-  font-size: 30px;
   margin: 0 0 6px;
 }
 
@@ -445,7 +444,7 @@ useSeoMeta({
 
 .field-note {
   margin: 10px 0 0;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.6;
   opacity: .6;
 }
@@ -494,7 +493,7 @@ useSeoMeta({
 .bar {
   height: 10px;
   border-radius: var(--radius-pill);
-  background: rgba(241, 230, 210, .08);
+  background: var(--fill-strong);
   overflow: hidden;
 }
 
@@ -713,7 +712,7 @@ useSeoMeta({
 }
 
 .seg small {
-  font-size: 10.5px;
+  font-size: 11px;
   opacity: .55;
 }
 

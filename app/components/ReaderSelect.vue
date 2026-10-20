@@ -195,7 +195,7 @@ onUnmounted(() => {
 .sel-option:hover,
 .sel-option:focus-visible {
   outline: none;
-  background: rgba(241, 230, 210, .06);
+  background: var(--fill);
   color: var(--parchment);
 }
 

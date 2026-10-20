@@ -355,7 +355,7 @@ const lastWhen = (iso: string) =>
 }
 
 .person:hover {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
 }
 
 .person.active {
@@ -414,7 +414,7 @@ const lastWhen = (iso: string) =>
 }
 
 .preview {
-  font-size: 12.5px;
+  font-size: 12px;
   color: rgba(241, 230, 210, .5);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -487,7 +487,7 @@ const lastWhen = (iso: string) =>
 }
 
 .chat-status {
-  font-size: 11.5px;
+  font-size: 11px;
   color: rgba(241, 230, 210, .45);
 }
 
@@ -505,10 +505,10 @@ const lastWhen = (iso: string) =>
   align-self: center;
   margin: 10px 0 6px;
   padding: 2px 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   font-size: 11px;
   color: rgba(241, 230, 210, .55);
-  background: rgba(241, 230, 210, .06);
+  background: var(--fill);
 }
 
 .msg {
@@ -526,8 +526,8 @@ const lastWhen = (iso: string) =>
   max-width: min(520px, 78%);
   margin: 0;
   padding: 7px 11px 6px;
-  border-radius: 12px 12px 12px 4px;
-  background: rgba(241, 230, 210, .08);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
+  background: var(--fill-strong);
   color: var(--parchment);
   font-size: 14px;
   line-height: 1.45;
@@ -536,14 +536,14 @@ const lastWhen = (iso: string) =>
 }
 
 .msg.mine .bubble {
-  border-radius: 12px 12px 4px 12px;
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
   background: rgba(214, 136, 62, .22);
 }
 
 .time {
   float: right;
   margin: 6px 0 -3px 10px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: rgba(241, 230, 210, .42);
 }
 
@@ -569,7 +569,7 @@ const lastWhen = (iso: string) =>
   padding: 9px 40px 9px 12px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   color: var(--parchment);
   font-family: var(--font-body);
   font-size: 14px;
@@ -607,7 +607,7 @@ const lastWhen = (iso: string) =>
   position: absolute;
   right: 0;
   bottom: 32px;
-  z-index: 50;
+  z-index: var(--z-dropdown);
   --num-columns: 8;
   --emoji-size: 1.3rem;
   --background: #1a1108;
@@ -651,7 +651,7 @@ const lastWhen = (iso: string) =>
 .send-error {
   margin: 0;
   padding: 0 14px 10px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: #e08a7a;
 }
 

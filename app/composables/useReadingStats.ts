@@ -68,8 +68,9 @@ export const useReadingStats = (chapters: Ref<Chapter[] | null>) => {
   }
 
   const sorted = computed(() =>
-    // Черновики видит только админ — в его прогрессе им тоже делать нечего.
-    (chapters.value ?? []).filter(c => c.isPublished !== false).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    // Черновики сервер отдаёт только админу. Он читает их раньше всех, и без них
+    // его закладка на неопубликованной главе выпадала бы из прогресса.
+    [...(chapters.value ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
   )
 
   /** Доля прокрутки главы: что помнит этот браузер или сервер — что больше. */

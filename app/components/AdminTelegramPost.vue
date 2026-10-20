@@ -82,7 +82,7 @@ const send = async () => {
 .tg-post {
   margin-top: 28px;
   padding-top: 22px;
-  border-top: 1px solid rgba(241, 230, 210, .1);
+  border-top: 1px solid var(--line);
 }
 
 .tg-sub {
@@ -93,7 +93,7 @@ const send = async () => {
 
 .tg-hint {
   margin: 0 0 12px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: rgba(241, 230, 210, .55);
 }
 
@@ -105,10 +105,10 @@ const send = async () => {
   overflow-y: auto;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   color: var(--parchment);
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.55;
 }
 

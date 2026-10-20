@@ -93,7 +93,7 @@ const body = computed(() => {
   flex: none;
 }
 
-@media (max-width: 620px) {
+@media (max-width: 600px) {
   .game-cta {
     flex-wrap: wrap;
     gap: 12px;

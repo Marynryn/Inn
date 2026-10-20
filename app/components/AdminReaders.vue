@@ -148,7 +148,7 @@ const when = (sqlTime: string) => new Date(`${sqlTime.replace(' ', 'T')}Z`).toLo
 }
 
 a.row:hover {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
 }
 
 .ava {
@@ -220,7 +220,7 @@ a.row:hover .go {
 .marks-btn:hover,
 .marks-btn.on {
   color: var(--ember-soft);
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
 }
 
 .marks-btn.on path {

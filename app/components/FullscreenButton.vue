@@ -88,7 +88,7 @@ onUnmounted(() => {
   top: 68px;
   left: 0;
   right: 0;
-  z-index: 90;
+  z-index: var(--z-float);
   max-width: max(calc(var(--reader-width, 50) * 1vw), 640px);
   margin: 0 auto;
   padding: 0 48px;

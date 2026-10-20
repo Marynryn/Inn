@@ -119,7 +119,7 @@ gap:4px;
 }
 
 .on-dark .footer-rule {
-  background: rgba(241, 230, 210, .12);
+  background: var(--fill-bold);
 }
 
 .on-dark .footer-text {

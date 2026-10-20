@@ -39,7 +39,7 @@ useSeoMeta({
     />
 
     <div class="about-wrap">
-      <h1 class="display about-title">{{ title }}</h1>
+      <h1 class="hero-title about-title">{{ title }}</h1>
       <div
         class="about-body"
         v-html="(settings?.about_text || '').replace(/\n/g, '<br>')"
@@ -52,6 +52,7 @@ useSeoMeta({
 
 <style scoped>
 .about-page {
+  --focus-ring: var(--focus-ring-light);
   min-height: 100vh;
   background: var(--parchment);
   color: var(--ink);
@@ -68,7 +69,6 @@ useSeoMeta({
 }
 
 .about-title {
-  font-size: clamp(28px, 5vw, 42px);
   color: var(--ink);
   margin: 0 0 32px;
   text-align: center;

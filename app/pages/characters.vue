@@ -128,7 +128,7 @@ useSeoMeta({
     <main class="characters">
       <header class="intro">
         <div class="eyebrow">Персонажи · The Wandering Inn</div>
-        <h1 class="title display">{{ settings?.characters_title || 'Кто живёт в таверне' }}</h1>
+        <h1 class="page-title title">{{ settings?.characters_title || 'Кто живёт в таверне' }}</h1>
         <p v-if="settings?.characters_subtitle" class="lead">{{ settings.characters_subtitle }}</p>
       </header>
 
@@ -252,8 +252,6 @@ useSeoMeta({
 }
 
 .title {
-  font-size: 38px;
-  font-weight: 600;
   margin: 0 0 12px;
 }
 
@@ -280,7 +278,7 @@ useSeoMeta({
   font-size: 15px;
   padding: 13px 16px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(241, 230, 210, .2);
+  border: 1px solid var(--line-strong);
   background: var(--bg-dark-2);
   color: var(--parchment);
   outline: none;
@@ -408,7 +406,6 @@ useSeoMeta({
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  outline: none;
 }
 
 .portrait {
@@ -512,7 +509,7 @@ useSeoMeta({
   color: var(--parchment-2);
 }
 
-@media (max-width: 620px) {
+@media (max-width: 600px) {
   .characters {
     padding-top: 80px;
   }
@@ -525,10 +522,6 @@ useSeoMeta({
 
   .lead {
     margin: 0 auto;
-  }
-
-  .title {
-    font-size: 30px;
   }
 
   /* Порядок на телефоне: поиск, фильтры в два столбца, под ними сортировка. */

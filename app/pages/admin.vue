@@ -1462,13 +1462,13 @@ useHead({
 .field-row input,
 .field-row select,
 .field-row textarea {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   color: var(--parchment);
   padding: 9px 12px;
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: 14px;
   width: 100%;
 }
 
@@ -1501,7 +1501,7 @@ useHead({
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--parchment-2);
   margin-bottom: 16px;
   cursor: pointer;
@@ -1537,7 +1537,7 @@ useHead({
   height: 72px;
   border-radius: var(--radius-round);
   object-fit: cover;
-  border: 2px solid rgba(241, 230, 210, .15);
+  border: 2px solid var(--line-strong);
 }
 
 .avatar-placeholder {
@@ -1603,7 +1603,7 @@ useHead({
 /* Предпросмотр — на своей же аватарке: посадку рамки нельзя выбрать в
    отвлечённом виде, её подгоняют, глядя на живое лицо в кружке. */
 .frame-preview {
-  background: rgba(241, 230, 210, .08);
+  background: var(--fill-strong);
   color: var(--parchment);
 }
 
@@ -1699,13 +1699,13 @@ useHead({
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: rgba(241, 230, 210, .03);
+  background: var(--fill-faint);
 }
 
 .newcomer-text {
   flex: 1;
   min-width: 220px;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.5;
   opacity: .65;
 }
@@ -1738,7 +1738,7 @@ useHead({
 
 .user-hit-mail {
   margin-left: auto;
-  font-size: 11.5px;
+  font-size: 11px;
   opacity: .4;
 }
 
@@ -1755,7 +1755,7 @@ useHead({
 }
 
 .grant-select {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   color: var(--parchment);
@@ -1772,7 +1772,7 @@ useHead({
   border-top: 1px solid var(--line-faint);
 }
 
-.owner-name { font-size: 13.5px; }
+.owner-name { font-size: 13px; }
 
 .owner-frames {
   margin-left: auto;
@@ -1785,12 +1785,12 @@ useHead({
 /* Носимая рамка отмечена — забрать её можно, но видно, что человек в ней
    сейчас ходит. */
 .owner-frame {
-  background: rgba(241, 230, 210, .06);
+  background: var(--fill);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--parchment);
   font-family: var(--font-body);
-  font-size: 11.5px;
+  font-size: 11px;
   padding: 4px 8px;
   cursor: pointer;
   opacity: .7;
@@ -1803,7 +1803,7 @@ useHead({
 
 .owner-frame:hover { color: var(--danger); }
 
-@media (max-width: 640px) {
+@media (max-width: 600px) {
   .frame-new {
     flex-direction: column;
     align-items: center;
@@ -1878,7 +1878,7 @@ useHead({
 }
 
 .chapter-row:hover {
-  background: rgba(241, 230, 210, .04);
+  background: var(--fill);
 }
 
 .chapter-row.drag-over {
@@ -1939,8 +1939,8 @@ useHead({
 .stat-card {
   flex: 1;
   min-width: 120px;
-  background: rgba(241, 230, 210, .05);
-  border: 1px solid rgba(241, 230, 210, .1);
+  background: var(--fill);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   padding: 16px 20px;
 }
@@ -2097,7 +2097,7 @@ useHead({
 }
 
 .stats-search {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   color: var(--parchment);
@@ -2123,8 +2123,8 @@ useHead({
   gap: 1px;
   max-height: 560px;
   overflow-y: auto;
-  border: 1px solid rgba(241, 230, 210, .07);
-  border-radius: 6px;
+  border: 1px solid var(--line-faint);
+  border-radius: var(--radius-md);
   scrollbar-width: thin;
   scrollbar-color: rgba(214, 136, 62, .3) transparent;
 }
@@ -2152,7 +2152,7 @@ useHead({
   gap: 10px;
   align-items: center;
   padding: 8px 12px;
-  border-bottom: 1px solid rgba(241, 230, 210, .06);
+  border-bottom: 1px solid var(--line-faint);
   font-size: 13px;
 }
 
@@ -2245,7 +2245,7 @@ useHead({
   max-width: 1040px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 600px) {
   .admin-sidebar {
     display: none;
   }
@@ -2329,7 +2329,7 @@ useHead({
   gap: 8px;
   padding: 8px 0;
   border-bottom: 1px solid rgba(42, 30, 22, .08);
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 /* Числа стоят по центру своей колонки — ровно под подписью «Сегодня» и «За всё время». */
@@ -2398,7 +2398,7 @@ useHead({
   background: none;
   color: var(--parchment-2);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -2449,7 +2449,7 @@ useHead({
 }
 
 .notify-last {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--parchment-2);
   margin: 0 0 18px;
 }
@@ -2477,7 +2477,7 @@ useHead({
 }
 
 .notify-row:hover {
-  background: rgba(241, 230, 210, .04);
+  background: var(--fill);
 }
 
 .notify-preview {

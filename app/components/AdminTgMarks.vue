@@ -54,10 +54,10 @@ const wrap = async (mark: string) => {
   padding: 4px 10px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   color: var(--parchment);
   font-family: var(--font-body);
-  font-size: 12.5px;
+  font-size: 12px;
   cursor: pointer;
 }
 

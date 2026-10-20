@@ -22,6 +22,9 @@ export const useReadProgress = () => {
   /** Места в главах, пришедшие с сервера: в этом браузере их может не быть вовсе. */
   const serverScroll = useState<Record<string, number>>('serverScroll', () => ({}))
 
+  /** Сервер ответил про закладку (или не ответил вовсе) — дальше ждать нечего. */
+  const synced = useState('progressSynced', () => false)
+
   const push = (body: { chapterId: string; read?: boolean; scroll?: number }) => {
     if (!auth.isAuthed) return
     $fetch('/api/progress', { method: 'POST', body }).catch(() => {})
@@ -80,7 +83,10 @@ export const useReadProgress = () => {
    */
   const syncFromServer = async () => {
     if (!import.meta.client || !auth.isAuthed) return
+    try { await syncInner() } finally { synced.value = true }
+  }
 
+  const syncInner = async () => {
     load()
 
     const server = await $fetch<{
@@ -144,6 +150,7 @@ export const useReadProgress = () => {
     lastRead,
     readChapters,
     serverScroll,
+    synced,
     load,
     clearLocal,
     setLastRead,

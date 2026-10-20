@@ -27,7 +27,7 @@ const style = computed(() => {
         <p class="banner-title display">{{ banner.title }}</p>
         <p class="banner-text">{{ banner.text }}</p>
       </div>
-      <button class="banner-btn" type="button" @click="emit('open')">{{ banner.button }}</button>
+      <button class="banner-btn btn btn--primary btn--lg" type="button" @click="emit('open')">{{ banner.button }}</button>
     </div>
   </aside>
 </template>
@@ -80,25 +80,10 @@ const style = computed(() => {
 
 .banner-btn {
   flex: none;
-  padding: 11px 24px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--ember);
-  color: var(--bg-dark);
-  font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background .15s;
-}
-
-.banner-btn:hover {
-  background: var(--ember-soft);
 }
 
 /* Телефон: своя картинка 16:9, всё в столбик по центру — между листьями. */
-@media (max-width: 620px) {
+@media (max-width: 600px) {
   .reel-banner {
     aspect-ratio: 16 / 9;
     padding: 16px 14%;

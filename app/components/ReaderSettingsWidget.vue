@@ -150,7 +150,7 @@ onUnmounted(() => {
   right: 18px;
   /* Над жест-баром телефона, как и шар уведомлений. */
   bottom: calc(18px + env(safe-area-inset-bottom));
-  z-index: 90;
+  z-index: var(--z-float);
   transition: transform .25s ease, opacity .25s ease;
 }
 
@@ -196,7 +196,7 @@ onUnmounted(() => {
 .rs-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 210;
+  z-index: var(--z-sheet);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -256,7 +256,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   margin-bottom: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--parchment-2);
 }
 
@@ -324,7 +324,7 @@ onUnmounted(() => {
 
 .rs-reset {
   background: none;
-  border: 1px solid rgba(241, 230, 210, .2);
+  border: 1px solid var(--line-strong);
   color: var(--parchment-2);
   padding: 8px 16px;
   border-radius: var(--radius-sm);

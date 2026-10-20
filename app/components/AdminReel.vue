@@ -805,7 +805,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 7px 12px;
-  border: 1px solid rgba(241, 230, 210, .14);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: none;
   color: var(--parchment);
@@ -816,12 +816,12 @@ onMounted(() => {
 
 .reel-chip.active {
   border-color: var(--ember-soft);
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
 }
 
 .status {
   padding: 1px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   font-size: 11px;
 }
 
@@ -842,7 +842,7 @@ select {
   padding: 8px 10px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   color: var(--parchment);
   font-family: var(--font-body);
   font-size: 13px;
@@ -897,21 +897,21 @@ select option { background: var(--bg-dark-2); }
   display: flex;
   gap: 14px;
   padding: 12px;
-  border: 1px solid rgba(241, 230, 210, .1);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: rgba(241, 230, 210, .02);
+  background: var(--fill-faint);
 }
 
 .texts {
   margin: 4px 0 16px;
   padding: 10px 14px;
-  border: 1px solid rgba(241, 230, 210, .1);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
 }
 
 .texts summary {
   cursor: pointer;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -945,7 +945,7 @@ select option { background: var(--bg-dark-2); }
   aspect-ratio: 9 / 14;
   flex-shrink: 0;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(241, 230, 210, .15);
+  border: 1px solid var(--line-strong);
   background-color: var(--bg-dark-2);
   background-size: cover;
   background-position: center;
@@ -978,7 +978,7 @@ select option { background: var(--bg-dark-2); }
 /* Миниатюры в пропорциях настоящих плашек: широкая и телефонная. */
 .banner-preview {
   border-radius: var(--radius-md);
-  border: 1px solid rgba(241, 230, 210, .15);
+  border: 1px solid var(--line-strong);
   background-color: var(--bg-dark-2);
   background-size: cover;
   background-position: center;
@@ -1092,7 +1092,7 @@ select option { background: var(--bg-dark-2); }
 }
 
 .no-pic {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.2;
   text-align: center;
   color: var(--danger);
@@ -1206,7 +1206,7 @@ select option { background: var(--bg-dark-2); }
 /* ── Журнал ─────────────────────────────────── */
 .log {
   padding-top: 14px;
-  border-top: 1px solid rgba(241, 230, 210, .1);
+  border-top: 1px solid var(--line);
 }
 
 .log-head {
@@ -1245,7 +1245,7 @@ select option { background: var(--bg-dark-2); }
   flex-wrap: wrap;
   gap: 4px 12px;
   padding: 7px 0;
-  border-top: 1px solid rgba(241, 230, 210, .06);
+  border-top: 1px solid var(--line-faint);
   font-size: 13px;
 }
 
@@ -1255,7 +1255,7 @@ select option { background: var(--bg-dark-2); }
 .log-what em {
   margin-left: 6px;
   font-style: normal;
-  font-size: 11.5px;
+  font-size: 11px;
 }
 
 .log-what em.won { color: var(--success); }

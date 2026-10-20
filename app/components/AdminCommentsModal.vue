@@ -112,7 +112,7 @@ useScrollLock()
 
 <style scoped>
 .modal-backdrop {
-  z-index: 100;
+  z-index: var(--z-modal);
   padding: 20px;
   animation: fade-in .15s ease;
 }
@@ -124,7 +124,7 @@ useScrollLock()
   width: min(620px, 100%);
   max-height: calc(100vh - 40px);
   max-height: calc(100dvh - 40px);
-  padding: 24px 24px 18px;
+  padding: var(--space-24);
   animation: slide-up .2s ease;
 }
 
@@ -148,11 +148,7 @@ useScrollLock()
 }
 
 .modal-title {
-  margin: 0;
   padding-right: 32px;
-  font-family: var(--font-display);
-  font-size: 20px;
-  color: var(--parchment);
 }
 
 /* Подпись и «Обновить» — одной строкой; на узком экране кнопка уходит вниз. */
@@ -173,8 +169,8 @@ useScrollLock()
 
 .refresh {
   padding: 4px 10px;
-  border: 1px solid rgba(241, 230, 210, .15);
-  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
@@ -223,7 +219,7 @@ useScrollLock()
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--parchment);
 }
@@ -231,7 +227,7 @@ useScrollLock()
 a.row-author:hover { color: var(--ember-soft); }
 
 .row-guest {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 400;
   color: var(--ink-soft);
 }

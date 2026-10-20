@@ -512,9 +512,6 @@ useSeoMeta({
 }
 
 .hero-title {
-  font-size: 42px;
-  line-height: 1.08;
-  font-weight: 600;
   margin: 0 0 14px;
   max-width: 560px;
 }
@@ -584,6 +581,7 @@ useSeoMeta({
 }
 
 .ledger {
+  --focus-ring: var(--focus-ring-light);
   max-width: 760px;
   margin: 0 auto;
   padding: 56px 20px 36px;
@@ -823,10 +821,6 @@ useSeoMeta({
     /* Колонка на телефоне узкая — видно четверть кадра. По центру туда попадает
        пустая долина, у правого края — дерево; 88% ставят в окно дом с табличкой. */
     object-position: 88% center;
-  }
-
-  .hero-title {
-    font-size: 30px;
   }
 
   /* Оглавление на телефоне узкое — пчела мельче, и зазор под ней меньше. */

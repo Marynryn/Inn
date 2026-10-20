@@ -117,7 +117,7 @@ onBeforeUnmount(() => {
 .bat-intro {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-intro);
   overflow: hidden;
   cursor: pointer;
   /* Свайп по заставке не должен листать страницу под ней: на телефоне от этого

@@ -65,14 +65,14 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   top: calc(100% + 8px);
   right: 0;
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .15);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   padding: 6px;
   display: flex;
   flex-direction: column;
   min-width: 160px;
   box-shadow: var(--shadow-popover);
-  z-index: 50;
+  z-index: var(--z-dropdown);
 }
 
 .support-menu.open-up {
@@ -91,6 +91,6 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
 
 .support-menu a:hover {
   color: var(--ember-soft);
-  background: rgba(241, 230, 210, .06);
+  background: var(--fill);
 }
 </style>

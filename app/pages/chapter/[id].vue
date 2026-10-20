@@ -372,10 +372,12 @@ useHead(() => ({
   --rd-hidden: rgba(231, 217, 194, .06);
   --rd-title: var(--parchment);
   --rd-muted: var(--parchment-2);
-  --rd-faint: var(--moss);
+  /* Как в тёмной теме: moss на этом фоне давал 2.6:1. */
+  --rd-faint: #7d9a78;
   --rd-accent: var(--ember-soft);
   --rd-line: rgba(241, 230, 210, .1);
   --rd-border: rgba(241, 230, 210, .18);
+  --focus-ring: var(--rd-accent);
 
   /*
     Кегль, действующий на этом экране. Настройка одна на все устройства — её
@@ -466,34 +468,13 @@ html[data-reader-theme="light"] .page-wrap {
   --rd-border: rgba(0, 0, 0, .22);
 }
 
+/* Общий .icon-btn из main.css — крупнее и в цветах темы читалки. */
 .icon-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-round);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--rd-border);
-  color: var(--rd-muted);
-  font-size: 22px;
-  background: none;
-  cursor: pointer;
-  transition: border-color .15s, color .15s;
-}
-
-.icon-btn:hover {
-  border-color: var(--ember);
-  color: var(--rd-accent);
-}
-
-.icon-btn.is-loading {
-  pointer-events: none;
-  opacity: .7;
-}
-
-.icon-btn.is-done {
-  border-color: var(--moss);
-  color: var(--moss);
+  --icon-btn-size: 40px;
+  --icon-btn-glyph: 22px;
+  --icon-btn-border: var(--rd-border);
+  --icon-btn-color: var(--rd-muted);
+  --icon-btn-hover: var(--rd-accent);
 }
 
 .spin {
@@ -646,12 +627,12 @@ html[data-reader-theme="light"] .page-wrap {
   left: 50%;
   transform: translateX(-50%);
   background: rgba(30, 20, 10, .92);
-  border: 1px solid rgba(241, 230, 210, .15);
+  border: 1px solid var(--line-strong);
   color: var(--parchment-2);
   font-size: 13px;
   padding: 10px 20px;
-  border-radius: 20px;
-  z-index: 100;
+  border-radius: var(--radius-pill);
+  z-index: var(--z-modal);
   white-space: nowrap;
   backdrop-filter: blur(8px);
 }

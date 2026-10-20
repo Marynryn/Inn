@@ -75,7 +75,7 @@ useScrollLock()
 
 <style scoped>
 .modal-backdrop {
-  z-index: 100;
+  z-index: var(--z-modal);
   padding: 20px;
   animation: fade-in .15s ease;
 }
@@ -87,7 +87,7 @@ useScrollLock()
   width: min(520px, 100%);
   max-height: calc(100vh - 40px);
   max-height: calc(100dvh - 40px);
-  padding: 24px 24px 18px;
+  padding: var(--space-24);
   animation: slide-up .2s ease;
 }
 
@@ -111,11 +111,7 @@ useScrollLock()
 }
 
 .modal-title {
-  margin: 0;
   padding-right: 32px;
-  font-family: var(--font-display);
-  font-size: 20px;
-  color: var(--parchment);
 }
 
 .modal-note {

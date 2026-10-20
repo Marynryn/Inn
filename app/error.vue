@@ -33,12 +33,13 @@ useHead({
       <p class="error-sub">{{ error.message || 'Что-то пошло не так.' }}</p>
     </template>
 
-    <NuxtLink href="/" class="btn-home">← На главную</NuxtLink>
+    <NuxtLink href="/" class="btn-home btn btn--primary btn--lg">← На главную</NuxtLink>
   </div>
 </template>
 
 <style scoped>
 .error-page {
+  --focus-ring: var(--focus-ring-light);
   min-height: 100vh;
   background: #fff;
   display: flex;
@@ -53,7 +54,7 @@ useHead({
 .error-img {
   width: 380px;
   max-width: 88vw;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 .error-code {
@@ -69,22 +70,5 @@ useHead({
   opacity: .7;
   margin: 0;
   text-align: center;
-}
-
-.btn-home {
-  display: inline-block;
-  padding: 11px 26px;
-  background: #2a1a0a;
-  color: #f5f0e8;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 500;
-  text-decoration: none;
-  transition: transform .15s, box-shadow .15s;
-}
-
-.btn-home:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px -6px rgba(0,0,0,.4);
 }
 </style>

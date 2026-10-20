@@ -146,7 +146,7 @@ const href = computed(() => `/chapter/${encodeURIComponent(slugifyChapterId(prop
 .tag {
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-weight: 500;
 }
 
@@ -164,36 +164,6 @@ const href = computed(() => `/chapter/${encodeURIComponent(slugifyChapterId(prop
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-}
-
-.icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-round);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(43, 32, 24, .18);
-  color: var(--ink-soft);
-  font-size: 20px;
-  background: none;
-  cursor: pointer;
-  transition: border-color .15s, color .15s;
-}
-
-.icon-btn:hover {
-  border-color: var(--ember);
-  color: var(--ember);
-}
-
-.icon-btn.is-loading {
-  pointer-events: none;
-  opacity: .7;
-}
-
-.icon-btn.is-done {
-  border-color: var(--moss);
-  color: var(--moss);
 }
 
 .spin {

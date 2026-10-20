@@ -110,9 +110,9 @@ const track = () => useClarity().event(`tg_click_${props.place || 'other'}`)
 
 /* На тёмной подложке страницы главы */
 .tg-cta.on-dark {
-  border-color: rgba(241, 230, 210, .14);
+  border-color: var(--line);
   border-left-color: var(--ember);
-  background: rgba(241, 230, 210, .04);
+  background: var(--fill);
 }
 
 .on-dark .tg-title {

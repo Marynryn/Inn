@@ -36,22 +36,19 @@ useScrollLock()
 
 <style scoped>
 .modal-backdrop {
-  z-index: 100;
+  z-index: var(--z-modal);
   animation: fade-in .15s ease;
 }
 
 .modal {
-  padding: 28px 32px;
+  padding: var(--space-24);
   max-width: 380px;
   width: calc(100% - 40px);
   animation: slide-up .2s ease;
 }
 
 .modal-title {
-  margin: 0 0 10px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--parchment);
+  margin-bottom: 10px;
 }
 
 .modal-body {

@@ -141,7 +141,7 @@ onUnmounted(() => {
   gap: 4px;
   padding: 4px 8px 4px 5px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(241, 230, 210, .22);
+  border: 1px solid var(--line-bold);
   background: rgba(20, 15, 11, .88);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
@@ -164,7 +164,7 @@ onUnmounted(() => {
 
 .flame-who {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--z-intro);
   max-width: 240px;
   padding: 8px 12px;
   transform: translate(-50%, -100%);

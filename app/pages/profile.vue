@@ -251,7 +251,7 @@ useHead({
     />
 
     <div class="profile-wrap">
-      <h1 class="display profile-title">Профиль</h1>
+      <h1 class="page-title profile-title">Профиль</h1>
 
       <div v-if="profile" class="profile-card">
         <div class="avatar-row">
@@ -524,13 +524,12 @@ useHead({
 }
 
 .profile-title {
-  font-size: 30px;
   margin: 0 0 24px;
 }
 
 .profile-card {
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .1);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   padding: 28px 24px;
 }
@@ -559,7 +558,7 @@ useHead({
 
 .avatar-face {
   border: 1px solid var(--line-strong);
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
 }
 
 /* Подсказка кроет аватарку целиком — иначе полоска понизу торчала бы
@@ -595,7 +594,7 @@ useHead({
 }
 
 .name-field input {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   color: var(--parchment);
@@ -623,7 +622,7 @@ useHead({
 }
 
 .about-field textarea {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   color: var(--parchment);
@@ -684,16 +683,16 @@ useHead({
 }
 
 .frame-pick:hover {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
 }
 
 .frame-pick.active {
   border-color: var(--ember-soft);
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
 }
 
 .frame-face {
-  background: rgba(241, 230, 210, .08);
+  background: var(--fill-strong);
 }
 
 .frame-name {
@@ -710,7 +709,7 @@ useHead({
 /* Рамка из каталога, но не выигранная: так помечено то, что видно только
    хозяйке сайта, — чтобы не спутать примерку со своей наградой. */
 .frame-tag {
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--ember-soft);
@@ -749,7 +748,7 @@ useHead({
   width: 96px;
   height: 60px;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: var(--bg-dark);
 }
@@ -800,7 +799,7 @@ useHead({
 /* ── Способы входа ──────────────────────────── */
 .divider {
   border: none;
-  border-top: 1px solid rgba(241, 230, 210, .1);
+  border-top: 1px solid var(--line);
   margin: 26px 0 20px;
 }
 
@@ -856,7 +855,7 @@ useHead({
 
 .foot-row .link-btn { margin-left: 0; }
 
-@media (max-width: 520px) {
+@media (max-width: 480px) {
   .avatar-row {
     flex-direction: column;
     align-items: flex-start;

@@ -32,7 +32,7 @@ defineProps<{
   gap: 12px;
   height: 44px;
   padding: 0 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--parchment-2);
   font-size: 14px;
   text-decoration: none;
@@ -44,7 +44,7 @@ defineProps<{
 }
 
 .side-link:hover {
-  background: rgba(241, 230, 210, .06);
+  background: var(--fill);
   color: var(--parchment);
 }
 

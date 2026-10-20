@@ -122,7 +122,7 @@ onUnmounted(() => {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: var(--z-header);
   height: 56px;
   display: flex;
   align-items: center;
@@ -171,7 +171,7 @@ onUnmounted(() => {
   justify-content: center;
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--parchment-2);
   cursor: pointer;
   transition: color .15s;
@@ -255,11 +255,11 @@ onUnmounted(() => {
    сливалась бы с фоном. Букве достаётся фон и цвет с самой аватарки. */
 .user-pic {
   color: var(--parchment);
-  background: rgba(241, 230, 210, .08);
+  background: var(--fill-strong);
 }
 
 .user-pic :deep(.ua-pic) {
-  border: 1px solid rgba(241, 230, 210, .25);
+  border: 1px solid var(--line-bold);
 }
 
 /* Держим адаптив последним в файле: правила здесь того же веса, что и

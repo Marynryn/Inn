@@ -288,7 +288,7 @@ const onTouchEnd = (e: TouchEvent) => {
 }
 
 .me:hover {
-  background: rgba(241, 230, 210, .05);
+  background: var(--fill);
 }
 
 .me.active {
@@ -296,7 +296,7 @@ const onTouchEnd = (e: TouchEvent) => {
 }
 
 .me :deep(.ua-pic) {
-  border: 1px solid rgba(241, 230, 210, .25);
+  border: 1px solid var(--line-bold);
 }
 
 .me-text {
@@ -348,7 +348,7 @@ const onTouchEnd = (e: TouchEvent) => {
   justify-content: center;
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--parchment-2);
   cursor: pointer;
 }
@@ -392,7 +392,7 @@ const onTouchEnd = (e: TouchEvent) => {
   gap: 12px;
   height: 40px;
   padding: 0 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--parchment-2);
   font-size: 14px;
   text-decoration: none;
@@ -400,7 +400,7 @@ const onTouchEnd = (e: TouchEvent) => {
 }
 
 .tg:hover {
-  background: rgba(241, 230, 210, .06);
+  background: var(--fill);
   color: var(--parchment);
 }
 
@@ -432,7 +432,7 @@ const onTouchEnd = (e: TouchEvent) => {
   align-items: center;
   justify-content: center;
   height: 40px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid rgba(201, 160, 46, .6);
   color: var(--gold);
   font-size: 14px;

@@ -469,7 +469,7 @@ onUnmounted(() => {
   right: 18px;
   /* Над жест-баром телефона: без safe-area значок ложится под системную полосу. */
   bottom: calc(18px + env(safe-area-inset-bottom));
-  z-index: 90;
+  z-index: var(--z-float);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -479,7 +479,7 @@ onUnmounted(() => {
 
 /* Пока панель открыта, виджет поднимается над шапкой сайта (у неё z-index 100):
    иначе раскрытая на весь экран панель уходила бы под неё верхним краем. */
-.notif-widget.is-open { z-index: 200; }
+.notif-widget.is-open { z-index: var(--z-overlay); }
 
 /* Уезжает за правый край вместе со своим отступом, чтобы не осталось края. */
 .notif-widget.tucked {
@@ -576,7 +576,7 @@ onUnmounted(() => {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 9px;
+  border-radius: var(--radius-pill);
   background: var(--ember);
   color: var(--bg-dark);
   font-size: 11px;
@@ -592,7 +592,7 @@ onUnmounted(() => {
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--bg-dark-2);
-  border: 1px solid rgba(241, 230, 210, .14);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
 }
@@ -602,7 +602,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-bottom: 1px solid rgba(241, 230, 210, .1);
+  border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
   background: var(--bg-dark-2);
@@ -619,7 +619,7 @@ onUnmounted(() => {
   background: none;
   border: none;
   padding: 0;
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-muted);
   text-decoration: underline;
   cursor: pointer;
@@ -645,7 +645,7 @@ onUnmounted(() => {
 .panel-note {
   margin: 0;
   padding: 18px 14px;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--text-muted);
 }
@@ -664,7 +664,7 @@ onUnmounted(() => {
   padding: 11px 14px;
   background: none;
   border: none;
-  border-bottom: 1px solid rgba(241, 230, 210, .06);
+  border-bottom: 1px solid var(--line-faint);
   cursor: pointer;
   transition: background .15s;
 }
@@ -713,7 +713,7 @@ onUnmounted(() => {
 /* Своё лицо в списке — как в шапке, а не как чужое под комментарием: так
    уведомление о рамке не путается с ответом. */
 .item-pic--mine {
-  background: rgba(241, 230, 210, .08);
+  background: var(--fill-strong);
   color: var(--parchment);
 }
 
@@ -741,7 +741,7 @@ onUnmounted(() => {
 }
 
 .item-body {
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--text-muted);
   /* Две строки и многоточие: уведомление — не место читать ответ целиком. */
@@ -753,7 +753,7 @@ onUnmounted(() => {
 
 /* Своя реплика — тише самого ответа: это подпись, а не новость. */
 .item-answered {
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 1.4;
   color: var(--text-muted);
   opacity: .7;

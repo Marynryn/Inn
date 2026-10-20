@@ -351,7 +351,7 @@ useScrollLock()
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-modal);
   background: rgba(20, 14, 10, .72);
   backdrop-filter: blur(3px);
   display: flex;
@@ -508,7 +508,7 @@ useScrollLock()
 .photo {
   position: fixed;
   inset: 0;
-  z-index: 110;
+  z-index: calc(var(--z-modal) + 10);
   display: grid;
   place-items: center;
   padding: 20px;
@@ -639,7 +639,7 @@ useScrollLock()
 .description {
   margin-top: 20px;
   padding-top: 18px;
-  border-top: 1px solid rgba(241, 230, 210, .1);
+  border-top: 1px solid var(--line);
   font-size: 14px;
   line-height: 1.7;
   color: var(--parchment-2);

@@ -70,7 +70,7 @@ const hide = () => {
       </p>
     </div>
 
-    <NuxtLink :to="loginHref" class="sn-btn" @click="clarity.event('signup_nudge_click')">Войти</NuxtLink>
+    <NuxtLink :to="loginHref" class="sn-btn btn btn--primary btn--lg" @click="clarity.event('signup_nudge_click')">Войти</NuxtLink>
 
     <button type="button" class="sn-close" title="Скрыть" aria-label="Скрыть" @click="hide">✕</button>
   </aside>
@@ -116,19 +116,6 @@ const hide = () => {
 
 .sn-btn {
   flex-shrink: 0;
-  padding: 10px 22px;
-  border-radius: var(--radius-sm);
-  background: var(--ember);
-  color: var(--bg-dark);
-  font-size: 14px;
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background .15s;
-}
-
-.sn-btn:hover {
-  background: var(--ember-soft);
 }
 
 .sn-close {
@@ -153,9 +140,9 @@ const hide = () => {
 }
 
 .signup-nudge.on-dark {
-  border-color: rgba(241, 230, 210, .14);
+  border-color: var(--line);
   border-left-color: var(--ember);
-  background: rgba(241, 230, 210, .04);
+  background: var(--fill);
 }
 
 .on-dark .sn-title {
@@ -168,7 +155,7 @@ const hide = () => {
 }
 
 .on-dark .sn-close:hover {
-  background: rgba(241, 230, 210, .08);
+  background: var(--fill-strong);
 }
 
 @media (max-width: 600px) {

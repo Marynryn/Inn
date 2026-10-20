@@ -90,7 +90,7 @@ useHead({
         <form v-if="showPassword" class="pw-form" @submit.prevent="submit">
           <input v-model="email" type="email" placeholder="Email" autocomplete="email" required>
           <input v-model="password" type="password" placeholder="Пароль" autocomplete="current-password" required>
-          <button type="submit" :disabled="loading">
+          <button class="btn btn--primary" type="submit" :disabled="loading">
             {{ loading ? 'Входим...' : 'Войти' }}
           </button>
         </form>
@@ -138,6 +138,7 @@ useHead({
 }
 
 .sheet {
+  --focus-ring: var(--focus-ring-light);
   position: absolute;
   left: 28%;
   top: 26%;
@@ -239,21 +240,11 @@ useHead({
   border-color: var(--ember);
 }
 
+/* Вид — общий .btn--primary; размер растёт со свитком, как и поля над ней. */
 .pw-form button {
-  font-family: var(--font-body);
+  width: 100%;
   font-size: clamp(12px, 1.2cqw, 14px);
-  font-weight: 500;
-  background: var(--ember);
-  color: #2b221c;
-  border: none;
   padding: clamp(8px, 1cqw, 12px);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.pw-form button:disabled {
-  opacity: .5;
-  cursor: not-allowed;
 }
 
 /*
