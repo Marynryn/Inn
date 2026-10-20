@@ -102,6 +102,7 @@ onMounted(() => {
   }).catch(() => {})
 
   const restoreTo = (value: number) => {
+    claimPageScroll(route.path)
     document.fonts.ready.then(() => {
       const h = document.documentElement.scrollHeight - window.innerHeight
       window.scrollTo({ top: value * h, behavior: 'instant' })

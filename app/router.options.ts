@@ -5,6 +5,7 @@ import type { RouterConfig } from 'nuxt/schema'
 import { useNuxtApp } from '#app/nuxt'
 import { START_LOCATION } from 'vue-router'
 import { smoothScrollTo } from './utils/smoothScroll'
+import { takePageScrollClaim } from './utils/pageScroll'
 
 const SCROLL_PREFIX = 'tavern:scroll:'
 
@@ -30,6 +31,8 @@ export default <RouterConfig>{
         nuxtApp.hooks.hookOnce('page:loading:end', () => {
           // Пока грузилось, ушли дальше — эту прокрутку уже не делаем.
           if (nuxtApp.$router.currentRoute.value.fullPath !== to.fullPath) return resolve(false)
+          // Глава уже сама вернулась к закладке — наверх её не увозим.
+          if (takePageScrollClaim(to.path)) return resolve(false)
           resolve(savedPosition ?? { top: 0 })
         })
       })
