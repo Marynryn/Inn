@@ -5,8 +5,9 @@ const TELEGRAM_TEXT_MAX = 4096
 
 /**
  * Своё сообщение в канал — текстом, написанным в панели: анонс ивента,
- * новость, что угодно. Уходит как есть, простым текстом: разметку телеграм
- * разбирает строго, и одна лишняя звёздочка отклонила бы всё сообщение.
+ * новость, что угодно. Разметку (**жирный**, ~~зачёркнутый~~, ||спойлер||)
+ * сами переводим в HTML, остальное экранируем: телеграм разбирает разметку
+ * строго, и одна лишняя звёздочка иначе отклонила бы всё сообщение.
  * Ссылки телеграм делает кликабельными сам.
  */
 export default defineEventHandler(async (event) => {
@@ -20,7 +21,7 @@ export default defineEventHandler(async (event) => {
 
   let sent: boolean
   try {
-    sent = await sendTelegramMessage(text)
+    sent = await sendTelegramMessage(telegramMarkupToHtml(text), 'HTML')
   } catch (e: any) {
     // Телеграм отвечает своим описанием ошибки — оно точнее нашего пересказа.
     const reason = e?.data?.description || e?.message || 'нет ответа'
