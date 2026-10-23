@@ -10,6 +10,7 @@
 const props = defineProps<{ id: string }>()
 
 const { data } = await useFetch(`/api/chapters/${encodeURIComponent(props.id)}`, {
+  query: { text: 1 },
   pick: ['contentHtml'],
 })
 </script>

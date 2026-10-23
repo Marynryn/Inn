@@ -1,3 +1,10 @@
+<script lang="ts">
+// Один форматтер на все строки. toLocaleDateString собирает его заново на
+// каждый вызов, а строк в оглавлении сотни — на сервере это была заметная
+// доля времени отрисовки главной.
+const dateFormat = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+</script>
+
 <script setup lang="ts">
 const props = defineProps<{
   chapter: {
@@ -16,6 +23,7 @@ const emit = defineEmits<{
 }>()
 
 const href = computed(() => `/chapter/${encodeURIComponent(slugifyChapterId(props.chapter.id))}`)
+const published = computed(() => dateFormat.format(new Date(props.chapter.publishedAt)))
 </script>
 
 <template>
@@ -37,7 +45,7 @@ const href = computed(() => `/chapter/${encodeURIComponent(slugifyChapterId(prop
         <div class="row-meta">
           <span v-if="badge === 'new'" class="tag tag-new">новая</span>
           <span v-else-if="badge === 'read'" class="tag tag-read">прочитано</span>
-          <span>{{ new Date(chapter.publishedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) }}</span>
+          <span>{{ published }}</span>
         </div>
       </div>
     </NuxtLink>
