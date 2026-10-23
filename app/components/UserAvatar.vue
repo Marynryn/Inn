@@ -31,12 +31,17 @@ const scale = computed(() => (props.frame ? frameScale(props.frame.fit) : 1))
     :style="{ '--ua-size': `${size}px`, '--ua-scale': scale }"
     :class="{ 'ua--framed': Boolean(frame) }"
   >
-    <img v-if="src" :src="src" class="ua-pic" :alt="alt ?? name ?? ''">
+    <!-- Аватарки и рамки чаще всего ниже первого экрана — в обсуждении, в списках.
+         Рамка — картинка 512×512 на сто с лишним КБ при показе в 48 px: качать
+         её, пока до неё не долистали, незачем. На экране lazy грузит сразу. -->
+    <img v-if="src" :src="src" class="ua-pic" :alt="alt ?? name ?? ''" loading="lazy" decoding="async">
     <span v-else class="ua-letter display" aria-hidden="true">{{ initial }}</span>
     <img
       v-if="frame"
       :src="frame.url"
       class="ua-frame"
+      loading="lazy"
+      decoding="async"
       alt=""
       aria-hidden="true"
       draggable="false"

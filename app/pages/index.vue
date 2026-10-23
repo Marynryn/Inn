@@ -326,8 +326,13 @@ useSeoMeta({
         <div v-else class="ledger-bee"><BeeApista /></div>
       </div>
 
-      <VolumeAccordion
+      <!-- Тома оживают, когда до них долистали: оглавление — почти весь HTML
+           главной (2 000+ элементов), и оживлять его разом значило занять
+           процессор телефона на секунду, пока человек смотрит на первый экран.
+           Разметка с сервера та же, ссылки на главы работают и до оживления. -->
+      <LazyVolumeAccordion
         v-for="[vol, chs] in volumes"
+        hydrate-on-visible
         :key="vol"
         :volume="vol"
         :chapters="chs"
