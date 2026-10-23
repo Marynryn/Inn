@@ -103,9 +103,15 @@ const showEmoji = ref<EmojiTarget | null>(null)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const replyTextareaRef = ref<HTMLTextAreaElement | null>(null)
 
-// Библиотека при загрузке регистрирует свой элемент в DOM — не в разгар
-// гидратации, а когда компонент уже на месте.
-onMounted(() => { import('emoji-picker-element') })
+// Библиотеку грузим, когда смайлы впервые позвали: обсуждение стоит и на
+// главной, и под каждой главой, а смайлы открывает мало кто — незачем каждому
+// читателю качать её вместе со страницей. Панель, вставленная до загрузки,
+// оживает сама, как только элемент зарегистрируется.
+const stopEmojiLoad = watch(showEmoji, (target) => {
+  if (!target) return
+  import('emoji-picker-element')
+  stopEmojiLoad()
+})
 
 function onEmojiClick(e: any) {
   const emoji = e.detail?.emoji?.unicode ?? ''
