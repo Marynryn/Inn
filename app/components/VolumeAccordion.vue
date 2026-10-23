@@ -47,6 +47,18 @@ const numSize = computed(() => {
   return 7
 })
 
+// Свёрнутый до конца том браузер не раскладывает и не рисует (стиль
+// .settled ниже). Пока том сворачивается, строки нужны — иначе вместо них
+// уезжала бы пустая полоса, — поэтому прячем по окончании анимации.
+const settled = ref(!props.isOpen)
+let settleTimer: ReturnType<typeof setTimeout> | undefined
+watch(() => props.isOpen, (open) => {
+  clearTimeout(settleTimer)
+  if (open) settled.value = false
+  else settleTimer = setTimeout(() => { settled.value = true }, 400)
+})
+onBeforeUnmount(() => clearTimeout(settleTimer))
+
 const spineColor = computed(() => {
   const i = Math.trunc(props.volume) % SPINE_COLORS.length
   return SPINE_COLORS[(i + SPINE_COLORS.length) % SPINE_COLORS.length]
@@ -54,7 +66,7 @@ const spineColor = computed(() => {
 </script>
 
 <template>
-  <div class="volume" :class="{ open: isOpen }">
+  <div class="volume" :class="{ open: isOpen, settled }">
     <button class="volume-head" @click="emit('toggle')">
       <span class="spine" :style="{ '--spine': spineColor }" aria-hidden="true">
         <span class="spine-num" :style="{ fontSize: `${numSize}px` }">{{ roman }}</span>
@@ -214,5 +226,13 @@ const spineColor = computed(() => {
 
 .volume-body {
   overflow: hidden;
+}
+
+/* Свёрнутый том браузер не раскладывает и не рисует вовсе — строки остаются в
+   разметке (поиск видит ссылки на все главы), но первая отрисовка главной не
+   тратится на сотни невидимых строк: на сервере тома приходят закрытыми, свой
+   открывается уже в браузере. */
+.volume.settled .volume-body {
+  content-visibility: hidden;
 }
 </style>

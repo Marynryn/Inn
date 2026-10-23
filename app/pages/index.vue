@@ -4,6 +4,13 @@ import { formatHours } from '~/composables/useReadingStats'
 const { data: settings } = await useFetch('/api/settings')
 const season = useSeason()
 
+// Картинка героя — то, по чему меряют первую отрисовку. Ссылка на неё в <head>:
+// браузер начинает её качать, ещё не дочитав страницу до <img>.
+const heroSrc = computed(() => season.value === 'halloween' ? '/hero-halloween.webp' : '/hero.webp')
+useHead(() => ({
+  link: [{ key: 'hero-preload', rel: 'preload', as: 'image', href: heroSrc.value, fetchpriority: 'high' }],
+}))
+
 // Тыква на Хеллоуин смеётся по клику. Звук качается только при первом клике,
 // повторный клик начинает смех заново, а не накладывает второй поверх. Если
 // файл не скачался, следующий клик пробует снова, а не молчит до перезагрузки.
@@ -210,7 +217,11 @@ useSeoMeta({
       <div class="hero-art">
         <!-- На Хеллоуин белую луну сменяет тыква — она вклеена прямо в картинку,
              поэтому стоит на месте луны при любой ширине кадра. -->
-        <NuxtImg :src="season === 'halloween' ? '/hero-halloween.webp' : '/hero.webp'" alt="" />
+        <!-- Самое крупное на первом экране — по ней меряют отрисовку (LCP).
+             Файл напрямую, не через NuxtImg: тот пережимал его заново и отдавал
+             тяжелее исходника. Ссылка в <head> (heroSrc ниже) и высокий
+             приоритет — браузер берёт картинку раньше скриптов. -->
+        <img :src="heroSrc" alt="" fetchpriority="high">
       </div>
       <!-- Кнопка поверх вклеенной тыквы. Рамка повторяет .hero-art, но лежит выше
            текста героя — иначе клик перехватил бы его блок. -->

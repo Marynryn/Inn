@@ -77,11 +77,14 @@ onUnmounted(() => {
 <template>
   <NuxtLink ref="link" to="/characters" class="sign" :class="{ shown }" aria-label="Карточки персонажей">
     <span class="slide">
+      <!-- Вывеска выезжает с паузой, а в первом экране главное — картинка героя:
+           низкий приоритет пускает её вперёд по каналу. -->
       <img
         ref="img"
         class="swing"
         src="/sign-characters.webp"
         alt=""
+        fetchpriority="low"
         width="520"
         height="650"
         draggable="false"
