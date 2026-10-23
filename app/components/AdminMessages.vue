@@ -155,10 +155,14 @@ watch(draft, async () => {
 // ── Смайлы ─────────────────────────────────────
 const showEmoji = ref(false)
 // Библиотека — когда смайлы впервые открыли, а не вместе с вкладкой.
-const stopEmojiLoad = watch(showEmoji, (open) => {
-  if (!open) return
-  import('emoji-picker-element')
-  stopEmojiLoad()
+// Не загрузилась — закрываем пустую панель, следующее открытие попробует снова.
+let emojiLoad: Promise<unknown> | null = null
+watch(showEmoji, (open) => {
+  if (!open || emojiLoad) return
+  emojiLoad = import('emoji-picker-element').catch(() => {
+    emojiLoad = null
+    showEmoji.value = false
+  })
 })
 
 const onEmoji = (e: any) => {

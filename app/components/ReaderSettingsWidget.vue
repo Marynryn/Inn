@@ -65,8 +65,8 @@ onUnmounted(() => {
     >
       <!-- Размер — тот, каким книжка видна (высота 64 в стилях ниже): по нему
            NuxtImg нарезает файл. С исходным 174×210 на каждую главу ехало
-           45 КБ ради значка в палец. -->
-      <NuxtImg src="/reader-book.webp" class="book" width="53" height="64" alt="" />
+           45 КБ ради значка в палец. x3 — для экранов iPhone, иначе значок мылится. -->
+      <NuxtImg src="/reader-book.webp" class="book" width="53" height="64" densities="x1 x2 x3" alt="" />
     </button>
   </div>
 

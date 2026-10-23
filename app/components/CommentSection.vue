@@ -106,11 +106,16 @@ const replyTextareaRef = ref<HTMLTextAreaElement | null>(null)
 // Библиотеку грузим, когда смайлы впервые позвали: обсуждение стоит и на
 // главной, и под каждой главой, а смайлы открывает мало кто — незачем каждому
 // читателю качать её вместе со страницей. Панель, вставленная до загрузки,
-// оживает сама, как только элемент зарегистрируется.
-const stopEmojiLoad = watch(showEmoji, (target) => {
-  if (!target) return
-  import('emoji-picker-element')
-  stopEmojiLoad()
+// оживает сама, как только элемент зарегистрируется. Не загрузилась (сеть,
+// или вкладка пережила деплой и старого файла уже нет) — закрываем пустую
+// панель, а следующее открытие попробует снова.
+let emojiLoad: Promise<unknown> | null = null
+watch(showEmoji, (target) => {
+  if (!target || emojiLoad) return
+  emojiLoad = import('emoji-picker-element').catch(() => {
+    emojiLoad = null
+    showEmoji.value = null
+  })
 })
 
 function onEmojiClick(e: any) {

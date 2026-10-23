@@ -23,7 +23,12 @@ const emit = defineEmits<{
 }>()
 
 const href = computed(() => `/chapter/${encodeURIComponent(slugifyChapterId(props.chapter.id))}`)
-const published = computed(() => dateFormat.format(new Date(props.chapter.publishedAt)))
+// format() на негодной дате бросает RangeError — одна битая published_at
+// уронила бы всё оглавление, поэтому такую дату просто не показываем.
+const published = computed(() => {
+  const date = new Date(props.chapter.publishedAt)
+  return Number.isNaN(date.getTime()) ? '' : dateFormat.format(date)
+})
 </script>
 
 <template>

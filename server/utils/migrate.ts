@@ -6,6 +6,9 @@ import { countWords } from '#shared/utils/wordCount'
 export async function runMigrations() {
   const storageDir = process.env.STORAGE_DIR || 'storage'
   const client = createClient({ url: `file:${storageDir}/db.sqlite` })
+  // Nitro не ждёт плагин миграций: сайт уже отвечает, пока они идут, и запросы
+  // держат базу. Без ожидания соседнее чтение роняло бы миграцию с SQLITE_BUSY.
+  await client.execute('PRAGMA busy_timeout = 5000')
 
   await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS chapters (
@@ -851,7 +854,13 @@ export async function runMigrations() {
   // файлов. Просмотры глав пишутся на каждом открытии, и в прежнем режиме каждая
   // такая запись дожидалась диска, пока сервер стоял. Режим хранится в самом
   // файле базы — ставится один раз и действует для всех подключений.
-  await client.execute('PRAGMA journal_mode = WAL')
+  // Переключение режима ждёт, пока базу не отпустят все читатели. Не дождались —
+  // сайт работает и в прежнем режиме, а WAL включится при следующем запуске.
+  try {
+    await client.execute('PRAGMA journal_mode = WAL')
+  } catch (e) {
+    console.warn('[migrate] WAL не включился, попробуем при следующем запуске:', e)
+  }
 
   client.close()
 }
