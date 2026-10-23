@@ -3,10 +3,13 @@
 
 # Снимок nixpkgs закреплён: без него для nodejs_22 nixpacks брал снимок
 # e6f23dc… с Node 22.14.0, ниже минимума Nuxt 4.5 (22.19). В этом снимке
-# nodejs_22 = 22.19.0 (nodejs_24 = 24.10.0, тоже ниже нужных Nuxt 24.11).
+# nodejs_22 = 22.23.4 — выпуск безопасности Node от 21.10.2026 (Brotli RCE,
+# обход проверки имени в TLS); Hydra его собрала, в кэше он есть, из
+# исходников на Railway не собирается. Новый снимок брать из
+# hydra.nixos.org/job/nixpkgs/trunk/nodejs_22.x86_64-linux/latest.
 [phases.setup]
 nixPkgs = ["nodejs_22", "openssl"]
-nixpkgsArchive = "23f9169c4ccce521379e602cc82ed873a1f1b52b"
+nixpkgsArchive = "75ba83324cc35b3e156ac46ee379f38e8f0b1808"
 
 # npm install вместо npm ci: npm ci (и 10.x, и 11.x) спотыкается о
 # необязательные peer-зависимости @bomb.sh/tab из CLI Nuxt — cac 6 и
