@@ -25,6 +25,9 @@ logs
 
 # Persistent storage (Railway Volume)
 storage/db.sqlite
+# Журнал WAL и его индекс лежат рядом с базой
+storage/db.sqlite-wal
+storage/db.sqlite-shm
 storage/epubs/
 storage/skins/
 storage/avatars/
