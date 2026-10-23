@@ -523,7 +523,13 @@ const rebuildNotifyText = () => {
   notifyText.value = notifyPreview.value
 }
 
-const formatNotifyDate = (iso?: string | null) => iso ? iso.slice(0, 16).replace('T', ' ') : '—'
+// Сервер пишет время рассылки в UTC (toISOString) — показываем по Москве,
+// иначе рассылка в 12:07 МСК выглядела как 09:07.
+const formatNotifyDate = (iso?: string | null) => iso
+  ? new Intl.DateTimeFormat('ru-RU', {
+      timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    }).format(new Date(iso))
+  : '—'
 
 const sendNotify = async () => {
   notifyError.value = ''
