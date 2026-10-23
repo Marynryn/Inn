@@ -6,6 +6,9 @@ import { countWords } from '#shared/utils/wordCount'
 export async function runMigrations() {
   const storageDir = process.env.STORAGE_DIR || 'storage'
   const client = createClient({ url: `file:${storageDir}/db.sqlite` })
+  // Nitro не ждёт плагин миграций: сайт уже отвечает, пока они идут, и запросы
+  // держат базу. Без ожидания соседнее чтение роняло бы миграцию с SQLITE_BUSY.
+  await client.execute('PRAGMA busy_timeout = 5000')
 
   await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS chapters (
@@ -829,6 +832,35 @@ export async function runMigrations() {
     DROP INDEX IF EXISTS reel_spins_daily;
     CREATE UNIQUE INDEX IF NOT EXISTS reel_spins_attempt ON reel_spins (reel_id, user_id, day, attempt);
   `)
+
+  // Обсуждение главы и счётчик на её странице ищут комментарии по главе. Без
+  // индекса каждый показ главы перебирал всю таблицу комментариев целиком, и
+  // чем больше обсуждали, тем дольше открывалась любая глава. Порядок — тот же,
+  // что в выдаче: новые сверху, так что сортировать уже ничего не нужно.
+  await client.execute('CREATE INDEX IF NOT EXISTS comments_chapter ON comments (chapter_id, created_at)')
+
+  // Оглавление без чтения текстов. Текст главы лежит в строке раньше столбцов,
+  // добавленных позже (порядок, опубликована ли, число слов), и чтобы добраться
+  // до них, SQLite проходил всю цепочку страниц текста — на каждый запрос
+  // оглавления читались все главы целиком, десятки мегабайт. Индекс держит все
+  // поля оглавления сам, и в таблицу запрос не заглядывает — ни оглавление
+  // (главная, страница главы, прогресс), ни sitemap.
+  await client.execute(`
+    CREATE INDEX IF NOT EXISTS chapters_list
+    ON chapters (is_published, sort_order, id, volume, title, published_at, word_count)
+  `)
+
+  // Журнал WAL: чтение не ждёт записи, а запись не ждёт сброса на диск двух
+  // файлов. Просмотры глав пишутся на каждом открытии, и в прежнем режиме каждая
+  // такая запись дожидалась диска, пока сервер стоял. Режим хранится в самом
+  // файле базы — ставится один раз и действует для всех подключений.
+  // Переключение режима ждёт, пока базу не отпустят все читатели. Не дождались —
+  // сайт работает и в прежнем режиме, а WAL включится при следующем запуске.
+  try {
+    await client.execute('PRAGMA journal_mode = WAL')
+  } catch (e) {
+    console.warn('[migrate] WAL не включился, попробуем при следующем запуске:', e)
+  }
 
   client.close()
 }

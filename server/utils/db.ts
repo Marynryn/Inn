@@ -8,6 +8,13 @@ let _db: ReturnType<typeof drizzle> | null = null
 export function useDb() {
   if (!_db) {
     const client = createClient({ url: `file:${getStorageDir()}/db.sqlite` })
+    // Настройки подключения, а не файла, — ставятся на каждое заново.
+    // synchronous = NORMAL: при WAL диск сбрасывается на контрольных точках, а не
+    // на каждой записи; пропасть может только последняя запись при отключении
+    // питания, но не сама база. busy_timeout: если база занята миграцией или
+    // соседней записью, подождать, а не упасть с SQLITE_BUSY.
+    client.execute('PRAGMA synchronous = NORMAL').catch(() => {})
+    client.execute('PRAGMA busy_timeout = 5000').catch(() => {})
     _db = drizzle(client, { schema })
   }
   return _db

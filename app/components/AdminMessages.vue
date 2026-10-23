@@ -154,7 +154,17 @@ watch(draft, async () => {
 
 // ── Смайлы ─────────────────────────────────────
 const showEmoji = ref(false)
-if (import.meta.client) import('emoji-picker-element')
+// Библиотека — когда смайлы впервые открыли, а не вместе с вкладкой.
+// Не загрузилась — закрываем пустую панель; заново браузер её не скачает
+// до перезагрузки страницы.
+let emojiLoad: Promise<unknown> | null = null
+watch(showEmoji, (open) => {
+  if (!open || emojiLoad) return
+  emojiLoad = import('emoji-picker-element').catch(() => {
+    emojiLoad = null
+    showEmoji.value = false
+  })
+})
 
 const onEmoji = (e: any) => {
   const emoji = e.detail?.emoji?.unicode ?? ''

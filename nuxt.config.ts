@@ -109,7 +109,24 @@ export default defineNuxtConfig({
     },
   },
 
+  // Куски, которые грузятся по требованию, Nuxt по умолчанию ещё и подкачивает
+  // заранее (<link rel="prefetch">) на каждой странице, где есть ссылка на них.
+  // Для этих — не надо: проигрыватель Lottie с анимациями Хеллоуина (полмегабайта,
+  // и качались даже вне праздника), выбор смайлов, редактор и zip из админки.
+  // На телефоне они делили канал с картинкой героя и оттягивали первую отрисовку.
+  hooks: {
+    'build:manifest': (manifest) => {
+      const heavy = /lottie-web|assets\/halloween\/.*\.json|emoji-picker-element|@tiptap|prosemirror|jszip/
+      for (const chunk of Object.values(manifest)) {
+        if (chunk.src && heavy.test(chunk.src)) chunk.prefetch = false
+      }
+    },
+  },
+
   nitro: {
+    // Рядом с каждым файлом из public и /_nuxt кладутся .br и .gz, и сервер отдаёт
+    // готовое сжатое вместо того, чтобы гнать полный размер.
+    compressPublicAssets: { gzip: true, brotli: true },
     experimental: {
       database: false,
       websocket: true,

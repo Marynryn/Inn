@@ -103,9 +103,21 @@ const showEmoji = ref<EmojiTarget | null>(null)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const replyTextareaRef = ref<HTMLTextAreaElement | null>(null)
 
-// Библиотека при загрузке регистрирует свой элемент в DOM — не в разгар
-// гидратации, а когда компонент уже на месте.
-onMounted(() => { import('emoji-picker-element') })
+// Библиотеку грузим, когда смайлы впервые позвали: обсуждение стоит и на
+// главной, и под каждой главой, а смайлы открывает мало кто — незачем каждому
+// читателю качать её вместе со страницей. Панель, вставленная до загрузки,
+// оживает сама, как только элемент зарегистрируется. Не загрузилась (сеть,
+// или вкладка пережила деплой и старого файла уже нет) — закрываем пустую
+// панель. Повтор браузер не скачивает заново: неудачный модуль он запоминает
+// до перезагрузки страницы.
+let emojiLoad: Promise<unknown> | null = null
+watch(showEmoji, (target) => {
+  if (!target || emojiLoad) return
+  emojiLoad = import('emoji-picker-element').catch(() => {
+    emojiLoad = null
+    showEmoji.value = null
+  })
+})
 
 function onEmojiClick(e: any) {
   const emoji = e.detail?.emoji?.unicode ?? ''
