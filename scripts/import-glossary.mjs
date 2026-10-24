@@ -4,10 +4,11 @@
  *
  *   node scripts/import-glossary.mjs [пути-к-xlsx…]
  *
- * По умолчанию берёт .data/game/glossary.xlsx и, если он есть, дополнение для
- * карточек .data/game/glossary-cards.xlsx (папка в .gitignore). Файлов может
- * быть несколько: первый перевод найденного слова и выигрывает, так что рабочий
- * глоссарий идёт первым, а дополнение только закрывает его пробелы.
+ * По умолчанию берёт .data/game/glossary.xlsx и, если они есть, дополнение для
+ * карточек .data/game/glossary-cards.xlsx и имена пятого тома, которых ещё нет
+ * в рабочем глоссарии, .data/game/glossary-v5-names.xlsx (реш. 24.10.2026).
+ * Папка в .gitignore. Первый перевод найденного слова и выигрывает, так что
+ * рабочий глоссарий идёт первым, а дополнения только закрывают его пробелы.
  *
  * На выходе — server/assets/game/glossary.json: только те имена и термины,
  * которые реально встречаются в базе персонажей. Чего нет в глоссарии — то и
@@ -18,7 +19,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { fullNameOf, unpackCharacters } from '../server/utils/game-pack.ts'
 
-const DEFAULT_SRCS = ['.data/game/glossary.xlsx', '.data/game/glossary-cards.xlsx']
+const DEFAULT_SRCS = ['.data/game/glossary.xlsx', '.data/game/glossary-cards.xlsx', '.data/game/glossary-v5-names.xlsx']
 const given = process.argv.slice(2)
 const SRCS = (given.length ? given : DEFAULT_SRCS.filter(existsSync)).map(p => resolve(p))
 const PACK = resolve('server/assets/game/characters.pack')
@@ -264,6 +265,8 @@ const SINGULAR = {
   'Гранепреступники': 'Гранепреступник',
   'Гномы': 'Гном',
   'Великаны': 'Великан',
+  'Фраерлинги': 'Фраерлинг',
+  'Горгоны': 'Горгона',
 }
 
 /**
@@ -354,6 +357,35 @@ function translate(value) {
   return null
 }
 
+/**
+ * Знать глоссарий нередко знает только с титулом: «Lady Ieka — леди Аика»,
+ * «Dame Truvia Cartiil — дама Трувия Картиил». Вики пишет имя без титула, так
+ * что ищем строку с титулом и снимаем его с перевода. Берём, только если
+ * перевод и правда начинается с титула: иначе неясно, что от него отрезать.
+ */
+const TITLES = [
+  ['Lady', 'леди'],
+  ['Lord', 'лорд'],
+  ['Dame', 'дама'],
+  ['Sir', 'сэр'],
+]
+
+function untitled(value) {
+  for (const [en, ru] of TITLES) {
+    const found = dictionary.get(key(`${en} ${value}`))
+    const prefix = `${ru} `
+    if (found?.toLowerCase().startsWith(prefix)) return found.slice(prefix.length).trim()
+  }
+  return null
+}
+
+/** Имя с фамилией из двух строк глоссария: «Сирия» и «Весностранница». */
+function joined(name, full, short) {
+  if (!short || !full.startsWith(`${name} `)) return null
+  const last = dictionary.get(key(full.slice(name.length + 1)))
+  return last ? `${short} ${last.replace(/^[|]$/g, '').trim()}` : null
+}
+
 // ── Что вообще нужно игре ──────────────────────────────────
 const characters = unpackCharacters(readFileSync(PACK, 'utf8'))
 
@@ -364,10 +396,13 @@ const missingNames = []
 for (const c of characters) {
   const full = fullNameOf(c)
 
-  const short = translate(c.name)
-  // Только точное совпадение всей строки: складывать имя с фамилией из разных
-  // записей нельзя — глоссарий полон похожих строк, и выходит чужая фамилия.
-  const whole = full !== c.name ? translate(full) : null
+  const short = translate(c.name) ?? untitled(c.name)
+  // Сперва ищем всю строку целиком. Нет её — складываем из имени и фамилии, но
+  // фамилию берём только точной строкой глоссария, без вариантов написания:
+  // глоссарий полон похожих строк, и по догадке выходит чужая фамилия. С
+  // октября 2026 глоссарий держит имя и фамилию отдельными строками
+  // («Ceria» и «Springwalker»), пары вроде «Ceria Springwalker» из него убрали.
+  const whole = full !== c.name ? translate(full) ?? untitled(full) ?? joined(c.name, full, short) : null
 
   if (short) names[c.name] = short
   if (whole && whole !== short) fullNames[c.name] = whole
@@ -408,6 +443,12 @@ const DECIDED = {
  */
 const capitalized = s => s && s[0].toUpperCase() + s.slice(1)
 
+/**
+ * Связью у вики бывает человек: у Бетал это «Magnolia Reinhart». Полных имён в
+ * глоссарии больше нет отдельной строкой, зато их уже собрали для имён выше.
+ */
+const personByFullName = new Map(characters.map(c => [fullNameOf(c), fullNames[c.name] ?? names[c.name]]).filter(([, ru]) => ru))
+
 const terms = {}
 const missingTerms = new Set()
 let fromFallback = 0
@@ -418,7 +459,7 @@ for (const c of characters) {
   for (const value of [c.gender, c.status, ...c.species, ...c.affiliation, ...c.continent, ...c.occupation, ...c.cls, ...c.locations]) {
     if (!value || terms[value]) continue
 
-    const hit = DECIDED[value] ?? translate(AS_IN_GLOSSARY[value] ?? value)
+    const hit = DECIDED[value] ?? translate(AS_IN_GLOSSARY[value] ?? value) ?? personByFullName.get(value)
     if (hit) {
       terms[value] = capitalized(hit)
     } else if (FALLBACK[value]) {
