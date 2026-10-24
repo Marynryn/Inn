@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
-import { and, desc, eq, max, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, or, sql } from 'drizzle-orm'
 import { GAME_LAST_VOLUME, type GameMode, type GameStatus } from '#shared/utils/gameColumns'
 import { chapters, gameResults, gameSessions, gameStats, siteSettings } from '../database/schema'
 import { useDb } from './db'
@@ -81,19 +81,32 @@ export const nextDailyAt = (day: string) =>
   new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000 - MSK_OFFSET_MS).toISOString()
 
 /**
- * Граница перевода: самый поздний том среди опубликованных глав. Пока настройка
- * пуста, игра держится за неё сама — дошёл перевод до пятого тома, и персонаж
- * дня начинает брать оттуда же. Глав нет вовсе (пустой сайт) — прятать не от
- * кого, отдаём весь диапазон.
+ * Сколько глав тома должно выйти, чтобы его персонажи попали в игру. Пока
+ * перевод только начал том, большинство его героев читателю ещё не встретились,
+ * а их имена не переведены (реш. 24.10.2026).
  */
-async function translatedVolume(): Promise<number> {
+export const VOLUME_OPENS_AFTER = 35
+
+/**
+ * Граница перевода: самый поздний том, в котором вышло хотя бы
+ * VOLUME_OPENS_AFTER глав. Начатый том ждёт своей очереди, игра держится за
+ * предыдущий. Пока настройка пуста, игра следует за ней сама; карточки
+ * персонажей следуют всегда. Глав нет вовсе (пустой сайт) — прятать не от кого,
+ * отдаём весь диапазон.
+ */
+export async function translatedVolume(): Promise<number> {
   const db = useDb()
-  const [row] = await db
-    .select({ volume: max(chapters.volume) })
+  const rows = await db
+    .select({ volume: chapters.volume, count: count() })
     .from(chapters)
     .where(eq(chapters.isPublished, true))
+    .groupBy(chapters.volume)
 
-  return row?.volume ? clampVolume(row.volume) : GAME_LAST_VOLUME
+  if (!rows.length) return GAME_LAST_VOLUME
+  // Смотрим только на последний том: все тома до него перевод уже прошёл.
+  const latest = rows.reduce((a, b) => (b.volume > a.volume ? b : a))
+  const ready = latest.count >= VOLUME_OPENS_AFTER ? latest.volume : latest.volume - 1
+  return clampVolume(Math.max(ready, 1))
 }
 
 /**

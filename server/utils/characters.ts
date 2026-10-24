@@ -2,17 +2,16 @@ import { readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { allCharacters, ruName, ruTerm, useGlossary, type GameCharacter } from './game-data'
 import { fullNameOf } from './game-pack'
+import { translatedVolume } from './game-session'
 import { readServerAssetOrEmpty } from './server-assets'
 
 /**
  * Карточки персонажей. Берутся из той же базы, что и игра, но не все: только
- * известные (сложность 1–2) и только из первых томов — те, кого читатель
- * перевода точно встречал. Связи, статус и число упоминаний наружу не выходят:
- * карточки — это не решатель для игры.
+ * известные (сложность 1–2) и только из тех томов, которые перевод прошёл, —
+ * тех, кого читатель точно встречал. Новый том открывается вместе с игрой,
+ * когда в нём выйдет 35 глав (см. translatedVolume). Связи, статус и число
+ * упоминаний наружу не выходят: карточки — это не решатель для игры.
  */
-
-/** До какого тома включительно показываем персонажей. */
-export const CARDS_LAST_VOLUME = 4
 
 export type CharacterCard = {
   id: string
@@ -90,7 +89,7 @@ type Extra = {
   locations: string[] | null
 }
 
-const isCardCharacter = (c: GameCharacter) => c.difficulty <= 2 && c.volume >= 1 && c.volume <= CARDS_LAST_VOLUME
+const isCardCharacter = (c: GameCharacter, lastVolume: number) => c.difficulty <= 2 && c.volume >= 1 && c.volume <= lastVolume
 
 /**
  * Файл описаний — server/assets/characters/descriptions.md. Заголовок «## Имя»
@@ -178,10 +177,13 @@ function webpIds(dir: string): Set<string> {
   return ids
 }
 
-let cardsCache: CharacterCard[] | null = null
+let cardsCache: { volume: number, cards: CharacterCard[] } | null = null
 
 export async function characterCards(): Promise<CharacterCard[]> {
-  if (cardsCache && !import.meta.dev) return cardsCache
+  // Потолок спрашиваем каждый раз: вышла 35-я глава нового тома — и его
+  // персонажи появляются без перезапуска.
+  const lastVolume = await translatedVolume()
+  if (cardsCache?.volume === lastVolume && !import.meta.dev) return cardsCache.cards
 
   const glossary = await useGlossary()
   const extras = await useExtras()
@@ -189,8 +191,8 @@ export async function characterCards(): Promise<CharacterCard[]> {
   const fulls = webpIds('public/characters/full')
   const term = (v: string) => ruTerm(v, glossary)
 
-  cardsCache = (await allCharacters())
-    .filter(isCardCharacter)
+  const cards = (await allCharacters())
+    .filter(c => isCardCharacter(c, lastVolume))
     .map((c) => {
       const extra = extras.get(c.name)
       return {
@@ -217,5 +219,6 @@ export async function characterCards(): Promise<CharacterCard[]> {
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
 
-  return cardsCache
+  cardsCache = { volume: lastVolume, cards }
+  return cards
 }
