@@ -4,11 +4,10 @@
  *
  *   node scripts/import-glossary.mjs [пути-к-xlsx…]
  *
- * По умолчанию берёт .data/game/glossary.xlsx и, если они есть, дополнение для
- * карточек .data/game/glossary-cards.xlsx и имена пятого тома, которых ещё нет
- * в рабочем глоссарии, .data/game/glossary-v5-names.xlsx (реш. 24.10.2026).
- * Папка в .gitignore. Первый перевод найденного слова и выигрывает, так что
- * рабочий глоссарий идёт первым, а дополнения только закрывают его пробелы.
+ * По умолчанию берёт .data/game/glossary.xlsx и, если он есть, дополнение для
+ * карточек .data/game/glossary-cards.xlsx (папка в .gitignore). Файлов может
+ * быть несколько: первый перевод найденного слова и выигрывает, так что рабочий
+ * глоссарий идёт первым, а дополнение только закрывает его пробелы.
  *
  * На выходе — server/assets/game/glossary.json: только те имена и термины,
  * которые реально встречаются в базе персонажей. Чего нет в глоссарии — то и
@@ -19,7 +18,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { fullNameOf, unpackCharacters } from '../server/utils/game-pack.ts'
 
-const DEFAULT_SRCS = ['.data/game/glossary.xlsx', '.data/game/glossary-cards.xlsx', '.data/game/glossary-v5-names.xlsx']
+const DEFAULT_SRCS = ['.data/game/glossary.xlsx', '.data/game/glossary-cards.xlsx']
 const given = process.argv.slice(2)
 const SRCS = (given.length ? given : DEFAULT_SRCS.filter(existsSync)).map(p => resolve(p))
 const PACK = resolve('server/assets/game/characters.pack')
