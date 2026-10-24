@@ -396,7 +396,17 @@ const AS_IN_GLOSSARY = {
  */
 const DECIDED = {
   Beastkin: 'Зверочеловек', // в глоссарии «Зверолюди / Зверочеловек» (реш. 01.10.2026)
+  // В глоссарии «Knight» — Антиниум-шахматист, и он «Конь». Занятие у вики то же
+  // слово, но это рыцари: Илауэс, Брункр, Орден Сезонов.
+  Knight: 'Рыцарь',
 }
+
+/**
+ * Глоссарий пишет нарицательные со строчной («авантюрист», «дом Рейнхарт»), а
+ * в карточке признак стоит отдельным значением, рядом с «Алхимик» и «Дом
+ * Велтрас». Первую букву поднимаем, чтобы список не пестрел.
+ */
+const capitalized = s => s && s[0].toUpperCase() + s.slice(1)
 
 const terms = {}
 const missingTerms = new Set()
@@ -410,7 +420,7 @@ for (const c of characters) {
 
     const hit = DECIDED[value] ?? translate(AS_IN_GLOSSARY[value] ?? value)
     if (hit) {
-      terms[value] = hit
+      terms[value] = capitalized(hit)
     } else if (FALLBACK[value]) {
       terms[value] = FALLBACK[value]
       fromFallback++
