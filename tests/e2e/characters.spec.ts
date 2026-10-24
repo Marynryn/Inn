@@ -8,7 +8,9 @@ test.describe('Карточки персонажей', () => {
     await open(page, '/characters')
     const cards = page.locator('.card')
     await expect(cards.first()).toBeVisible()
-    expect(await cards.count()).toBeGreaterThan(50)
+    // В стенде во втором томе одна глава из нужных 35, так что открыт только
+    // первый том — а в нём известных персонажей за три десятка.
+    expect(await cards.count()).toBeGreaterThan(30)
 
     await page.getByPlaceholder(SEARCH).fill('erin')
     await expect(cards).toHaveCount(1)
@@ -16,6 +18,14 @@ test.describe('Карточки персонажей', () => {
 
     await page.getByPlaceholder(SEARCH).fill('торен')
     await expect(cards.first().locator('.name')).toHaveText('Торен')
+  })
+
+  test('том открывается после 35 глав: начатого тома в карточках нет', async ({ request }) => {
+    const res = await request.get('/api/characters')
+    expect(res.ok()).toBeTruthy()
+    const { characters: cards } = await res.json() as { characters: { volume: number }[] }
+    expect(cards.length).toBeGreaterThan(0)
+    expect(cards.every(c => c.volume === 1)).toBe(true)
   })
 
   test('фильтр по расе сужает список, «Сбросить» возвращает всех', async ({ page }) => {
