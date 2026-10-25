@@ -210,10 +210,8 @@ const SX = 1.6
 const SY = 1.1
 const pathPoints = BOARD_CELLS.map(c => `${c.x * SX},${c.y * SY}`).join(' ')
 
-/** Стрелки прыжков в обход чужих клеток. Подбор изгиба — заметная работа
- *  для слабого телефона, поэтому считает сервер при отрисовке страницы, а
- *  браузер получает готовое в данных страницы. */
-const arrows = useState('board-arrows', () => boardArrows(BOARD_CELLS, jumpTarget, SX, SY))
+/** Стрелки прыжков — прямые, мимо чужих клеток их ведёт расстановка самих клеток. */
+const arrows = boardArrows(BOARD_CELLS, jumpTarget, SX, SY)
 
 const effectClass = (e: BoardEffect) => `cell--${e.kind}`
 
@@ -340,12 +338,26 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
                 </marker>
               </defs>
               <polyline :points="pathPoints" class="road" />
-              <path
+              <!-- У каждой стрелки свой градиент вдоль неё: бледный хвост у клетки,
+                   откуда прыгают, и яркий наконечник у той, куда. -->
+              <defs>
+                <linearGradient
+                  v-for="a in arrows"
+                  :id="`arrow-grad-${a.from}`"
+                  :key="a.from"
+                  gradientUnits="userSpaceOnUse"
+                  :x1="a.x1" :y1="a.y1" :x2="a.x2" :y2="a.y2"
+                >
+                  <stop offset="0" :class="a.forward ? 'grad-fwd' : 'grad-back'" stop-opacity="0.08" />
+                  <stop offset="1" :class="a.forward ? 'grad-fwd' : 'grad-back'" stop-opacity="0.9" />
+                </linearGradient>
+              </defs>
+              <line
                 v-for="a in arrows"
-                :key="a.from"
-                :d="a.d"
+                :key="`line-${a.from}`"
+                :x1="a.x1" :y1="a.y1" :x2="a.x2" :y2="a.y2"
                 class="arrow"
-                :class="a.forward ? 'arrow--fwd' : 'arrow--back'"
+                :stroke="`url(#arrow-grad-${a.from})`"
                 :marker-end="a.forward ? 'url(#arrow-fwd)' : 'url(#arrow-back)'"
               />
             </svg>
@@ -395,6 +407,14 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
               Скиннер — отбросит на 3
             </li>
           </ul>
+
+          <!-- Журнал на компьютере — под картой: справа и так тесно. На
+               телефоне он в самом низу, после чата. -->
+          <section class="card card--panel log-card log-card--desk">
+            <ul class="log thin-scroll">
+              <li v-for="e in [...state.log].reverse()" :key="e.id">{{ e.text }}</li>
+            </ul>
+          </section>
         </div>
 
         <aside class="side">
@@ -549,7 +569,7 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
             </form>
           </section>
 
-          <section class="card card--panel">
+          <section class="card card--panel log-card log-card--phone">
             <ul class="log thin-scroll">
               <li v-for="e in [...state.log].reverse()" :key="e.id">{{ e.text }}</li>
             </ul>
@@ -647,19 +667,26 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 }
 
 /* Стрелки прыжков — тонкой бледной волной: карта читается сквозь них. */
+/* Стрелки прыжков — прямые, с градиентом от бледного хвоста к наконечнику. */
 .arrow {
   fill: none;
-  stroke-width: 1.6;
+  stroke-width: 2.4;
   stroke-linecap: round;
-  stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
-  opacity: .5;
 }
 
-.arrow--fwd { stroke: var(--success); }
-.arrow--back { stroke: var(--danger); }
-.head--fwd { fill: var(--success); opacity: .6; }
-.head--back { fill: var(--danger); opacity: .6; }
+.grad-fwd { stop-color: var(--success); }
+.grad-back { stop-color: var(--danger); }
+.head--fwd { fill: var(--success); opacity: .9; }
+.head--back { fill: var(--danger); opacity: .9; }
+
+.log-card--desk { margin-top: 14px; }
+.log-card--phone { display: none; }
+
+@media (max-width: 900px) {
+  .log-card--desk { display: none; }
+  .log-card--phone { display: block; }
+}
 
 /* Условные обозначения под картой. */
 .legend {
@@ -689,10 +716,10 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
   flex: none;
 }
 
-.legend-cell.cell--forward { border-color: var(--success); }
-.legend-cell.cell--back { border-color: var(--danger); }
+.legend-cell.cell--forward { border-color: var(--success); background: var(--success-fill); }
+.legend-cell.cell--back { border-color: var(--danger); background: var(--danger-fill); }
 .legend-cell.cell--skip { border-color: var(--text-muted); border-style: dashed; }
-.legend-cell.cell--again { border-color: var(--gold); }
+.legend-cell.cell--again { border-color: var(--gold); background: var(--gold); }
 
 .legend-cell .cell-skill {
   width: 7px;
@@ -731,10 +758,12 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
   padding: 0;
 }
 
-.cell--forward { border-color: var(--success); }
-.cell--back { border-color: var(--danger); }
+/* Клетки с действием залиты целиком — их видно издалека. Номер на
+   зелёной и красной — светлый, на жёлтой — тёмный, иначе не читается. */
+.cell--forward { border-color: var(--success); background: var(--success-fill); }
+.cell--back { border-color: var(--danger); background: var(--danger-fill); }
 .cell--skip { border-color: var(--text-muted); border-style: dashed; }
-.cell--again { border-color: var(--gold); }
+.cell--again { border-color: var(--gold); background: var(--gold); color: var(--ink); }
 .cell--start { background: var(--moss); }
 .cell--finish { background: var(--ember); color: var(--ink); border-color: var(--ember-soft); }
 .cell--picked { box-shadow: 0 0 0 3px var(--ember-soft); }
