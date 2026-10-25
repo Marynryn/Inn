@@ -182,6 +182,9 @@ const onTouchEnd = (e: TouchEvent) => {
         <template v-if="auth.isAdmin && !onAdmin">
           <div class="drawer-section">Для админов</div>
           <SideNavLink to="/admin" icon="shield" label="Админка" @click="close" />
+          <!-- Настольную игру открывают по ссылке: в меню она только у админов,
+               а читателям ссылку на стол присылают. -->
+          <SideNavLink to="/board" icon="map" label="Настольная игра" :active="route.path.startsWith('/board')" @click="close" />
         </template>
       </nav>
 

@@ -1,0 +1,202 @@
+<script setup lang="ts">
+/**
+ * Вход в настольную игру: свои незаконченные партии, открытые комнаты и
+ * кнопка «новая комната». Играть может любой вошедший; ссылка в меню — только
+ * у админов, остальных зовут на стол ссылкой.
+ */
+definePageMeta({ middleware: 'signed-in' })
+
+type RoomsReply = {
+  rooms: { code: string; host: string | null; players: number; max: number }[]
+  mine: string | null
+}
+
+const { data: settings } = await useFetch('/api/settings')
+const { data, refresh, pending } = await useFetch<RoomsReply>('/api/board/rooms')
+
+const creating = ref(false)
+const error = ref('')
+const codeInput = ref('')
+
+async function create() {
+  creating.value = true
+  error.value = ''
+  try {
+    const { code } = await $fetch<{ code: string }>('/api/board/rooms', { method: 'POST' })
+    await navigateTo(`/board/${code}`)
+  } catch (e: any) {
+    error.value = e?.data?.message || 'Не получилось создать комнату'
+  } finally {
+    creating.value = false
+  }
+}
+
+function joinByCode() {
+  const code = codeInput.value.trim().toUpperCase()
+  if (code) navigateTo(`/board/${code}`)
+}
+
+// Список комнат живой: пока страница открыта, подтягиваем раз в несколько секунд.
+let timer: ReturnType<typeof setInterval> | null = null
+onMounted(() => { timer = setInterval(() => refresh(), 5000) })
+onBeforeUnmount(() => { if (timer) clearInterval(timer) })
+
+useHead({ title: 'Дорога через таверну · Странствующая Таверна', meta: [{ name: 'robots', content: 'noindex' }] })
+</script>
+
+<template>
+  <div class="page">
+    <AppHeader
+      :telegram-url="settings?.telegram_url"
+      :boosty-url="settings?.boosty_url"
+      :tribute-url="settings?.tribute_url"
+    />
+
+    <main class="lobby">
+      <header class="intro">
+        <div class="eyebrow">Настольная игра · The Wandering Inn</div>
+        <h1 class="page-title title">Дорога через таверну</h1>
+        <p class="lead">
+          Бросай кубик и веди фишку по событиям первого тома. Кто первым дойдёт до финиша, тот и победил.
+          За одним столом до четырёх игроков.
+        </p>
+      </header>
+
+      <section v-if="data?.mine" class="card card--panel mine">
+        <span>Ты сидишь за столом <b>{{ data.mine }}</b>, партия не закончена.</span>
+        <NuxtLink :to="`/board/${data.mine}`" class="btn btn--primary btn--sm">Вернуться</NuxtLink>
+      </section>
+
+      <div class="actions">
+        <button class="btn btn--primary" :disabled="creating" @click="create">
+          {{ creating ? 'Накрываем стол…' : 'Новая комната' }}
+        </button>
+        <form class="by-code" @submit.prevent="joinByCode">
+          <input v-model="codeInput" class="code-input" placeholder="Код комнаты" maxlength="5" autocomplete="off">
+          <button class="btn btn--ghost" type="submit" :disabled="!codeInput.trim()">Войти</button>
+        </form>
+      </div>
+      <p v-if="error" class="error">{{ error }}</p>
+
+      <h2 class="section-title display">Открытые столы</h2>
+      <p v-if="pending && !data" class="note">Смотрим, кто за столами…</p>
+      <p v-else-if="!data?.rooms.length" class="note">Свободных столов нет. Создай свой и позови друзей ссылкой.</p>
+      <ul v-else class="rooms">
+        <li v-for="r in data.rooms" :key="r.code" class="card card--panel room">
+          <div>
+            <div class="room-code">{{ r.code }}</div>
+            <div class="room-meta">Хозяин стола: {{ r.host ?? '—' }} · игроков {{ r.players }} из {{ r.max }}</div>
+          </div>
+          <NuxtLink :to="`/board/${r.code}`" class="btn btn--ghost btn--sm">Сесть за стол</NuxtLink>
+        </li>
+      </ul>
+    </main>
+
+    <AppFooter on-dark :settings="settings as any" />
+  </div>
+</template>
+
+<style scoped>
+.page {
+  min-height: 100vh;
+  background: var(--bg-dark);
+  color: var(--parchment);
+  display: flex;
+  flex-direction: column;
+}
+
+.lobby {
+  flex: 1;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 96px 20px 64px;
+}
+
+.intro { margin-bottom: 28px; }
+
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ember-soft);
+  margin-bottom: 12px;
+}
+
+.title { margin: 0 0 12px; }
+
+.lead {
+  margin: 0;
+  max-width: 640px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.mine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.by-code {
+  display: flex;
+  gap: 8px;
+}
+
+.code-input {
+  width: 140px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-strong);
+  background: var(--fill);
+  color: var(--parchment);
+  font: inherit;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+
+.error { color: var(--danger); margin: 12px 0 0; }
+
+.section-title {
+  margin: 36px 0 12px;
+  font-size: 22px;
+}
+
+.note { color: var(--text-muted); }
+
+.rooms {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.room {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.room-code {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: .12em;
+}
+
+.room-meta {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+</style>
