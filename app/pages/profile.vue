@@ -236,8 +236,10 @@ const logout = async () => {
 
 const has = (p: 'google' | 'telegram') => profile.value?.providers.includes(p) ?? false
 
+const { siteName } = useBrand()
+
 useHead({
-  title: 'Профиль · Странствующая Таверна',
+  title: `Профиль · ${siteName}`,
   meta: [{ name: 'robots', content: 'noindex, nofollow' }],
 })
 </script>

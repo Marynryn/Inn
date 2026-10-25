@@ -16,6 +16,7 @@ defineProps<{
 const menuOpen = ref(false)
 const route = useRoute()
 const auth = useAuthStore()
+const { siteName } = useBrand()
 
 // Вход и профиль стоят в шапке на каждой странице: решение войти приходит там,
 // где человека застала мысль, а не там, где мы положили ссылку.
@@ -74,7 +75,7 @@ onUnmounted(() => {
       </button>
       <NuxtLink href="/" class="brand" @click="scrollTop">
         <NuxtImg src="/hearth.webp" class="brand-logo" width="32" height="32" alt="" />
-        <span class="brand-name">Странствующая Таверна</span>
+        <span class="brand-name">{{ siteName }}</span>
       </NuxtLink>
     </div>
 

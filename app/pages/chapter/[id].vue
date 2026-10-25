@@ -143,6 +143,7 @@ onMounted(() => {
 })
 
 const siteUrl = useRuntimeConfig().public.siteUrl
+const brand = useBrand()
 // Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
 // позже, вне контекста Nuxt, и useRuntimeConfig там падает.
 const ogImage = ogImageUrl()
@@ -165,7 +166,7 @@ const READER_BOOT = `(function(){try{var s=JSON.parse(localStorage.getItem(${JSO
 // В начале — то, чем главы отличаются друг от друга: в выдаче их бывает
 // несколько подряд, а видно около 60 знаков. «Читать онлайн» — так ищут в Яндексе.
 const pageTitle = computed(() => chapter.value
-  ? `${chapter.value.title} — Странствующая Таверна, читать онлайн | The Wandering Inn`
+  ? `${chapter.value.title} — ${brand.siteName}, читать онлайн | ${brand.bookName}`
   : undefined)
 
 useHead(() => ({
@@ -187,7 +188,7 @@ useSeoMeta({
   ogType: 'article',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
-  twitterTitle: () => chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : undefined,
+  twitterTitle: () => chapter.value ? `${chapter.value.title} · ${brand.bookName} на русском — ${brand.siteName}` : undefined,
   twitterDescription: () => description.value,
   twitterImage: ogImage,
 })
@@ -209,16 +210,16 @@ useHead(() => ({
             // а поисковику так проще связать главу с запросом.
             isPartOf: {
               '@type': 'Book',
-              name: 'The Wandering Inn',
-              alternateName: ['Странствующая Таверна', 'Блуждающая таверна', 'Блуждающий трактир', 'TWI'],
-              genre: ['Фэнтези', 'LitRPG', 'Попаданцы'],
-              keywords: 'The Wandering Inn на русском, Странствующая Таверна читать онлайн, перевод The Wandering Inn, Эрин Солстис, LitRPG, фэнтези, попаданка, таверна',
+              name: brand.bookName,
+              alternateName: brand.altNames,
+              genre: brand.genres,
+              keywords: brand.bookKeywords,
               url: siteUrl,
               inLanguage: 'ru',
             },
             publisher: {
               '@type': 'Organization',
-              name: 'Странствующая Таверна',
+              name: brand.siteName,
               url: siteUrl,
             },
           }),
@@ -269,7 +270,7 @@ useHead(() => ({
           <h1 class="display">
             <span class="reader-eyebrow">
               <img class="eyebrow-leaf" :src="season === 'halloween' ? titlePumpkin : titleLeaf" alt="" width="18" height="18">
-              <span>Странствующая Таверна · <span class="nowrap">Том {{ chapter.volume }}</span></span>
+              <span>{{ brand.siteName }} · <span class="nowrap">Том {{ chapter.volume }}</span></span>
             </span>
             {{ chapter.title }}
           </h1>

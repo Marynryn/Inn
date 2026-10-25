@@ -2,9 +2,10 @@
 const props = defineProps<{ error: { statusCode: number; message?: string } }>()
 
 const { data: settings } = await useFetch('/api/settings')
+const { siteName } = useBrand()
 
 useHead({
-  title: props.error.statusCode === 404 ? '404 · Странствующая Таверна' : 'Ошибка · Странствующая Таверна',
+  title: props.error.statusCode === 404 ? `404 · ${siteName}` : `Ошибка · ${siteName}`,
   // Если страница сломается уже в браузере, сервер к тому времени ответил 200 —
   // и Яндекс, выполняющий JS, взял бы «Ошибку» в выдачу вместо настоящей страницы.
   meta: [{ name: 'robots', content: 'noindex' }],

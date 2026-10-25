@@ -40,17 +40,18 @@ const chapterId = chapter.value?.id ?? rawId.replace('-', '.')
 
 
 const siteUrl = useRuntimeConfig().public.siteUrl
+const brand = useBrand()
 // Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
 // позже, вне контекста Nuxt, и useRuntimeConfig там падает.
 const ogImage = ogImageUrl()
 const slug = computed(() => encodeURIComponent(slugifyChapterId(chapter.value?.id ?? rawId)))
 const pageUrl = computed(() => `${siteUrl}/chapter/${slug.value}/comments`)
 const pageTitle = computed(() => chapter.value
-  ? `Обсуждение ${chapter.value.id} «${chapter.value.title}» · Странствующая Таверна`
+  ? `Обсуждение ${chapter.value.id} «${chapter.value.title}» · ${brand.siteName}`
   : 'Обсуждение')
 const pageDescription = computed(() => chapter.value
-  ? `Обсуждение главы ${chapter.value.id} «${chapter.value.title}» — фанатский перевод The Wandering Inn.`
-  : 'Обсуждение главы — фанатский перевод The Wandering Inn.')
+  ? `Обсуждение главы ${chapter.value.id} «${chapter.value.title}» — фанатский перевод ${brand.bookName}.`
+  : `Обсуждение главы — фанатский перевод ${brand.bookName}.`)
 
 useHead(() => ({
   title: pageTitle.value,

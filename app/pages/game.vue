@@ -13,6 +13,10 @@ import {
 } from '#shared/utils/gameColumns'
 import type { Character, Origin } from '#shared/utils/characters'
 
+// Персонажи и игра пока собраны под героев TWI: на демо-стенде выдуманной книги
+// их нет, и страница отвечает как несуществующая.
+if (useBrand().demo) throw createError({ statusCode: 404, statusMessage: 'Страница не найдена', fatal: true })
+
 type Pool = 'known' | 'all'
 
 type AnswerCard = {

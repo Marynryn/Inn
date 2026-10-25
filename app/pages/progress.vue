@@ -133,11 +133,12 @@ const confetti = Array.from({ length: 28 }, (_, i) => ({
 }))
 
 const siteUrl = useRuntimeConfig().public.siteUrl
+const brand = useBrand()
 const ogImage = ogImageUrl()
-const pageTitle = 'Прогресс чтения · Странствующая Таверна — The Wandering Inn'
+const pageTitle = `Прогресс чтения · ${brand.siteName} — ${brand.bookName}`
 // Гость — а робот тоже гость — видит общие цифры: сколько глав в оригинале,
 // сколько переведено. По ним страницу и ищут.
-const pageDescription = 'Сколько глав The Wandering Inn уже переведено на русский, сколько слов в книге и сколько вам осталось читать.'
+const pageDescription = `Сколько глав ${brand.bookName} уже переведено на русский, сколько слов в книге и сколько вам осталось читать.`
 
 useHead({
   title: pageTitle,
@@ -254,7 +255,7 @@ useSeoMeta({
       <section v-if="originalTotal" class="card card--panel original">
         <h2 class="section-title">А если считать от всей книги</h2>
         <p class="section-note">
-          В оригинале The Wandering Inn сейчас {{ formatNumber(originalTotal) }} {{ pluralize(originalTotal, 'глава', 'главы', 'глав') }}<template v-if="bookWords"> — по-русски это примерно {{ formatMillions(bookWords) }} слов</template>.
+          В оригинале {{ brand.bookName }} сейчас {{ formatNumber(originalTotal) }} {{ pluralize(originalTotal, 'глава', 'главы', 'глав') }}<template v-if="bookWords"> — по-русски это примерно {{ formatMillions(bookWords) }} слов</template>.
         </p>
 
         <!-- Полоса — по словам, когда они есть: главы у книги очень разной длины. -->

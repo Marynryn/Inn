@@ -94,6 +94,25 @@ export default defineNuxtConfig({
       // Проект Microsoft Clarity (записи сессий, карты кликов). Пустой — скрипт
       // не подключается вовсе: локалка и тесты не должны попадать в статистику.
       clarityId: process.env.NUXT_PUBLIC_CLARITY_ID || '',
+      // Демо-стенд для покупателей: выдуманная книга, общий вход в панель и
+      // сброс к исходному виду каждую ночь (server/utils/demo). На боевом сайте
+      // выключен; отдельному сервису его включает NUXT_PUBLIC_DEMO=true.
+      demo: false,
+      // Название сайта и книги. По умолчанию — Таверна. Другой сайт на этом же
+      // коде переопределяет их переменными окружения без пересборки:
+      // NUXT_PUBLIC_BRAND_SITE_NAME, NUXT_PUBLIC_BRAND_BOOK_NAME и так далее.
+      brand: {
+        siteName: 'Странствующая Таверна',
+        // Название оригинала — так книгу ищут, оно стоит в заголовках и описаниях.
+        bookName: 'The Wandering Inn',
+        homeDescription: 'Бесплатный фанатский перевод The Wandering Inn (Блуждающий трактир) на русский. Обновляется каждую неделю. Читай онлайн или скачивай epub.',
+        aboutDescription: 'Фанатский перевод The Wandering Inn на русский язык. Почему отдельный сайт, как переводим имена и названия, как можно помочь проекту.',
+        // Для разметки schema.org у главы: на экране их нет, а поисковику так
+        // проще связать главу с запросом. Списки — через «|».
+        bookAltNames: 'Странствующая Таверна|Блуждающая таверна|Блуждающий трактир|TWI',
+        bookGenres: 'Фэнтези|LitRPG|Попаданцы',
+        bookKeywords: 'The Wandering Inn на русском, Странствующая Таверна читать онлайн, перевод The Wandering Inn, Эрин Солстис, LitRPG, фэнтези, попаданка, таверна',
+      },
     },
   },
 
@@ -116,7 +135,8 @@ export default defineNuxtConfig({
   // На телефоне они делили канал с картинкой героя и оттягивали первую отрисовку.
   hooks: {
     'build:manifest': (manifest) => {
-      const heavy = /lottie-web|assets\/halloween\/.*\.json|emoji-picker-element|@tiptap|prosemirror|jszip/
+      // DemoBanner — плашка демо-стенда: боевому сайту её кусок не нужен вовсе.
+      const heavy = /lottie-web|assets\/halloween\/.*\.json|emoji-picker-element|@tiptap|prosemirror|jszip|components\/DemoBanner\.vue/
       for (const chunk of Object.values(manifest)) {
         if (chunk.src && heavy.test(chunk.src)) chunk.prefetch = false
       }
@@ -139,6 +159,7 @@ export default defineNuxtConfig({
       '7 9 * * *': ['notify-chapters'], // 12:07 МСК — основной звонок
       '7 12 * * *': ['notify-chapters'], // 15:07 МСК — на случай деплоя в момент первого
       '17 3 * * *': ['refresh-original'], // 06:17 МСК — число глав оригинала для трекера
+      '0 1 * * *': ['demo-reset'], // 04:00 МСК — сброс демо-стенда; на боевом сайте задача сразу выходит
     },
   },
 

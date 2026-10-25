@@ -24,8 +24,10 @@ const goToChapters = (e: Event) => {
     <div class="footer-links">
       <a href="/#ledger" @click="goToChapters">Главы</a>
       <NuxtLink v-if="route.path !== '/about'" href="/about">О проекте</NuxtLink>
+      <!-- Без адреса канала ссылки нет: вела бы в никуда (так на демо-стенде). -->
       <a
-        :href="settings?.telegram_url || '#'"
+        v-if="settings?.telegram_url"
+        :href="settings.telegram_url"
         target="_blank"
         rel="noopener"
         @click="useClarity().event('tg_click_footer')"

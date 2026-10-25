@@ -1,4 +1,5 @@
 import { refreshOriginalChaptersIfStale } from '../utils/original-toc'
+import { isDemo } from '../utils/demo/seed'
 
 /*
   Число глав оригинала подтягиваем на старте, если оно устарело: будильник
@@ -8,5 +9,7 @@ import { refreshOriginalChaptersIfStale } from '../utils/original-toc'
   запрос наружу упрётся в заслон и просто запишется в лог).
 */
 export default defineNitroPlugin(() => {
+  // У выдуманной книги демо-стенда оригинала нет — считать нечего.
+  if (isDemo()) return
   refreshOriginalChaptersIfStale()
 })

@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
 
   // Описание для поисковиков считаем здесь: странице главы тогда не нужен сам
   // текст — его рисует серверный компонент ChapterText.
-  const description = buildChapterDescription(chapter.id, chapter.contentHtml)
+  const description = buildChapterDescription(chapter.id, chapter.contentHtml, useRuntimeConfig(event).public.brand.bookName)
 
   // ?meta=1 — всё, кроме текста. Так спрашивает страница главы: pick на её
   // стороне выбросил бы текст уже после скачивания, и при переходе стрелкой

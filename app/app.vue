@@ -16,23 +16,29 @@ useHead({
 // Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
 // позже, вне контекста Nuxt, и useRuntimeConfig там падает.
 const ogImage = ogImageUrl()
+const brand = useBrand()
 
 useSeoMeta({
-  ogSiteName: 'Странствующая Таверна',
-  ogTitle: 'Странствующая Таверна',
-  ogDescription: 'Фанатский перевод The Wandering Inn на русский язык.',
+  ogSiteName: brand.siteName,
+  ogTitle: brand.siteName,
+  ogDescription: brand.description,
   ogImage,
   ogType: 'website',
   ogLocale: 'ru_RU',
   twitterCard: 'summary_large_image',
-  twitterTitle: 'Странствующая Таверна',
-  twitterDescription: 'Фанатский перевод The Wandering Inn на русский язык.',
+  twitterTitle: brand.siteName,
+  twitterDescription: brand.description,
   twitterImage: ogImage,
 })
+
+// Демо-стенд в поиск не пускаем: это витрина для покупателей, а не сайт с книгой.
+if (brand.demo) useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 </script>
 
 <template>
   <NuxtRouteAnnouncer />
+  <!-- Lazy: на боевом сайте ни разметки, ни стилей плашки в страницу не попадает. -->
+  <LazyDemoBanner v-if="brand.demo" />
   <NuxtPage />
   <!-- Значок уведомлений поверх любой страницы: сам решает, показываться ли —
        у гостя уведомлений нет. -->

@@ -17,6 +17,7 @@ const emit = defineEmits<{ close: [] }>()
 
 const route = useRoute()
 const auth = useAuthStore()
+const { demo } = useBrand()
 
 const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
 
@@ -175,8 +176,11 @@ const onTouchEnd = (e: TouchEvent) => {
         <SideNavLink to="/progress" icon="progress" label="Прогресс" :active="route.path === '/progress'" @click="close" />
 
         <div class="drawer-section">Таверна</div>
-        <SideNavLink to="/game" icon="dice" label="Игра" :active="route.path === '/game'" @click="close" />
-        <SideNavLink to="/characters" icon="users" label="Персонажи" :active="route.path === '/characters'" @click="close" />
+        <!-- Игра и персонажи пока собраны под героев TWI — в демо их нет. -->
+        <template v-if="!demo">
+          <SideNavLink to="/game" icon="dice" label="Игра" :active="route.path === '/game'" @click="close" />
+          <SideNavLink to="/characters" icon="users" label="Персонажи" :active="route.path === '/characters'" @click="close" />
+        </template>
         <SideNavLink to="/about" icon="info" label="О проекте" :active="route.path === '/about'" @click="close" />
 
         <template v-if="auth.isAdmin && !onAdmin">

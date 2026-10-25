@@ -36,8 +36,8 @@ export function excerptFromHtml(html: string, maxLen: number): string {
  * aren't tracked yet) — so a per-chapter description is built from the first
  * bit of the chapter's own text instead of repeating the chapter number.
  */
-export function buildChapterDescription(id: string, contentHtml: string): string {
-  const suffix = ` — глава ${id}, фанатский перевод The Wandering Inn на русском.`
+export function buildChapterDescription(id: string, contentHtml: string, bookName = 'The Wandering Inn'): string {
+  const suffix = ` — глава ${id}, фанатский перевод ${bookName} на русском.`
   const excerpt = excerptFromHtml(contentHtml, Math.max(60, 160 - suffix.length))
   return `${excerpt}${suffix}`
 }

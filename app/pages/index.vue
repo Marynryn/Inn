@@ -3,6 +3,7 @@ import { formatHours } from '~/composables/useReadingStats'
 
 const { data: settings } = await useFetch('/api/settings')
 const season = useSeason()
+const brand = useBrand()
 
 // Картинка героя — то, по чему меряют первую отрисовку. Ссылка на неё в <head>:
 // браузер начинает её качать, ещё не дочитав страницу до <img>.
@@ -106,7 +107,7 @@ const ogImage = ogImageUrl()
 
 // Один заголовок на вкладку и на превью ссылки: подпись из настроек героя
 // не называет ни сайта, ни книги, и в превью соцсетей было не понять, что это.
-const pageTitle = 'Странствующая Таверна — русский перевод The Wandering Inn'
+const pageTitle = `${brand.siteName} — русский перевод ${brand.bookName}`
 
 useHead({
   title: pageTitle,
@@ -117,9 +118,9 @@ useHead({
       innerHTML: JSON.stringify({
         '@context': 'https://schema.org',
         '@type': 'WebSite',
-        name: 'Странствующая Таверна',
+        name: brand.siteName,
         url: siteUrl,
-        description: 'Фанатский перевод The Wandering Inn на русский язык.',
+        description: brand.description,
         inLanguage: 'ru',
         potentialAction: {
           '@type': 'ReadAction',
@@ -184,7 +185,7 @@ const tickerSeconds = computed(() => {
   return Math.max(18, Math.round(chars / 6))
 })
 
-const seoDescription = 'Бесплатный фанатский перевод The Wandering Inn (Блуждающий трактир) на русский. Обновляется каждую неделю. Читай онлайн или скачивай epub.'
+const seoDescription = brand.homeDescription
 
 useSeoMeta({
   description: seoDescription,
@@ -239,7 +240,7 @@ useSeoMeta({
       </div>
 
       <div class="hero-content">
-        <div class="eyebrow">Фанатский перевод · The Wandering Inn</div>
+        <div class="eyebrow">Фанатский перевод · {{ brand.bookName }}</div>
         <h1
           class="hero-title display"
           v-html="(settings?.hero_title || 'Истории трактира,\nрассказанные заново').replace(/\n/g, '<br>')"
@@ -301,12 +302,13 @@ useSeoMeta({
          вдоль всей полосы, — сейчас отключённых. -->
     <div class="parchment-band">
       <!-- Вывеска на цепях — вход в карточки персонажей, свисает из-под hero. -->
-      <SignCharacters />
+      <!-- Персонажи и игра пока собраны под героев TWI — в демо их нет. -->
+      <SignCharacters v-if="!brand.demo" />
 
       <div class="game-wrap">
         <ReelBanner v-if="reelBanner" :banner="reelBanner" @open="reelOpen = true" />
         <GameCta
-          v-else
+          v-else-if="!brand.demo"
           :title="settings?.game_cta_title"
           :text="settings?.game_cta_text"
           :max-volume="settings?.game_volume_effective"
@@ -322,8 +324,11 @@ useSeoMeta({
       </div>
       <div class="ledger-rule-row">
         <div class="ledger-rule" />
-        <div v-if="season === 'halloween'" class="ledger-toren"><TorenDance /></div>
-        <div v-else class="ledger-bee"><BeeApista /></div>
+        <!-- Торен и Аписта — герои TWI, в демо выдуманной книги им не место. -->
+        <template v-if="!brand.demo">
+          <div v-if="season === 'halloween'" class="ledger-toren"><TorenDance /></div>
+          <div v-else class="ledger-bee"><BeeApista /></div>
+        </template>
       </div>
 
       <!-- Тома оживают, когда до них долистали: оглавление — почти весь HTML

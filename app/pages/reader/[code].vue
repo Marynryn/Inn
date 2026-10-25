@@ -60,8 +60,10 @@ const clearAbout = async () => {
   }
 }
 
+const { siteName } = useBrand()
+
 useHead(() => ({
-  title: reader.value ? `${reader.value.name} · Странствующая Таверна` : 'Читатель · Странствующая Таверна',
+  title: reader.value ? `${reader.value.name} · ${siteName}` : `Читатель · ${siteName}`,
   // Страницы читателей — не для поисковиков: это люди, а не содержимое сайта.
   meta: [{ name: 'robots', content: 'noindex, nofollow' }],
 }))

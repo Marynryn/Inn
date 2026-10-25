@@ -49,6 +49,12 @@ export default defineEventHandler(async (event) => {
     updates.passwordHash = await bcrypt.hash(pw, 12)
   }
 
+  // На демо-стенде вход в панель общий: смени кто-нибудь почту или пароль —
+  // остальные посетители до ночного сброса остались бы за дверью.
+  if(useRuntimeConfig(event).public.demo && ((updates.email && updates.email !== me.email) || pw)){
+    throw createError({ statusCode: 403, message: 'В демо-версии почту и пароль администратора не меняют: этим входом пользуются все посетители' })
+  }
+
   // Та же проверка и та же раскладка по диску, что у читателей: без них сюда
   // однажды легла фотография на 4,8 МБ, и её качал каждый, кто открывал главную.
   const filePart = form.find(f => f.name === 'avatar' && f.data?.length)

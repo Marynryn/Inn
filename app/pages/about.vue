@@ -8,23 +8,25 @@ const ogImage = ogImageUrl()
 
 const title = computed(() => settings.value?.about_title || 'О проекте')
 
-const aboutDescription = 'Фанатский перевод The Wandering Inn на русский язык. Почему отдельный сайт, как переводим имена и названия, как можно помочь проекту.'
+const brand = useBrand()
+const aboutDescription = brand.aboutDescription
+const fullTitle = () => `${title.value} · ${brand.siteName} — перевод ${brand.bookName}`
 
 useHead(() => ({
-  title: `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
+  title: fullTitle(),
   link: [{ rel: 'canonical', href: `${siteUrl}/about` }],
 }))
 
 useSeoMeta({
   description: aboutDescription,
-  ogTitle: () => `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
+  ogTitle: fullTitle,
   ogDescription: aboutDescription,
   ogUrl: `${siteUrl}/about`,
   ogType: 'website',
   ogLocale: 'ru_RU',
   ogImage,
   twitterCard: 'summary_large_image',
-  twitterTitle: () => `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
+  twitterTitle: fullTitle,
   twitterDescription: aboutDescription,
   twitterImage: ogImage,
 })

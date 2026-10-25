@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { DEMO_ACCOUNTS } from '#shared/utils/demo'
+
 const auth = useAuthStore()
+const brand = useBrand()
 const route = useRoute()
 
 const { data: providers } = await useFetch('/api/auth/providers')
@@ -46,8 +49,15 @@ const submit = async () => {
   }
 }
 
+// Демо: общие входы за администратора и читателя — одной кнопкой.
+const demoLogin = (who: keyof typeof DEMO_ACCOUNTS) => {
+  email.value = DEMO_ACCOUNTS[who].email
+  password.value = DEMO_ACCOUNTS[who].password
+  return submit()
+}
+
 useHead({
-  title: 'Вход · Странствующая Таверна',
+  title: `Вход · ${brand.siteName}`,
   meta: [{ name: 'robots', content: 'noindex, nofollow' }],
 })
 </script>
@@ -65,7 +75,22 @@ useHead({
       <div class="frame">
       <div class="sheet">
         <h1 class="display">Вход</h1>
-        <p class="lead">Первый вход заводит аккаунт — регистрироваться отдельно не нужно.</p>
+        <template v-if="brand.demo">
+          <p class="lead">Это демо-версия: входы общие, а каждую ночь всё возвращается к исходному виду.</p>
+          <div class="demo-logins">
+            <button type="button" class="btn btn--primary" :disabled="loading" @click="demoLogin('admin')">
+              Войти администратором
+            </button>
+            <button type="button" class="provider" :disabled="loading" @click="demoLogin('reader')">
+              Войти читателем
+            </button>
+            <p class="demo-creds">
+              Администратор: {{ DEMO_ACCOUNTS.admin.email }} / {{ DEMO_ACCOUNTS.admin.password }}<br>
+              Читатель: {{ DEMO_ACCOUNTS.reader.email }} / {{ DEMO_ACCOUNTS.reader.password }}
+            </p>
+          </div>
+        </template>
+        <p v-else class="lead">Первый вход заводит аккаунт — регистрироваться отдельно не нужно.</p>
 
         <div v-if="error" class="err">{{ error }}</div>
 
@@ -212,6 +237,28 @@ useHead({
 .provider svg {
   width: clamp(14px, 1.5cqw, 18px);
   height: auto;
+}
+
+/* ── Демо: общие входы одной кнопкой ─────────── */
+.demo-logins {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, .7cqw, 10px);
+}
+
+.demo-logins .btn {
+  width: 100%;
+  font-size: clamp(12px, 1.2cqw, 14px);
+  padding: clamp(8px, 1cqw, 12px);
+}
+
+.demo-creds {
+  margin: 0;
+  font-size: clamp(10px, 1cqw, 12px);
+  line-height: 1.45;
+  color: #6a5136;
+  text-align: center;
 }
 
 /* ── Вход по паролю: только для администратора, по /login?pw=1 ─ */

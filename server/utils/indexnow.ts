@@ -53,7 +53,10 @@ export function indexNowRequest(siteUrl: string, chapterIds: string[]): IndexNow
  * лог, чтобы его было видно в логах Railway.
  */
 export async function pingIndexNow(chapterIds: string[]): Promise<void> {
-  const body = indexNowRequest(useRuntimeConfig().public.siteUrl, chapterIds)
+  const config = useRuntimeConfig()
+  // Демо-стенд закрыт от поиска — звать робота на него незачем.
+  if (config.public.demo) return
+  const body = indexNowRequest(config.public.siteUrl, chapterIds)
   if (!body) return
 
   try {

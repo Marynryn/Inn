@@ -3,6 +3,10 @@
 // сгенерированный список не сразу, и в шаблоне он оказывается undefined.
 import { CHARACTER_FILTERS, type Character, type CharacterFilterKey, type Origin } from '#shared/utils/characters'
 
+// Персонажи и игра пока собраны под героев TWI: на демо-стенде выдуманной книги
+// их нет, и страница отвечает как несуществующая.
+if (useBrand().demo) throw createError({ statusCode: 404, statusMessage: 'Страница не найдена', fatal: true })
+
 type Sort = 'name' | 'flames'
 
 const auth = useAuthStore()

@@ -614,8 +614,10 @@ notifyBus.on((msg) => {
   if (msg?.type === 'message' || msg?.type === 'notification') refreshUnread()
 })
 
+const { siteName } = useBrand()
+
 useHead({
-  title: 'Админ · Странствующая Таверна',
+  title: `Админ · ${siteName}`,
   meta: [{ name: 'robots', content: 'noindex, nofollow' }],
 })
 </script>
@@ -1186,7 +1188,7 @@ useHead({
               </button>
             </div>
             <div class="bg-preview" :style="{ background: readerBg || '#2b221c' }">
-              <span class="bg-preview-eyebrow">Странствующая Таверна · Том 1</span>
+              <span class="bg-preview-eyebrow">{{ siteName }} · Том 1</span>
               <b>Глава 1.55</b>
               <p>
                 Даже облака над Кровавыми Полями, разделявшими север от юга, казались
