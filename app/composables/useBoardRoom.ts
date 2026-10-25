@@ -110,6 +110,7 @@ export function useBoardRoom(code: string) {
     fatal,
     notice,
     start: () => send({ type: 'start' }),
+    rematch: () => send({ type: 'rematch' }),
     roll: () => send({ type: 'roll' }),
     useSkill: (skill: BoardSkill, target?: number) => send({ type: 'skill', skill, target }),
     say: (text: string) => send({ type: 'chat', text }),

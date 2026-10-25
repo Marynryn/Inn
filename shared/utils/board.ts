@@ -173,6 +173,8 @@ export type BoardFx =
   /** Отбросило: Скиннер, встреча, драка. */
   | { kind: 'push'; slot: number; to: number }
   | { kind: 'skinner'; to: number }
+  /** Встреча на клетке: оба бросили кубик, у кого меньше — отступает. */
+  | { kind: 'duel'; a: number; b: number; va: number; vb: number }
 
 /** Что случилось последним: бросок или сыгранный навык. */
 export type BoardAction = {
@@ -219,6 +221,8 @@ export type BoardClientMessage =
   | { type: 'skill'; skill: BoardSkill; target?: number }
   | { type: 'chat'; text: string }
   | { type: 'leave' }
+  /** Ещё партия за тем же столом — после конца прошлой. */
+  | { type: 'rematch' }
 
 /** Код комнаты: без букв и цифр, которые легко спутать (0/O, 1/I). */
 export const BOARD_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'

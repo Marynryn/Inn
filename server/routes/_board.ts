@@ -1,7 +1,7 @@
 import type { BoardClientMessage } from '#shared/utils/board'
 import { isBoardCode } from '#shared/utils/board'
 import { boardUser } from '../utils/board-access'
-import { dropPeer, joinRoom, leaveRoom, playSkill, postChat, rollDice, startGame } from '../utils/board-rooms'
+import { dropPeer, joinRoom, leaveRoom, playSkill, postChat, rematch, rollDice, startGame } from '../utils/board-rooms'
 import { claimTicket } from '../utils/notify-tickets'
 
 /**
@@ -32,6 +32,7 @@ export default defineWebSocketHandler({
       case 'skill': return playSkill(peer, msg.skill, msg.target)
       case 'chat': return postChat(peer, msg.text)
       case 'leave': return leaveRoom(peer)
+      case 'rematch': return rematch(peer)
     }
   },
 

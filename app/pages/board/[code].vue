@@ -20,7 +20,7 @@ const route = useRoute()
 const code = String(route.params.code ?? '').toUpperCase()
 
 const { data: settings } = await useFetch('/api/settings')
-const { state, chat, you, connected, fatal, notice, start, roll, useSkill: playSkill, say, leave } = useBoardRoom(code)
+const { state, chat, you, connected, fatal, notice, start, rematch, roll, useSkill: playSkill, say, leave } = useBoardRoom(code)
 
 const players = computed(() => state.value?.players ?? [])
 const me = computed(() => players.value.find(p => p.slot === you.value) ?? null)
@@ -41,6 +41,10 @@ const diceFace2 = ref<number | null>(null)
 const diceRolling = ref(false)
 /** Что ещё случилось за последнее действие: навыки, Скиннер, встречи. */
 const notes = ref<string[]>([])
+/** Встреча на клетке — оба кубика с именами, чтобы было видно, кто сколько
+ *  выбросил. Держится на экране до следующего хода. */
+type Duel = { a: number; b: number; va: number; vb: number; rolling: boolean }
+const duelShown = ref<Duel | null>(null)
 /** Клетка, на которую пришли по кубику последней, — её текст у кубика. */
 const landedCell = ref<number | null>(null)
 const landedSlot = ref<number | null>(null)
@@ -71,6 +75,7 @@ async function fly(slot: number, to: number) {
 async function play(action: BoardAction) {
   animating.value = true
   notes.value = []
+  duelShown.value = null
 
   for (const fx of action.fx) {
     if (fx.kind === 'dice') {
@@ -99,6 +104,18 @@ async function play(action: BoardAction) {
       await wait(400)
       shownSkinner.value = fx.to
       await wait(650)
+    } else if (fx.kind === 'duel') {
+      await wait(400)
+      const d: Duel = { a: fx.a, b: fx.b, va: 1, vb: 1, rolling: true }
+      duelShown.value = d
+      for (let i = 0; i < 10; i++) {
+        d.va = 1 + Math.floor(Math.random() * 6)
+        d.vb = 1 + Math.floor(Math.random() * 6)
+        duelShown.value = { ...d }
+        await wait(80)
+      }
+      duelShown.value = { ...d, va: fx.va, vb: fx.vb, rolling: false }
+      await wait(1100)
     }
   }
 
@@ -123,8 +140,20 @@ watch(state, (s) => {
       landedCell.value = action.landed
       landedSlot.value = action.slot
       notes.value = action.notes
+      const duel = action.fx.find(f => f.kind === 'duel')
+      if (duel?.kind === 'duel') duelShown.value = { a: duel.a, b: duel.b, va: duel.va, vb: duel.vb, rolling: false }
     }
     return
+  }
+  // Новая партия за тем же столом: прошлый ход больше не показываем.
+  if (!action && seenAction > 0) {
+    seenAction = -1
+    landedCell.value = null
+    landedSlot.value = null
+    pickedCell.value = null
+    notes.value = []
+    duelShown.value = null
+    diceFace2.value = null
   }
   if (action && action.id !== seenAction) {
     seenAction = action.id
@@ -206,6 +235,40 @@ const infoWho = computed(() => (pickedCell.value === null ? playerBySlot(landedS
 
 // ── Чат ────────────────────────────────────────────────
 const draft = ref('')
+const chatInput = ref<HTMLInputElement | null>(null)
+
+// Смайлы — та же панель, что в обсуждениях. Библиотеку грузим, когда смайлы
+// впервые позвали; не загрузилась — закрываем пустую панель.
+const showEmoji = ref(false)
+let emojiLoad: Promise<unknown> | null = null
+watch(showEmoji, (open) => {
+  if (!open || emojiLoad) return
+  emojiLoad = import('emoji-picker-element').catch(() => {
+    emojiLoad = null
+    showEmoji.value = false
+  })
+})
+
+function onEmoji(e: any) {
+  const emoji = e.detail?.emoji?.unicode ?? ''
+  showEmoji.value = false
+  if (!emoji) return
+  const el = chatInput.value
+  if (!el) { draft.value += emoji; return }
+  const start = el.selectionStart ?? draft.value.length
+  const end = el.selectionEnd ?? draft.value.length
+  draft.value = (draft.value.slice(0, start) + emoji + draft.value.slice(end)).slice(0, BOARD_CHAT_MAX)
+  nextTick(() => {
+    el.selectionStart = el.selectionEnd = start + emoji.length
+    el.focus()
+  })
+}
+
+const onOutside = (e: MouseEvent) => {
+  if (!(e.target as HTMLElement | null)?.closest?.('.emoji-wrap')) showEmoji.value = false
+}
+onMounted(() => document.addEventListener('click', onOutside))
+onBeforeUnmount(() => document.removeEventListener('click', onOutside))
 const chatEl = ref<HTMLElement | null>(null)
 
 function sendChat() {
@@ -385,6 +448,24 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
               </p>
             </div>
 
+            <div v-if="duelShown && state.status !== 'lobby'" class="duel" aria-live="polite">
+              <p class="duel-title">Встреча на клетке</p>
+              <div class="duel-row">
+                <div
+                  v-for="side in [{ slot: duelShown.a, v: duelShown.va, rival: duelShown.vb }, { slot: duelShown.b, v: duelShown.vb, rival: duelShown.va }]"
+                  :key="side.slot"
+                  class="duel-side"
+                  :class="{ 'duel-side--lost': !duelShown.rolling && side.v < side.rival }"
+                >
+                  <div class="dice dice--sm" :class="{ 'dice--rolling': duelShown.rolling }">
+                    <span v-for="n in 9" :key="n" class="pip" :class="`pip--${n}`" :data-face="side.v" />
+                  </div>
+                  <span class="duel-name" :style="{ color: playerBySlot(side.slot)?.color }">{{ playerBySlot(side.slot)?.name }}</span>
+                  <span v-if="!duelShown.rolling" class="duel-result">{{ side.v > side.rival ? 'победа' : 'отступает' }}</span>
+                </div>
+              </div>
+            </div>
+
             <ul v-if="notes.length && state.status !== 'lobby'" class="notes" aria-live="polite">
               <li v-for="(n, i) in notes" :key="i">{{ n }}</li>
             </ul>
@@ -416,7 +497,13 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
                 </button>
               </div>
             </div>
-            <NuxtLink v-else-if="state.status === 'finished'" to="/board" class="btn btn--primary btn--sm">Новая партия</NuxtLink>
+            <div v-else-if="state.status === 'finished'" class="finish-actions">
+              <button v-if="isHost" class="btn btn--primary btn--sm" :disabled="!connected" @click="rematch">
+                Ещё партия за этим столом
+              </button>
+              <p v-else class="muted">Новую партию за этим столом начнёт {{ playerBySlot(state.hostSlot)?.name ?? 'хозяин стола' }}.</p>
+              <NuxtLink to="/board" class="btn btn--ghost btn--sm">К столам</NuxtLink>
+            </div>
 
             <p v-if="notice" class="notice">{{ notice }}</p>
             <p v-if="!connected" class="notice">Связь пропала, переподключаемся…</p>
@@ -451,7 +538,13 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
               </div>
             </div>
             <form class="chat-form" @submit.prevent="sendChat">
-              <input v-model="draft" class="chat-input" :maxlength="BOARD_CHAT_MAX" placeholder="Написать за стол…" autocomplete="off">
+              <input ref="chatInput" v-model="draft" class="chat-input" :maxlength="BOARD_CHAT_MAX" placeholder="Написать за стол…" autocomplete="off">
+              <div class="emoji-wrap">
+                <button class="emoji-btn" type="button" aria-label="Смайлы" @click.stop="showEmoji = !showEmoji">😊</button>
+                <ClientOnly>
+                  <emoji-picker v-if="showEmoji" class="dark emoji-panel" @emoji-click="onEmoji" />
+                </ClientOnly>
+              </div>
               <button class="btn btn--primary btn--sm" type="submit" :disabled="!draft.trim()">↵</button>
             </form>
           </section>
@@ -783,6 +876,72 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
   height: 10px;
 }
 
+.duel {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--fill-strong);
+}
+
+.duel-title {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.duel-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.duel-side {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+  transition: opacity .3s;
+}
+
+.duel-side--lost { opacity: .55; }
+
+.duel-name {
+  font-weight: 600;
+  font-size: 14px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duel-result {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.dice.dice--sm {
+  width: 40px;
+  height: 40px;
+  padding: 6px;
+  border-radius: 9px;
+}
+
+.dice--sm .pip {
+  width: 6px;
+  height: 6px;
+}
+
+.finish-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.finish-actions .muted { margin: 0; flex-basis: 100%; }
+
 .dice-pair {
   display: flex;
   gap: 8px;
@@ -938,6 +1097,56 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 .msg-name { font-weight: 600; font-size: 14px; }
 .msg-time { font-size: 12px; color: var(--text-muted); margin-left: 6px; }
 .msg-text { font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
+
+.emoji-wrap {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.emoji-btn {
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  font-size: 18px;
+  line-height: 1;
+  opacity: .55;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+
+.emoji-btn:hover { opacity: 1; }
+
+/* Панель раскрывается вверх: поле чата внизу карточки. */
+.emoji-panel {
+  position: absolute;
+  right: 0;
+  bottom: 36px;
+  z-index: var(--z-dropdown);
+  --num-columns: 8;
+  --emoji-size: 1.3rem;
+  --background: #1a1108;
+  --border-color: rgba(241, 230, 210, .15);
+  --indicator-color: var(--ember-soft, #d6883e);
+  --input-border-color: rgba(241, 230, 210, .2);
+  --input-font-color: #f1e6d2;
+  --input-placeholder-color: rgba(241, 230, 210, .4);
+  --search-icon-no-results-color: rgba(241, 230, 210, .3);
+  --category-font-color: rgba(241, 230, 210, .5);
+}
+
+@media (max-width: 600px) {
+  .emoji-panel {
+    position: fixed;
+    right: auto;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 24px);
+    --num-columns: 7;
+  }
+}
 
 .chat-form {
   display: flex;
