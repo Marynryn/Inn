@@ -49,6 +49,24 @@ export function createBrowserTools(page: Page, context: BrowserContext, findings
   // и devtools шумят запросами, и «тишина в сети» может не наступить.
   const settle = () => page.waitForLoadState('networkidle', { timeout: 3_000 }).catch(() => {})
 
+  /**
+   * Пролистать страницу до конца и обратно. Часть разметки оживает, только
+   * когда её видно, — тома оглавления на главной. Оживая, кнопка тома
+   * заменяется новой, и ref из уже выданного дерева указывал бы в пустоту.
+   * Поэтому дерево отдаём, когда всё на странице уже ожило.
+   */
+  const wakeLazy = async () => {
+    await page.evaluate(async () => {
+      const step = Math.max(200, Math.floor(window.innerHeight * 0.8))
+      for (let y = 0; y < document.body.scrollHeight; y += step) {
+        window.scrollTo(0, y)
+        await new Promise(r => setTimeout(r, 60))
+      }
+      window.scrollTo(0, 0)
+    }).catch(() => {})
+    await settle()
+  }
+
   const byRef = (ref: string) => page.locator(`aria-ref=${ref.replace(/^\[?ref=|\]$/g, '')}`)
 
   const navigate = betaZodTool({
@@ -58,6 +76,7 @@ export function createBrowserTools(page: Page, context: BrowserContext, findings
     run: async ({ path }) => {
       const res = await page.goto(path).catch(e => { throw new Error(`goto failed: ${e.message}`) })
       await settle()
+      await wakeLazy()
       return `HTTP ${res?.status() ?? '?'}\n` + await snapshot()
     },
   })
@@ -100,6 +119,12 @@ export function createBrowserTools(page: Page, context: BrowserContext, findings
       if (count === 0) return 'Элемент не найден. Сделай snapshot и уточни.'
       if (count > 1 && nth == null) return `Совпало ${count} элементов — укажи nth или ref.`
       page.once('dialog', d => d.accept())
+      // Сначала долистать и дать оживиться: тома оглавления оживают, только
+      // когда их видно, и клик в тот же миг, что и прокрутка, уходил в
+      // неживую разметку — том не раскрывался. Человек так не кликает: он
+      // сперва долистывает, потом жмёт.
+      await loc.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => {})
+      await settle()
       await loc.click({ timeout: 5_000 })
       await settle()
       return await snapshot()
