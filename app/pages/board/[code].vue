@@ -511,11 +511,11 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 
           <section class="card card--panel">
             <ul class="players">
-              <li v-for="p in players" :key="p.slot" class="player" :class="{ 'player--turn': p.slot === state.turnSlot }">
+              <li v-for="p in players" :key="p.slot" class="player" :class="{ 'player--turn': p.slot === state.turnSlot, 'player--left': p.left }">
                 <span class="dot" :style="{ background: p.color }" />
                 <span class="player-name">{{ p.name }}<template v-if="p.slot === you"> (ты)</template></span>
                 <span class="player-meta">
-                  <template v-if="p.left">не играет</template>
+                  <template v-if="p.left">не за столом</template>
                   <template v-else-if="!p.online">не на связи</template>
                   <template v-else-if="state.status !== 'lobby'">
                     клетка {{ (shown[p.slot] ?? p.pos) + 1 }}<template v-if="p.skills.length"> · навыков {{ p.skills.length }}</template>
@@ -754,7 +754,11 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 .pawn--jump { transition-duration: .7s; transition-timing-function: ease-in-out; }
 
 .pawn--turn { z-index: 3; box-shadow: 0 0 0 3px var(--pawn), 0 0 14px 4px var(--pawn); }
-.pawn--left { opacity: .4; }
+/* Ушедший из-за стола: фишка остаётся, но серая — ход её пропускается. */
+.pawn--left { opacity: .35; filter: grayscale(1); }
+
+.player--left .player-name { text-decoration: line-through; color: var(--text-muted); }
+.player--left .player-meta { color: var(--danger); }
 
 @media (prefers-reduced-motion: reduce) {
   .pawn { transition: none; }

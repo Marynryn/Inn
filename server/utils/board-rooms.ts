@@ -555,8 +555,13 @@ export function leaveRoom(peer: any) {
     if (seat.userId === room.hostUserId && active[0]) room.hostUserId = active[0].userId
   }
 
-  if (!room.seats.length) rooms.delete(room.code)
-  else pushState(room)
+  if (!room.seats.length) {
+    rooms.delete(room.code)
+    return
+  }
+  pushState(room)
+  // Уход — заметно всем, а не только строчкой в журнале.
+  broadcast(room, { type: 'event', text: `${seat.name} больше не за столом` })
 }
 
 /** Соединение закрылось — вкладку закрыли или пропала связь. Место за

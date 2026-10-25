@@ -62,6 +62,8 @@ export function useBoardRoom(code: string) {
         chat.value = msg.chat
       } else if (msg.type === 'state') {
         state.value = msg.state
+      } else if (msg.type === 'event') {
+        flash(msg.text)
       } else if (msg.type === 'chat') {
         chat.value = [...chat.value, msg.message].slice(-100)
       } else if (msg.type === 'error') {

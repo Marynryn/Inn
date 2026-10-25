@@ -210,6 +210,8 @@ export type BoardServerMessage =
   | { type: 'joined'; you: number; state: BoardState; chat: BoardChatMessage[] }
   | { type: 'state'; state: BoardState }
   | { type: 'chat'; message: BoardChatMessage }
+  /** Событие, о котором надо сказать всем за столом вслух: кто-то ушёл. */
+  | { type: 'event'; text: string }
   /** fatal — в комнату не пустили, и сокет больше ничего не ждёт. */
   | { type: 'error'; message: string; fatal?: boolean }
 
