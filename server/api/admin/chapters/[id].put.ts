@@ -7,6 +7,7 @@ import { writeFile, mkdir } from 'fs/promises'
 import { resolve } from 'path'
 import { getStorageDir } from '../../../utils/storage'
 import { countWords } from '#shared/utils/wordCount'
+import { pingIndexNow } from '../../../utils/indexnow'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -21,7 +22,7 @@ export default defineEventHandler(async (event) => {
 
   const db = useDb()
 
-  const [existing] = await db.select({ id: chapters.id, title: chapters.title, epubPath: chapters.epubPath }).from(chapters).where(eq(chapters.id, id))
+  const [existing] = await db.select({ id: chapters.id, title: chapters.title, epubPath: chapters.epubPath, isPublished: chapters.isPublished }).from(chapters).where(eq(chapters.id, id))
   if (!existing) throw createError({ statusCode: 404, message: 'Глава не найдена' })
 
   const contentHtml = sanitizeChapterHtml(body.contentHtml)
@@ -53,6 +54,10 @@ export default defineEventHandler(async (event) => {
     ...(isPublished !== undefined && { isPublished }),
     ...(publishedAt !== undefined && { publishedAt }),
   }).where(eq(chapters.id, id))
+
+  // Черновик открыли читателям — это и есть публикация, о ней сообщаем Яндексу.
+  // Правка текста уже вышедшей главы публикацией не считается.
+  if (isPublished === true && !existing.isPublished) void pingIndexNow([id])
 
   return { ok: true }
 })

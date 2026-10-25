@@ -6,6 +6,7 @@ import { resolve } from 'path'
 import { getStorageDir } from '../../utils/storage'
 import { asc, eq } from 'drizzle-orm'
 import { countWords } from '#shared/utils/wordCount'
+import { pingIndexNow } from '../../utils/indexnow'
 
 /**
  * Возвращает sortOrder для главы id. Уже загруженная глава остаётся на своём
@@ -86,6 +87,13 @@ export default defineEventHandler(async (event) => {
   const db = useDb()
   const wordCount = countWords(contentHtml)
 
+  // Была ли глава уже открыта читателям — чтобы сообщить Яндексу только о
+  // настоящей публикации, а не о перезаливе уже вышедшей главы.
+  const [before] = await db
+    .select({ isPublished: chapters.isPublished })
+    .from(chapters)
+    .where(eq(chapters.id, id))
+
   // Новая глава встаёт в конец своего тома, а не всего списка: иначе глава
   // второго тома, загруженная после четвёртого, оказывалась последней — и
   // навигация «← →» с оглавлением, которые идут по sortOrder, вели через тома.
@@ -103,6 +111,8 @@ export default defineEventHandler(async (event) => {
     .insert(chapterStats)
     .values({ chapterId: id, viewsCount: 0, downloadsCount: 0 })
     .onConflictDoNothing()
+
+  if (isPublished && !before?.isPublished) void pingIndexNow([id])
 
   return { ok: true, id }
 })
