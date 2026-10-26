@@ -5,6 +5,7 @@ import {
   BOARD_CELLS,
   BOARD_CHAT_MAX,
   BOARD_LAST,
+  BOARD_MAP_RATIO,
   BOARD_SKILLS,
   effectLabel,
   jumpTarget,
@@ -218,14 +219,24 @@ function brawlWith(slot: number) {
 watch(canPlaySkill, (can) => { if (!can) pickingBrawl.value = false })
 
 // ── Карта ───────────────────────────────────────────────
-// Схема рисуется в координатах 160×110 — в пропорциях самой карты, 16:11.
+// Стрелки рисуются в координатах шириной 160 — и в пропорциях рисунка карты.
 // Тогда SVG тянется без искажений, и наконечники стрелок не плющит.
 const SX = 1.6
-const SY = 1.1
-const pathPoints = BOARD_CELLS.map(c => `${c.x * SX},${c.y * SY}`).join(' ')
+const SY = SX / BOARD_MAP_RATIO
+const VIEW_H = 100 * SY
 
-/** Стрелки прыжков — прямые, мимо чужих клеток их ведёт расстановка самих клеток. */
-const arrows = boardArrows(BOARD_CELLS, jumpTarget, SX, SY)
+/** Стрелки прыжков в обход чужих клеток. Подбор изгиба — работа для слабого
+ *  телефона заметная, поэтому считает сервер при отрисовке страницы. */
+const arrows = useState('board-arrows', () => boardArrows(BOARD_CELLS, jumpTarget, SX, SY))
+
+/** На рисунке дорожка оборвана в двух местах, у левого края: 12→13 и 24→25.
+ *  Дотягиваем её там дугой в тон тропы. */
+const roadGaps = [[11, 12], [23, 24]].map(([a, b]) => {
+  const p = BOARD_CELLS[a]!, q = BOARD_CELLS[b]!
+  const x1 = p.x * SX, y1 = p.y * SY, x2 = q.x * SX, y2 = q.y * SY
+  const cx = Math.min(x1, x2) - 4, cy = (y1 + y2) / 2
+  return `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`
+})
 
 const effectClass = (e: BoardEffect) => `cell--${e.kind}`
 
@@ -376,7 +387,20 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
                 </div>
               </div>
             </div>
-            <svg class="path" viewBox="0 0 160 110" aria-hidden="true">
+            <!-- Рисунок карты: сцены и тропа с камнями. Кружки клеток, стрелки и
+                 фишки сайт кладёт поверх, по координатам камней. -->
+            <img
+              class="map-art"
+              src="/board/map.webp"
+              srcset="/board/map-900.webp 900w, /board/map.webp 1482w"
+              sizes="(max-width: 900px) 100vw, 860px"
+              alt=""
+              width="1482"
+              height="1061"
+              decoding="async"
+              fetchpriority="high"
+            >
+            <svg class="path" :viewBox="`0 0 160 ${VIEW_H}`" aria-hidden="true">
               <defs>
                 <marker id="arrow-fwd" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3.5" markerHeight="3.5" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
                   <path d="M0,0 L10,5 L0,10 z" class="head head--fwd" />
@@ -385,7 +409,7 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
                   <path d="M0,0 L10,5 L0,10 z" class="head head--back" />
                 </marker>
               </defs>
-              <polyline :points="pathPoints" class="road" />
+              <path v-for="(d, i) in roadGaps" :key="`gap-${i}`" :d="d" class="road-gap" />
               <!-- У каждой стрелки свой градиент вдоль неё: бледный хвост у клетки,
                    откуда прыгают, и яркий наконечник у той, куда. -->
               <defs>
@@ -400,10 +424,10 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
                   <stop offset="1" :class="a.forward ? 'grad-fwd' : 'grad-back'" stop-opacity="0.9" />
                 </linearGradient>
               </defs>
-              <line
+              <path
                 v-for="a in arrows"
                 :key="`line-${a.from}`"
-                :x1="a.x1" :y1="a.y1" :x2="a.x2" :y2="a.y2"
+                :d="a.d"
                 class="arrow"
                 :stroke="`url(#arrow-grad-${a.from})`"
                 :marker-end="a.forward ? 'url(#arrow-fwd)' : 'url(#arrow-back)'"
@@ -718,12 +742,10 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 /* ── Карта ─────────────────────────────── */
 .map {
   position: relative;
-  aspect-ratio: 16 / 11;
+  /* Пропорции рисунка карты — те же, что BOARD_MAP_RATIO. */
+  aspect-ratio: 1482 / 1061;
   border-radius: var(--radius-lg);
-  background:
-    radial-gradient(ellipse at 30% 20%, rgba(214, 136, 62, .12), transparent 60%),
-    radial-gradient(ellipse at 80% 90%, rgba(75, 97, 73, .25), transparent 55%),
-    var(--bg-dark-2);
+  background: var(--bg-dark-2);
   border: 1px solid var(--line);
   overflow: hidden;
 }
@@ -735,12 +757,24 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
   height: 100%;
 }
 
-.road {
+.map-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Дотянутые куски тропы — в тон нарисованной: светлый песок с мягким краем. */
+.road-gap {
   fill: none;
-  stroke: rgba(241, 230, 210, .18);
-  stroke-width: 3;
-  stroke-dasharray: 6 6;
+  stroke: rgba(232, 186, 120, .85);
+  stroke-width: 5;
+  stroke-linecap: round;
   vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 2px rgba(60, 30, 10, .6));
 }
 
 /* Стрелки прыжков — тонкой бледной волной: карта читается сквозь них. */
