@@ -51,6 +51,9 @@ function guestIdOf(visitor: string): number {
   return id
 }
 
+/** Лицо гостя за столом — голова гоблина (Freepik, файл 25313), ужатая до 128 px. */
+const GUEST_AVATAR = '/board/guest-goblin.webp'
+
 /** Имя гостя: как у гостевых комментариев — чужое, занятое читателем или
  *  служебное нельзя. Безликое «Гость» тоже: за столом нужно отличать игроков. */
 export async function guestBoardUser(visitor: string, rawName: unknown): Promise<BoardUser> {
@@ -59,7 +62,9 @@ export async function guestBoardUser(visitor: string, rawName: unknown): Promise
   if (isGenericName(name) || !await isNameFreeForGuest(name)) {
     throw createError({ statusCode: 409, message: 'Это имя занято, выбери другое' })
   }
-  return { id: guestIdOf(visitor), name, avatarUrl: null, admin: false }
+  // У гостя своей аватарки нет — за столом он гоблин. Только в игре: в
+  // комментариях и профиле гостей это не касается.
+  return { id: guestIdOf(visitor), name, avatarUrl: GUEST_AVATAR, admin: false }
 }
 
 /**
