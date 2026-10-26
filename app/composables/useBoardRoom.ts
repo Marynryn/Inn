@@ -7,7 +7,12 @@ import type { BoardChatMessage, BoardClientMessage, BoardServerMessage, BoardSki
  *
  * Связь рвётся — переподключаемся сами: место за столом за человеком
  * сохраняется, и после переподключения он видит партию с того же места.
+ *
+ * Вошедший садится за стол сразу. Гость — когда назовётся: имя запоминаем в
+ * браузере, и в следующий раз он садится без вопросов.
  */
+const LS_GUEST_NAME = 'tavern:boardName'
+
 export function useBoardRoom(code: string) {
   const state = ref<BoardState | null>(null)
   const chat = ref<BoardChatMessage[]>([])
@@ -16,6 +21,11 @@ export function useBoardRoom(code: string) {
   /** Не пустили в комнату — дальше пробовать незачем. */
   const fatal = ref('')
   const notice = ref('')
+  /** Гостю надо назваться, прежде чем сесть за стол. */
+  const needName = ref(false)
+  /** Почему имя не подошло — показать у поля. */
+  const nameError = ref('')
+  let guestName: string | null = null
 
   let ws: WebSocket | null = null
   let stopped = false
@@ -34,9 +44,29 @@ export function useBoardRoom(code: string) {
 
     let ticket: string
     try {
-      ticket = (await $fetch<{ ticket: string }>('/api/notifications/ws-ticket')).ticket
-    } catch {
-      fatal.value = 'Чтобы играть, нужно войти'
+      const auth = useAuthStore()
+      if (!auth.ready) await auth.fetchMe()
+      if (!auth.isAuthed && !guestName) {
+        guestName = localStorage.getItem(LS_GUEST_NAME)
+        if (!guestName) { needName.value = true; return }
+      }
+      const res = await $fetch<{ ticket: string }>('/api/board/ticket', {
+        method: 'POST',
+        body: { visitor: visitorId(), name: auth.isAuthed ? undefined : guestName },
+      })
+      ticket = res.ticket
+      needName.value = false
+      if (!auth.isAuthed && guestName) localStorage.setItem(LS_GUEST_NAME, guestName)
+    } catch (e: any) {
+      // Имя не подошло — спрашиваем снова; иное — сеть, пробуем позже.
+      if (e?.statusCode === 409 || e?.statusCode === 400) {
+        guestName = null
+        try { localStorage.removeItem(LS_GUEST_NAME) } catch {}
+        nameError.value = e?.data?.message || 'Это имя не подходит'
+        needName.value = true
+        return
+      }
+      retryTimer = setTimeout(connect, Math.min(1000 * 2 ** retry++, 15000))
       return
     }
     if (stopped) return
@@ -101,6 +131,13 @@ export function useBoardRoom(code: string) {
     ws = null
   }
 
+  /** Гость назвался — садимся за стол. */
+  function joinAs(name: string) {
+    guestName = name.trim()
+    nameError.value = ''
+    if (guestName) connect()
+  }
+
   onMounted(connect)
   onBeforeUnmount(stop)
 
@@ -111,10 +148,14 @@ export function useBoardRoom(code: string) {
     connected,
     fatal,
     notice,
+    needName,
+    nameError,
+    joinAs,
     start: () => send({ type: 'start' }),
     rematch: () => send({ type: 'rematch' }),
     roll: () => send({ type: 'roll' }),
     useSkill: (skill: BoardSkill, target?: number) => send({ type: 'skill', skill, target }),
+    choose: (index: number) => send({ type: 'choose', index }),
     say: (text: string) => send({ type: 'chat', text }),
     leave: () => { send({ type: 'leave' }); stop() },
   }

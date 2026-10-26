@@ -6,6 +6,7 @@ import type {
   BoardLogEntry,
   BoardPlayer,
   BoardServerMessage,
+  BoardSkill,
   BoardState,
   BoardStatus,
 } from '#shared/utils/board'
@@ -31,6 +32,7 @@ import {
   isBoardSkill,
   jumpTarget,
 } from '#shared/utils/board'
+import { wsToUser, wsUsers } from './ws-rooms'
 
 /**
  * Комнаты настольной игры живут в памяти сервера, а не в базе: партия идёт
@@ -52,6 +54,8 @@ type Room = {
   lastAction: BoardAction | null
   /** Навык уже сыгран в этот ход — второй нельзя. */
   skillUsed: boolean
+  /** Выпало два кубика — ждём, на какой из них игрок пойдёт. */
+  choice: number[] | null
   log: BoardLogEntry[]
   chat: BoardChatMessage[]
   peers: Map<any, number>
@@ -92,11 +96,13 @@ function stateOf(room: Room): BoardState {
     code: room.code,
     status: room.status,
     hostSlot: host?.slot ?? -1,
+    nextHostSlot: room.status === 'finished' ? nextHost(room)?.slot ?? null : null,
     turnSlot: room.status === 'playing' ? room.seats[room.turn]?.slot ?? null : null,
     winnerSlot: room.winnerSlot,
     players: room.seats.map(({ userId, ...p }) => ({ ...p, online: isOnline(room, userId) })),
     skinner: room.skinner,
     skillUsed: room.skillUsed,
+    choice: room.status === 'playing' ? room.choice : null,
     lastAction: room.lastAction,
     log: room.log,
   }
@@ -132,6 +138,7 @@ export function createRoom(host: BoardUser): string {
     skinner: null,
     lastAction: null,
     skillUsed: false,
+    choice: null,
     log: [],
     chat: [],
     peers: new Map(),
@@ -152,6 +159,22 @@ export function openRooms() {
       players: r.seats.length,
       max: BOARD_MAX_PLAYERS,
     }))
+}
+
+/** Стол, который ищет игроков, — для приглашения в шаре: первый открытый,
+ *  за которым этот читатель ещё не сидит. */
+export function invitingRoomFor(userId: number) {
+  return openRooms().find(r => !rooms.get(r.code)!.seats.some(s => s.userId === userId)) ?? null
+}
+
+/** Открытых столов стало больше или меньше — шары у всех, кто на сайте,
+ *  пересчитываются: иначе приглашение висело бы до перезагрузки страницы. */
+let openCount = -1
+function nudgeOpenTables() {
+  const n = openRooms().length
+  if (n === openCount) return
+  openCount = n
+  for (const userId of wsUsers.keys()) wsToUser(userId, { type: 'notification' })
 }
 
 /** Комната, где этот читатель сидит в незаконченной партии, — чтобы вернуть его. */
@@ -184,6 +207,7 @@ export function joinRoom(code: string, user: BoardUser, peer: any): string | nul
       skip: 0,
       skills: [],
       doubleNext: false,
+      bonus: 0,
       online: true,
       left: false,
     }
@@ -203,6 +227,7 @@ export function joinRoom(code: string, user: BoardUser, peer: any): string | nul
   room.touchedAt = Date.now()
   send(peer, { type: 'joined', you: seat.slot, state: stateOf(room), chat: room.chat })
   pushState(room)
+  nudgeOpenTables()
   return null
 }
 
@@ -225,30 +250,32 @@ export function startGame(peer: any) {
   if (!p) return
   const { room, seat } = p
   if (room.status !== 'lobby') return
-  if (seat.userId !== room.hostUserId) return fail(peer, 'Начать партию может только тот, кто создал комнату')
+  if (seat.userId !== room.hostUserId) return fail(peer, 'Начать партию может только тот, чья очередь начинать')
   if (room.seats.length < BOARD_MIN_PLAYERS) return fail(peer, 'Мало игроков')
 
   room.status = 'playing'
-  room.turn = 0
+  // Первым ходит тот, кто начал партию: за одним столом партии начинают по кругу.
+  room.turn = Math.max(0, room.seats.findIndex(s => s.userId === room.hostUserId))
   room.turnSince = Date.now()
-  log(room, `Партия началась. Первым ходит ${room.seats[0]!.name}`)
+  log(room, `Партия началась. Первым ходит ${room.seats[room.turn]!.name}`)
   pushState(room)
+  nudgeOpenTables()
 }
 
 /** Передать ход следующему, пропуская ушедших и тех, кто пропускает ход.
- *  Круг замкнулся — Скиннер делает свой ход; его шаги дописываются в fx
- *  того действия, после которого круг кончился. */
-function nextTurn(room: Room, fx: BoardFx[] = [], notes: string[] = []) {
+ *  Круг замкнулся — Скиннер делает свой ход; его шаги дописываются в то
+ *  действие, после которого круг кончился. */
+function nextTurn(room: Room, ctx: Ctx = newCtx(room, null)) {
   const n = room.seats.length
   for (let tries = 0; tries < n * 4; tries++) {
     const prev = room.turn
     room.turn = (room.turn + 1) % n
-    if (room.turn <= prev) moveSkinner(room, fx, notes)
+    if (room.turn <= prev) moveSkinner(ctx)
     const seat = room.seats[room.turn]!
     if (seat.left) continue
     if (seat.skip > 0) {
       seat.skip--
-      notes.push(`${seat.name} пропускает ход`)
+      ctx.notes.push(`${seat.name} пропускает ход`)
       continue
     }
     break
@@ -267,57 +294,121 @@ function useShield(seat: Seat): boolean {
   return true
 }
 
-/** Отбросить игрока назад — если его не спасёт [Чутьё опасности]. */
-function throwBack(seat: Seat, by: number, why: string, fx: BoardFx[], notes: string[]) {
+/** Всё, что случилось за одно действие: шаги анимации, строчки под кубиком,
+ *  чей это ход и предохранители от бесконечных цепочек. */
+type Ctx = {
+  room: Room
+  fx: BoardFx[]
+  notes: string[]
+  /** Чей ход. «Ещё бросок» ему — сразу, остальным — в их ход. */
+  mover: Seat | null
+  again: boolean
+  /** Сколько клеток уже разобрано за действие — потолок от круга. */
+  hops: number
+  /** Встреча — одна за действие: проигравший, отступив, мог бы встать на
+   *  чужую клетку и начать следующую, и так без конца. */
+  dueled: boolean
+}
+
+const newCtx = (room: Room, mover: Seat | null): Ctx =>
+  ({ room, fx: [], notes: [], mover, again: false, hops: 0, dueled: false })
+
+/** Сколько клеток можно разобрать за одно действие. Стрелка на стрелку, что
+ *  ведёт обратно, или Скиннер с отбросом на стрелку к нему же гоняли бы
+ *  фишку без конца. */
+const HOPS_MAX = 8
+
+function grantSkill(seat: Seat, skill: BoardSkill, notes: string[]) {
+  const name = BOARD_SKILLS[skill].name
+  if (seat.skills.length < BOARD_HAND_MAX) {
+    seat.skills.push(skill)
+    notes.push(`${seat.name}: навык получен — ${name}`)
+  } else {
+    notes.push(`${seat.name}: ${name} — но в руке уже ${BOARD_HAND_MAX} навыка, этот пропал`)
+  }
+}
+
+/** Отбросить назад — если не спасёт [Чутьё опасности]. На новой клетке
+ *  срабатывает всё, что там есть. */
+function throwBack(ctx: Ctx, seat: Seat, by: number, why: string) {
   if (useShield(seat)) {
-    notes.push(`${seat.name}: ${why}, но ${BOARD_SKILLS.danger.name} спасает`)
+    ctx.notes.push(`${seat.name}: ${why}, но ${BOARD_SKILLS.danger.name} спасает`)
     return
   }
   seat.pos = Math.max(0, seat.pos - by)
-  fx.push({ kind: 'push', slot: seat.slot, to: seat.pos })
-  notes.push(`${seat.name}: ${why} — назад на ${by}`)
-  followArrows(seat, fx, notes, true)
+  ctx.fx.push({ kind: 'push', slot: seat.slot, to: seat.pos })
+  ctx.notes.push(`${seat.name}: ${why} — назад на ${by}`)
+  landOn(ctx, seat, false)
 }
 
-/** Сколько стрелок подряд можно пройти за раз. Предохранитель от круга:
- *  стрелка, ведущая на стрелку, ведущую обратно, гоняла бы фишку без конца. */
-const ARROW_CHAIN_MAX = 4
-
 /**
- * Встал на клетку со стрелкой — иди по ней, чем бы ни привело: кубиком,
- * встречей, дракой или Скиннером. И дальше, если там опять стрелка. На
- * клетку, где фишка уже была в этой цепочке, не возвращаемся. Красную
- * стрелку гасит [Чутьё опасности].
+ * Фишка встала на клетку — чем бы ни привело: кубиком, стрелкой, встречей,
+ * дракой или Скиннером. Срабатывает всё, что на клетке есть, одинаково:
+ * пропуск хода, ещё бросок, навык, Скиннер, встреча, стрелка — а после
+ * стрелки то же самое на клетке, куда она привела.
+ *
+ * byDice — сюда пришли по кубику: первую стрелку тогда видно по клетке у
+ * кубика, и строчкой её не дублируем.
  */
-function followArrows(seat: Seat, fx: BoardFx[], notes: string[], announce: boolean) {
-  const seen = new Set([seat.pos])
-  for (let hop = 0; hop < ARROW_CHAIN_MAX && seat.pos < BOARD_LAST; hop++) {
-    const to = jumpTarget(seat.pos)
+function landOn(ctx: Ctx, seat: Seat, byDice: boolean) {
+  const { room, notes } = ctx
+  const seen = new Set<number>()
+
+  while (seat.pos < BOARD_LAST && ctx.hops < HOPS_MAX) {
+    ctx.hops++
+    const at = seat.pos
+    seen.add(at)
+    const cell = BOARD_CELLS[at]!
+
+    if (cell.effect.kind === 'skip') {
+      seat.skip++
+      notes.push(`${seat.name} пропустит следующий ход`)
+    } else if (cell.effect.kind === 'again') {
+      if (seat === ctx.mover) {
+        ctx.again = true
+        notes.push(`${seat.name} бросает ещё раз`)
+      } else {
+        seat.bonus++
+        notes.push(`${seat.name}: ещё бросок — в свой ход`)
+      }
+    }
+
+    if (cell.skill) grantSkill(seat, cell.skill, notes)
+
+    // Пришёл на клетку Скиннера — сам к нему пришёл.
+    if (room.skinner !== null && at === room.skinner) {
+      throwBack(ctx, seat, SKINNER_THROW, 'встреча со Скиннером')
+      if (seat.pos !== at) return
+    }
+
+    if (!ctx.dueled && at > 0) {
+      const other = activeSeats(room).find(s => s !== seat && s.pos === at)
+      if (other) {
+        duel(ctx, seat, other)
+        if (seat.pos !== at) return
+      }
+    }
+
+    const to = jumpTarget(at)
     if (to === null || seen.has(to)) return
-    if (to < seat.pos && useShield(seat)) {
+    if (to < at && useShield(seat)) {
       notes.push(`${seat.name}: ${BOARD_SKILLS.danger.name} — красная стрелка не страшна`)
       return
     }
-    // Первую стрелку после броска и так видно по клетке у кубика — пишем
-    // только про те, что вышли следом.
-    if (announce || hop > 0) notes.push(`${seat.name}: по стрелке на клетку ${to + 1}`)
+    if (!byDice || seen.size > 1) notes.push(`${seat.name}: по стрелке на клетку ${to + 1}`)
     seat.pos = to
-    seen.add(to)
-    fx.push({ kind: 'jump', slot: seat.slot, to })
+    ctx.fx.push({ kind: 'jump', slot: seat.slot, to })
   }
 }
 
-/** Скиннер встретил игрока. Ловит всех подряд и сколько угодно раз. */
-function skinnerCatches(seat: Seat, fx: BoardFx[], notes: string[]) {
-  throwBack(seat, SKINNER_THROW, 'встреча со Скиннером', fx, notes)
-}
-
-function wakeSkinner(room: Room, fx: BoardFx[], notes: string[]) {
+/** Скиннер вышел из руин, когда кто-то забрался достаточно далеко. */
+function wakeSkinner(ctx: Ctx) {
+  const { room } = ctx
   if (room.skinner !== null) return
   if (!activeSeats(room).some(s => s.pos >= SKINNER_WAKES_AT)) return
   room.skinner = SKINNER_START
-  fx.push({ kind: 'skinner', to: room.skinner })
-  notes.push('Скиннер выходит из руин и идёт к таверне!')
+  ctx.fx.push({ kind: 'skinner', to: room.skinner })
+  ctx.notes.push('Скиннер выходит из руин и идёт к таверне!')
 }
 
 /** Скиннер охотится до конца партии: бросает свой кубик и проходит ровно
@@ -325,7 +416,8 @@ function wakeSkinner(room: Room, fx: BoardFx[], notes: string[]) {
  *  Может и проскочить: ловит, только если закончил ход на клетке игрока.
  *  Останавливайся он ровно на жертве, увернуться было бы нельзя — он будто
  *  угадывал ход. На старт он не ступает: там таверна. */
-function moveSkinner(room: Room, fx: BoardFx[], notes: string[]) {
+function moveSkinner(ctx: Ctx) {
+  const { room } = ctx
   if (room.skinner === null || room.status !== 'playing') return
   const from = room.skinner
 
@@ -339,20 +431,17 @@ function moveSkinner(room: Room, fx: BoardFx[], notes: string[]) {
 
   if (to !== from) {
     room.skinner = to
-    fx.push({ kind: 'skinner', to })
+    ctx.fx.push({ kind: 'skinner', to })
   }
   for (const seat of prey) {
-    if (seat.pos === to) skinnerCatches(seat, fx, notes)
+    if (seat.pos === to) throwBack(ctx, seat, SKINNER_THROW, 'встреча со Скиннером')
   }
 }
 
-/** Встали на клетку, где уже кто-то стоит: оба бросают, меньший отступает.
- *  На старте и финише не встречаются — там места хватит всем. */
-function duel(room: Room, seat: Seat, fx: BoardFx[], notes: string[]) {
-  if (seat.pos <= 0 || seat.pos >= BOARD_LAST) return
-  const other = activeSeats(room).find(s => s !== seat && s.pos === seat.pos)
-  if (!other) return
-
+/** Встали на одну клетку: оба бросают, меньший отступает. На старте не
+ *  встречаются — там места хватит всем. */
+function duel(ctx: Ctx, seat: Seat, other: Seat) {
+  ctx.dueled = true
   let mine = 0
   let theirs = 0
   // Ничью перебрасывают: иначе встреча слишком часто кончалась бы ничем.
@@ -361,82 +450,100 @@ function duel(room: Room, seat: Seat, fx: BoardFx[], notes: string[]) {
     theirs = randomInt(1, 7)
   }
   const [winner, loser] = mine > theirs ? [seat, other] : [other, seat]
-  fx.push({ kind: 'duel', a: seat.slot, b: other.slot, va: mine, vb: theirs })
-  notes.push(`Встреча на клетке: ${seat.name} — ${mine}, ${other.name} — ${theirs}`)
-  throwBack(loser, DUEL_THROW, `проигрыш во встрече с игроком ${winner.name}`, fx, notes)
+  ctx.fx.push({ kind: 'duel', a: seat.slot, b: other.slot, va: mine, vb: theirs })
+  ctx.notes.push(`Встреча на клетке: ${seat.name} — ${mine}, ${other.name} — ${theirs}`)
+  throwBack(ctx, loser, DUEL_THROW, `проигрыш во встрече с игроком ${winner.name}`)
 }
 
-function roll(room: Room, seat: Seat, auto: boolean) {
-  const fx: BoardFx[] = []
-  const notes: string[] = []
+/** Кто дошёл до финиша. По стрелке вперёд туда может занести и не того, чей
+ *  ход, — тогда побеждает он. Если дошли двое, первым считается ходивший. */
+function finisher(ctx: Ctx): Seat | null {
+  const done = activeSeats(ctx.room).filter(s => s.pos >= BOARD_LAST)
+  return done.find(s => s === ctx.mover) ?? done[0] ?? null
+}
 
+/** Закончить действие: победа, следующий ход или ещё бросок того же игрока. */
+function finishAction(ctx: Ctx, slot: number, landed: number | null, auto: boolean) {
+  const { room, notes } = ctx
+  const won = finisher(ctx)
+  if (won) {
+    room.status = 'finished'
+    room.winnerSlot = won.slot
+    room.choice = null
+    notes.push(`${won.name} доходит до финиша и побеждает!`)
+  } else if (ctx.again) {
+    room.skillUsed = false
+    room.turnSince = Date.now()
+  } else if (landed !== null) {
+    nextTurn(room, ctx)
+  }
+
+  for (const note of notes) log(room, note)
+  room.lastAction = { id: ++room.seq, slot, landed, fx: ctx.fx, notes, auto }
+  pushState(room)
+}
+
+/** Бросок. Двумя кубиками ([Безупречный бросок]) — сперва выбор, на какой
+ *  идти: больший не всегда лучше. За того, кто не на связи, стол берёт больший. */
+function roll(room: Room, seat: Seat, auto: boolean) {
   const values = [randomInt(1, 7)]
   if (seat.doubleNext) values.push(randomInt(1, 7))
   seat.doubleNext = false
-  const dice = Math.max(...values)
-  fx.push({ kind: 'dice', values })
+
+  if (values.length > 1 && !auto) {
+    room.choice = values
+    const note = `${seat.name}: выпало ${values[0]} и ${values[1]} — выбирает, на сколько идти`
+    log(room, note)
+    room.lastAction = { id: ++room.seq, slot: seat.slot, landed: null, fx: [{ kind: 'dice', values }], notes: [note], auto }
+    room.turnSince = Date.now()
+    pushState(room)
+    return
+  }
+
+  move(room, seat, Math.max(...values), values, auto)
+}
+
+/** Пройти выпавшее и разобрать, куда пришли. shownDice — показать кубик:
+ *  после выбора из двух кубики уже на экране. */
+function move(room: Room, seat: Seat, dice: number, shownDice: number[] | null, auto: boolean) {
+  const ctx = newCtx(room, seat)
+  if (shownDice) ctx.fx.push({ kind: 'dice', values: shownDice })
 
   const from = seat.pos
   const steps: number[] = []
   for (let i = 1; i <= dice && from + i <= BOARD_LAST; i++) steps.push(from + i)
   seat.pos = steps.at(-1) ?? from
-  fx.push({ kind: 'walk', slot: seat.slot, cells: steps })
+  ctx.fx.push({ kind: 'walk', slot: seat.slot, cells: steps })
 
   const landedAt = seat.pos
   const landed = BOARD_CELLS[landedAt]!
-  let again = false
-
-  if (seat.pos < BOARD_LAST) {
-    const e = landed.effect
-    // Повтор и пропуск — вслух: без строчки под кубиком казалось, что очередь
-    // идёт как попало.
-    if (e.kind === 'skip') {
-      seat.skip++
-      notes.push(`${seat.name} пропустит следующий ход`)
-    } else if (e.kind === 'again') {
-      again = true
-      notes.push(`${seat.name} бросает ещё раз`)
-    }
-
-    followArrows(seat, fx, notes, false)
-
-    // Встал на клетку Скиннера — сам к нему пришёл. Мимо пройти можно.
-    if (room.skinner !== null && seat.pos === room.skinner) skinnerCatches(seat, fx, notes)
-
-    if (landed.skill) {
-      const skill = BOARD_SKILLS[landed.skill]
-      if (seat.skills.length < BOARD_HAND_MAX) {
-        seat.skills.push(landed.skill)
-        notes.push(`Навык получен: ${skill.name}`)
-      } else {
-        notes.push(`${skill.name} — но в руке уже ${BOARD_HAND_MAX} навыка, этот пропал`)
-      }
-    }
-
-    duel(room, seat, fx, notes)
-  }
-
-  wakeSkinner(room, fx, notes)
-
   const who = auto ? `${seat.name} (не на связи, кубик бросил стол)` : seat.name
   const effect = effectLabel(landed.effect)
-  const shown = values.length > 1 ? `${values.join(' и ')} → ${dice}` : String(dice)
-  log(room, `${who}: ${shown} — ${landed.text}${effect ? ` · ${effect}` : ''}`)
+  log(room, `${who}: ${dice} — ${landed.text}${effect ? ` · ${effect}` : ''}`)
 
-  if (seat.pos >= BOARD_LAST) {
-    room.status = 'finished'
-    room.winnerSlot = seat.slot
-    notes.push(`${seat.name} доходит до финиша и побеждает!`)
-  } else if (!again) {
-    nextTurn(room, fx, notes)
-  } else {
-    room.skillUsed = false
-    room.turnSince = Date.now()
+  landOn(ctx, seat, true)
+  wakeSkinner(ctx)
+
+  // «Ещё бросок», заработанный в чужой ход, — сейчас, после своего.
+  if (!ctx.again && seat.bonus > 0 && seat.pos < BOARD_LAST) {
+    seat.bonus--
+    ctx.again = true
+    ctx.notes.push(`${seat.name} бросает ещё раз — бросок из запаса`)
   }
 
-  for (const note of notes) log(room, note)
-  room.lastAction = { id: ++room.seq, slot: seat.slot, landed: landedAt, fx, notes, auto }
-  pushState(room)
+  finishAction(ctx, seat.slot, landedAt, auto)
+}
+
+export function chooseDice(peer: any, index: unknown) {
+  const p = peerSeat(peer)
+  if (!p) return
+  const { room, seat } = p
+  if (room.status !== 'playing' || !room.choice) return
+  if (room.seats[room.turn] !== seat) return fail(peer, 'Сейчас не твой ход')
+  if (index !== 0 && index !== 1) return
+  const dice = room.choice[index]!
+  room.choice = null
+  move(room, seat, dice, null, false)
 }
 
 export function playSkill(peer: any, skill: unknown, target: unknown) {
@@ -445,30 +552,31 @@ export function playSkill(peer: any, skill: unknown, target: unknown) {
   const { room, seat } = p
   if (room.status !== 'playing') return
   if (room.seats[room.turn] !== seat) return fail(peer, 'Навык можно сыграть только в свой ход')
+  if (room.choice) return fail(peer, 'Сначала выбери кубик')
   if (room.skillUsed) return fail(peer, 'Один навык за ход')
   // [Чутьё опасности] не играют — оно срабатывает само.
   if (!isBoardSkill(skill) || skill === 'danger') return
   const at = seat.skills.indexOf(skill)
   if (at < 0) return fail(peer, 'Такого навыка у тебя нет')
 
-  const fx: BoardFx[] = []
-  const notes: string[] = []
-
-  if (skill === 'double') {
-    seat.doubleNext = true
-    notes.push(`${seat.name} играет ${BOARD_SKILLS.double.name}: бросит два кубика`)
-  } else {
-    const victim = activeSeats(room).find(s => s.slot === target && s !== seat)
-    if (!victim) return fail(peer, 'Выбери, с кем драться')
-    notes.push(`${seat.name} играет ${BOARD_SKILLS.brawl.name} против игрока ${victim.name}`)
-    throwBack(victim, BRAWL_THROW, 'удар в трактирной драке', fx, notes)
-  }
+  const victim = skill === 'brawl' ? activeSeats(room).find(s => s.slot === target && s !== seat) : null
+  if (skill === 'brawl' && !victim) return fail(peer, 'Выбери, с кем драться')
 
   seat.skills.splice(at, 1)
   room.skillUsed = true
-  for (const note of notes) log(room, note)
-  room.lastAction = { id: ++room.seq, slot: seat.slot, landed: null, fx, notes, auto: false }
-  pushState(room)
+  const ctx = newCtx(room, seat)
+
+  if (skill === 'double') {
+    seat.doubleNext = true
+    ctx.notes.push(`${seat.name} играет ${BOARD_SKILLS.double.name}: бросит два кубика и выберет`)
+  } else {
+    ctx.notes.push(`${seat.name} играет ${BOARD_SKILLS.brawl.name} против игрока ${victim!.name}`)
+    throwBack(ctx, victim!, BRAWL_THROW, 'удар в трактирной драке')
+  }
+
+  // Ход после навыка не переходит: бросок ещё впереди.
+  ctx.again = true
+  finishAction(ctx, seat.slot, null, false)
 }
 
 export function rollDice(peer: any) {
@@ -477,6 +585,7 @@ export function rollDice(peer: any) {
   const { room, seat } = p
   if (room.status !== 'playing') return
   if (room.seats[room.turn] !== seat) return fail(peer, 'Сейчас не твой ход')
+  if (room.choice) return fail(peer, 'Сначала выбери кубик')
   roll(room, seat, false)
 }
 
@@ -509,16 +618,23 @@ export function rematch(peer: any) {
   const { room, seat } = p
   if (room.status !== 'finished') return
 
+  // Новую партию начинает следующий по кругу. Пропал со связи — может любой,
+  // иначе стол так и стоял бы.
+  const next = nextHost(room)
+  if (next && next !== seat && isOnline(room, next.userId)) {
+    return fail(peer, `Новую партию начинает ${next.name}`)
+  }
+  room.hostUserId = (next ?? seat).userId
   room.seats = room.seats.filter(s => !s.left)
-  if (!room.seats.some(s => s.userId === room.hostUserId)) room.hostUserId = room.seats[0]?.userId ?? seat.userId
-  if (seat.userId !== room.hostUserId) return fail(peer, 'Новую партию начинает хозяин стола')
 
   for (const s of room.seats) {
     s.pos = 0
     s.skip = 0
     s.skills = []
     s.doubleNext = false
+    s.bonus = 0
   }
+  room.choice = null
   room.status = 'lobby'
   room.turn = 0
   room.winnerSlot = null
@@ -528,6 +644,19 @@ export function rematch(peer: any) {
   room.log = []
   log(room, `${seat.name} накрывает стол для новой партии`)
   pushState(room)
+  nudgeOpenTables()
+}
+
+/** Следующий по кругу после того, кто начинал партию, — из тех, кто ещё за столом. */
+function nextHost(room: Room): Seat | null {
+  const stay = room.seats.filter(s => !s.left)
+  if (!stay.length) return null
+  const at = room.seats.findIndex(s => s.userId === room.hostUserId)
+  for (let k = 1; k <= room.seats.length; k++) {
+    const s = room.seats[(Math.max(at, 0) + k) % room.seats.length]!
+    if (!s.left) return s
+  }
+  return stay[0]!
 }
 
 export function leaveRoom(peer: any) {
@@ -548,18 +677,21 @@ export function leaveRoom(peer: any) {
     if (!active.length) {
       room.status = 'finished'
     } else if (room.seats[room.turn] === seat) {
-      const notes: string[] = []
-      nextTurn(room, [], notes)
-      for (const note of notes) log(room, note)
+      room.choice = null
+      const ctx = newCtx(room, null)
+      nextTurn(room, ctx)
+      for (const note of ctx.notes) log(room, note)
     }
     if (seat.userId === room.hostUserId && active[0]) room.hostUserId = active[0].userId
   }
 
   if (!room.seats.length) {
     rooms.delete(room.code)
+    nudgeOpenTables()
     return
   }
   pushState(room)
+  nudgeOpenTables()
   // Уход — заметно всем, а не только строчкой в журнале.
   broadcast(room, { type: 'event', text: `${seat.name} больше не за столом` })
 }
@@ -581,13 +713,21 @@ function tick() {
     if (room.peers.size) room.touchedAt = now
     else if (now - room.touchedAt > EMPTY_ROOM_MS) {
       rooms.delete(room.code)
+      nudgeOpenTables()
       continue
     }
 
     if (room.status !== 'playing') continue
     const seat = room.seats[room.turn]
     if (seat && !isOnline(room, seat.userId) && now - room.turnSince > OFFLINE_TURN_MS) {
-      roll(room, seat, true)
+      // Пропал, не выбрав кубик, — стол берёт больший.
+      if (room.choice) {
+        const dice = Math.max(...room.choice)
+        room.choice = null
+        move(room, seat, dice, null, true)
+      } else {
+        roll(room, seat, true)
+      }
     }
   }
 }

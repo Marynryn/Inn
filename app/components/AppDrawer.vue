@@ -73,10 +73,18 @@ const lockScroll = (lock: boolean) => {
   }
 }
 
+/** Сколько столов ищут игроков. Спрашиваем, когда шторку открыли: ради точки
+ *  у ссылки держать запрос на каждой странице незачем. */
+const openTables = ref(0)
+const loadOpenTables = () => $fetch<{ open: number }>('/api/board/open')
+  .then((r) => { openTables.value = r.open })
+  .catch(() => {})
+
 watch(() => props.open, (open) => {
   if (!import.meta.client) return
   lockScroll(open)
   if (open) {
+    loadOpenTables()
     document.addEventListener('keydown', onKey)
     nextTick(() => closeBtn.value?.focus({ preventScroll: true }))
   }
@@ -178,13 +186,22 @@ const onTouchEnd = (e: TouchEvent) => {
         <SideNavLink to="/game" icon="dice" label="Игра" :active="route.path === '/game'" @click="close" />
         <SideNavLink to="/characters" icon="users" label="Персонажи" :active="route.path === '/characters'" @click="close" />
         <SideNavLink to="/about" icon="info" label="О проекте" :active="route.path === '/about'" @click="close" />
+        <!-- Настольная игра в меню у всех, пока какой-то стол ищет игроков, —
+             с точкой, чтобы его нашли и гости. Админам ссылка видна всегда, ниже. -->
+        <SideNavLink
+          v-if="openTables > 0 && !auth.isAdmin"
+          to="/board"
+          icon="map"
+          label="Настольная игра"
+          dot
+          :active="route.path.startsWith('/board')"
+          @click="close"
+        />
 
         <template v-if="auth.isAdmin && !onAdmin">
           <div class="drawer-section">Для админов</div>
           <SideNavLink to="/admin" icon="shield" label="Админка" @click="close" />
-          <!-- Настольную игру открывают по ссылке: в меню она только у админов,
-               а читателям ссылку на стол присылают. -->
-          <SideNavLink to="/board" icon="map" label="Настольная игра" :active="route.path.startsWith('/board')" @click="close" />
+          <SideNavLink to="/board" icon="map" label="Настольная игра" :dot="openTables > 0" :active="route.path.startsWith('/board')" @click="close" />
         </template>
       </nav>
 

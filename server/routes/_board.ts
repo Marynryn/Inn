@@ -1,12 +1,11 @@
 import type { BoardClientMessage } from '#shared/utils/board'
 import { isBoardCode } from '#shared/utils/board'
-import { boardUser } from '../utils/board-access'
-import { dropPeer, joinRoom, leaveRoom, playSkill, postChat, rematch, rollDice, startGame } from '../utils/board-rooms'
-import { claimTicket } from '../utils/notify-tickets'
+import { claimBoardTicket } from '../utils/board-access'
+import { chooseDice, dropPeer, joinRoom, leaveRoom, playSkill, postChat, rematch, rollDice, startGame } from '../utils/board-rooms'
 
 /**
- * Сокет настольной игры. Кто это, сокет не знает — как и у уведомлений,
- * человек предъявляет одноразовый билет вместе с кодом комнаты. Кубик
+ * Сокет настольной игры. Кто это, сокет не знает: человек предъявляет
+ * одноразовый билет из /api/board/ticket вместе с кодом комнаты. Кубик
  * бросает сервер: браузер только просит бросить.
  */
 export default defineWebSocketHandler({
@@ -18,9 +17,9 @@ export default defineWebSocketHandler({
 
     switch (msg.type) {
       case 'join': {
-        const user = await boardUser(claimTicket(msg.ticket))
+        const user = claimBoardTicket(msg.ticket)
         const error = !user
-          ? 'Чтобы играть, нужно войти'
+          ? 'Не вышло сесть за стол — обнови страницу'
           : !isBoardCode(msg.code) ? 'Такой комнаты нет' : joinRoom(msg.code, user, peer)
         if (error) {
           try { peer.send(JSON.stringify({ type: 'error', message: error, fatal: true })) } catch {}
@@ -29,6 +28,7 @@ export default defineWebSocketHandler({
       }
       case 'start': return startGame(peer)
       case 'roll': return rollDice(peer)
+      case 'choose': return chooseDice(peer, msg.index)
       case 'skill': return playSkill(peer, msg.skill, msg.target)
       case 'chat': return postChat(peer, msg.text)
       case 'leave': return leaveRoom(peer)

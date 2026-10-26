@@ -158,6 +158,8 @@ export type BoardPlayer = {
   skills: BoardSkill[]
   /** Следующий бросок — двумя кубиками. */
   doubleNext: boolean
+  /** «Ещё бросок», заработанный в чужой ход: достанется после своего. */
+  bonus: number
   online: boolean
   left: boolean
 }
@@ -194,6 +196,9 @@ export type BoardState = {
   code: string
   status: BoardStatus
   hostSlot: number
+  /** Кто начинает следующую партию за этим столом — по кругу, после
+   *  того, кто начинал эту. Есть только у оконченной партии. */
+  nextHostSlot: number | null
   turnSlot: number | null
   winnerSlot: number | null
   players: BoardPlayer[]
@@ -201,6 +206,8 @@ export type BoardState = {
   skinner: number | null
   /** Игрок, чей сейчас ход, уже сыграл навык. */
   skillUsed: boolean
+  /** Выпало два кубика — игрок, чей ход, выбирает, на какой идти. */
+  choice: number[] | null
   lastAction: BoardAction | null
   log: BoardLogEntry[]
 }
@@ -220,6 +227,8 @@ export type BoardClientMessage =
   | { type: 'join'; ticket: string; code: string }
   | { type: 'start' }
   | { type: 'roll' }
+  /** На какой из двух кубиков идти: 0 или 1. */
+  | { type: 'choose'; index: number }
   | { type: 'skill'; skill: BoardSkill; target?: number }
   | { type: 'chat'; text: string }
   | { type: 'leave' }

@@ -14,17 +14,22 @@ import {
 } from '#shared/utils/board'
 import { boardArrows } from '~/utils/boardArrows'
 
-definePageMeta({ middleware: 'signed-in' })
 
 const route = useRoute()
 const code = String(route.params.code ?? '').toUpperCase()
 
 const { data: settings } = await useFetch('/api/settings')
-const { state, chat, you, connected, fatal, notice, start, rematch, roll, useSkill: playSkill, say, leave } = useBoardRoom(code)
+const { state, chat, you, connected, fatal, notice, needName, nameError, joinAs, start, rematch, roll, choose, useSkill: playSkill, say, leave } = useBoardRoom(code)
+const guestNameInput = ref('')
 
 const players = computed(() => state.value?.players ?? [])
 const me = computed(() => players.value.find(p => p.slot === you.value) ?? null)
 const isHost = computed(() => state.value?.hostSlot === you.value)
+/** Новую партию начинает следующий по кругу; если он пропал со связи — любой. */
+const canRematch = computed(() => {
+  const next = playerBySlot(state.value?.nextHostSlot)
+  return !next || next.slot === you.value || !next.online
+})
 const playerBySlot = (slot: number | null | undefined) => players.value.find(p => p.slot === slot) ?? null
 const turnPlayer = computed(() => playerBySlot(state.value?.turnSlot))
 const winner = computed(() => playerBySlot(state.value?.winnerSlot))
@@ -43,8 +48,10 @@ const diceRolling = ref(false)
 const notes = ref<string[]>([])
 /** Встреча на клетке — оба кубика с именами, чтобы было видно, кто сколько
  *  выбросил. Держится на экране до следующего хода. */
-type Duel = { a: number; b: number; va: number; vb: number; rolling: boolean }
+type Duel = { a: number; b: number; va: number; vb: number; rolling: boolean; low: boolean }
 const duelShown = ref<Duel | null>(null)
+let duelTimer: ReturnType<typeof setTimeout> | null = null
+onBeforeUnmount(() => { if (duelTimer) clearTimeout(duelTimer) })
 /** Клетка, на которую пришли по кубику последней, — её текст у кубика. */
 const landedCell = ref<number | null>(null)
 const landedSlot = ref<number | null>(null)
@@ -76,6 +83,7 @@ async function play(action: BoardAction) {
   animating.value = true
   notes.value = []
   duelShown.value = null
+  if (duelTimer) clearTimeout(duelTimer)
 
   for (const fx of action.fx) {
     if (fx.kind === 'dice') {
@@ -106,7 +114,10 @@ async function play(action: BoardAction) {
       await wait(650)
     } else if (fx.kind === 'duel') {
       await wait(400)
-      const d: Duel = { a: fx.a, b: fx.b, va: 1, vb: 1, rolling: true }
+      // Плашка встаёт у того края карты, что дальше от места встречи, — иначе
+      // закрыла бы сами фишки.
+      const where = BOARD_CELLS[shown[fx.a] ?? 0]!
+      const d: Duel = { a: fx.a, b: fx.b, va: 1, vb: 1, rolling: true, low: where.y < 50 }
       duelShown.value = d
       for (let i = 0; i < 10; i++) {
         d.va = 1 + Math.floor(Math.random() * 6)
@@ -115,6 +126,8 @@ async function play(action: BoardAction) {
         await wait(80)
       }
       duelShown.value = { ...d, va: fx.va, vb: fx.vb, rolling: false }
+      // Плашка закрывает верх карты — убираем её, когда итог прочитан.
+      duelTimer = setTimeout(() => { duelShown.value = null }, 4000)
       await wait(1100)
     }
   }
@@ -140,8 +153,6 @@ watch(state, (s) => {
       landedCell.value = action.landed
       landedSlot.value = action.slot
       notes.value = action.notes
-      const duel = action.fx.find(f => f.kind === 'duel')
-      if (duel?.kind === 'duel') duelShown.value = { a: duel.a, b: duel.b, va: duel.va, vb: duel.vb, rolling: false }
     }
     return
   }
@@ -177,11 +188,14 @@ function ask(send: () => void) {
 const myTurn = computed(() =>
   state.value?.status === 'playing' && state.value.turnSlot === you.value
   && !animating.value && !waiting.value && connected.value)
-const canRoll = myTurn
+/** Выпало два кубика — ждём, на какой из них пойдёт игрок, чей ход. */
+const choice = computed(() => state.value?.choice ?? null)
+const canRoll = computed(() => myTurn.value && !choice.value)
 const rollDice = () => { if (canRoll.value) ask(roll) }
+const pickDice = (index: number) => { if (myTurn.value && choice.value) ask(() => choose(index)) }
 
 // ── Навыки ──────────────────────────────────────────────
-const canPlaySkill = computed(() => myTurn.value && !state.value?.skillUsed)
+const canPlaySkill = computed(() => myTurn.value && !state.value?.skillUsed && !choice.value)
 /** Выбираем, с кем драться: [Трактирная драка] нужна цель. */
 const pickingBrawl = ref(false)
 const rivals = computed(() => players.value.filter(p => p.slot !== you.value && !p.left))
@@ -323,11 +337,41 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
         <NuxtLink to="/board" class="btn btn--primary btn--sm">К столам</NuxtLink>
       </section>
 
+      <section v-else-if="needName" class="card card--panel guest">
+        <h1 class="guest-title display">Как тебя звать за столом?</h1>
+        <p class="muted">Имя увидят другие игроки — на фишке и в чате. Можно и войти на сайт: тогда сядешь под своим.</p>
+        <form class="guest-form" @submit.prevent="joinAs(guestNameInput)">
+          <input v-model="guestNameInput" class="guest-input" maxlength="40" placeholder="Имя" autocomplete="nickname">
+          <button class="btn btn--primary" type="submit" :disabled="!guestNameInput.trim()">Сесть за стол</button>
+        </form>
+        <p v-if="nameError" class="error-line">{{ nameError }}</p>
+        <NuxtLink :to="`/login?next=${encodeURIComponent(`/board/${code}`)}`" class="btn btn--ghost btn--sm">Войти на сайт</NuxtLink>
+      </section>
+
       <p v-else-if="!state" class="note">Подключаемся к таверне…</p>
 
       <div v-else class="layout">
         <div class="board-col">
           <div class="map" role="img" :aria-label="`Карта: ${BOARD_CELLS.length} клеток`">
+            <!-- Розыгрыш встречи — поверх карты сверху: в панели справа он
+                 сдвигал чат вниз. Итог остаётся строчкой у кубика и в журнале. -->
+            <div v-if="duelShown && state.status !== 'lobby'" class="duel" :class="{ 'duel--low': duelShown.low }">
+              <p class="duel-title">Встреча на клетке</p>
+              <div class="duel-row">
+                <div
+                  v-for="side in [{ slot: duelShown.a, v: duelShown.va, rival: duelShown.vb }, { slot: duelShown.b, v: duelShown.vb, rival: duelShown.va }]"
+                  :key="side.slot"
+                  class="duel-side"
+                  :class="{ 'duel-side--lost': !duelShown.rolling && side.v < side.rival }"
+                >
+                  <div class="dice dice--sm" :class="{ 'dice--rolling': duelShown.rolling }">
+                    <span v-for="n in 9" :key="n" class="pip" :class="`pip--${n}`" :data-face="side.v" />
+                  </div>
+                  <span class="duel-name" :style="{ color: playerBySlot(side.slot)?.color }">{{ playerBySlot(side.slot)?.name }}</span>
+                  <span v-if="!duelShown.rolling" class="duel-result">{{ side.v > side.rival ? 'победа' : 'отступает' }}</span>
+                </div>
+              </div>
+            </div>
             <svg class="path" viewBox="0 0 160 110" aria-hidden="true">
               <defs>
                 <marker id="arrow-fwd" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3.5" markerHeight="3.5" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
@@ -468,29 +512,29 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
               </p>
             </div>
 
-            <div v-if="duelShown && state.status !== 'lobby'" class="duel" aria-live="polite">
-              <p class="duel-title">Встреча на клетке</p>
-              <div class="duel-row">
-                <div
-                  v-for="side in [{ slot: duelShown.a, v: duelShown.va, rival: duelShown.vb }, { slot: duelShown.b, v: duelShown.vb, rival: duelShown.va }]"
-                  :key="side.slot"
-                  class="duel-side"
-                  :class="{ 'duel-side--lost': !duelShown.rolling && side.v < side.rival }"
-                >
-                  <div class="dice dice--sm" :class="{ 'dice--rolling': duelShown.rolling }">
-                    <span v-for="n in 9" :key="n" class="pip" :class="`pip--${n}`" :data-face="side.v" />
-                  </div>
-                  <span class="duel-name" :style="{ color: playerBySlot(side.slot)?.color }">{{ playerBySlot(side.slot)?.name }}</span>
-                  <span v-if="!duelShown.rolling" class="duel-result">{{ side.v > side.rival ? 'победа' : 'отступает' }}</span>
-                </div>
-              </div>
-            </div>
-
             <ul v-if="notes.length && state.status !== 'lobby'" class="notes" aria-live="polite">
               <li v-for="(n, i) in notes" :key="i">{{ n }}</li>
             </ul>
 
-            <button v-if="state.status === 'playing'" class="btn btn--primary roll" :disabled="!canRoll" @click="rollDice">
+            <!-- Два кубика: игрок сам выбирает, на какой идти — больший не всегда лучше. -->
+            <div v-if="state.status === 'playing' && choice" class="choice">
+              <template v-if="turnPlayer?.slot === you">
+                <p class="choice-title">На сколько идти?</p>
+                <div class="choice-row">
+                  <button
+                    v-for="(v, i) in choice"
+                    :key="i"
+                    class="btn btn--primary choice-btn"
+                    :disabled="!myTurn"
+                    @click="pickDice(i)"
+                  >
+                    Пойти на {{ v }}
+                  </button>
+                </div>
+              </template>
+              <p v-else class="muted">{{ turnPlayer?.name }} выбирает, на сколько идти: {{ choice[0] }} или {{ choice[1] }}</p>
+            </div>
+            <button v-else-if="state.status === 'playing'" class="btn btn--primary roll" :disabled="!canRoll" @click="rollDice">
               Бросить кубик
             </button>
 
@@ -518,10 +562,10 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
               </div>
             </div>
             <div v-else-if="state.status === 'finished'" class="finish-actions">
-              <button v-if="isHost" class="btn btn--primary btn--sm" :disabled="!connected" @click="rematch">
+              <button v-if="canRematch" class="btn btn--primary btn--sm" :disabled="!connected" @click="rematch">
                 Ещё партия за этим столом
               </button>
-              <p v-else class="muted">Новую партию за этим столом начнёт {{ playerBySlot(state.hostSlot)?.name ?? 'хозяин стола' }}.</p>
+              <p v-else class="muted">Новую партию за этим столом начнёт {{ playerBySlot(state.nextHostSlot)?.name }}.</p>
               <NuxtLink to="/board" class="btn btn--ghost btn--sm">К столам</NuxtLink>
             </div>
 
@@ -538,7 +582,7 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
                   <template v-if="p.left">не за столом</template>
                   <template v-else-if="!p.online">не на связи</template>
                   <template v-else-if="state.status !== 'lobby'">
-                    клетка {{ (shown[p.slot] ?? p.pos) + 1 }}<template v-if="p.skills.length"> · навыков {{ p.skills.length }}</template>
+                    клетка {{ (shown[p.slot] ?? p.pos) + 1 }}<template v-if="p.skills.length"> · навыков {{ p.skills.length }}</template><template v-if="p.bonus"> · бросок в запасе</template>
                   </template>
                 </span>
               </li>
@@ -626,6 +670,35 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 .muted { margin: 0 0 12px; font-size: 14px; line-height: 1.5; }
 
 .fatal p { margin: 0 0 12px; }
+
+.guest {
+  max-width: 520px;
+  margin: 24px auto;
+}
+
+.guest-title {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.guest-form {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.guest-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-strong);
+  background: var(--fill);
+  color: var(--parchment);
+  font: 16px var(--font-body);
+}
+
+.error-line { margin: 0 0 12px; color: var(--danger); font-size: 14px; }
 
 .layout {
   display: grid;
@@ -718,7 +791,7 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 
 .legend-cell.cell--forward { border-color: var(--success); background: var(--success-fill); }
 .legend-cell.cell--back { border-color: var(--danger); background: var(--danger-fill); }
-.legend-cell.cell--skip { border-color: var(--text-muted); border-style: dashed; }
+.legend-cell.cell--skip { border-color: var(--ink-soft); border-style: dashed; background: var(--parchment); }
 .legend-cell.cell--again { border-color: var(--gold); background: var(--gold); }
 
 .legend-cell .cell-skill {
@@ -759,10 +832,10 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 }
 
 /* Клетки с действием залиты целиком — их видно издалека. Номер на
-   зелёной и красной — светлый, на жёлтой — тёмный, иначе не читается. */
+   зелёной и красной — светлый, на жёлтой и белой — тёмный, иначе не читается. */
 .cell--forward { border-color: var(--success); background: var(--success-fill); }
 .cell--back { border-color: var(--danger); background: var(--danger-fill); }
-.cell--skip { border-color: var(--text-muted); border-style: dashed; }
+.cell--skip { border-color: var(--ink-soft); border-style: dashed; background: var(--parchment); color: var(--ink); }
 .cell--again { border-color: var(--gold); background: var(--gold); color: var(--ink); }
 .cell--start { background: var(--moss); }
 .cell--finish { background: var(--ember); color: var(--ink); border-color: var(--ember-soft); }
@@ -910,10 +983,33 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 }
 
 .duel {
-  margin: 0 0 14px;
-  padding: 12px 14px;
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  min-width: 240px;
+  padding: 10px 16px 12px;
   border-radius: var(--radius-md);
-  background: var(--fill-strong);
+  background: rgba(20, 14, 10, .9);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+  pointer-events: none;
+}
+
+.duel--low { top: auto; bottom: 10px; }
+
+@media (max-width: 600px) {
+  .duel { top: 6px; }
+  .duel--low { top: auto; bottom: 6px; }
+
+  .duel {
+    min-width: 200px;
+    padding: 8px 12px 10px;
+  }
+
+  .duel .dice.dice--sm { width: 32px; height: 32px; padding: 5px; }
+  .duel .dice--sm .pip { width: 5px; height: 5px; }
 }
 
 .duel-title {
@@ -974,6 +1070,20 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 }
 
 .finish-actions .muted { margin: 0; flex-basis: 100%; }
+
+.choice-title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+
+.choice-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.choice-btn { width: 100%; }
 
 .dice-pair {
   display: flex;

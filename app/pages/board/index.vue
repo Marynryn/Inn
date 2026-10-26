@@ -4,11 +4,12 @@
  * кнопка «новая комната». Играть может любой вошедший; ссылка в меню — только
  * у админов, остальных зовут на стол ссылкой.
  */
-definePageMeta({ middleware: 'signed-in' })
 
 type RoomsReply = {
   rooms: { code: string; host: string | null; players: number; max: number }[]
   mine: string | null
+  /** Создавать стол может только вошедший; гость садится за чужой. */
+  canCreate: boolean
 }
 
 const { data: settings } = await useFetch('/api/settings')
@@ -68,9 +69,10 @@ useHead({ title: 'Дорога через таверну · Странствую
       </section>
 
       <div class="actions">
-        <button class="btn btn--primary" :disabled="creating" @click="create">
+        <button v-if="data?.canCreate" class="btn btn--primary" :disabled="creating" @click="create">
           {{ creating ? 'Накрываем стол…' : 'Новая комната' }}
         </button>
+        <NuxtLink v-else :to="`/login?next=${encodeURIComponent('/board')}`" class="btn btn--ghost">Войти, чтобы накрыть свой стол</NuxtLink>
         <form class="by-code" @submit.prevent="joinByCode">
           <input v-model="codeInput" class="code-input" placeholder="Код комнаты" maxlength="5" autocomplete="off">
           <button class="btn btn--ghost" type="submit" :disabled="!codeInput.trim()">Войти</button>

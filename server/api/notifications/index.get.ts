@@ -5,6 +5,7 @@ import { excerptText } from '#shared/utils/excerpt'
 import { useDb } from '../../utils/db'
 import { framesByIds, toAvatarFrame } from '../../utils/frames'
 import { runningReelFor, spinsLeft, textsOf } from '../../utils/reel'
+import { invitingRoomFor } from '../../utils/board-rooms'
 import { otherAdmins, unreadBySender } from '../../utils/admin-messages'
 import { likeSummaries, type LikeSummary } from '../../utils/like-notify'
 
@@ -40,7 +41,7 @@ export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   const userId = (session.user as { id?: number } | undefined)?.id ?? null
 
-  if (!userId) return { unread: 0, items: [], reel: null, messages: [] }
+  if (!userId) return { unread: 0, items: [], reel: null, board: null, messages: [] }
 
   const db = useDb()
 
@@ -118,9 +119,13 @@ export default defineEventHandler(async (event) => {
   // уже лежат в своей таблице с отметкой «прочитано», копия здесь разошлась бы.
   const messages = role === 'admin' ? await adminMessageItems(userId) : []
 
+  // Стол, который ищет игроков, — тоже на лету, пока он открыт.
+  const board = invitingRoomFor(userId)
+
   return {
     unread: Math.max(0, (unread?.total ?? 0) - gone) + messages.length,
     reel: reelInvite,
+    board,
     messages,
     items: rows.filter(r => r.type !== 'like' || likes.has(r.commentId ?? 0)).map(({ avatarFrameId, grantedFrame, ...r }) => ({
       ...r,

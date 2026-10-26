@@ -50,7 +50,11 @@ const unread = ref(0)
 // крутил. В счёт на значке тоже входит: иначе о нём не узнать, не открыв шар.
 const reel = ref<{ id: number, title: string, invite: string } | null>(null)
 const reelOpen = ref(false)
-const badge = computed(() => unread.value + (reel.value ? 1 : 0))
+// Стол, который ищет игроков, — тоже строкой над уведомлениями и тоже в
+// счёт, пока он открыт.
+type BoardInvite = { code: string, host: string | null, players: number, max: number }
+const board = ref<BoardInvite | null>(null)
+const badge = computed(() => unread.value + (reel.value ? 1 : 0) + (board.value ? 1 : 0))
 const loading = ref(false)
 
 const load = async () => {
@@ -59,16 +63,18 @@ const load = async () => {
     messages.value = []
     unread.value = 0
     reel.value = null
+    board.value = null
     return
   }
 
   loading.value = true
   try {
-    const data = await $fetch<{ unread: number, items: Item[], reel: { id: number, title: string, invite: string } | null, messages?: MessageItem[] }>('/api/notifications')
+    const data = await $fetch<{ unread: number, items: Item[], reel: { id: number, title: string, invite: string } | null, board?: BoardInvite | null, messages?: MessageItem[] }>('/api/notifications')
     items.value = data.items
     messages.value = data.messages ?? []
     unread.value = data.unread
     reel.value = data.reel ?? null
+    board.value = data.board ?? null
   }
   catch {
     // Молча: не загрузились — значок просто не покажет числа, а страница цела.
@@ -337,13 +343,30 @@ onUnmounted(() => {
           <button class="panel-close" type="button" aria-label="Закрыть" @click="open = false">×</button>
         </div>
 
-        <p v-if="loading && !items.length && !messages.length && !reel" class="panel-note">Смотрим…</p>
-        <p v-else-if="!items.length && !messages.length && !reel" class="panel-note">
+        <p v-if="loading && !items.length && !messages.length && !reel && !board" class="panel-note">Смотрим…</p>
+        <p v-else-if="!items.length && !messages.length && !reel && !board" class="panel-note">
           Пока тихо. Здесь появятся ответы и лайки на твои комментарии и новые рамки.
         </p>
 
         <!-- Чужие реплики в записях Clarity не показываем. -->
         <ul v-else class="list" data-clarity-mask="true">
+          <li v-if="board">
+            <NuxtLink class="item item--reel" :to="`/board/${board.code}`" @click="open = false">
+              <svg class="reel-icon" viewBox="0 0 28 28" aria-hidden="true">
+                <rect x="5" y="5" width="18" height="18" rx="4" fill="#1f1813" stroke="#e8b07a" stroke-width="1.5" />
+                <circle cx="10" cy="10" r="1.8" fill="#d6883e" />
+                <circle cx="18" cy="18" r="1.8" fill="#d6883e" />
+                <circle cx="14" cy="14" r="1.8" fill="#d6883e" />
+              </svg>
+              <span class="item-text">
+                <span class="item-top"><b>Ищут игрока за стол</b></span>
+                <span class="item-body">
+                  Настольная игра по первому тому<template v-if="board.host">, накрывает {{ board.host }}</template>. За столом {{ board.players }} из {{ board.max }}.
+                </span>
+                <span class="item-go">Сесть за стол →</span>
+              </span>
+            </NuxtLink>
+          </li>
           <li v-if="reel">
             <button class="item item--reel" type="button" @click="openReel">
               <svg class="reel-icon" viewBox="0 0 28 28" aria-hidden="true">
