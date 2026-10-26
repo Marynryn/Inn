@@ -237,6 +237,21 @@ export const readerDays = sqliteTable('reader_days', {
   visitor: text('visitor').notNull(),
 }, t => [primaryKey({ columns: [t.day, t.visitor] })])
 
+// Настольная игра: сколько разных людей заходило на её страницы за день. Как
+// reader_days — вместо кода браузера отпечаток с датой, человека по нему не
+// узнать и дни между собой не связать.
+export const boardVisitDays = sqliteTable('board_visit_days', {
+  day: text('day').notNull(), // '2026-10-26', по Москве
+  visitor: text('visitor').notNull(),
+}, t => [primaryKey({ columns: [t.day, t.visitor] })])
+
+// Настольная игра: сколько партий доиграно до финиша за день. Партии, где
+// играли одни админы, сюда не попадают.
+export const boardGameDays = sqliteTable('board_game_days', {
+  day: text('day').primaryKey(),
+  finished: integer('finished').notNull().default(0),
+})
+
 // Клики по тыкве на Хеллоуин — строка на день, без людей. Клики
 // администраторов сюда не попадают.
 export const pumpkinClickDays = sqliteTable('pumpkin_click_days', {

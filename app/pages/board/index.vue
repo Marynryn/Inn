@@ -42,6 +42,10 @@ let timer: ReturnType<typeof setInterval> | null = null
 onMounted(() => { timer = setInterval(() => refresh(), 5000) })
 onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 
+// Заход — в счётчик «разных людей» в админке. Шлёт ожившая страница, а не
+// сервер: скрапер без JS сюда не дойдёт. Не дошло — не беда.
+onMounted(() => { $fetch('/api/board/visit', { method: 'POST', body: { visitor: visitorId() } }).catch(() => {}) })
+
 useHead({ title: 'Дорога через таверну · Странствующая Таверна', meta: [{ name: 'robots', content: 'noindex' }] })
 </script>
 

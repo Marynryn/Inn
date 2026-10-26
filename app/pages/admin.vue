@@ -861,6 +861,29 @@ useHead({
             </div>
           </div>
 
+          <!-- Настольная игра: сколько разных людей открывали её страницы и сколько
+               партий доиграно. Админы не в счёт. «За 30 дней» у заходов — сумма
+               по дням: один и тот же человек в разные дни считается заново. -->
+          <h3 class="stats-sub">Настольная игра</h3>
+          <div class="game-stats">
+            <div class="game-stats-row game-stats-head">
+              <span></span>
+              <span>Сегодня</span>
+              <span>За 30 дней</span>
+            </div>
+            <div class="game-stats-row">
+              <span>Заходили на страницы</span>
+              <span>{{ (stats?.board?.visitorsToday ?? 0).toLocaleString('ru') }}</span>
+              <span>{{ (stats?.board?.visitorsMonth ?? 0).toLocaleString('ru') }}</span>
+            </div>
+            <div class="game-stats-row">
+              <span>Партий доиграно</span>
+              <span>{{ (stats?.board?.finishedToday ?? 0).toLocaleString('ru') }}</span>
+              <span>{{ (stats?.board?.finishedMonth ?? 0).toLocaleString('ru') }}</span>
+            </div>
+          </div>
+          <p class="readers-line"><span>Доиграно за всё время <b>{{ (stats?.board?.finishedTotal ?? 0).toLocaleString('ru') }}</b></span></p>
+
           <h3 class="stats-sub">Игра «Кто из таверны»</h3>
           <div class="game-stats">
             <div class="game-stats-row game-stats-head">

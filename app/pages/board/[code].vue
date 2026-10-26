@@ -312,6 +312,10 @@ async function leaveTable() {
 
 const time = (at: number) => new Date(at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 
+// Заход — в счётчик «разных людей» в админке. Шлёт ожившая страница, а не
+// сервер: скрапер без JS сюда не дойдёт. Не дошло — не беда.
+onMounted(() => { $fetch('/api/board/visit', { method: 'POST', body: { visitor: visitorId() } }).catch(() => {}) })
+
 useHead({ title: `Стол ${code} · Дорога через таверну`, meta: [{ name: 'robots', content: 'noindex' }] })
 </script>
 

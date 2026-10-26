@@ -40,7 +40,7 @@ import { wsToUser, wsUsers } from './ws-rooms'
  * пробы это честная цена; если игра приживётся, состояние переедет в базу.
  */
 
-type Seat = BoardPlayer & { userId: number }
+type Seat = BoardPlayer & { userId: number; admin: boolean }
 
 type Room = {
   code: string
@@ -66,7 +66,12 @@ type Room = {
   seq: number
 }
 
-export type BoardUser = { id: number; name: string; avatarUrl: string | null }
+export type BoardUser = { id: number; name: string; avatarUrl: string | null; admin: boolean }
+
+/** Партия доиграна до финиша — для статистики. Сама запись в базу живёт
+ *  снаружи (server/plugins/board-stats.ts): комнатам база ни к чему. */
+let onFinished: ((onlyAdmins: boolean) => void) | null = null
+export function setBoardFinishedHook(fn: (onlyAdmins: boolean) => void) { onFinished = fn }
 
 const rooms = new Map<string, Room>()
 /** Последнее сообщение в чат по читателю — чтобы не заливали. */
@@ -99,7 +104,7 @@ function stateOf(room: Room): BoardState {
     nextHostSlot: room.status === 'finished' ? nextHost(room)?.slot ?? null : null,
     turnSlot: room.status === 'playing' ? room.seats[room.turn]?.slot ?? null : null,
     winnerSlot: room.winnerSlot,
-    players: room.seats.map(({ userId, ...p }) => ({ ...p, online: isOnline(room, userId) })),
+    players: room.seats.map(({ userId, admin, ...p }) => ({ ...p, online: isOnline(room, userId) })),
     skinner: room.skinner,
     skillUsed: room.skillUsed,
     choice: room.status === 'playing' ? room.choice : null,
@@ -199,6 +204,7 @@ export function joinRoom(code: string, user: BoardUser, peer: any): string | nul
     const slot = [0, 1, 2, 3].find(n => !used.has(n))!
     seat = {
       userId: user.id,
+      admin: user.admin,
       slot,
       name: user.name,
       avatarUrl: user.avatarUrl,
@@ -470,6 +476,7 @@ function finishAction(ctx: Ctx, slot: number, landed: number | null, auto: boole
     room.status = 'finished'
     room.winnerSlot = won.slot
     room.choice = null
+    try { onFinished?.(room.seats.every(s => s.admin)) } catch {}
     notes.push(`${won.name} доходит до финиша и побеждает!`)
   } else if (ctx.again) {
     room.skillUsed = false

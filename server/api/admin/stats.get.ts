@@ -1,5 +1,5 @@
 import { useDb } from '../../utils/db'
-import { chapterDownloadDays, chapters, chapterStats, chapterViewDays, comments, gameStats, pumpkinClickDays, readerDays, userIdentities, users } from '../../database/schema'
+import { boardGameDays, boardVisitDays, chapterDownloadDays, chapters, chapterStats, chapterViewDays, comments, gameStats, pumpkinClickDays, readerDays, userIdentities, users } from '../../database/schema'
 import { and, eq, desc, gte, sql, sum, count } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -120,6 +120,17 @@ export default defineEventHandler(async (event) => {
   const halloween = await isHalloween()
   const pumpkinRows = halloween ? await db.select().from(pumpkinClickDays) : []
 
+  // Настольная игра: разные люди на её страницах по дням и доигранные партии.
+  // Заходы хранятся месяц — «за 30 дней» это сумма по дням, а не число разных
+  // людей за месяц: дни между собой не связаны, см. boardVisitDays.
+  const month = mskDay(Date.now() - 29 * 24 * 60 * 60 * 1000)
+  const boardVisitRows = await db
+    .select({ day: boardVisitDays.day, total: count() })
+    .from(boardVisitDays)
+    .where(gte(boardVisitDays.day, month))
+    .groupBy(boardVisitDays.day)
+  const boardGameRows = await db.select().from(boardGameDays)
+
   const topChapters = await db
     .select({
       id: chapters.id,
@@ -146,6 +157,13 @@ export default defineEventHandler(async (event) => {
     game: {
       today: sumRows(gameRows.filter(r => r.day === mskDay())),
       total: sumRows(gameRows),
+    },
+    board: {
+      visitorsToday: boardVisitRows.find(r => r.day === mskDay())?.total ?? 0,
+      visitorsMonth: boardVisitRows.reduce((s, r) => s + r.total, 0),
+      finishedToday: boardGameRows.find(r => r.day === mskDay())?.finished ?? 0,
+      finishedMonth: boardGameRows.filter(r => r.day >= month).reduce((s, r) => s + r.finished, 0),
+      finishedTotal: boardGameRows.reduce((s, r) => s + r.finished, 0),
     },
     readers: {
       total: readerTotal?.total ?? 0,

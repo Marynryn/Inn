@@ -191,6 +191,23 @@ export async function runMigrations() {
   // В админке — сегодня и две недели назад; месяц с запасом.
   await client.execute("DELETE FROM reader_days WHERE day < date('now', '-30 day')")
 
+  // Настольная игра: разные люди на её страницах по дням и доигранные партии.
+  // Заходы держим месяц, как reader_days; партии — строка на день, их мало.
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS board_visit_days (
+      day TEXT NOT NULL,
+      visitor TEXT NOT NULL,
+      PRIMARY KEY (day, visitor)
+    )
+  `)
+  await client.execute("DELETE FROM board_visit_days WHERE day < date('now', '-30 day')")
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS board_game_days (
+      day TEXT PRIMARY KEY,
+      finished INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+
   // Хранить историю по дням незачем: показывается только сегодняшний день.
   await client.execute("DELETE FROM chapter_view_days WHERE day < date('now', '-7 day')")
   await client.execute("DELETE FROM chapter_download_days WHERE day < date('now', '-7 day')")

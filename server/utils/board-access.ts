@@ -18,7 +18,7 @@ export async function boardUser(userId: number | null | undefined): Promise<Boar
   if (!userId) return null
   const [row] = await useDb().select().from(users).where(eq(users.id, userId))
   if (!row || row.isBanned) return null
-  return { id: row.id, name: readerName(row), avatarUrl: row.avatarUrl }
+  return { id: row.id, name: readerName(row), avatarUrl: row.avatarUrl, admin: row.role === 'admin' }
 }
 
 export async function sessionBoardUser(event: H3Event): Promise<BoardUser | null> {
@@ -59,7 +59,7 @@ export async function guestBoardUser(visitor: string, rawName: unknown): Promise
   if (isGenericName(name) || !await isNameFreeForGuest(name)) {
     throw createError({ statusCode: 409, message: 'Это имя занято, выбери другое' })
   }
-  return { id: guestIdOf(visitor), name, avatarUrl: null }
+  return { id: guestIdOf(visitor), name, avatarUrl: null, admin: false }
 }
 
 /**
