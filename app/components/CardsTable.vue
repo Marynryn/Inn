@@ -111,6 +111,8 @@ function toggleReroll(i: number) {
   else rerollPick.value.push(i)
 }
 
+const roundsLeft = (n: number) => (n === 1 ? 'последний раунд' : `ещё ${n} ${n < 5 ? 'раунда' : 'раундов'}`)
+
 // ─── Подписи ──────────────────────────────────────────────
 const elColor = (el: Element) => CARD_ELEMENTS[el].color
 const imgOf = (id: HeroId) => `/characters/${id}.webp`
@@ -185,7 +187,7 @@ const banner = computed(() => {
         <section class="side side--foe" aria-label="Отряд соперника">
           <div class="side-info">
             <span><b v-if="game.vs === 'online'">{{ game.names[1] }} · </b>Карт: {{ game.foeHand ?? foe.hand.length }} · Кубиков: {{ foe.dice.length }}</span>
-            <span v-if="foe.skeleton" class="summon">Скелет · {{ foe.skeleton }}</span>
+            <span v-if="foe.skeleton" class="summon">💀 Скелет Пишеса: бьёт на 1 в конце раунда, {{ roundsLeft(foe.skeleton) }}</span>
             <span v-if="foe.ended" class="ended">закончил раунд</span>
           </div>
           <div class="row">
@@ -244,7 +246,7 @@ const banner = computed(() => {
             </button>
           </div>
           <div class="side-info">
-            <span v-if="me.skeleton" class="summon">Скелет · {{ me.skeleton }}</span>
+            <span v-if="me.skeleton" class="summon">💀 Скелет Пишеса: бьёт на 1 в конце раунда, {{ roundsLeft(me.skeleton) }}</span>
           </div>
         </section>
       </div>
