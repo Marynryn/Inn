@@ -134,6 +134,7 @@ export function useCardsRoom(code: string) {
     team: (team: HeroId[]) => send({ type: 'team', team }),
     act: (action: Action) => send({ type: 'act', action }),
     rematch: () => send({ type: 'rematch' }),
+    say: (text: string) => send({ type: 'chat', text }),
     leave: () => { send({ type: 'leave' }); stop() },
   }
 }

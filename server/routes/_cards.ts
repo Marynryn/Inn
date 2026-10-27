@@ -1,7 +1,7 @@
 import type { CardsClientMessage } from '#shared/utils/cards'
 import { isCardsCode } from '#shared/utils/cards'
 import { claimBoardTicket } from '../utils/board-access'
-import { cardsAct, cardsRematch, chooseCardsTeam, dropCardsPeer, joinCardsRoom, leaveCardsRoom } from '../utils/cards-rooms'
+import { cardsAct, cardsChat, cardsRematch, chooseCardsTeam, dropCardsPeer, joinCardsRoom, leaveCardsRoom } from '../utils/cards-rooms'
 
 /**
  * Сокет «Карт таверны». Как у настольной игры: человек предъявляет
@@ -28,6 +28,7 @@ export default defineWebSocketHandler({
       case 'team': return chooseCardsTeam(peer, msg.team)
       case 'act': return cardsAct(peer, msg.action)
       case 'rematch': return cardsRematch(peer)
+      case 'chat': return cardsChat(peer, msg.text)
       case 'leave': return leaveCardsRoom(peer)
     }
   },

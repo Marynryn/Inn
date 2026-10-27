@@ -48,7 +48,35 @@ watch(game, (g) => {
 })
 const popsFor = (side: 0 | 1, idx: number) => fx.value.filter(x => x.side === side && x.idx === idx)
 
-onBeforeUnmount(() => { if (fxTimer) clearTimeout(fxTimer) })
+// Победитель — крупно поверх поля, как в настольной игре. Только в момент,
+// когда партия кончилась: вернулся к доигранной — баннер не выскакивает.
+const winShown = ref(false)
+let winTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => game.value.phase, (phase, was) => {
+  if (phase !== 'over' || was === 'over' || game.value.winner === null) return
+  winShown.value = true
+  if (winTimer) clearTimeout(winTimer)
+  winTimer = setTimeout(() => { winShown.value = false }, 8000)
+})
+const win = computed(() => {
+  const g = game.value
+  const mine = g.winner === 0
+  const name = g.vs === 'online' ? g.names[g.winner ?? 0] : (mine ? 'Ты' : 'Компьютер')
+  const left = /уходит из-за стола/.test(g.log.at(-1) ?? '')
+  return {
+    title: mine ? 'Победа!' : g.vs === 'online' ? 'Победа!' : 'Поражение',
+    name: g.vs === 'online' && mine ? `${name} — это ты` : name,
+    hint: left ? 'соперник ушёл из-за стола' : 'выводит из боя всех героев соперника',
+    // Проигрыш компьютеру — красным; по сети, как в настольной игре, всем
+    // одинаково золотом: «Победа!» и имя победителя.
+    lose: g.vs === 'computer' && !mine,
+  }
+})
+
+onBeforeUnmount(() => {
+  if (fxTimer) clearTimeout(fxTimer)
+  if (winTimer) clearTimeout(winTimer)
+})
 
 // ─── Действия по выбранному ───────────────────────────────
 function clickMine(idx: number) {
@@ -147,6 +175,11 @@ const banner = computed(() => {
 
     <!-- Поле и кубики справа, как в оригинале -->
     <div class="field">
+      <button v-if="winShown" type="button" class="win" :class="{ 'win--lose': win.lose }" aria-live="assertive" @click="winShown = false">
+        <span class="win-title">{{ win.title }}</span>
+        <span class="win-name">{{ win.name }}</span>
+        <span class="win-hint">{{ win.hint }}</span>
+      </button>
       <div class="arena">
         <!-- Соперник -->
         <section class="side side--foe" aria-label="Отряд соперника">
@@ -509,6 +542,7 @@ button.fighter { cursor: pointer; }
 }
 
 .field {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
@@ -644,7 +678,46 @@ button.fighter { cursor: pointer; }
 
 .note { color: var(--text-muted); font-size: 14px; }
 
+/* Победитель — по центру поля, крупно; нажатие закрывает. */
+.win {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  max-width: calc(100% - 24px);
+  padding: 16px 28px 18px;
+  border-radius: var(--radius-lg);
+  background: rgba(20, 14, 10, .92);
+  border: 1px solid var(--gold);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .55);
+  color: var(--parchment);
+  font: inherit;
+  cursor: pointer;
+  animation: win-in .45s ease-out;
+}
+
+.win--lose { border-color: var(--danger); }
+.win-title { font-family: var(--font-display); font-size: 26px; color: var(--gold); }
+.win--lose .win-title { color: var(--danger); }
+.win-name { font-size: 20px; font-weight: 600; overflow-wrap: anywhere; text-align: center; }
+.win-hint { font-size: 13px; color: var(--text-muted); }
+
+@keyframes win-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(.85); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .win { animation: none; }
+}
+
 @media (max-width: 560px) {
+  .win { padding: 10px 16px 12px; }
+  .win-title { font-size: 20px; }
+  .win-name { font-size: 16px; }
   .moves { grid-template-columns: 1fr; }
   .move-text { display: none; }
 }

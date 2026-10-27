@@ -1,6 +1,7 @@
 import { randomInt } from 'node:crypto'
-import type { CardsRoomView, CardsServerMessage, Game, HeroId, Side } from '#shared/utils/cards'
+import type { CardsChatMessage, CardsRoomView, CardsServerMessage, Game, HeroId, Side } from '#shared/utils/cards'
 import {
+  CARDS_CHAT_MAX,
   CARDS_CODE_ALPHABET,
   CARDS_CODE_LENGTH,
   cardsApply,
@@ -21,19 +22,28 @@ import type { BoardUser } from './board-rooms'
  * Люди и билеты к сокету — общие с настольной игрой (board-access.ts).
  */
 
-type Seat = { userId: number; name: string; avatarUrl: string | null; team: HeroId[] | null; rematch: boolean }
+type Seat = { userId: number; name: string; avatarUrl: string | null; team: HeroId[] | null; rematch: boolean; wins: number }
 
 type Room = {
   code: string
   seats: Seat[]
   game: Game | null
-  /** Сколько партий сыграно: первым ходит то один, то другой. */
+  /** Сколько партий начато: первым ходит то один, то другой. */
   games: number
+  /** Сколько доиграно — для счёта; и засчитана ли уже победа в текущей. */
+  finished: number
+  counted: boolean
+  chat: CardsChatMessage[]
+  seq: number
   peers: Map<any, number>
   touchedAt: number
 }
 
 const rooms = new Map<string, Room>()
+const lastChatAt = new Map<number, number>()
+
+const CHAT_KEEP = 100
+const CHAT_GAP_MS = 700
 
 /** Пустой стол живёт полчаса — вдруг вернутся. */
 const EMPTY_ROOM_MS = 30 * 60_000
@@ -51,8 +61,10 @@ function viewFor(room: Room, side: Side): CardsRoomView {
   return {
     code: room.code,
     you: side,
-    seats: room.seats.map(s => ({ name: s.name, avatarUrl: s.avatarUrl, team: s.team, online: online.has(s.userId), rematch: s.rematch })),
+    seats: room.seats.map(s => ({ name: s.name, avatarUrl: s.avatarUrl, team: s.team, online: online.has(s.userId), rematch: s.rematch, wins: s.wins })),
     game: room.game ? cardsView(room.game, side) : null,
+    games: room.finished,
+    chat: room.chat,
   }
 }
 
@@ -60,8 +72,14 @@ function send(peer: any, msg: CardsServerMessage) {
   try { peer.send(JSON.stringify(msg)) } catch {}
 }
 
-/** Каждому — свой вид стола. */
+/** Каждому — свой вид стола. Партия кончилась — победу в счёт, один раз. */
 function push(room: Room) {
+  const g = room.game
+  if (g?.phase === 'over' && !room.counted) {
+    room.counted = true
+    room.finished++
+    if (g.winner !== null && room.seats[g.winner]) room.seats[g.winner]!.wins++
+  }
   for (const [peer, userId] of room.peers) {
     const side = room.seats.findIndex(s => s.userId === userId)
     if (side < 0) continue
@@ -77,7 +95,7 @@ const fail = (peer: any, message: string) => send(peer, { type: 'error', message
 
 export function createCardsRoom(): string {
   const code = newCode()
-  rooms.set(code, { code, seats: [], game: null, games: 0, peers: new Map(), touchedAt: Date.now() })
+  rooms.set(code, { code, seats: [], game: null, games: 0, finished: 0, counted: false, chat: [], seq: 0, peers: new Map(), touchedAt: Date.now() })
   return code
 }
 
@@ -87,7 +105,7 @@ export function joinCardsRoom(code: string, user: BoardUser, peer: any): string 
   let seat = room.seats.find(s => s.userId === user.id)
   if (!seat) {
     if (room.seats.length >= 2) return 'За этим столом уже двое'
-    seat = { userId: user.id, name: user.name, avatarUrl: user.avatarUrl, team: null, rematch: false }
+    seat = { userId: user.id, name: user.name, avatarUrl: user.avatarUrl, team: null, rematch: false, wins: 0 }
     room.seats.push(seat)
   } else {
     seat.name = user.name
@@ -120,6 +138,7 @@ function startGame(room: Room) {
     first: (room.games % 2) as Side,
   })
   room.games++
+  room.counted = false
   for (const s of room.seats) s.rematch = false
 }
 
@@ -141,6 +160,19 @@ export function cardsAct(peer: any, action: unknown) {
   const c = cardsCheck(f.room.game, f.side, action)
   if (!c.ok) return fail(peer, c.why)
   f.room.game = cardsApply(f.room.game, f.side, action)
+  push(f.room)
+}
+
+export function cardsChat(peer: any, raw: unknown) {
+  const f = find(peer)
+  if (!f || typeof raw !== 'string') return
+  const text = raw.replace(/\s+/g, ' ').trim().slice(0, CARDS_CHAT_MAX)
+  if (!text) return
+  const now = Date.now()
+  if (now - (lastChatAt.get(f.seat.userId) ?? 0) < CHAT_GAP_MS) return
+  lastChatAt.set(f.seat.userId, now)
+  f.room.chat.push({ id: ++f.room.seq, side: f.side, name: f.seat.name, text, at: now })
+  if (f.room.chat.length > CHAT_KEEP) f.room.chat.splice(0, f.room.chat.length - CHAT_KEEP)
   push(f.room)
 }
 

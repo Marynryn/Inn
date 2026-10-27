@@ -71,6 +71,7 @@ onBeforeUnmount(() => { if (timer) clearTimeout(timer) })
           <button class="btn btn--ghost" @click="game = null">Сменить отряд</button>
         </template>
       </CardsTable>
+      <CardsRules />
     </main>
 
     <AppFooter on-dark :settings="settings as any" />

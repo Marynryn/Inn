@@ -55,6 +55,11 @@ test.describe('Карты таверны', () => {
     await page.getByRole('button', { name: 'Оставить как есть' }).click()
     await guest.getByRole('button', { name: 'Оставить как есть' }).click()
     await expect(page.locator('.banner')).toHaveText(/Твой ход|Ходит Гостья за картами/)
+
+    // Чат за столом доходит до соперника.
+    await guest.locator('.chat-input').fill('Привет из таверны')
+    await guest.locator('.chat-input').press('Enter')
+    await expect(page.locator('.msg-text', { hasText: 'Привет из таверны' })).toBeVisible()
     await guestCtx.close()
   })
 })

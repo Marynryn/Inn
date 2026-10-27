@@ -12,7 +12,7 @@ const code = String(route.params.code).toUpperCase()
 const { data: settings } = await useFetch('/api/settings')
 useHead({ title: `Стол ${code} · Карты таверны`, meta: [{ name: 'robots', content: 'noindex' }] })
 
-const { room, connected, fatal, notice, needName, nameError, joinAs, team, act, rematch, leave } = useCardsRoom(code)
+const { room, connected, fatal, notice, needName, nameError, joinAs, team, act, rematch, say, leave } = useCardsRoom(code)
 const guestNameInput = ref('')
 
 const picked = ref<HeroId[]>([])
@@ -30,6 +30,9 @@ async function copyLink() {
     setTimeout(() => { copied.value = false }, 2000)
   } catch {}
 }
+
+/** Счёт — с первой доигранной партии, как в настольной игре. */
+const score = computed(() => (room.value?.games ? room.value.seats : []))
 
 function quit() {
   const g = room.value?.game
@@ -73,6 +76,10 @@ function quit() {
       <p v-if="!connected" class="notice">Связь пропала, переподключаемся…</p>
       <p v-else-if="foe && !foe.online && room.game.phase !== 'over'" class="notice">{{ foe.name }} отключился — ждём, пока вернётся</p>
       <p v-if="notice" class="notice">{{ notice }}</p>
+      <div v-if="score.length" class="score">
+        <span class="score-title">Счёт · партий {{ room.games }}</span>
+        <span v-for="(s, i) in score" :key="i" class="score-item" :class="{ 'score-item--me': i === room.you }">{{ s.name }} <b>{{ s.wins }}</b></span>
+      </div>
       <CardsTable :game="room.game" @act="act" @leave="quit">
         <template #over>
           <button class="btn btn--primary" :disabled="me?.rematch || !connected" @click="rematch">
@@ -82,6 +89,8 @@ function quit() {
           <button class="btn btn--ghost" @click="quit">Выйти</button>
         </template>
       </CardsTable>
+      <CardsChat :messages="room.chat" :you="room.you" :disabled="!connected" @say="say" />
+      <CardsRules />
     </main>
 
     <!-- Сбор за столом -->
@@ -116,6 +125,7 @@ function quit() {
           <button class="btn btn--ghost" @click="quit">Уйти из-за стола</button>
         </div>
       </CardsPicker>
+      <CardsChat :messages="room.chat" :you="room.you" :disabled="!connected" @say="say" />
     </main>
 
     <AppFooter on-dark :settings="settings as any" />
@@ -178,6 +188,21 @@ function quit() {
 }
 
 .error { color: var(--danger); margin: 10px 0 0; }
+
+/* Счёт стола — строкой над полем. */
+.score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 14px;
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.score-title { color: var(--text-muted); }
+.score-item b { color: var(--gold); margin-left: 4px; }
+.score-item--me { color: var(--success); }
 
 .actions { display: flex; flex-wrap: wrap; gap: 10px; }
 

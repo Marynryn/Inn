@@ -740,14 +740,19 @@ export const isCardsCode = (v: unknown): v is string =>
   typeof v === 'string' && v.length === CARDS_CODE_LENGTH && [...v].every(c => CARDS_CODE_ALPHABET.includes(c))
 
 /** Как стол выглядит для игрока. */
-export type CardsSeatView = { name: string; avatarUrl: string | null; team: HeroId[] | null; online: boolean; rematch: boolean }
-export type CardsRoomView = { code: string; you: Side; seats: CardsSeatView[]; game: Game | null }
+export type CardsSeatView = { name: string; avatarUrl: string | null; team: HeroId[] | null; online: boolean; rematch: boolean; wins: number }
+export type CardsChatMessage = { id: number; side: Side; name: string; text: string; at: number }
+/** games — сколько партий доиграно за этим столом: счёт показываем с первой. */
+export type CardsRoomView = { code: string; you: Side; seats: CardsSeatView[]; game: Game | null; games: number; chat: CardsChatMessage[] }
+
+export const CARDS_CHAT_MAX = 300
 
 export type CardsClientMessage =
   | { type: 'join'; ticket: string; code: string }
   | { type: 'team'; team: HeroId[] }
   | { type: 'act'; action: Action }
   | { type: 'rematch' }
+  | { type: 'chat'; text: string }
   | { type: 'leave' }
 
 export type CardsServerMessage =
