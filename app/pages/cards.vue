@@ -219,81 +219,86 @@ const banner = computed(() => {
         <button class="btn btn--ghost btn--sm" @click="leave">Выйти</button>
       </div>
 
-      <!-- Соперник -->
-      <section class="side side--foe" aria-label="Отряд соперника">
-        <div class="side-info">
-          <span>Карт: {{ foe.hand.length }} · Кубиков: {{ foe.dice.length }}</span>
-          <span v-if="foe.skeleton" class="summon">Скелет · {{ foe.skeleton }}</span>
-          <span v-if="foe.ended" class="ended">закончил раунд</span>
-        </div>
-        <div class="row">
-          <div
-            v-for="(f, i) in foe.fighters"
-            :key="i"
-            class="fighter"
-            :class="{ 'fighter--active': i === foe.active, 'fighter--down': f.hp <= 0 }"
-            :style="{ '--el': elColor(CARD_HEROES[f.id].el) }"
-          >
-            <img :src="imgOf(f.id)" :alt="CARD_HEROES[f.id].name" class="fighter-img">
-            <span class="hp">{{ f.hp }}</span>
-            <span v-if="f.aura" class="aura" :style="{ background: elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`" />
-            <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
-            <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
-            <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(1, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
-            <span v-if="statusTags(f).length" class="tags">{{ statusTags(f).join(' · ') }}</span>
-          </div>
-        </div>
-      </section>
+      <!-- Поле и кубики справа, как в оригинале -->
+      <div class="field">
+        <div class="arena">
+          <!-- Соперник -->
+          <section class="side side--foe" aria-label="Отряд соперника">
+            <div class="side-info">
+              <span>Карт: {{ foe.hand.length }} · Кубиков: {{ foe.dice.length }}</span>
+              <span v-if="foe.skeleton" class="summon">Скелет · {{ foe.skeleton }}</span>
+              <span v-if="foe.ended" class="ended">закончил раунд</span>
+            </div>
+            <div class="row">
+              <div
+                v-for="(f, i) in foe.fighters"
+                :key="i"
+                class="fighter"
+                :class="{ 'fighter--active': i === foe.active, 'fighter--down': f.hp <= 0 }"
+                :style="{ '--el': elColor(CARD_HEROES[f.id].el) }"
+              >
+                <img :src="imgOf(f.id)" :alt="CARD_HEROES[f.id].name" class="fighter-img">
+                <span class="hp">{{ f.hp }}</span>
+                <span v-if="f.aura" class="aura" :style="{ background: elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`" />
+                <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
+                <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
+                <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(1, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
+                <span v-if="statusTags(f).length" class="tags">{{ statusTags(f).join(' · ') }}</span>
+              </div>
+            </div>
+          </section>
 
-      <ol class="log" aria-live="polite">
-        <li v-for="(line, i) in recentLog" :key="game.log.length - i">{{ line }}</li>
-      </ol>
+          <ol class="log" aria-live="polite">
+            <li v-for="(line, i) in recentLog" :key="game.log.length - i">{{ line }}</li>
+          </ol>
 
-      <!-- Свой отряд -->
-      <section class="side side--me" aria-label="Твой отряд">
-        <div class="row">
+          <!-- Свой отряд -->
+          <section class="side side--me" aria-label="Твой отряд">
+            <div class="row">
+              <button
+                v-for="(f, i) in me.fighters"
+                :key="i"
+                class="fighter"
+                :class="{
+                  'fighter--active': i === me.active,
+                  'fighter--down': f.hp <= 0,
+                  'fighter--sel': selected?.kind === 'fighter' && selected.idx === i,
+                  'fighter--choose': game.choosing === 0 && f.hp > 0,
+                }"
+                :style="{ '--el': elColor(CARD_HEROES[f.id].el) }"
+                :disabled="f.hp <= 0"
+                @click="clickMine(i)"
+              >
+                <img :src="imgOf(f.id)" :alt="CARD_HEROES[f.id].name" class="fighter-img">
+                <span class="hp">{{ f.hp }}</span>
+                <span v-if="f.aura" class="aura" :style="{ background: elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`" />
+                <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
+                <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
+                <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(0, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
+                <span v-if="statusTags(f).length" class="tags">{{ statusTags(f).join(' · ') }}</span>
+              </button>
+            </div>
+            <div class="side-info">
+              <span v-if="me.skeleton" class="summon">Скелет · {{ me.skeleton }}</span>
+            </div>
+          </section>
+        </div>
+
+        <!-- Кубики -->
+        <section class="dice" aria-label="Кубики">
+          <span class="dice-count">{{ me.dice.length }}</span>
           <button
-            v-for="(f, i) in me.fighters"
+            v-for="(d, i) in me.dice"
             :key="i"
-            class="fighter"
-            :class="{
-              'fighter--active': i === me.active,
-              'fighter--down': f.hp <= 0,
-              'fighter--sel': selected?.kind === 'fighter' && selected.idx === i,
-              'fighter--choose': game.choosing === 0 && f.hp > 0,
-            }"
-            :style="{ '--el': elColor(CARD_HEROES[f.id].el) }"
-            :disabled="f.hp <= 0"
-            @click="clickMine(i)"
-          >
-            <img :src="imgOf(f.id)" :alt="CARD_HEROES[f.id].name" class="fighter-img">
-            <span class="hp">{{ f.hp }}</span>
-            <span v-if="f.aura" class="aura" :style="{ background: elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`" />
-            <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
-            <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
-            <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(0, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
-            <span v-if="statusTags(f).length" class="tags">{{ statusTags(f).join(' · ') }}</span>
-          </button>
-        </div>
-        <div class="side-info">
-          <span v-if="me.skeleton" class="summon">Скелет · {{ me.skeleton }}</span>
-        </div>
-      </section>
-
-      <!-- Кубики -->
-      <section class="dice" aria-label="Кубики">
-        <button
-          v-for="(d, i) in me.dice"
-          :key="i"
-          class="die"
-          :class="{ 'die--pick': rerollPick.includes(i), 'die--match': d === myEl || d === 'omni' }"
-          :style="{ '--el': dieColor(d) }"
-          :title="dieName(d)"
-          :disabled="game.phase !== 'reroll'"
-          @click="toggleReroll(i)"
-        >{{ dieSymbol(d) }}</button>
-        <span v-if="!me.dice.length" class="note">Кубиков нет</span>
-      </section>
+            class="die"
+            :class="{ 'die--pick': rerollPick.includes(i), 'die--match': d === myEl || d === 'omni' }"
+            :style="{ '--el': dieColor(d) }"
+            :title="dieName(d)"
+            :disabled="game.phase !== 'reroll'"
+            @click="toggleReroll(i)"
+          >{{ dieSymbol(d) }}</button>
+        </section>
+      </div>
 
       <!-- Панель действий -->
       <section v-if="game.phase === 'over'" class="panel">
@@ -652,12 +657,31 @@ button.fighter { cursor: pointer; }
 
 .log li:first-child { color: var(--parchment); }
 
+.field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.arena { min-width: 0; }
+
 .dice {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 12px 0;
+  flex-direction: column;
   align-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border-radius: var(--radius-lg);
+  background: var(--fill-faint);
+  align-self: center;
+}
+
+.dice-count {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--ember-soft);
+  margin-bottom: 2px;
 }
 
 .die {
@@ -674,7 +698,7 @@ button.fighter { cursor: pointer; }
 
 .die--match { opacity: 1; }
 .die:not(:disabled) { cursor: pointer; }
-.die--pick { transform: rotate(20deg); box-shadow: 0 0 0 2px var(--parchment); }
+.die--pick { transform: translateX(-6px) rotate(20deg); box-shadow: 0 0 0 2px var(--parchment); }
 
 .panel {
   display: flex;
