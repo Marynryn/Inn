@@ -40,7 +40,7 @@ import { wsToUser, wsUsers } from './ws-rooms'
  * пробы это честная цена; если игра приживётся, состояние переедет в базу.
  */
 
-type Seat = BoardPlayer & { userId: number; admin: boolean }
+type Seat = Omit<BoardPlayer, 'wins'> & { userId: number; admin: boolean }
 
 type Room = {
   code: string
@@ -57,6 +57,10 @@ type Room = {
   /** Выпало два кубика — ждём, на какой из них игрок пойдёт. */
   choice: number[] | null
   log: BoardLogEntry[]
+  /** Победы за этим столом — по читателю, а не по месту: кто встал из-за
+   *  стола в лобби и сел снова, свой счёт не теряет. */
+  wins: Map<number, number>
+  games: number
   chat: BoardChatMessage[]
   peers: Map<any, number>
   /** Когда ход перешёл к нынешнему игроку — для автоброска за ушедшего. */
@@ -104,12 +108,13 @@ function stateOf(room: Room): BoardState {
     nextHostSlot: room.status === 'finished' ? nextHost(room)?.slot ?? null : null,
     turnSlot: room.status === 'playing' ? room.seats[room.turn]?.slot ?? null : null,
     winnerSlot: room.winnerSlot,
-    players: room.seats.map(({ userId, admin, ...p }) => ({ ...p, online: isOnline(room, userId) })),
+    players: room.seats.map(({ userId, admin, ...p }) => ({ ...p, online: isOnline(room, userId), wins: room.wins.get(userId) ?? 0 })),
     skinner: room.skinner,
     skillUsed: room.skillUsed,
     choice: room.status === 'playing' ? room.choice : null,
     lastAction: room.lastAction,
     log: room.log,
+    games: room.games,
   }
 }
 
@@ -145,6 +150,8 @@ export function createRoom(host: BoardUser): string {
     skillUsed: false,
     choice: null,
     log: [],
+    wins: new Map(),
+    games: 0,
     chat: [],
     peers: new Map(),
     turnSince: Date.now(),
@@ -475,6 +482,8 @@ function finishAction(ctx: Ctx, slot: number, landed: number | null, auto: boole
   if (won) {
     room.status = 'finished'
     room.winnerSlot = won.slot
+    room.wins.set(won.userId, (room.wins.get(won.userId) ?? 0) + 1)
+    room.games++
     room.choice = null
     try { onFinished?.(room.seats.every(s => s.admin)) } catch {}
     notes.push(`${won.name} доходит до финиша и побеждает!`)

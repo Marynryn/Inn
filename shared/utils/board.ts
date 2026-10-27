@@ -165,6 +165,8 @@ export type BoardPlayer = {
   bonus: number
   online: boolean
   left: boolean
+  /** Сколько партий выиграл за этим столом. */
+  wins: number
 }
 
 export type BoardChatMessage = { id: number; slot: number; name: string; text: string; at: number }
@@ -213,6 +215,8 @@ export type BoardState = {
   choice: number[] | null
   lastAction: BoardAction | null
   log: BoardLogEntry[]
+  /** Сколько партий за этим столом доиграно до финиша. */
+  games: number
 }
 
 /** Сообщения сервера странице. */

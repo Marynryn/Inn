@@ -34,6 +34,10 @@ const canRematch = computed(() => {
 const playerBySlot = (slot: number | null | undefined) => players.value.find(p => p.slot === slot) ?? null
 const turnPlayer = computed(() => playerBySlot(state.value?.turnSlot))
 const winner = computed(() => playerBySlot(state.value?.winnerSlot))
+/** Счёт стола — с первой доигранной партии, у кого больше побед, тот выше. */
+const score = computed(() => state.value?.games
+  ? [...players.value].sort((a, b) => b.wins - a.wins || a.slot - b.slot)
+  : [])
 
 // ── Анимация хода ────────────────────────────────────────
 // На экране фишки стоят не там, где их держит сервер, а там, куда успела
@@ -473,6 +477,12 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
           <!-- Журнал на компьютере — под картой: справа и так тесно. На
                телефоне он в самом низу, после чата. -->
           <section class="card card--panel log-card log-card--desk">
+            <div v-if="score.length" class="score">
+              <span class="score-title">Счёт · партий {{ state.games }}</span>
+              <span v-for="p in score" :key="p.slot" class="score-item">
+                <span class="dot" :style="{ background: p.color }" />{{ p.name }} <b>{{ p.wins }}</b>
+              </span>
+            </div>
             <ul class="log thin-scroll">
               <li v-for="e in [...state.log].reverse()" :key="e.id">{{ e.text }}</li>
             </ul>
@@ -632,6 +642,12 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
           </section>
 
           <section class="card card--panel log-card log-card--phone">
+            <div v-if="score.length" class="score">
+              <span class="score-title">Счёт · партий {{ state.games }}</span>
+              <span v-for="p in score" :key="p.slot" class="score-item">
+                <span class="dot" :style="{ background: p.color }" />{{ p.name }} <b>{{ p.wins }}</b>
+              </span>
+            </div>
             <ul class="log thin-scroll">
               <li v-for="e in [...state.log].reverse()" :key="e.id">{{ e.text }}</li>
             </ul>
@@ -773,6 +789,21 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 .head--back { fill: var(--danger); opacity: .9; }
 
 .log-card--desk { margin-top: 14px; }
+
+/* Счёт стола — строкой над журналом. */
+.score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.score-title { color: var(--text-muted); }
+.score-item { display: inline-flex; align-items: center; gap: 6px; }
+.score-item b { color: var(--gold); }
 .log-card--phone { display: none; }
 
 @media (max-width: 900px) {
