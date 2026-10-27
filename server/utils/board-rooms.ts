@@ -335,14 +335,15 @@ const newCtx = (room: Room, mover: Seat | null): Ctx =>
  *  фишку без конца. */
 const HOPS_MAX = 8
 
-function grantSkill(seat: Seat, skill: BoardSkill, notes: string[]) {
+function grantSkill(seat: Seat, skill: BoardSkill, notes: string[]): boolean {
   const name = BOARD_SKILLS[skill].name
   if (seat.skills.length < BOARD_HAND_MAX) {
     seat.skills.push(skill)
     notes.push(`${seat.name}: навык получен — ${name}`)
-  } else {
-    notes.push(`${seat.name}: ${name} — но в руке уже ${BOARD_HAND_MAX} навыка, этот пропал`)
+    return true
   }
+  notes.push(`${seat.name}: ${name} — но в руке уже ${BOARD_HAND_MAX} навыка, этот пропал`)
+  return false
 }
 
 /** Отбросить назад — если не спасёт [Чутьё опасности]. На новой клетке
@@ -390,7 +391,12 @@ function landOn(ctx: Ctx, seat: Seat, byDice: boolean) {
       }
     }
 
-    if (cell.skill) grantSkill(seat, cell.skill, notes)
+    // Навык с этой же клетки от её красной стрелки не спасает: иначе клетка
+    // 15 (стрелка назад и [Чутьё опасности]) выдавала навык и тут же его
+    // сжигала, а фишка оставалась на месте. Спасает только навык, что был в
+    // руке до того, как встал сюда; полученный — на будущее.
+    const fresh = cell.skill === 'danger' && grantSkill(seat, 'danger', notes)
+    if (cell.skill && cell.skill !== 'danger') grantSkill(seat, cell.skill, notes)
 
     // Пришёл на клетку Скиннера — сам к нему пришёл.
     if (room.skinner !== null && at === room.skinner) {
@@ -408,7 +414,8 @@ function landOn(ctx: Ctx, seat: Seat, byDice: boolean) {
 
     const to = jumpTarget(at)
     if (to === null || seen.has(to)) return
-    if (to < at && useShield(seat)) {
+    const shields = seat.skills.filter(s => s === 'danger').length - (fresh ? 1 : 0)
+    if (to < at && shields > 0 && useShield(seat)) {
       notes.push(`${seat.name}: ${BOARD_SKILLS.danger.name} — красная стрелка не страшна`)
       return
     }
