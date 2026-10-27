@@ -229,15 +229,6 @@ const VIEW_H = 100 * SY
  *  телефона заметная, поэтому считает сервер при отрисовке страницы. */
 const arrows = useState('board-arrows', () => boardArrows(BOARD_CELLS, jumpTarget, SX, SY))
 
-/** На рисунке дорожка оборвана в двух местах, у левого края: 12→13 и 24→25.
- *  Дотягиваем её там дугой в тон тропы. */
-const roadGaps = [[11, 12], [23, 24]].map(([a, b]) => {
-  const p = BOARD_CELLS[a]!, q = BOARD_CELLS[b]!
-  const x1 = p.x * SX, y1 = p.y * SY, x2 = q.x * SX, y2 = q.y * SY
-  const cx = Math.min(x1, x2) - 4, cy = (y1 + y2) / 2
-  return `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`
-})
-
 const effectClass = (e: BoardEffect) => `cell--${e.kind}`
 
 /** Несколько фишек на одной клетке расходятся по углам, чтобы не прятать друг друга. */
@@ -392,11 +383,11 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
             <img
               class="map-art"
               src="/board/map.webp"
-              srcset="/board/map-900.webp 900w, /board/map.webp 1482w"
+              srcset="/board/map-900.webp 900w, /board/map.webp 1503w"
               sizes="(max-width: 900px) 100vw, 860px"
               alt=""
-              width="1482"
-              height="1061"
+              width="1503"
+              height="1046"
               decoding="async"
               fetchpriority="high"
             >
@@ -409,7 +400,6 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
                   <path d="M0,0 L10,5 L0,10 z" class="head head--back" />
                 </marker>
               </defs>
-              <path v-for="(d, i) in roadGaps" :key="`gap-${i}`" :d="d" class="road-gap" />
               <!-- У каждой стрелки свой градиент вдоль неё: бледный хвост у клетки,
                    откуда прыгают, и яркий наконечник у той, куда. -->
               <defs>
@@ -420,7 +410,7 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
                   gradientUnits="userSpaceOnUse"
                   :x1="a.x1" :y1="a.y1" :x2="a.x2" :y2="a.y2"
                 >
-                  <stop offset="0" :class="a.forward ? 'grad-fwd' : 'grad-back'" stop-opacity="0.08" />
+                  <stop offset="0" :class="a.forward ? 'grad-fwd' : 'grad-back'" stop-opacity="0.45" />
                   <stop offset="1" :class="a.forward ? 'grad-fwd' : 'grad-back'" stop-opacity="0.9" />
                 </linearGradient>
               </defs>
@@ -743,7 +733,7 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 .map {
   position: relative;
   /* Пропорции рисунка карты — те же, что BOARD_MAP_RATIO. */
-  aspect-ratio: 1482 / 1061;
+  aspect-ratio: 1503 / 1046;
   border-radius: var(--radius-lg);
   background: var(--bg-dark-2);
   border: 1px solid var(--line);
@@ -767,15 +757,6 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
   pointer-events: none;
 }
 
-/* Дотянутые куски тропы — в тон нарисованной: светлый песок с мягким краем. */
-.road-gap {
-  fill: none;
-  stroke: rgba(232, 186, 120, .85);
-  stroke-width: 5;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-  filter: drop-shadow(0 0 2px rgba(60, 30, 10, .6));
-}
 
 /* Стрелки прыжков — тонкой бледной волной: карта читается сквозь них. */
 /* Стрелки прыжков — прямые, с градиентом от бледного хвоста к наконечнику. */

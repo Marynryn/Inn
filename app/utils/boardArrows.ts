@@ -85,10 +85,29 @@ function bestBend(a: Pt, b: Pt, others: Pt[], w: number, h: number) {
   return best
 }
 
-/** Точка на расстоянии by от конца — по направлению к опорной точке. */
-function inset(end: Pt, toward: Pt, by: number): Pt {
-  const len = Math.hypot(toward.x - end.x, toward.y - end.y) || 1
-  return { x: end.x + (toward.x - end.x) / len * by, y: end.y + (toward.y - end.y) / len * by }
+/** Кусок кривой между t0 и t1 — та же линия, только короче (де Кастельжо). */
+function slice(a: Pt, c1: Pt, c2: Pt, b: Pt, t0: number, t1: number): [Pt, Pt, Pt, Pt] {
+  const lerp = (p: Pt, q: Pt, t: number): Pt => ({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t })
+  const split = (p0: Pt, p1: Pt, p2: Pt, p3: Pt, t: number): [Pt, Pt, Pt, Pt, Pt, Pt, Pt] => {
+    const q0 = lerp(p0, p1, t), q1 = lerp(p1, p2, t), q2 = lerp(p2, p3, t)
+    const r0 = lerp(q0, q1, t), r1 = lerp(q1, q2, t), m = lerp(r0, r1, t)
+    return [p0, q0, r0, m, r1, q2, p3]
+  }
+  // Сперва отрезаем хвост после t1, потом начало до t0 — уже на укороченной.
+  const [p0, q0, r0, m] = split(a, c1, c2, b, t1)
+  const [, , , start, r1, q2, end] = split(p0, q0, r0, m, t0 / t1)
+  return [start, r1, q2, end]
+}
+
+/** Где кривая отходит от точки end на расстояние by: от начала (fromStart) или от конца. */
+function leaveAt(a: Pt, c1: Pt, c2: Pt, b: Pt, by: number, fromStart: boolean): number {
+  const end = fromStart ? a : b
+  for (let k = 1; k < 200; k++) {
+    const t = fromStart ? k / 200 : 1 - k / 200
+    const p = bezier(a, c1, c2, b, t)
+    if (Math.hypot(p.x - end.x, p.y - end.y) >= by) return t
+  }
+  return fromStart ? 0 : 1
 }
 
 /** Карта одна, и считать её стрелки на каждый запрос незачем. */
@@ -116,14 +135,16 @@ export function boardArrows(
       && p.y >= Math.min(a.y, b.y) - reach && p.y <= Math.max(a.y, b.y) + reach)
     const best = bestBend(a, b, others, w, h)
     const [c1, c2] = controls(a, b, best.h1, best.h2)
-    const start = inset(a, c1, GAP)
-    const end = inset(b, c2, GAP + 1)
+    // Обрезаем саму кривую до краёв кружков. Сдвигать концы к опорным точкам
+    // нельзя: при крутом изгибе опорная точка ближе края кружка, конец
+    // перескакивает за неё, и наконечник смотрит в обратную сторону.
+    const [start, s1, s2, end] = slice(a, c1, c2, b, leaveAt(a, c1, c2, b, GAP, true), leaveAt(a, c1, c2, b, GAP + 1, false))
     const f = (n: number) => n.toFixed(2)
     return [{
       from: i,
       to,
       forward: to > i,
-      d: `M${f(start.x)},${f(start.y)} C${f(c1.x)},${f(c1.y)} ${f(c2.x)},${f(c2.y)} ${f(end.x)},${f(end.y)}`,
+      d: `M${f(start.x)},${f(start.y)} C${f(s1.x)},${f(s1.y)} ${f(s2.x)},${f(s2.y)} ${f(end.x)},${f(end.y)}`,
       x1: start.x,
       y1: start.y,
       x2: end.x,
