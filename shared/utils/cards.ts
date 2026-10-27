@@ -93,7 +93,7 @@ export const CARDS: Record<CardId, { name: string; kind: string; cost: number; t
   pizza: { name: 'Пицца', kind: 'Еда', cost: 1, text: 'Активный герой лечится на 3' },
   juice: { name: 'Синий фруктовый сок', kind: 'Еда', cost: 1, text: 'Активный герой получает 1 энергию' },
   flies: { name: 'Кислотные мухи', kind: 'Еда', cost: 1, text: 'Следующий удар активного героя на 2 сильнее' },
-  potion: { name: 'Лечебное зелье', kind: 'Предмет', cost: 0, text: 'Самый раненый свой герой лечится на 2' },
+  potion: { name: 'Лечебное зелье', kind: 'Предмет', cost: 0, text: 'Свой раненый герой с наименьшим здоровьем лечится на 2' },
   scroll: { name: 'Свиток огненного шара', kind: 'Предмет', cost: 2, text: '2 урона Огнём активному врагу' },
   shield: { name: 'Щит стражника', kind: 'Предмет', cost: 1, text: 'Активный герой получает щит на 2' },
   chess: { name: 'Шахматная партия', kind: 'Событие', cost: 0, text: 'Перебросить кубики ещё раз' },
@@ -614,8 +614,10 @@ function playCard(g: Game, side: Side, idx: number) {
     case 'juice': me.energy = Math.min(CARD_HEROES[me.id].energy, me.energy + 1); break
     case 'flies': me.bonus += 2; break
     case 'potion': {
-      const hurtMost = p.fighters.filter(alive).sort((a, b) => (a.hp - CARD_HEROES[a.id].hp) - (b.hp - CARD_HEROES[b.id].hp))[0]
-      if (hurtMost) heal(g, hurtMost, 2)
+      // Кому хуже всех: у кого меньше всего здоровья; поровну — кто больше потерял.
+      const lost = (f: Fighter) => CARD_HEROES[f.id].hp - f.hp
+      const weakest = p.fighters.filter(f => alive(f) && lost(f) > 0).sort((a, b) => a.hp - b.hp || lost(b) - lost(a))[0]
+      if (weakest) heal(g, weakest, 2)
       break
     }
     case 'scroll': {
