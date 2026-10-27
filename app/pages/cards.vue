@@ -149,7 +149,15 @@ const statusTags = (f: Fighter) => [
   f.frozen ? 'Заморожен' : '',
 ].filter(Boolean)
 
-const recentLog = computed(() => (game.value?.log ?? []).slice(-6).reverse())
+// Журнал почти не читают: цифры над героями уже показывают урон. На виду —
+// только последнее действие (что сыграл соперник, из цифр не понять), весь
+// журнал — по кнопке.
+const logOpen = ref(false)
+const fullLog = computed(() => [...(game.value?.log ?? [])].reverse())
+const lastAction = computed(() => {
+  const log = game.value?.log ?? []
+  return [...log].reverse().find(l => /^(Ты|Соперник)[:]|: /.test(l) && !/получает/.test(l)) ?? log.at(-1) ?? ''
+})
 
 const banner = computed(() => {
   const g = game.value
@@ -260,9 +268,15 @@ const banner = computed(() => {
             </div>
           </section>
 
-          <ol class="log" aria-live="polite">
-            <li v-for="(line, i) in recentLog" :key="game.log.length - i">{{ line }}</li>
-          </ol>
+          <div class="log">
+            <p class="log-last" aria-live="polite">{{ lastAction }}</p>
+            <button class="log-toggle" :aria-expanded="logOpen" @click="logOpen = !logOpen">
+              {{ logOpen ? 'Скрыть' : 'Журнал' }}
+            </button>
+            <ol v-if="logOpen" class="log-list">
+              <li v-for="(line, i) in fullLog" :key="game.log.length - i">{{ line }}</li>
+            </ol>
+          </div>
 
           <!-- Свой отряд -->
           <section class="side side--me" aria-label="Твой отряд">
@@ -656,19 +670,46 @@ button.fighter { cursor: pointer; }
 .tags { font-size: 11px; color: var(--ember-soft); text-align: center; }
 
 .log {
-  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
   margin: 8px 0;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border-radius: var(--radius-md);
   background: var(--fill-faint);
   font-size: 13px;
-  color: var(--text-muted);
-  min-height: 60px;
-  max-height: 110px;
-  overflow-y: auto;
 }
 
-.log li:first-child { color: var(--parchment); }
+.log-last {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--parchment);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.log-toggle {
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  color: var(--ember-soft);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+
+.log-list {
+  flex-basis: 100%;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+  color: var(--text-muted);
+}
 
 .field {
   display: grid;
