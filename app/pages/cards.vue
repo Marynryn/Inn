@@ -164,10 +164,11 @@ const banner = computed(() => {
           >
             <img :src="imgOf(id)" :alt="CARD_HEROES[id].name" class="pick-img" loading="lazy">
             <span class="pick-body">
-              <span class="pick-name">{{ CARD_HEROES[id].name }}</span>
-              <span class="pick-meta">
-                <span class="el-dot" />{{ CARD_ELEMENTS[CARD_HEROES[id].el].name }} · {{ CARD_HEROES[id].role }} · ❤ {{ CARD_HEROES[id].hp }}
+              <span class="pick-head">
+                <span class="pick-name">{{ CARD_HEROES[id].name }}</span>
+                <span class="pick-el"><span class="el-dot" />{{ CARD_ELEMENTS[CARD_HEROES[id].el].name }}</span>
               </span>
+              <span class="pick-meta">{{ CARD_HEROES[id].role }} · ❤ {{ CARD_HEROES[id].hp }}</span>
               <span class="pick-move"><b>{{ CARD_HEROES[id].skill.name }}:</b> {{ CARD_HEROES[id].skill.text }}</span>
               <span class="pick-move"><b>{{ CARD_HEROES[id].burst.name }}:</b> {{ CARD_HEROES[id].burst.text }}</span>
             </span>
@@ -440,7 +441,9 @@ const banner = computed(() => {
 
 .pick-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .pick-name { font-family: var(--font-display); font-size: 20px; }
-.pick-meta { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+.pick-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pick-el { font-size: 13px; color: var(--el); display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.pick-meta { font-size: 13px; color: var(--text-muted); }
 .pick-move { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
 .pick-move b { color: var(--parchment-2); font-weight: 600; }
 
