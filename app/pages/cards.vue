@@ -742,7 +742,8 @@ button.fighter { cursor: pointer; }
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 4px 2px 10px;
+  margin: 0 -8px;
+  padding: 14px 8px 10px; /* место под кружок цены и приподнятую карту: overflow режет всё, что выступает */
 }
 
 .card-act {
