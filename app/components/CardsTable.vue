@@ -214,7 +214,7 @@ const banner = computed(() => {
           <button class="log-toggle" :aria-expanded="logOpen" @click="logOpen = !logOpen">
             {{ logOpen ? 'Скрыть' : 'Журнал' }}
           </button>
-          <ol v-if="logOpen" class="log-list">
+          <ol v-if="logOpen" class="log-list thin-scroll">
             <li v-for="(line, i) in fullLog" :key="game.log.length - i">{{ line }}</li>
           </ol>
         </div>
