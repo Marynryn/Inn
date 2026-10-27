@@ -182,26 +182,28 @@ const onTouchEnd = (e: TouchEvent) => {
         />
         <SideNavLink to="/progress" icon="progress" label="Прогресс" :active="route.path === '/progress'" @click="close" />
 
-        <div class="drawer-section">Таверна</div>
-        <SideNavLink to="/game" icon="dice" label="Игра" :active="route.path === '/game'" @click="close" />
-        <SideNavLink to="/characters" icon="users" label="Персонажи" :active="route.path === '/characters'" @click="close" />
-        <SideNavLink to="/about" icon="info" label="О проекте" :active="route.path === '/about'" @click="close" />
-        <!-- Настольная игра в меню у всех, пока какой-то стол ищет игроков, —
-             с точкой, чтобы его нашли и гости. Админам ссылка видна всегда, ниже. -->
+        <div class="drawer-section">Игры</div>
+        <SideNavLink to="/game" icon="dice" label="Кто из таверны" :active="route.path === '/game'" @click="close" />
+        <!-- Настольные игры — админам всегда, остальным пока какой-то стол ищет
+             игроков: с точкой, чтобы его нашли и гости. Внутри выбирают игру:
+             «Дорогу через таверну» или «Карты таверны». -->
         <SideNavLink
-          v-if="openTables > 0 && !auth.isAdmin"
+          v-if="auth.isAdmin || openTables > 0"
           to="/board"
           icon="map"
-          label="Настольная игра"
-          dot
-          :active="route.path.startsWith('/board')"
+          label="Настольные игры"
+          :dot="openTables > 0"
+          :active="route.path.startsWith('/board') || route.path.startsWith('/cards')"
           @click="close"
         />
+
+        <div class="drawer-section">Таверна</div>
+        <SideNavLink to="/characters" icon="users" label="Персонажи" :active="route.path === '/characters'" @click="close" />
+        <SideNavLink to="/about" icon="info" label="О проекте" :active="route.path === '/about'" @click="close" />
 
         <template v-if="auth.isAdmin && !onAdmin">
           <div class="drawer-section">Для админов</div>
           <SideNavLink to="/admin" icon="shield" label="Админка" @click="close" />
-          <SideNavLink to="/board" icon="map" label="Настольная игра" :dot="openTables > 0" :active="route.path.startsWith('/board')" @click="close" />
         </template>
       </nav>
 

@@ -15,13 +15,13 @@ test.describe('Телефон', () => {
 
     const menu = page.getByRole('complementary', { name: 'Меню' })
     await expect(menu).toBeVisible()
-    for (const item of ['Войти', 'Главы', 'Прогресс', 'Игра', 'Персонажи', 'О проекте']) {
+    for (const item of ['Войти', 'Главы', 'Прогресс', 'Кто из таверны', 'Персонажи', 'О проекте']) {
       await expect(menu.getByRole('link', { name: item })).toBeVisible()
     }
     // Гостю админка не положена.
     await expect(menu.getByRole('link', { name: 'Админка' })).toHaveCount(0)
 
-    await menu.getByRole('link', { name: 'Игра' }).click()
+    await menu.getByRole('link', { name: 'Кто из таверны' }).click()
     await expect(page).toHaveURL(/\/game$/)
     await expect(menu).toBeHidden()
   })

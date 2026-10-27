@@ -67,7 +67,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 // сервер: скрапер без JS сюда не дойдёт. Не дошло — не беда.
 onMounted(() => { $fetch('/api/board/visit', { method: 'POST', body: { visitor: visitorId() } }).catch(() => {}) })
 
-useHead({ title: 'Дорога через таверну · Странствующая Таверна', meta: [{ name: 'robots', content: 'noindex' }] })
+useHead({ title: 'Настольные игры · Странствующая Таверна', meta: [{ name: 'robots', content: 'noindex' }] })
 </script>
 
 <template>
@@ -80,12 +80,9 @@ useHead({ title: 'Дорога через таверну · Странствую
 
     <main class="lobby">
       <header class="intro">
-        <div class="eyebrow">Настольная игра · The Wandering Inn</div>
-        <h1 class="page-title title">Дорога через таверну</h1>
-        <p class="lead">
-          Бросай кубик и веди фишку по событиям первого тома. Кто первым дойдёт до финиша, тот и победил.
-          За одним столом до четырёх игроков.
-        </p>
+        <div class="eyebrow">The Wandering Inn</div>
+        <h1 class="page-title title">Настольные игры</h1>
+        <p class="lead">Выбери игру и накрой стол — друзей зовут ссылкой. Или сядь за чужой стол по коду.</p>
       </header>
 
       <section v-if="data?.mine" class="card card--panel mine">
@@ -93,28 +90,38 @@ useHead({ title: 'Дорога через таверну · Странствую
         <NuxtLink :to="`/board/${data.mine}`" class="btn btn--primary btn--sm">Вернуться</NuxtLink>
       </section>
 
-      <div class="actions">
-        <button v-if="data?.canCreate" class="btn btn--primary" :disabled="creating" @click="create">
-          {{ creating ? 'Накрываем стол…' : 'Новый стол' }}
-        </button>
-        <NuxtLink v-else :to="`/login?next=${encodeURIComponent('/board')}`" class="btn btn--ghost">Войти, чтобы накрыть свой стол</NuxtLink>
-        <form class="by-code" @submit.prevent="joinByCode">
-          <input v-model="codeInput" class="code-input" placeholder="Код стола" maxlength="6" autocomplete="off">
-          <button class="btn btn--ghost" type="submit" :disabled="!codeInput.trim()">Войти</button>
-        </form>
-      </div>
-      <p v-if="error" class="error">{{ error }}</p>
+      <div class="games">
+        <section class="card card--panel game">
+          <h2 class="game-title display">Дорога через таверну</h2>
+          <p class="game-lead">
+            Бросай кубик и веди фишку по событиям первого тома. Кто первым дойдёт до финиша, тот и победил.
+            За одним столом до четырёх игроков.
+          </p>
+          <div class="actions">
+            <button v-if="data?.canCreate" class="btn btn--primary" :disabled="creating" @click="create">
+              {{ creating ? 'Накрываем стол…' : 'Новый стол' }}
+            </button>
+            <NuxtLink v-else :to="`/login?next=${encodeURIComponent('/board')}`" class="btn btn--ghost">Войти, чтобы накрыть свой стол</NuxtLink>
+          </div>
+        </section>
 
-      <section v-if="auth.isAdmin" class="card card--panel cards">
-        <div>
-          <h2 class="cards-title display">Карты таверны</h2>
-          <p class="cards-lead">Отряд из трёх героев, кубики стихий и реакции. Пока видно только админам: накрой стол и пришли другу ссылку.</p>
-        </div>
-        <div class="actions">
-          <button class="btn btn--primary" :disabled="creating" @click="createCards">Стол на двоих</button>
-          <NuxtLink to="/cards" class="btn btn--ghost">Против компьютера</NuxtLink>
-        </div>
-      </section>
+        <section v-if="auth.isAdmin" class="card card--panel game">
+          <h2 class="game-title display">Карты таверны <span class="badge">для админов</span></h2>
+          <p class="game-lead">
+            Отряд из трёх героев, кубики стихий и реакции. Пока в разработке: стол накрывает админ, друг садится по ссылке.
+          </p>
+          <div class="actions">
+            <button class="btn btn--primary" :disabled="creating" @click="createCards">Стол на двоих</button>
+            <NuxtLink to="/cards" class="btn btn--ghost">Против компьютера</NuxtLink>
+          </div>
+        </section>
+      </div>
+
+      <form class="by-code" @submit.prevent="joinByCode">
+        <input v-model="codeInput" class="code-input" placeholder="Код стола" maxlength="6" autocomplete="off">
+        <button class="btn btn--ghost" type="submit" :disabled="!codeInput.trim()">Сесть за стол</button>
+      </form>
+      <p v-if="error" class="error">{{ error }}</p>
 
       <h2 class="section-title display">Открытые столы</h2>
       <p v-if="pending && !data" class="note">Смотрим, кто за столами…</p>
@@ -205,14 +212,27 @@ useHead({ title: 'Дорога через таверну · Странствую
 
 .error { color: var(--danger); margin: 12px 0 0; }
 
-.cards {
-  margin-top: 24px;
+.games {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 12px;
+  margin-bottom: 16px;
 }
 
-.cards-title { margin: 0 0 6px; font-size: 22px; }
-.cards-lead { margin: 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+.game { display: flex; flex-direction: column; gap: 10px; }
+.game-title { margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.game-lead { margin: 0; flex: 1; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+
+.badge {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-bold);
+  color: var(--ember-soft);
+}
 
 .section-title {
   margin: 36px 0 12px;
