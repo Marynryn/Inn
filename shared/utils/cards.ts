@@ -46,12 +46,12 @@ export const CARD_HEROES: Record<HeroId, {
   erin: {
     name: 'Эрин', el: 'fire', hp: 10, energy: 2, role: 'Поддержка',
     attack: { name: 'Сковорода', text: '2 урона Сталью' },
-    skill: { name: 'Горячий обед', text: '1 урон Огнём, все свои лечатся на 1' },
+    skill: { name: 'Горячий обед', text: '2 урона Огнём, все свои лечатся на 1' },
     burst: { name: 'Пир в таверне', text: 'Все свои лечатся на 2 и бьют следующим ударом на 1 сильнее' },
   },
   ceria: {
     name: 'Сирия', el: 'ice', hp: 10, energy: 3, role: 'Маг льда',
-    attack: { name: 'Ледяной осколок', text: '1 урон Льдом' },
+    attack: { name: 'Ледяной осколок', text: '2 урона Льдом' },
     skill: { name: 'Ледяное копьё', text: '3 урона Льдом' },
     burst: { name: 'Ледяная буря', text: '4 урона Льдом, цель замерзает до конца раунда' },
   },
@@ -76,7 +76,7 @@ export const CARD_HEROES: Record<HeroId, {
   rags: {
     name: 'Рэгс', el: 'poison', hp: 10, energy: 3, role: 'Вождь гоблинов',
     attack: { name: 'Арбалет', text: '2 урона Сталью' },
-    skill: { name: 'Отравленная ловушка', text: '1 урон Ядом, цель отравлена на 2 раунда' },
+    skill: { name: 'Отравленная ловушка', text: '2 урона Ядом, цель отравлена на 2 раунда' },
     burst: { name: 'Гоблинская засада', text: '2 урона Ядом каждому врагу' },
   },
 }
@@ -132,6 +132,9 @@ export type Player = {
 
 export type Phase = 'reroll' | 'action' | 'over'
 
+/** Что случилось с героем за последний ход: страница показывает это всплывающими цифрами. */
+export type Fx = { side: Side; idx: number; text: string; kind: 'dmg' | 'heal' | 'shield' | 'note' }
+
 export type Game = {
   players: [Player, Player]
   round: number
@@ -143,6 +146,7 @@ export type Game = {
   winner: Side | null
   log: string[]
   seed: number
+  fx: Fx[]
 }
 
 export type Action =
@@ -207,6 +211,7 @@ export function newCardsGame(mine: HeroId[], theirs: HeroId[], seed = Date.now()
     winner: null,
     log: [],
     seed,
+    fx: [],
   }
   for (const p of g.players) {
     shuffle(g, p.deck)
@@ -228,6 +233,13 @@ function draw(p: Player, n: number) {
   for (let i = 0; i < n && p.deck.length; i++) {
     const c = p.deck.pop()!
     if (p.hand.length < HAND_MAX) p.hand.push(c)
+  }
+}
+
+function pop(g: Game, f: Fighter, kind: Fx['kind'], text: string) {
+  for (const side of [0, 1] as Side[]) {
+    const idx = g.players[side].fighters.indexOf(f)
+    if (idx >= 0) g.fx.push({ side, idx, kind, text })
   }
 }
 
@@ -297,6 +309,7 @@ function damage(g: Game, h: Hit) {
   if (h.el === 'wind') {
     if (aura && aura !== 'wind' && aura !== 'steel' && !h.swirl) {
       say(g, `Рассеивание: ${CARD_ELEMENTS[aura].name} перекидывается на остальных`)
+      pop(g, f, 'note', 'Рассеивание')
       f.aura = null
       for (const i of others()) damage(g, { side: h.side, idx: i, amount: 1, el: aura, swirl: true })
     }
@@ -304,10 +317,12 @@ function damage(g: Game, h: Hit) {
     amount += 2
     f.aura = null
     say(g, 'Таяние: +2 урона')
+    pop(g, f, 'note', 'Таяние +2')
   } else if (pair('fire', 'poison')) {
     amount += 1
     f.aura = null
     say(g, 'Взрыв: +1 урон и по 1 всем остальным')
+    pop(g, f, 'note', 'Взрыв +1')
     for (const i of others()) hurt(g, h.side, i, 1)
   } else if (pair('magic', 'poison')) {
     amount += 1
@@ -315,6 +330,7 @@ function damage(g: Game, h: Hit) {
     f.shield = 0
     f.bonus = 0
     say(g, 'Нейтрализация: +1 урон, щиты и усиления сняты')
+    pop(g, f, 'note', 'Нейтрализация +1')
   } else if (h.el !== 'steel') {
     f.aura = h.el
   }
@@ -329,6 +345,8 @@ function hurt(g: Game, side: Side, idx: number, amount: number) {
   const blocked = Math.min(f.shield, amount)
   f.shield -= blocked
   f.hp = Math.max(0, f.hp - (amount - blocked))
+  if (blocked) pop(g, f, 'shield', `щит −${blocked}`)
+  if (amount - blocked) pop(g, f, 'dmg', `−${amount - blocked}`)
   say(g, `${tag(side, f)} получает ${amount - blocked}${blocked ? ` (щит поглотил ${blocked})` : ''}`)
   if (!alive(f)) {
     Object.assign(f, { energy: 0, aura: null, shield: 0, bonus: 0, poison: 0, frozen: false })
@@ -343,8 +361,11 @@ function hurt(g: Game, side: Side, idx: number, amount: number) {
   }
 }
 
-function heal(f: Fighter, n: number) {
-  if (alive(f)) f.hp = Math.min(CARD_HEROES[f.id].hp, f.hp + n)
+function heal(g: Game, f: Fighter, n: number) {
+  if (!alive(f)) return
+  const was = f.hp
+  f.hp = Math.min(CARD_HEROES[f.id].hp, f.hp + n)
+  if (f.hp > was) pop(g, f, 'heal', `+${f.hp - was}`)
 }
 
 /** Удар героя: прибавка от еды и Пира срабатывает на первом же ударе. */
@@ -431,6 +452,7 @@ export function cardsApply(prev: Game, side: Side, a: Action): Game {
   const c = cardsCheck(prev, side, a)
   if (!c.ok) return prev
   const g: Game = structuredClone(prev)
+  g.fx = []
   const p = g.players[side]
   const me = cardsActive(p)
   const foeSide = (1 - side) as Side
@@ -451,7 +473,7 @@ export function cardsApply(prev: Game, side: Side, a: Action): Game {
     case 'attack': {
       const h = CARD_HEROES[me.id]
       say(g, `${tag(side, me)}: ${h.attack.name}`)
-      if (me.id === 'ceria') strike(g, side, 1, 'ice')
+      if (me.id === 'ceria') strike(g, side, 2, 'ice')
       else strike(g, side, 2, 'steel')
       me.energy = Math.min(h.energy, me.energy + 1)
       combat = true
@@ -507,8 +529,8 @@ function skill(g: Game, side: Side) {
   say(g, `${tag(side, me)}: ${CARD_HEROES[me.id].skill.name}`)
   switch (me.id) {
     case 'erin':
-      strike(g, side, 1, 'fire')
-      for (const f of p.fighters) heal(f, 1)
+      strike(g, side, 2, 'fire')
+      for (const f of p.fighters) heal(g, f, 1)
       break
     case 'ceria': strike(g, side, 3, 'ice'); break
     case 'pisces': strike(g, side, 3, 'magic'); break
@@ -519,7 +541,7 @@ function skill(g: Game, side: Side) {
     case 'relc': strike(g, side, 4, 'steel'); break
     case 'rags': {
       const target = cardsActive(g.players[foe])
-      strike(g, side, 1, 'poison')
+      strike(g, side, 2, 'poison')
       if (alive(target)) target.poison = 2
       break
     }
@@ -541,7 +563,7 @@ function burst(g: Game, side: Side) {
   }
   switch (me.id) {
     case 'erin':
-      for (const f of p.fighters) if (alive(f)) { heal(f, 2); f.bonus += 1 }
+      for (const f of p.fighters) if (alive(f)) { heal(g, f, 2); f.bonus += 1 }
       break
     case 'ceria': {
       const target = cardsActive(foes)
@@ -557,6 +579,7 @@ function burst(g: Game, side: Side) {
     case 'relc':
       strike(g, side, 3, 'steel')
       me.shield += 3
+      pop(g, me, 'shield', 'щит +3')
       break
     case 'rags': everyone(2, 'poison'); break
   }
@@ -568,12 +591,12 @@ function playCard(g: Game, side: Side, idx: number) {
   const card = p.hand.splice(idx, 1)[0]!
   say(g, `${who(side)}: «${CARDS[card].name}»`)
   switch (card) {
-    case 'pizza': heal(me, 3); break
+    case 'pizza': heal(g, me, 3); break
     case 'juice': me.energy = Math.min(CARD_HEROES[me.id].energy, me.energy + 1); break
     case 'flies': me.bonus += 2; break
     case 'potion': {
       const hurtMost = p.fighters.filter(alive).sort((a, b) => (a.hp - CARD_HEROES[a.id].hp) - (b.hp - CARD_HEROES[b.id].hp))[0]
-      if (hurtMost) heal(hurtMost, 2)
+      if (hurtMost) heal(g, hurtMost, 2)
       break
     }
     case 'scroll': {
@@ -581,14 +604,14 @@ function playCard(g: Game, side: Side, idx: number) {
       damage(g, { side: (1 - side) as Side, idx: foe.active, amount: 2, el: 'fire' })
       break
     }
-    case 'shield': me.shield += 2; break
+    case 'shield': me.shield += 2; pop(g, me, 'shield', 'щит +2'); break
     case 'chess':
       p.rerolls += 1
       if (side === 0) g.phase = 'reroll'
       else computerReroll(g)
       break
     case 'night':
-      for (const f of p.fighters) { heal(f, 1); f.poison = 0 }
+      for (const f of p.fighters) { heal(g, f, 1); f.poison = 0 }
       break
     case 'mrsha': p.dice.push('omni'); break
     case 'rumors': draw(p, 2); break

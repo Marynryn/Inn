@@ -7,7 +7,7 @@
 import {
   CARD_HEROES, CARD_HERO_IDS, CARDS, CARD_ELEMENTS, ATTACK_COST, SKILL_COST, BURST_COST, SWITCH_COST,
   newCardsGame, randomCardsTeam, cardsApply, cardsCheck, cardsComputerMove, cardsActive, dieColor, dieName, dieSymbol,
-  type Game, type HeroId, type Action, type Cost, type Element, type Fighter,
+  type Game, type Fx, type HeroId, type Action, type Cost, type Element, type Fighter,
 } from '#shared/utils/cards'
 
 const { data: settings } = await useFetch('/api/settings')
@@ -57,6 +57,20 @@ const myTurn = computed(() => {
 
 const can = (a: Action) => (game.value ? cardsCheck(game.value, 0, a) : { ok: false as const, why: '' })
 
+// Всплывающие цифры: что случилось за последний ход. Поколение меняет ключи,
+// чтобы анимация шла заново, даже если цифры те же.
+const fx = shallowRef<Fx[]>([])
+const fxGen = ref(0)
+let fxTimer: ReturnType<typeof setTimeout> | null = null
+watch(game, (g) => {
+  if (!g?.fx.length) return
+  fx.value = g.fx
+  fxGen.value++
+  if (fxTimer) clearTimeout(fxTimer)
+  fxTimer = setTimeout(() => { fx.value = [] }, 2400)
+})
+const popsFor = (side: 0 | 1, idx: number) => fx.value.filter(x => x.side === side && x.idx === idx)
+
 // Ход компьютера — с паузой, чтобы было видно, что он делает.
 let timer: ReturnType<typeof setTimeout> | null = null
 watch(game, (g) => {
@@ -67,7 +81,10 @@ watch(game, (g) => {
     if (cur) game.value = cardsApply(cur, 1, cardsComputerMove(cur))
   }, 750)
 })
-onBeforeUnmount(() => { if (timer) clearTimeout(timer) })
+onBeforeUnmount(() => {
+  if (timer) clearTimeout(timer)
+  if (fxTimer) clearTimeout(fxTimer)
+})
 
 // ─── Действия по выбранному ───────────────────────────────
 function clickMine(idx: number) {
@@ -222,6 +239,7 @@ const banner = computed(() => {
             <span v-if="f.aura" class="aura" :style="{ background: elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`" />
             <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
             <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
+            <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(1, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
             <span v-if="statusTags(f).length" class="tags">{{ statusTags(f).join(' · ') }}</span>
           </div>
         </div>
@@ -253,6 +271,7 @@ const banner = computed(() => {
             <span v-if="f.aura" class="aura" :style="{ background: elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`" />
             <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
             <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
+            <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(0, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
             <span v-if="statusTags(f).length" class="tags">{{ statusTags(f).join(' · ') }}</span>
           </button>
         </div>
@@ -580,6 +599,42 @@ button.fighter { cursor: pointer; }
 .energy i.on { background: var(--gold); }
 
 .fighter-name { font-size: 13px; margin-top: 2px; }
+
+.pops {
+  position: absolute;
+  top: 30%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.pop {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(20, 14, 10, .85);
+  font-weight: 700;
+  font-size: 18px;
+  white-space: nowrap;
+  opacity: 0;
+  animation: pop 1.6s ease-out forwards;
+}
+
+.pop--dmg { color: #ff8a7a; font-size: 22px; }
+.pop--heal { color: var(--success); }
+.pop--shield { color: #9cc3e8; font-size: 14px; }
+.pop--note { color: var(--gold); font-size: 13px; }
+
+@keyframes pop {
+  0% { opacity: 0; transform: translateY(8px) scale(.8); }
+  15% { opacity: 1; transform: translateY(0) scale(1.1); }
+  30% { transform: scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
 .tags { font-size: 11px; color: var(--ember-soft); text-align: center; }
 
 .log {
