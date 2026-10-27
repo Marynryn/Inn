@@ -501,10 +501,10 @@ const banner = computed(() => {
 .ended { color: var(--ember-soft); }
 
 .row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  align-items: end;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  align-items: flex-end;
 }
 
 .fighter {
@@ -512,7 +512,9 @@ const banner = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px;
+  width: 132px;
+  max-width: calc((100% - 20px) / 3);
+  padding: 4px 4px 6px;
   border-radius: var(--radius-md);
   border: 2px solid transparent;
   background: var(--fill);
@@ -534,7 +536,6 @@ button.fighter { cursor: pointer; }
 
 .fighter-img {
   width: 100%;
-  max-width: 120px;
   aspect-ratio: 3 / 4;
   object-fit: cover;
   border-radius: var(--radius-sm);
@@ -542,8 +543,8 @@ button.fighter { cursor: pointer; }
 
 .hp {
   position: absolute;
-  top: 2px;
-  left: 2px;
+  top: 8px;
+  left: 8px;
   min-width: 28px;
   padding: 2px 6px;
   border-radius: var(--radius-pill);
@@ -556,8 +557,8 @@ button.fighter { cursor: pointer; }
 
 .aura {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 10px;
+  right: 10px;
   width: 16px;
   height: 16px;
   border-radius: var(--radius-round);
@@ -704,6 +705,5 @@ button.fighter { cursor: pointer; }
   .lobby, .table { padding-top: 80px; }
   .moves { grid-template-columns: 1fr; }
   .move-text { display: none; }
-  .fighter-img { max-width: 90px; }
 }
 </style>
