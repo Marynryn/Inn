@@ -127,6 +127,7 @@ export type Player = {
   deck: CardId[]
   ended: boolean
   rerolls: number
+  rolling: boolean // ещё не решил, что перебросить: пока кто-то решает, ходов нет
   skeleton: number // сколько раундов ещё бьёт скелет Пишеса
 }
 
@@ -136,6 +137,10 @@ export type Phase = 'reroll' | 'action' | 'over'
 export type Fx = { side: Side; idx: number; text: string; kind: 'dmg' | 'heal' | 'shield' | 'note' }
 
 export type Game = {
+  /** С компьютером — партия в браузере; online — на сервере, двое людей. */
+  vs: 'computer' | 'online'
+  /** Как звать стороны в журнале. С компьютером — «Ты» и «Соперник». */
+  names: [string, string]
   players: [Player, Player]
   round: number
   turn: Side
@@ -147,6 +152,8 @@ export type Game = {
   log: string[]
   seed: number
   fx: Fx[]
+  /** Только в виде для игрока: сколько карт у соперника — сами карты скрыты. */
+  foeHand?: number
 }
 
 export type Action =
@@ -196,16 +203,22 @@ function newPlayer(team: HeroId[]): Player {
     deck: CARD_IDS.flatMap(c => [c, c]),
     ended: false,
     rerolls: 1,
+    rolling: true,
     skeleton: 0,
   }
 }
 
-export function newCardsGame(mine: HeroId[], theirs: HeroId[], seed = Date.now()): Game {
+export type CardsGameOptions = { vs?: Game['vs']; names?: [string, string]; first?: Side }
+
+export function newCardsGame(mine: HeroId[], theirs: HeroId[], seed = Date.now(), opts: CardsGameOptions = {}): Game {
+  const first = opts.first ?? 0
   const g: Game = {
+    vs: opts.vs ?? 'computer',
+    names: opts.names ?? ['Ты', 'Соперник'],
     players: [newPlayer(mine), newPlayer(theirs)],
     round: 1,
-    turn: 0,
-    first: 0,
+    turn: first,
+    first,
     phase: 'reroll',
     choosing: null,
     winner: null,
@@ -218,7 +231,7 @@ export function newCardsGame(mine: HeroId[], theirs: HeroId[], seed = Date.now()
     draw(p, HAND_START)
     p.dice = Array.from({ length: DICE_PER_ROUND }, () => rollDie(g, p))
   }
-  computerReroll(g)
+  if (g.vs === 'computer') computerReroll(g)
   say(g, 'Раунд 1. Можно перебросить кубики.')
   return g
 }
@@ -248,10 +261,15 @@ function say(g: Game, line: string) {
   if (g.log.length > 40) g.log.shift()
 }
 
-const who = (side: Side) => (side === 0 ? 'Ты' : 'Соперник')
+const who = (g: Game, side: Side) => g.names[side]
 const heroName = (f: Fighter) => CARD_HEROES[f.id].name
-/** В логе герой соперника помечен: отряды могут совпадать. */
-const tag = (side: Side, f: Fighter) => (side === 1 ? `${heroName(f)} (соперник)` : heroName(f))
+/** В логе герой соперника помечен: отряды могут совпадать. По сети стороны
+ *  зовут по именам, и помечаем только героя, который есть у обоих. */
+function tag(g: Game, side: Side, f: Fighter) {
+  if (g.vs === 'computer') return side === 1 ? `${heroName(f)} (соперник)` : heroName(f)
+  const both = g.players.every(p => p.fighters.some(x => x.id === f.id))
+  return both ? `${heroName(f)} (${g.names[side]})` : heroName(f)
+}
 export const cardsActive = (p: Player) => p.fighters[p.active]!
 const alive = (f: Fighter) => f.hp > 0
 
@@ -347,14 +365,14 @@ function hurt(g: Game, side: Side, idx: number, amount: number) {
   f.hp = Math.max(0, f.hp - (amount - blocked))
   if (blocked) pop(g, f, 'shield', `щит −${blocked}`)
   if (amount - blocked) pop(g, f, 'dmg', `−${amount - blocked}`)
-  say(g, `${tag(side, f)} получает ${amount - blocked}${blocked ? ` (щит поглотил ${blocked})` : ''}`)
+  say(g, `${tag(g, side, f)} получает ${amount - blocked}${blocked ? ` (щит поглотил ${blocked})` : ''}`)
   if (!alive(f)) {
     Object.assign(f, { energy: 0, aura: null, shield: 0, bonus: 0, poison: 0, frozen: false })
-    say(g, `${tag(side, f)} выбывает из боя`)
+    say(g, `${tag(g, side, f)} выбывает из боя`)
     if (p.fighters.every(x => !alive(x))) {
       g.phase = 'over'
       g.winner = (1 - side) as Side
-      say(g, side === 1 ? 'Победа!' : 'Поражение')
+      say(g, g.vs === 'online' ? `${g.names[(1 - side) as Side]} побеждает!` : side === 1 ? 'Победа!' : 'Поражение')
     } else if (idx === p.active) {
       g.choosing = side
     }
@@ -383,7 +401,7 @@ function forceSwitch(g: Game, side: Side) {
     const i = (p.active + k) % p.fighters.length
     if (alive(p.fighters[i]!)) {
       p.active = i
-      say(g, `${who(side)}: в бой выходит ${heroName(p.fighters[i]!)}`)
+      say(g, `${who(g, side)}: в бой выходит ${heroName(p.fighters[i]!)}`)
       return
     }
   }
@@ -406,9 +424,9 @@ export function cardsCheck(g: Game, side: Side, a: Action): Check {
     return f && alive(f) ? { ok: true, pay: [] } : no('Этот герой не может выйти')
   }
   if (a.type === 'reroll') {
-    return g.phase === 'reroll' && side === 0 ? { ok: true, pay: [] } : no('Сейчас не время')
+    return g.phase === 'reroll' && p.rolling ? { ok: true, pay: [] } : no('Сейчас не время')
   }
-  if (g.phase !== 'action') return no('Сначала кубики')
+  if (g.phase !== 'action') return no(p.rolling ? 'Сначала кубики' : 'Соперник перебрасывает кубики')
   if (g.turn !== side) return no('Ход соперника')
   if (p.ended) return no('Ты уже закончил раунд')
 
@@ -463,16 +481,17 @@ export function cardsApply(prev: Game, side: Side, a: Action): Game {
     case 'choose':
       p.active = a.to
       g.choosing = null
-      say(g, `${who(side)}: в бой выходит ${heroName(cardsActive(p))}`)
+      say(g, `${who(g, side)}: в бой выходит ${heroName(cardsActive(p))}`)
       return g
     case 'reroll':
       for (const i of a.dice) if (p.dice[i]) p.dice[i] = rollDie(g, p)
       p.rerolls = Math.max(0, p.rerolls - 1)
-      g.phase = 'action'
+      p.rolling = false
+      if (!g.players.some(x => x.rolling)) g.phase = 'action'
       return g
     case 'attack': {
       const h = CARD_HEROES[me.id]
-      say(g, `${tag(side, me)}: ${h.attack.name}`)
+      say(g, `${tag(g, side, me)}: ${h.attack.name}`)
       if (me.id === 'ceria') strike(g, side, 2, 'ice')
       else strike(g, side, 2, 'steel')
       me.energy = Math.min(h.energy, me.energy + 1)
@@ -491,7 +510,7 @@ export function cardsApply(prev: Game, side: Side, a: Action): Game {
       break
     case 'switch':
       p.active = a.to
-      say(g, `${who(side)}: в бой выходит ${heroName(cardsActive(p))}`)
+      say(g, `${who(g, side)}: в бой выходит ${heroName(cardsActive(p))}`)
       combat = true
       break
     case 'play':
@@ -500,12 +519,12 @@ export function cardsApply(prev: Game, side: Side, a: Action): Game {
     case 'tune': {
       const card = p.hand.splice(a.card, 1)[0]!
       p.dice[a.die] = CARD_HEROES[me.id].el
-      say(g, `${who(side)}: «${CARDS[card].name}» обменяна на кубик`)
+      say(g, `${who(g, side)}: «${CARDS[card].name}» обменяна на кубик`)
       break
     }
     case 'end':
       p.ended = true
-      say(g, `${who(side)}: раунд закончен`)
+      say(g, `${who(g, side)}: раунд закончен`)
       if (!g.players[foeSide].ended) g.first = side
       combat = true
       break
@@ -518,7 +537,7 @@ export function cardsApply(prev: Game, side: Side, a: Action): Game {
     g.turn = foeSide
   }
   // Пал активный у компьютера — он выбирает сразу, не задерживая партию.
-  if (g.choosing === 1) computerChoose(g)
+  if (g.choosing === 1 && g.vs === 'computer') computerChoose(g)
   return g
 }
 
@@ -526,7 +545,7 @@ function skill(g: Game, side: Side) {
   const p = g.players[side]
   const me = cardsActive(p)
   const foe = (1 - side) as Side
-  say(g, `${tag(side, me)}: ${CARD_HEROES[me.id].skill.name}`)
+  say(g, `${tag(g, side, me)}: ${CARD_HEROES[me.id].skill.name}`)
   switch (me.id) {
     case 'erin':
       strike(g, side, 2, 'fire')
@@ -553,7 +572,7 @@ function burst(g: Game, side: Side) {
   const me = cardsActive(p)
   const foe = (1 - side) as Side
   const foes = g.players[foe]
-  say(g, `${tag(side, me)}: ${CARD_HEROES[me.id].burst.name}!`)
+  say(g, `${tag(g, side, me)}: ${CARD_HEROES[me.id].burst.name}!`)
   const everyone = (amount: number, el: Element) => {
     const first = foes.active
     for (let i = 0; i < foes.fighters.length; i++) {
@@ -589,7 +608,7 @@ function playCard(g: Game, side: Side, idx: number) {
   const p = g.players[side]
   const me = cardsActive(p)
   const card = p.hand.splice(idx, 1)[0]!
-  say(g, `${who(side)}: «${CARDS[card].name}»`)
+  say(g, `${who(g, side)}: «${CARDS[card].name}»`)
   switch (card) {
     case 'pizza': heal(g, me, 3); break
     case 'juice': me.energy = Math.min(CARD_HEROES[me.id].energy, me.energy + 1); break
@@ -607,8 +626,11 @@ function playCard(g: Game, side: Side, idx: number) {
     case 'shield': me.shield += 2; pop(g, me, 'shield', 'щит +2'); break
     case 'chess':
       p.rerolls += 1
-      if (side === 0) g.phase = 'reroll'
-      else computerReroll(g)
+      if (g.vs === 'computer' && side === 1) computerReroll(g)
+      else {
+        p.rolling = true
+        g.phase = 'reroll'
+      }
       break
     case 'night':
       for (const f of p.fighters) { heal(g, f, 1); f.poison = 0 }
@@ -624,7 +646,7 @@ function endRound(g: Game) {
     const p = g.players[side]
     if (p.skeleton > 0 && g.phase !== 'over') {
       const foe = (1 - side) as Side
-      say(g, `Скелет (${who(side).toLowerCase()}) бьёт`)
+      say(g, g.vs === 'computer' ? `Скелет (${who(g, side).toLowerCase()}) бьёт` : `Скелет игрока ${who(g, side)} бьёт`)
       damage(g, { side: foe, idx: g.players[foe].active, amount: 1, el: 'magic' })
       p.skeleton--
     }
@@ -634,7 +656,7 @@ function endRound(g: Game) {
     p.fighters.forEach((f, i) => {
       if (f.poison > 0 && alive(f) && g.phase !== 'over') {
         f.poison--
-        say(g, `Яд жжёт: ${tag(side, f)}`)
+        say(g, `Яд жжёт: ${tag(g, side, f)}`)
         damage(g, { side, idx: i, amount: 1, el: 'poison' })
       }
       f.frozen = false
@@ -646,13 +668,91 @@ function endRound(g: Game) {
   for (const p of g.players) {
     p.ended = false
     p.rerolls = 1
+    p.rolling = true
     draw(p, DRAW_PER_ROUND)
     p.dice = Array.from({ length: DICE_PER_ROUND }, () => rollDie(g, p))
   }
-  computerReroll(g)
+  if (g.vs === 'computer') computerReroll(g)
   g.phase = 'reroll'
   say(g, `Раунд ${g.round}. Можно перебросить кубики.`)
 }
+
+// ─── По сети ──────────────────────────────────────────────
+
+/** Игрок ушёл из партии — победа достаётся оставшемуся. */
+export function cardsForfeit(prev: Game, side: Side): Game {
+  if (prev.phase === 'over') return prev
+  const g: Game = structuredClone(prev)
+  g.fx = []
+  g.phase = 'over'
+  g.choosing = null
+  g.winner = (1 - side) as Side
+  say(g, `${who(g, side)} уходит из-за стола. ${who(g, g.winner)} побеждает!`)
+  return g
+}
+
+const flip = (s: Side) => (1 - s) as Side
+
+/**
+ * Партия глазами игрока: он всегда снизу (сторона 0), карты соперника и
+ * порядок колод скрыты, зерна случайности нет — по нему предсказали бы кубики.
+ */
+export function cardsView(g: Game, side: Side): Game {
+  const v: Game = structuredClone(g)
+  if (side === 1) {
+    v.players.reverse()
+    v.names.reverse()
+    v.turn = flip(v.turn)
+    v.first = flip(v.first)
+    if (v.choosing !== null) v.choosing = flip(v.choosing)
+    if (v.winner !== null) v.winner = flip(v.winner)
+    v.fx = v.fx.map(x => ({ ...x, side: flip(x.side) }))
+  }
+  v.foeHand = v.players[1].hand.length
+  v.players[1].hand = []
+  for (const p of v.players) p.deck = []
+  v.seed = 0
+  return v
+}
+
+/** Ход пришёл по сети — проверяем форму, прежде чем отдать движку. */
+export function isCardsAction(a: unknown): a is Action {
+  if (!a || typeof a !== 'object') return false
+  const x = a as Record<string, unknown>
+  const int = (v: unknown) => Number.isInteger(v) && (v as number) >= 0 && (v as number) < 64
+  switch (x.type) {
+    case 'attack': case 'skill': case 'burst': case 'end': return true
+    case 'switch': case 'choose': return int(x.to)
+    case 'play': return int(x.card)
+    case 'tune': return int(x.card) && int(x.die)
+    case 'reroll': return Array.isArray(x.dice) && x.dice.length <= 16 && x.dice.every(int)
+    default: return false
+  }
+}
+
+export const isHeroTeam = (v: unknown): v is HeroId[] =>
+  Array.isArray(v) && v.length === 3 && new Set(v).size === 3 && v.every(id => CARD_HERO_IDS.includes(id))
+
+/** Код стола карт: на букву длиннее кода настольной игры, чтобы их не путать. */
+export const CARDS_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+export const CARDS_CODE_LENGTH = 6
+export const isCardsCode = (v: unknown): v is string =>
+  typeof v === 'string' && v.length === CARDS_CODE_LENGTH && [...v].every(c => CARDS_CODE_ALPHABET.includes(c))
+
+/** Как стол выглядит для игрока. */
+export type CardsSeatView = { name: string; avatarUrl: string | null; team: HeroId[] | null; online: boolean; rematch: boolean }
+export type CardsRoomView = { code: string; you: Side; seats: CardsSeatView[]; game: Game | null }
+
+export type CardsClientMessage =
+  | { type: 'join'; ticket: string; code: string }
+  | { type: 'team'; team: HeroId[] }
+  | { type: 'act'; action: Action }
+  | { type: 'rematch' }
+  | { type: 'leave' }
+
+export type CardsServerMessage =
+  | { type: 'room'; room: CardsRoomView }
+  | { type: 'error'; message: string; fatal?: boolean }
 
 // ─── Компьютер ────────────────────────────────────────────
 
@@ -664,6 +764,7 @@ function computerReroll(g: Game) {
     p.dice = p.dice.map(d => (d === el || d === 'omni' ? d : rollDie(g, p)))
     p.rerolls--
   }
+  p.rolling = false
 }
 
 function computerChoose(g: Game) {

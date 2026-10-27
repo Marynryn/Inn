@@ -1,8 +1,13 @@
 <script setup lang="ts">
+import { isCardsCode } from '#shared/utils/cards'
+
 /**
- * Вход в настольную игру: свои незаконченные партии, открытые комнаты и
+ * Вход в настольные игры: свои незаконченные партии, открытые комнаты и
  * кнопка «новая комната». Играть может любой вошедший; ссылка в меню — только
  * у админов, остальных зовут на стол ссылкой.
+ *
+ * Здесь же «Карты таверны»: пока они в разработке, стол для них накрывает
+ * только админ, а друг садится по ссылке.
  */
 
 type RoomsReply = {
@@ -15,6 +20,7 @@ type RoomsReply = {
 const { data: settings } = await useFetch('/api/settings')
 const { data, refresh, pending } = await useFetch<RoomsReply>('/api/board/rooms')
 
+const auth = useAuthStore()
 const creating = ref(false)
 const error = ref('')
 const codeInput = ref('')
@@ -32,9 +38,24 @@ async function create() {
   }
 }
 
+async function createCards() {
+  creating.value = true
+  error.value = ''
+  try {
+    const { code } = await $fetch<{ code: string }>('/api/cards/rooms', { method: 'POST' })
+    await navigateTo(`/cards/${code}`)
+  } catch (e: any) {
+    error.value = e?.data?.message || 'Не получилось накрыть стол'
+  } finally {
+    creating.value = false
+  }
+}
+
+// Код карт на букву длиннее — по длине и понимаем, куда вести.
 function joinByCode() {
   const code = codeInput.value.trim().toUpperCase()
-  if (code) navigateTo(`/board/${code}`)
+  if (!code) return
+  navigateTo(isCardsCode(code) ? `/cards/${code}` : `/board/${code}`)
 }
 
 // Список комнат живой: пока страница открыта, подтягиваем раз в несколько секунд.
@@ -78,11 +99,22 @@ useHead({ title: 'Дорога через таверну · Странствую
         </button>
         <NuxtLink v-else :to="`/login?next=${encodeURIComponent('/board')}`" class="btn btn--ghost">Войти, чтобы накрыть свой стол</NuxtLink>
         <form class="by-code" @submit.prevent="joinByCode">
-          <input v-model="codeInput" class="code-input" placeholder="Код стола" maxlength="5" autocomplete="off">
+          <input v-model="codeInput" class="code-input" placeholder="Код стола" maxlength="6" autocomplete="off">
           <button class="btn btn--ghost" type="submit" :disabled="!codeInput.trim()">Войти</button>
         </form>
       </div>
       <p v-if="error" class="error">{{ error }}</p>
+
+      <section v-if="auth.isAdmin" class="card card--panel cards">
+        <div>
+          <h2 class="cards-title display">Карты таверны</h2>
+          <p class="cards-lead">Отряд из трёх героев, кубики стихий и реакции. Пока видно только админам: накрой стол и пришли другу ссылку.</p>
+        </div>
+        <div class="actions">
+          <button class="btn btn--primary" :disabled="creating" @click="createCards">Стол на двоих</button>
+          <NuxtLink to="/cards" class="btn btn--ghost">Против компьютера</NuxtLink>
+        </div>
+      </section>
 
       <h2 class="section-title display">Открытые столы</h2>
       <p v-if="pending && !data" class="note">Смотрим, кто за столами…</p>
@@ -172,6 +204,15 @@ useHead({ title: 'Дорога через таверну · Странствую
 }
 
 .error { color: var(--danger); margin: 12px 0 0; }
+
+.cards {
+  margin-top: 24px;
+  display: grid;
+  gap: 12px;
+}
+
+.cards-title { margin: 0 0 6px; font-size: 22px; }
+.cards-lead { margin: 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
 
 .section-title {
   margin: 36px 0 12px;
