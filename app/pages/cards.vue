@@ -7,7 +7,7 @@
 import {
   CARD_HEROES, CARD_HERO_IDS, CARDS, CARD_ELEMENTS, ATTACK_COST, SKILL_COST, BURST_COST, SWITCH_COST,
   newCardsGame, randomCardsTeam, cardsApply, cardsCheck, cardsComputerMove, cardsActive, dieColor, dieName, dieSymbol,
-  type Game, type Fx, type HeroId, type Action, type Cost, type Element, type Fighter,
+  type Game, type Fx, type HeroId, type CardId, type Action, type Cost, type Element, type Fighter,
 } from '#shared/utils/cards'
 
 const { data: settings } = await useFetch('/api/settings')
@@ -98,6 +98,18 @@ function clickMine(idx: number) {
 function clickCard(idx: number) {
   selected.value = selected.value?.kind === 'card' && selected.value.idx === idx ? null : { kind: 'card', idx }
 }
+
+/** Одинаковые карты в руке — одной карточкой со счётчиком. Ход по ней берёт
+ *  первую такую карту: копии ничем не отличаются. */
+const handGroups = computed(() => {
+  const groups: { card: CardId; idx: number; count: number }[] = []
+  me.value?.hand.forEach((card, idx) => {
+    const g = groups.find(x => x.card === card)
+    if (g) g.count++
+    else groups.push({ card, idx, count: 1 })
+  })
+  return groups
+})
 
 /** Кубик под обмен: первый, что не подходит активному герою. */
 const strayDie = computed(() => me.value?.dice.findIndex(d => d !== myEl.value && d !== 'omni') ?? -1)
@@ -344,7 +356,7 @@ const banner = computed(() => {
             class="btn btn--primary btn--sm"
             :disabled="!myTurn || !can({ type: 'play', card: selected.idx }).ok"
             @click="act({ type: 'play', card: selected.idx })"
-          >Сыграть · {{ CARDS[me.hand[selected.idx]!].cost }}</button>
+          >Сыграть{{ CARDS[me.hand[selected.idx]!].cost ? ` · ${CARDS[me.hand[selected.idx]!].cost}` : '' }}</button>
           <button
             class="btn btn--ghost btn--sm"
             :disabled="!myTurn || strayDie < 0"
@@ -360,13 +372,14 @@ const banner = computed(() => {
       <!-- Рука -->
       <section class="hand" aria-label="Карты в руке">
         <button
-          v-for="(c, i) in me.hand"
-          :key="`${i}-${c}`"
+          v-for="{ card: c, idx: i, count } in handGroups"
+          :key="c"
           class="card-act"
           :class="{ 'card-act--sel': selected?.kind === 'card' && selected.idx === i }"
           @click="clickCard(i)"
         >
-          <span class="card-cost">{{ CARDS[c].cost }}</span>
+          <span v-if="CARDS[c].cost" class="card-cost" :title="`Цена: ${CARDS[c].cost}`">{{ CARDS[c].cost }}</span>
+          <span v-if="count > 1" class="card-count">×{{ count }}</span>
           <span class="card-kind">{{ CARDS[c].kind }}</span>
           <span class="card-name">{{ CARDS[c].name }}</span>
           <span class="card-text">{{ CARDS[c].text }}</span>
@@ -739,22 +752,20 @@ button.fighter { cursor: pointer; }
 .cost i { width: 10px; height: 10px; border-radius: 3px; }
 
 .hand {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  margin: 0 -8px;
-  padding: 14px 8px 10px; /* место под кружок цены и приподнятую карту: overflow режет всё, что выступает */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 12px 8px;
+  padding-top: 8px; /* место под кружок цены */
 }
 
 .card-act {
   position: relative;
-  flex: 0 0 120px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   text-align: left;
   padding: 10px 8px 8px;
-  min-height: 150px;
+  min-height: 120px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(201, 160, 46, .5);
   background: linear-gradient(180deg, #3a2d22, #2b221c);
@@ -778,6 +789,15 @@ button.fighter { cursor: pointer; }
   font-size: 13px;
   display: grid;
   place-items: center;
+}
+
+.card-count {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
 }
 
 .card-kind { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--ember-soft); }
