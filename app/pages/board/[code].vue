@@ -140,7 +140,21 @@ async function play(action: BoardAction) {
   notes.value = action.notes
   animating.value = false
   syncPositions()
+  // Ход принёс победу — объявляем, когда фишка дошла, а не раньше.
+  if (state.value?.status === 'finished' && state.value.lastAction?.id === action.id && winner.value) {
+    showWinner(winner.value.slot)
+  }
 }
+
+/** Плашка с победителем поверх карты — пока не закроют или не пройдёт время. */
+const winnerShown = ref<number | null>(null)
+let winnerTimer: ReturnType<typeof setTimeout> | null = null
+function showWinner(slot: number | null) {
+  if (winnerTimer) clearTimeout(winnerTimer)
+  winnerShown.value = slot
+  if (slot !== null) winnerTimer = setTimeout(() => { winnerShown.value = null }, 8000)
+}
+onBeforeUnmount(() => { if (winnerTimer) clearTimeout(winnerTimer) })
 
 watch(state, (s) => {
   if (!s) return
@@ -170,6 +184,7 @@ watch(state, (s) => {
     notes.value = []
     duelShown.value = null
     diceFace2.value = null
+    showWinner(null)
   }
   if (action && action.id !== seenAction) {
     seenAction = action.id
@@ -336,6 +351,13 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
     <main class="room">
       <div class="top">
         <NuxtLink to="/board" class="back">← Все столы</NuxtLink>
+        <!-- Счёт на компьютере — здесь, наверху; на телефоне он над журналом. -->
+        <div v-if="score.length" class="score score--top">
+          <span class="score-title">Счёт · партий {{ state?.games }}</span>
+          <span v-for="p in score" :key="p.slot" class="score-item">
+            <span class="dot" :style="{ background: p.color }" />{{ p.name }} <b>{{ p.wins }}</b>
+          </span>
+        </div>
         <div class="top-right">
           <span class="code">Стол {{ code }}</span>
           <button class="btn btn--ghost btn--sm" @click="copyLink">{{ copied ? 'Ссылка скопирована' : 'Позвать по ссылке' }}</button>
@@ -365,6 +387,19 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
           <div class="map" role="img" :aria-label="`Карта: ${BOARD_CELLS.length} клеток`">
             <!-- Розыгрыш встречи — поверх карты сверху: в панели справа он
                  сдвигал чат вниз. Итог остаётся строчкой у кубика и в журнале. -->
+            <button
+              v-if="winnerShown !== null && playerBySlot(winnerShown)"
+              type="button"
+              class="win"
+              aria-live="assertive"
+              @click="showWinner(null)"
+            >
+              <span class="win-title">Победа!</span>
+              <span class="win-name" :style="{ color: playerBySlot(winnerShown)!.color }">
+                {{ playerBySlot(winnerShown)!.name }}<template v-if="winnerShown === you"> — это ты</template>
+              </span>
+              <span class="win-hint">первым доходит до финиша</span>
+            </button>
             <div v-if="duelShown && state.status !== 'lobby'" class="duel" :class="{ 'duel--low': duelShown.low }">
               <p class="duel-title">Встреча на клетке</p>
               <div class="duel-row">
@@ -437,7 +472,7 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
               :title="cell.text"
               @click="pickedCell = i"
             >
-              {{ i === BOARD_LAST ? '★' : i + 1 }}
+              {{ i === BOARD_LAST ? '★' : i || '' }}
               <span v-if="cell.skill" class="cell-skill" aria-hidden="true" />
             </button>
 
@@ -477,12 +512,6 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
           <!-- Журнал на компьютере — под картой: справа и так тесно. На
                телефоне он в самом низу, после чата. -->
           <section class="card card--panel log-card log-card--desk">
-            <div v-if="score.length" class="score">
-              <span class="score-title">Счёт · партий {{ state.games }}</span>
-              <span v-for="p in score" :key="p.slot" class="score-item">
-                <span class="dot" :style="{ background: p.color }" />{{ p.name }} <b>{{ p.wins }}</b>
-              </span>
-            </div>
             <ul class="log thin-scroll">
               <li v-for="e in [...state.log].reverse()" :key="e.id">{{ e.text }}</li>
             </ul>
@@ -528,7 +557,7 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
                  занимает почти весь экран, и под ней его никто не видел. -->
             <div v-if="state.status !== 'lobby' && infoCell !== null" class="cell-info" aria-live="polite">
               <div class="cell-info-head">
-                Клетка {{ infoCell + 1 }}
+                {{ infoCell ? `Клетка ${infoCell}` : 'Старт' }}
                 <template v-if="infoWho"> · ход игрока {{ infoWho.name }}</template>
                 <span v-if="effectLabel(BOARD_CELLS[infoCell]!.effect)" class="effect-chip">
                   {{ effectLabel(BOARD_CELLS[infoCell]!.effect) }}
@@ -610,7 +639,7 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
                   <template v-if="p.left">не за столом</template>
                   <template v-else-if="!p.online">не на связи</template>
                   <template v-else-if="state.status !== 'lobby'">
-                    клетка {{ (shown[p.slot] ?? p.pos) + 1 }}<template v-if="p.skills.length"> · навыков {{ p.skills.length }}</template><template v-if="p.bonus"> · бросок в запасе</template>
+                    {{ (shown[p.slot] ?? p.pos) ? `клетка ${shown[p.slot] ?? p.pos}` : 'на старте' }}<template v-if="p.skills.length"> · навыков {{ p.skills.length }}</template><template v-if="p.bonus"> · бросок в запасе</template>
                   </template>
                 </span>
               </li>
@@ -742,7 +771,9 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 }
 
 @media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; }
+  /* minmax(0, …): иначе колонка не уже своего содержимого, и на узких
+     телефонах (меньше 390) страница уезжает вбок. */
+  .layout { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ── Карта ─────────────────────────────── */
@@ -801,6 +832,13 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
   border-bottom: 1px solid var(--line);
   font-size: 14px;
 }
+.score--top {
+  flex: 1;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
 .score-title { color: var(--text-muted); }
 .score-item { display: inline-flex; align-items: center; gap: 6px; }
 .score-item b { color: var(--gold); }
@@ -808,6 +846,7 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 
 @media (max-width: 900px) {
   .log-card--desk { display: none; }
+  .score--top { display: none; }
   .log-card--phone { display: block; }
 }
 
@@ -887,7 +926,9 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 .cell--back { border-color: var(--danger); background: var(--danger-fill); }
 .cell--skip { border-color: var(--ink-soft); border-style: dashed; background: var(--parchment); color: var(--ink); }
 .cell--again { border-color: var(--gold); background: var(--gold); color: var(--ink); }
-.cell--start { background: var(--moss); }
+/* Старт — у таверны, до первой клетки: пустой кружок без номера, чтобы
+   не путался с зелёными клетками «вперёд по стрелке». */
+.cell--start { background: rgba(20, 14, 10, .45); border-style: dashed; }
 .cell--finish { background: var(--ember); color: var(--ink); border-color: var(--ember-soft); }
 .cell--picked { box-shadow: 0 0 0 3px var(--ember-soft); }
 
@@ -1049,6 +1090,45 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 
 .duel--low { top: auto; bottom: 10px; }
 
+/* Победитель — по центру карты, крупно; нажатие закрывает. */
+.win {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  max-width: calc(100% - 24px);
+  padding: 16px 28px 18px;
+  border-radius: var(--radius-lg);
+  background: rgba(20, 14, 10, .92);
+  border: 1px solid var(--gold);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .55);
+  color: var(--parchment);
+  font: inherit;
+  cursor: pointer;
+  animation: win-in .45s ease-out;
+}
+.win-title { font-family: var(--font-display); font-size: 26px; color: var(--gold); }
+.win-name { font-size: 20px; font-weight: 600; overflow-wrap: anywhere; text-align: center; }
+.win-hint { font-size: 13px; color: var(--text-muted); }
+
+@keyframes win-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(.85); }
+}
+
+@media (max-width: 600px) {
+  .win { padding: 10px 16px 12px; }
+  .win-title { font-size: 20px; }
+  .win-name { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .win { animation: none; }
+}
+
 @media (max-width: 600px) {
   .duel { top: 6px; }
   .duel--low { top: auto; bottom: 6px; }
@@ -1175,6 +1255,8 @@ useHead({ title: `Стол ${code} · Дорога через таверну`, m
 /* ── Боковая колонка ───────────────────── */
 .side {
   display: grid;
+  /* Карточки уже своего содержимого — иначе узкий телефон уводит их вбок. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 

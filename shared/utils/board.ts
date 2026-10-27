@@ -55,6 +55,8 @@ const none: BoardEffect = { kind: 'none' }
  *  в сюжете перебрасывает вперёд, плохое — назад; прыжки длинные, чтобы
  *  стрелки на карте было видно. Сцены к ним нарисованы на карте (public/board/map.webp). */
 const TEXTS: [string, BoardEffect, BoardSkill?][] = [
+  // Старт — у таверны, ещё не на тропе: первый же бросок ведёт на клетку 1.
+  ['Таверна на холме. Отсюда начинают все.', none],
   ['Эрин Солстис открывает дверь — и оказывается в чужом мире, у пустой таверны на холме.', none],
   ['В пещере — дракон. Эрин бежит без оглядки.', none],
   ['Синие плоды! Есть можно — только не косточки.', { kind: 'forward', n: 4 }],
@@ -92,6 +94,7 @@ const TEXTS: [string, BoardEffect, BoardSkill?][] = [
  *  заново. Сцены на рисунке идут не совсем по сюжету, тексты клеток
  *  расставлены под них. */
 const LAYOUT: [number, number][] = [
+  [12.5, 7],
   [7, 11.5], [24, 14.5], [34, 17.5], [45, 21], [58, 23], [74, 19.5], [85.5, 25],
   [57, 37.5], [39, 37], [25, 36], [10, 35], [3, 41],
   [27, 51], [40, 51.5], [51, 47.5], [69, 51], [86, 52], [96, 62],
@@ -117,8 +120,8 @@ export const BOARD_LAST = BOARD_CELLS.length - 1
  * закончил ход или кто сам встал на его клетку, — всех подряд и сколько
  * угодно раз. С карты он не уходит до конца партии.
  */
-export const SKINNER_START = 27
-export const SKINNER_WAKES_AT = 10
+export const SKINNER_START = 28
+export const SKINNER_WAKES_AT = 11
 export const SKINNER_STEP_MIN = 1
 export const SKINNER_STEP_MAX = 3
 export const SKINNER_THROW = 3

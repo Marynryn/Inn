@@ -163,6 +163,6 @@ export function arrowOverlaps(cells: BoardCell[], jumpTarget: (i: number) => num
     const to = jumpTarget(i)
     if (to === null) return []
     const others = pts.filter((_, k) => k !== i && k !== to)
-    return [{ from: i + 1, to: to + 1, overlap: +bestBend(pts[i]!, pts[to]!, others, w, h).bad.toFixed(2) }]
+    return [{ from: i, to, overlap: +bestBend(pts[i]!, pts[to]!, others, w, h).bad.toFixed(2) }]
   })
 }

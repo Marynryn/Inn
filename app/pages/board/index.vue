@@ -26,7 +26,7 @@ async function create() {
     const { code } = await $fetch<{ code: string }>('/api/board/rooms', { method: 'POST' })
     await navigateTo(`/board/${code}`)
   } catch (e: any) {
-    error.value = e?.data?.message || 'Не получилось создать комнату'
+    error.value = e?.data?.message || 'Не получилось накрыть стол'
   } finally {
     creating.value = false
   }
@@ -74,11 +74,11 @@ useHead({ title: 'Дорога через таверну · Странствую
 
       <div class="actions">
         <button v-if="data?.canCreate" class="btn btn--primary" :disabled="creating" @click="create">
-          {{ creating ? 'Накрываем стол…' : 'Новая комната' }}
+          {{ creating ? 'Накрываем стол…' : 'Новый стол' }}
         </button>
         <NuxtLink v-else :to="`/login?next=${encodeURIComponent('/board')}`" class="btn btn--ghost">Войти, чтобы накрыть свой стол</NuxtLink>
         <form class="by-code" @submit.prevent="joinByCode">
-          <input v-model="codeInput" class="code-input" placeholder="Код комнаты" maxlength="5" autocomplete="off">
+          <input v-model="codeInput" class="code-input" placeholder="Код стола" maxlength="5" autocomplete="off">
           <button class="btn btn--ghost" type="submit" :disabled="!codeInput.trim()">Войти</button>
         </form>
       </div>

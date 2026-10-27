@@ -161,10 +161,11 @@ export function createRoom(host: BoardUser): string {
   return code
 }
 
-/** Открытые комнаты — те, что ещё набирают игроков. */
+/** Открытые комнаты — те, что ещё набирают игроков и где кто-то сейчас на
+ *  связи: за брошенный стол сесть можно, но начать партию там некому. */
 export function openRooms() {
   return [...rooms.values()]
-    .filter(r => r.status === 'lobby' && r.seats.length > 0 && r.seats.length < BOARD_MAX_PLAYERS)
+    .filter(r => r.status === 'lobby' && r.peers.size > 0 && r.seats.length > 0 && r.seats.length < BOARD_MAX_PLAYERS)
     .map(r => ({
       code: r.code,
       host: r.seats.find(s => s.userId === r.hostUserId)?.name ?? null,
@@ -199,7 +200,7 @@ export function roomOfUser(userId: number): string | null {
 
 export function joinRoom(code: string, user: BoardUser, peer: any): string | null {
   const room = rooms.get(code)
-  if (!room) return 'Такой комнаты нет — может, партия уже закончилась'
+  if (!room) return 'Такого стола нет — может, партия уже закончилась'
   // Одно соединение — одна комната: второе приглашение на том же сокете не в счёт.
   if (peerSeat(peer)) return null
 
@@ -236,6 +237,9 @@ export function joinRoom(code: string, user: BoardUser, peer: any): string | nul
     }
   }
 
+  // Стол стоял пустым — партия замирала. Отсчёт до автоброска начинаем
+  // заново, иначе за отставшего бросили бы в ту же секунду.
+  if (!room.peers.size) room.turnSince = Date.now()
   room.peers.set(peer, user.id)
   room.touchedAt = Date.now()
   send(peer, { type: 'joined', you: seat.slot, state: stateOf(room), chat: room.chat })
@@ -408,7 +412,7 @@ function landOn(ctx: Ctx, seat: Seat, byDice: boolean) {
       notes.push(`${seat.name}: ${BOARD_SKILLS.danger.name} — красная стрелка не страшна`)
       return
     }
-    if (!byDice || seen.size > 1) notes.push(`${seat.name}: по стрелке на клетку ${to + 1}`)
+    if (!byDice || seen.size > 1) notes.push(`${seat.name}: по стрелке ${to ? `на клетку ${to}` : 'на старт'}`)
     seat.pos = to
     ctx.fx.push({ kind: 'jump', slot: seat.slot, to })
   }
@@ -719,6 +723,7 @@ export function dropPeer(peer: any) {
     if (!room.peers.delete(peer)) continue
     room.touchedAt = Date.now()
     pushState(room)
+    if (!room.peers.size) nudgeOpenTables()
   }
 }
 
@@ -733,7 +738,9 @@ function tick() {
       continue
     }
 
-    if (room.status !== 'playing') continue
+    // Без людей партия не идёт: иначе брошенный стол доигрывал бы сам с собой
+    // и попадал в статистику доигранных.
+    if (room.status !== 'playing' || !room.peers.size) continue
     const seat = room.seats[room.turn]
     if (seat && !isOnline(room, seat.userId) && now - room.turnSince > OFFLINE_TURN_MS) {
       // Пропал, не выбрав кубик, — стол берёт больший.

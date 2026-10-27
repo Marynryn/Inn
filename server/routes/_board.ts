@@ -20,7 +20,7 @@ export default defineWebSocketHandler({
         const user = claimBoardTicket(msg.ticket)
         const error = !user
           ? 'Не вышло сесть за стол — обнови страницу'
-          : !isBoardCode(msg.code) ? 'Такой комнаты нет' : joinRoom(msg.code, user, peer)
+          : !isBoardCode(msg.code) ? 'Такого стола нет' : joinRoom(msg.code, user, peer)
         if (error) {
           try { peer.send(JSON.stringify({ type: 'error', message: error, fatal: true })) } catch {}
         }
