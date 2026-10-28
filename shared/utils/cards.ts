@@ -374,7 +374,14 @@ function hurt(g: Game, side: Side, idx: number, amount: number) {
       g.winner = (1 - side) as Side
       say(g, g.vs === 'online' ? `${g.names[(1 - side) as Side]} побеждает!` : side === 1 ? 'Победа!' : 'Поражение')
     } else if (idx === p.active) {
-      g.choosing = side
+      // Остался один — выбирать не из кого: он выходит сам.
+      const left = p.fighters.map((x, i) => i).filter(i => alive(p.fighters[i]!))
+      if (left.length === 1) {
+        p.active = left[0]!
+        say(g, `${who(g, side)}: в бой выходит ${heroName(cardsActive(p))}`)
+      } else {
+        g.choosing = side
+      }
     }
   }
 }
