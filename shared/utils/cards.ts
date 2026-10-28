@@ -97,7 +97,7 @@ export const CARDS: Record<CardId, { name: string; kind: string; cost: number; t
   scroll: { name: 'Свиток огненного шара', kind: 'Предмет', cost: 2, text: '2 урона Огнём активному врагу' },
   shield: { name: 'Щит стражника', kind: 'Предмет', cost: 1, text: 'Активный герой получает щит на 2' },
   chess: { name: 'Шахматная партия', kind: 'Событие', cost: 0, text: 'Перебросить кубики ещё раз' },
-  night: { name: 'Ночлег в таверне', kind: 'Событие', cost: 2, text: 'Все свои лечатся на 1, яд снимается' },
+  night: { name: 'Ночлег в таверне', kind: 'Событие', cost: 2, text: 'Все свои лечатся на 1, яд и метка Яда снимаются' },
   mrsha: { name: 'Подарок Мрши', kind: 'Событие', cost: 0, text: 'Получить 1 кубик «Любой»' },
   rumors: { name: 'Свежие слухи', kind: 'Событие', cost: 1, text: 'Взять 2 карты' },
 }
@@ -635,7 +635,13 @@ function playCard(g: Game, side: Side, idx: number) {
       }
       break
     case 'night':
-      for (const f of p.fighters) { heal(g, f, 1); f.poison = 0 }
+      // Яд снимается целиком: и счётчик, и зелёная метка Яда на портрете —
+      // иначе метка оставалась, и казалось, что яд не снят.
+      for (const f of p.fighters) {
+        heal(g, f, 1)
+        f.poison = 0
+        if (f.aura === 'poison') f.aura = null
+      }
       break
     case 'mrsha': p.dice.push('omni'); break
     case 'rumors': draw(p, 2); break
