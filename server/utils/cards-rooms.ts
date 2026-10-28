@@ -93,6 +93,14 @@ function push(room: Room) {
 
 const fail = (peer: any, message: string) => send(peer, { type: 'error', message })
 
+/** Столы, где хозяин ждёт второго, — в список «Открытые столы» на /board
+ *  рядом со столами настольной игры. Пустой стол без людей не зовёт. */
+export function openCardsRooms() {
+  return [...rooms.values()]
+    .filter(r => !r.game && r.seats.length === 1 && r.peers.size > 0)
+    .map(r => ({ code: r.code, host: r.seats[0]!.name, players: 1, max: 2 }))
+}
+
 export function createCardsRoom(): string {
   const code = newCode()
   rooms.set(code, { code, seats: [], game: null, games: 0, finished: 0, counted: false, chat: [], seq: 0, peers: new Map(), touchedAt: Date.now() })

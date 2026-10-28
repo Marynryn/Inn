@@ -3,6 +3,9 @@ import { ADMIN, READER } from './fixtures'
 
 test.describe('Карты таверны', () => {
   test('против компьютера: отряд, переброс, ход уходит сопернику и возвращается', async ({ page }) => {
+    // Компьютер доигрывает раунд с паузой между ходами, а первый тест ещё
+    // ждёт, пока сервер соберёт страницы: 30 секунд впритык.
+    test.setTimeout(60_000)
     await login(page, ADMIN)
     await open(page, '/cards')
     const start = page.getByRole('button', { name: 'В бой' })
@@ -35,9 +38,16 @@ test.describe('Карты таверны', () => {
     await expect(page).toHaveURL(/\/cards\/[A-Z0-9]{6}$/)
     const url = page.url()
 
+    const code = url.split('/').pop()!
+
+    // Второй находит стол в «Открытых столах», а не только по ссылке.
     const guestCtx = await browser.newContext()
     const guest = await guestCtx.newPage()
-    await open(guest, url)
+    await open(guest, '/board')
+    const listed = guest.locator('.room', { hasText: code })
+    await expect(listed).toContainText('Карты таверны')
+    await listed.getByRole('link', { name: 'Сесть за стол' }).click()
+    await expect(guest).toHaveURL(new RegExp(`/cards/${code}$`))
     await guest.getByPlaceholder('Имя').fill('Гостья за картами')
     await guest.getByRole('button', { name: 'Сесть за стол' }).click()
     for (const name of ['Релк', 'Пишес', 'Рёка']) await guest.locator('.pick', { hasText: name }).click()

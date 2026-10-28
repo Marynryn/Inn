@@ -11,7 +11,7 @@ import { isCardsCode } from '#shared/utils/cards'
  */
 
 type RoomsReply = {
-  rooms: { code: string; host: string | null; players: number; max: number }[]
+  rooms: { code: string; host: string | null; players: number; max: number; game: 'board' | 'cards' }[]
   mine: string | null
   /** Создавать стол может только вошедший; гость садится за чужой. */
   canCreate: boolean
@@ -129,10 +129,10 @@ useHead({ title: 'Настольные игры · Странствующая Т
       <ul v-else class="rooms">
         <li v-for="r in data.rooms" :key="r.code" class="card card--panel room">
           <div>
-            <div class="room-code">{{ r.code }}</div>
+            <div class="room-code">{{ r.code }} <span class="room-game">{{ r.game === 'cards' ? 'Карты таверны' : 'Дорога через таверну' }}</span></div>
             <div class="room-meta">Хозяин стола: {{ r.host ?? '—' }} · игроков {{ r.players }} из {{ r.max }}</div>
           </div>
-          <NuxtLink :to="`/board/${r.code}`" class="btn btn--ghost btn--sm">Сесть за стол</NuxtLink>
+          <NuxtLink :to="r.game === 'cards' ? `/cards/${r.code}` : `/board/${r.code}`" class="btn btn--ghost btn--sm">Сесть за стол</NuxtLink>
         </li>
       </ul>
     </main>
@@ -260,6 +260,15 @@ useHead({ title: 'Настольные игры · Странствующая Т
   font-family: var(--font-display);
   font-size: 20px;
   letter-spacing: .12em;
+}
+
+.room-game {
+  margin-left: 8px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ember-soft);
 }
 
 .room-meta {
