@@ -72,7 +72,7 @@ function quit() {
     </main>
 
     <!-- Партия -->
-    <main v-else-if="room.game" class="wrap">
+    <main v-else-if="room.game" class="wrap wrap--play">
       <p v-if="!connected" class="notice">Связь пропала, переподключаемся…</p>
       <p v-else-if="foe && !foe.online && room.game.phase !== 'over'" class="notice">{{ foe.name }} отключился — ждём, пока вернётся</p>
       <p v-if="notice" class="notice">{{ notice }}</p>
@@ -80,17 +80,22 @@ function quit() {
         <span class="score-title">Счёт · партий {{ room.games }}</span>
         <span v-for="(s, i) in score" :key="i" class="score-item" :class="{ 'score-item--me': i === room.you }">{{ s.name }} <b>{{ s.wins }}</b></span>
       </div>
-      <CardsTable :game="room.game" @act="act" @leave="quit">
-        <template #over>
-          <button class="btn btn--primary" :disabled="me?.rematch || !connected" @click="rematch">
-            {{ me?.rematch ? `Ждём, что скажет ${foe?.name ?? 'соперник'}…` : 'Реванш' }}
-          </button>
-          <span v-if="foe?.rematch && !me?.rematch" class="note">{{ foe.name }} хочет реванш</span>
-          <button class="btn btn--ghost" @click="quit">Выйти</button>
-        </template>
-      </CardsTable>
-      <CardsChat :messages="room.chat" :you="room.you" :disabled="!connected" @say="say" />
-      <CardsRules />
+      <!-- На компьютере чат справа от стола и всегда на виду; на телефоне — под столом. -->
+      <div class="play">
+        <div class="play-main">
+          <CardsTable :game="room.game" @act="act" @leave="quit">
+            <template #over>
+              <button class="btn btn--primary" :disabled="me?.rematch || !connected" @click="rematch">
+                {{ me?.rematch ? `Ждём, что скажет ${foe?.name ?? 'соперник'}…` : 'Реванш' }}
+              </button>
+              <span v-if="foe?.rematch && !me?.rematch" class="note">{{ foe.name }} хочет реванш</span>
+              <button class="btn btn--ghost" @click="quit">Выйти</button>
+            </template>
+          </CardsTable>
+          <CardsRules />
+        </div>
+        <CardsChat class="play-chat" :messages="room.chat" :you="room.you" :disabled="!connected" @say="say" />
+      </div>
     </main>
 
     <!-- Сбор за столом -->
@@ -178,6 +183,29 @@ function quit() {
 .note { color: var(--text-muted); font-size: 14px; }
 
 .actions { margin: 20px 0; }
+
+/* Партия с чатом справа: на широком экране стол не сжимается, чат рядом. */
+.wrap--play { max-width: 1260px; }
+
+.play {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr); /* без этого колонка растягивается по содержимому и страница едет вбок */
+  gap: 0 20px;
+}
+
+.play-main { min-width: 0; }
+
+@media (min-width: 1100px) {
+  .play { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
+
+  .play .play-chat {
+    position: sticky;
+    top: 80px;
+    margin-top: 0;
+    height: calc(100vh - 110px);
+    max-height: 720px;
+  }
+}
 
 .notice {
   margin: 0 0 10px;
