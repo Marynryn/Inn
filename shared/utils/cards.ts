@@ -17,7 +17,7 @@ export const CARD_ELEMENTS: Record<Element, { name: string; color: string; symbo
   ice: { name: 'Лёд', color: '#8fc6e8', symbol: '❄' },
   magic: { name: 'Магия', color: '#b48ae0', symbol: '✦' },
   wind: { name: 'Ветер', color: '#7ad6b8', symbol: '༄' },
-  poison: { name: 'Яд', color: '#9cc25a', symbol: '☣' },
+  poison: { name: 'Яд', color: '#9cc25a', symbol: '🧪' }, // баночка с кислотой: череп — у скелета Пишеса
   steel: { name: 'Сталь', color: '#b9b2a6', symbol: '⚔' },
 }
 export const CARD_OMNI = { name: 'Любой', color: '#c9a02e', symbol: '★' }
@@ -410,6 +410,8 @@ function strike(g: Game, side: Side, amount: number, el: Element) {
 
 function forceSwitch(g: Game, side: Side) {
   const p = g.players[side]
+  // Того, кого сдуло, видно всплывающей надписью: у Ветра нет метки на портрете.
+  pop(g, cardsActive(p), 'note', '༄ Сдуло ветром')
   for (let k = 1; k < p.fighters.length; k++) {
     const i = (p.active + k) % p.fighters.length
     if (alive(p.fighters[i]!)) {

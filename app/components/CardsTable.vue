@@ -218,11 +218,12 @@ const banner = computed(() => {
 <span class="effects" :title="statusTitle(f)">
                 <span v-if="f.frozen" class="frost"><span class="frost-flake">❄</span></span>
                 <span v-if="f.poison" class="venom" />
+                <span v-if="f.shield" class="barrier" />
                 <span v-if="f.shield || f.bonus" class="buffs">
-                  <span v-if="f.shield" class="buff buff--shield">🛡 {{ f.shield }}</span>
+                  <span v-if="f.shield" class="buff buff--shield">🛡 щит {{ f.shield }}</span>
                   <span v-if="f.bonus" class="buff buff--atk">⚔ +{{ f.bonus }}</span>
                 </span>
-                <span v-if="f.poison" class="buff buff--poison">☠ {{ f.poison }}</span>
+                <span v-if="f.poison" class="buff buff--poison">🧪 {{ f.poison }}</span>
               </span>
             </div>
           </div>
@@ -264,11 +265,12 @@ const banner = computed(() => {
 <span class="effects" :title="statusTitle(f)">
                 <span v-if="f.frozen" class="frost"><span class="frost-flake">❄</span></span>
                 <span v-if="f.poison" class="venom" />
+                <span v-if="f.shield" class="barrier" />
                 <span v-if="f.shield || f.bonus" class="buffs">
-                  <span v-if="f.shield" class="buff buff--shield">🛡 {{ f.shield }}</span>
+                  <span v-if="f.shield" class="buff buff--shield">🛡 щит {{ f.shield }}</span>
                   <span v-if="f.bonus" class="buff buff--atk">⚔ +{{ f.bonus }}</span>
                 </span>
-                <span v-if="f.poison" class="buff buff--poison">☠ {{ f.poison }}</span>
+                <span v-if="f.poison" class="buff buff--poison">🧪 {{ f.poison }}</span>
               </span>
             </button>
           </div>
@@ -628,7 +630,27 @@ button.fighter { cursor: pointer; }
   white-space: nowrap;
 }
 
-.buff--shield { color: #9cc3e8; }
+/* Щит — светящийся голубой пузырь поверх портрета, как в оригинале. */
+.barrier {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid rgba(140, 200, 255, .95);
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(120, 190, 255, .35) 100%);
+  box-shadow: inset 0 0 16px rgba(140, 200, 255, .9);
+  animation: barrier 2s ease-in-out infinite alternate;
+}
+
+@keyframes barrier {
+  from { box-shadow: inset 0 0 10px rgba(140, 200, 255, .7); }
+  to { box-shadow: inset 0 0 20px rgba(160, 215, 255, 1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barrier { animation: none; }
+}
+
+.buff--shield { color: #bfe0ff; border-color: #8cc8ff; background: rgba(20, 50, 90, .9); }
 .buff--atk { color: var(--ember-soft); }
 
 .buff--poison {
