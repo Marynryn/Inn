@@ -639,7 +639,15 @@ button.fighter { cursor: pointer; }
 
 /* Отравленный герой — зеленеет вся карточка: значок Яда и так вверху. */
 /* Отравленный герой — портрет слегка зеленеет; сколько раундов, — в подсказке. */
-.fighter--poisoned .fighter-img { filter: sepia(.15) hue-rotate(35deg) saturate(1.1); }
+.fighter--poisoned .fighter-img { filter: sepia(.3) hue-rotate(40deg) saturate(1.3); }
+
+.fighter--poisoned .effects::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(110, 190, 40, .45), rgba(110, 190, 40, .2));
+  mix-blend-mode: multiply;
+}
 
 .log {
   display: flex;
