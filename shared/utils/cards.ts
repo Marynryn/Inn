@@ -97,7 +97,7 @@ export const CARDS: Record<CardId, { name: string; kind: string; cost: number; t
   scroll: { name: 'Свиток огненного шара', kind: 'Предмет', cost: 2, text: '2 урона Огнём активному врагу' },
   shield: { name: 'Щит стражника', kind: 'Предмет', cost: 1, text: 'Активный герой получает щит на 2' },
   chess: { name: 'Шахматная партия', kind: 'Событие', cost: 0, text: 'Перебросить кубики ещё раз' },
-  night: { name: 'Ночлег в таверне', kind: 'Событие', cost: 2, text: 'Все свои лечатся на 1, яд и метка Яда снимаются' },
+  night: { name: 'Ночлег в таверне', kind: 'Событие', cost: 2, text: 'Все свои лечатся на 1; яд, метки стихий и заморозка снимаются' },
   mrsha: { name: 'Подарок Мрши', kind: 'Событие', cost: 0, text: 'Получить 1 кубик «Любой»' },
   rumors: { name: 'Свежие слухи', kind: 'Событие', cost: 1, text: 'Взять 2 карты' },
 }
@@ -461,7 +461,7 @@ export function cardsCheck(g: Game, side: Side, a: Action): Check {
     }
     case 'tune': {
       const d = p.dice[a.die]
-      if (!p.hand[a.card] || !d) return no('Нечего обменять')
+      if (!p.hand[a.card] || !d) return no('Нечего перекрашивать')
       if (d === el || d === 'omni') return no('Этот кубик уже подходит')
       return { ok: true, pay: [] }
     }
@@ -526,7 +526,7 @@ export function cardsApply(prev: Game, side: Side, a: Action): Game {
     case 'tune': {
       const card = p.hand.splice(a.card, 1)[0]!
       p.dice[a.die] = CARD_HEROES[me.id].el
-      say(g, `${who(g, side)}: «${CARDS[card].name}» обменяна на кубик`)
+      say(g, `${who(g, side)}: «${CARDS[card].name}» сгорела — кубик перекрашен`)
       break
     }
     case 'end':
@@ -642,12 +642,13 @@ function playCard(g: Game, side: Side, idx: number) {
       }
       break
     case 'night':
-      // Яд снимается целиком: и счётчик, и зелёная метка Яда на портрете —
-      // иначе метка оставалась, и казалось, что яд не снят.
+      // Отдых снимает всё плохое: яд, метки стихий (по ним соперник даёт
+      // реакции) и заморозку. Щит и «+N к удару» — свои усиления, они остаются.
       for (const f of p.fighters) {
         heal(g, f, 1)
         f.poison = 0
-        if (f.aura === 'poison') f.aura = null
+        f.aura = null
+        f.frozen = false
       }
       break
     case 'mrsha': p.dice.push('omni'); break
@@ -821,7 +822,7 @@ export function cardsComputerMove(g: Game): Action {
       case 'flies': return me.bonus === 0 && p.dice.length >= 4
       case 'scroll': return p.dice.length >= 5
       case 'shield': return me.shield === 0 && p.dice.length >= 4
-      case 'night': return p.fighters.some(f => f.poison > 0) || p.dice.length >= 6
+      case 'night': return p.fighters.some(f => f.poison > 0 || f.frozen) || p.dice.length >= 6
       case 'mrsha': return true
       case 'rumors': return p.hand.length < 4 && p.dice.length >= 4
       case 'chess': return false

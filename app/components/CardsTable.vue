@@ -102,8 +102,18 @@ const handGroups = computed(() => {
   return groups
 })
 
-/** Кубик под обмен: первый, что не подходит активному герою. */
+/** Кубик под перекраску: первый, что не подходит активному герою. */
 const strayDie = computed(() => me.value?.dice.findIndex(d => d !== myEl.value && d !== 'omni') ?? -1)
+
+/** Подпись у «Перекрасить кубик»: что станет — или почему нельзя. Без
+ *  объяснения казалось, что кнопка не работает. */
+const tuneHint = computed(() => {
+  if (!myTurn.value) return ''
+  const name = CARD_HEROES[myActive.value.id].name
+  if (!me.value.dice.length) return 'Кубиков не осталось — перекрашивать нечего'
+  if (strayDie.value < 0) return `Все кубики уже подходят: ${name}`
+  return `карта сгорит, кубик ${dieSymbol(me.value.dice[strayDie.value]!)} станет ${dieSymbol(myEl.value)}`
+})
 
 function toggleReroll(i: number) {
   const k = rerollPick.value.indexOf(i)
@@ -316,7 +326,8 @@ const banner = computed(() => {
           class="btn btn--ghost btn--sm"
           :disabled="!myTurn || strayDie < 0"
           @click="act({ type: 'tune', card: selected.idx, die: strayDie })"
-        >Обменять на кубик</button>
+        >Перекрасить кубик</button>
+        <span v-if="tuneHint" class="note tune-hint">{{ tuneHint }}</span>
       </section>
 
       <section class="panel">
@@ -586,6 +597,8 @@ button.fighter { cursor: pointer; }
 .die--match { opacity: 1; }
 .die:not(:disabled) { cursor: pointer; }
 .die--pick { transform: translateX(-6px) rotate(20deg); box-shadow: 0 0 0 2px var(--parchment); }
+
+.tune-hint { font-size: 13px; }
 
 .panel {
   display: flex;
