@@ -145,12 +145,13 @@ const moves = computed(() => {
   ]
 })
 
-const statusTags = (f: Fighter) => [
-  f.shield ? `Щит ${f.shield}` : '',
-  f.bonus ? `+${f.bonus} к удару` : '',
-  f.poison ? `Яд ${f.poison}` : '',
-  f.frozen ? 'Заморожен' : '',
-].filter(Boolean)
+/** Подсказка к значкам на портрете: сами значки без слов. */
+const statusTitle = (f: Fighter) => [
+  f.shield ? `Щит: поглотит ${f.shield} урона` : '',
+  f.bonus ? `Следующий удар на ${f.bonus} сильнее` : '',
+  f.poison ? `Отравлен: 1 урон Ядом в конце раунда, ещё ${f.poison}` : '',
+  f.frozen ? 'Заморожен до конца раунда: не может бить' : '',
+].filter(Boolean).join('\n') || undefined
 
 // Журнал почти не читают: цифры над героями уже показывают урон. На виду —
 // только последнее действие (что сыграл соперник, из цифр не понять), весь
@@ -210,11 +211,19 @@ const banner = computed(() => {
             >
               <img :src="imgOf(f.id)" :alt="CARD_HEROES[f.id].name" class="fighter-img">
               <span class="hp">{{ f.hp }}</span>
-              <span v-if="f.aura" class="aura" :style="{ background: elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`" />
+              <span v-if="f.aura" class="aura" :style="{ '--el': elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`">{{ CARD_ELEMENTS[f.aura].symbol }}</span>
               <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
               <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
               <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(1, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
-              <span v-if="statusTags(f).length" class="tags">{{ statusTags(f).join(' · ') }}</span>
+<span class="effects" :title="statusTitle(f)">
+                <span v-if="f.frozen" class="frost"><span class="frost-flake">❄</span></span>
+                <span v-if="f.poison" class="venom" />
+                <span v-if="f.shield || f.bonus" class="buffs">
+                  <span v-if="f.shield" class="buff buff--shield">🛡 {{ f.shield }}</span>
+                  <span v-if="f.bonus" class="buff buff--atk">⚔ +{{ f.bonus }}</span>
+                </span>
+                <span v-if="f.poison" class="buff buff--poison">☠ {{ f.poison }}</span>
+              </span>
             </div>
           </div>
         </section>
@@ -248,11 +257,19 @@ const banner = computed(() => {
             >
               <img :src="imgOf(f.id)" :alt="CARD_HEROES[f.id].name" class="fighter-img">
               <span class="hp">{{ f.hp }}</span>
-              <span v-if="f.aura" class="aura" :style="{ background: elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`" />
+              <span v-if="f.aura" class="aura" :style="{ '--el': elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`">{{ CARD_ELEMENTS[f.aura].symbol }}</span>
               <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
               <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
               <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(0, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
-              <span v-if="statusTags(f).length" class="tags">{{ statusTags(f).join(' · ') }}</span>
+<span class="effects" :title="statusTitle(f)">
+                <span v-if="f.frozen" class="frost"><span class="frost-flake">❄</span></span>
+                <span v-if="f.poison" class="venom" />
+                <span v-if="f.shield || f.bonus" class="buffs">
+                  <span v-if="f.shield" class="buff buff--shield">🛡 {{ f.shield }}</span>
+                  <span v-if="f.bonus" class="buff buff--atk">⚔ +{{ f.bonus }}</span>
+                </span>
+                <span v-if="f.poison" class="buff buff--poison">☠ {{ f.poison }}</span>
+              </span>
             </button>
           </div>
           <div class="side-info">
@@ -317,7 +334,19 @@ const banner = computed(() => {
 
       <section v-if="selected?.kind === 'card' && me.hand[selected.idx]" class="panel">
         <span><b>{{ CARDS[me.hand[selected.idx]!].name }}</b>: {{ CARDS[me.hand[selected.idx]!].text }}</span>
+        <!-- Карта с выбором героя (дверь) — по кнопке на каждого, кто может выйти. -->
+        <template v-if="CARDS[me.hand[selected.idx]!].target">
+          <template v-for="(f, i) in me.fighters" :key="i">
+            <button
+              v-if="i !== me.active && f.hp > 0"
+              class="btn btn--primary btn--sm"
+              :disabled="!myTurn || !can({ type: 'play', card: selected.idx, to: i }).ok"
+              @click="act({ type: 'play', card: selected.idx, to: i })"
+            >{{ CARD_HEROES[f.id].name }} — в бой{{ CARDS[me.hand[selected.idx]!].cost ? ` · ${CARDS[me.hand[selected.idx]!].cost}` : '' }}</button>
+          </template>
+        </template>
         <button
+          v-else
           class="btn btn--primary btn--sm"
           :disabled="!myTurn || !can({ type: 'play', card: selected.idx }).ok"
           @click="act({ type: 'play', card: selected.idx })"
@@ -341,12 +370,12 @@ const banner = computed(() => {
         v-for="{ card: c, idx: i, count } in handGroups"
         :key="c"
         class="card-act"
-        :class="{ 'card-act--sel': selected?.kind === 'card' && selected.idx === i }"
+        :class="{ 'card-act--sel': selected?.kind === 'card' && selected.idx === i, 'card-act--rare': CARDS[c].rare }"
         @click="clickCard(i)"
       >
         <span v-if="CARDS[c].cost" class="card-cost" :title="`Цена: ${CARDS[c].cost}`">{{ CARDS[c].cost }}</span>
         <span v-if="count > 1" class="card-count">×{{ count }}</span>
-        <span class="card-kind">{{ CARDS[c].kind }}</span>
+        <span class="card-kind">{{ CARDS[c].kind }}<template v-if="CARDS[c].rare"> · <b class="rare">редкая</b></template></span>
         <span class="card-name">{{ CARDS[c].name }}</span>
         <span class="card-text">{{ CARDS[c].text }}</span>
       </button>
@@ -439,6 +468,7 @@ button.fighter { cursor: pointer; }
 }
 
 .hp {
+  z-index: 1; /* поверх льда и яда на портрете */
   position: absolute;
   top: 8px;
   left: 8px;
@@ -453,13 +483,21 @@ button.fighter { cursor: pointer; }
 }
 
 .aura {
+  z-index: 1; /* поверх льда и яда на портрете */
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 16px;
-  height: 16px;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
   border-radius: var(--radius-round);
-  box-shadow: 0 0 0 2px var(--bg-dark);
+  border: 2px solid var(--el);
+  background: color-mix(in srgb, var(--el) 30%, rgba(20, 14, 10, .85));
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  box-shadow: 0 0 8px var(--el);
 }
 
 .energy { display: flex; gap: 3px; margin-top: 4px; }
@@ -476,6 +514,7 @@ button.fighter { cursor: pointer; }
 .fighter-name { font-size: 13px; margin-top: 2px; }
 
 .pops {
+  z-index: 2; /* поверх льда и яда на портрете */
   position: absolute;
   top: 30%;
   left: 0;
@@ -510,7 +549,94 @@ button.fighter { cursor: pointer; }
   80% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-14px); }
 }
-.tags { font-size: 11px; color: var(--ember-soft); text-align: center; }
+/* Эффекты поверх портрета — слой ровно по картинке (отступ карточки 4px). */
+.effects {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.effects[title] { pointer-events: auto; }
+
+/* Заморозка — портрет под коркой льда. */
+.frost {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(210, 240, 255, .9);
+  border-radius: inherit;
+  background:
+    repeating-linear-gradient(115deg, transparent 0 14px, rgba(255, 255, 255, .18) 14px 15px),
+    repeating-linear-gradient(35deg, transparent 0 22px, rgba(255, 255, 255, .14) 22px 23px),
+    linear-gradient(180deg, rgba(190, 230, 255, .55), rgba(120, 180, 230, .6));
+  box-shadow: inset 0 0 22px rgba(225, 245, 255, .95);
+}
+
+.frost-flake {
+  font-size: 44px;
+  color: #fff;
+  opacity: .85;
+  text-shadow: 0 0 10px #9fd6ff;
+}
+
+/* Яд — зелёная дымка поднимается снизу. */
+.venom {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 92%, rgba(170, 230, 80, .55) 0 10%, transparent 11%),
+    radial-gradient(circle at 70% 85%, rgba(170, 230, 80, .45) 0 7%, transparent 8%),
+    radial-gradient(circle at 45% 75%, rgba(170, 230, 80, .35) 0 5%, transparent 6%),
+    linear-gradient(to top, rgba(95, 160, 30, .75), rgba(95, 160, 30, .25) 45%, transparent 70%);
+  animation: venom 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes venom {
+  from { opacity: .75; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .venom { animation: none; }
+}
+
+/* Значки с числами: щит и удар — слева внизу, яд — справа внизу. */
+.buffs {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.buff {
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(20, 14, 10, .85);
+  border: 1px solid currentColor;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.buff--shield { color: #9cc3e8; }
+.buff--atk { color: var(--ember-soft); }
+
+.buff--poison {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  color: #b5e26a;
+}
 
 .log {
   display: flex;
@@ -677,6 +803,14 @@ button.fighter { cursor: pointer; }
   display: grid;
   place-items: center;
 }
+
+.card-act--rare {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, #4a3a1e, #2b221c);
+  box-shadow: 0 0 10px rgba(201, 160, 46, .35);
+}
+
+.rare { color: var(--gold); font-weight: 700; }
 
 .card-count {
   position: absolute;

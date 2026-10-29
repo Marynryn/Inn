@@ -87,9 +87,11 @@ export const SKILL_COST: Cost = { el: 3 }
 export const BURST_COST: Cost = { el: 3 }
 export const SWITCH_COST: Cost = { any: 1 }
 
-export type CardId = 'pizza' | 'juice' | 'flies' | 'potion' | 'scroll' | 'chess' | 'night' | 'mrsha' | 'shield' | 'rumors'
+export type CardId = 'pizza' | 'juice' | 'flies' | 'potion' | 'scroll' | 'chess' | 'night' | 'mrsha' | 'shield' | 'rumors' | 'door'
 
-export const CARDS: Record<CardId, { name: string; kind: string; cost: number; text: string }> = {
+/** rare — редкая: в колоде одна копия вместо двух. target — при розыгрыше
+ *  выбирают своего героя (to в ходе). */
+export const CARDS: Record<CardId, { name: string; kind: string; cost: number; text: string; rare?: boolean; target?: boolean }> = {
   pizza: { name: 'Пицца', kind: 'Еда', cost: 1, text: 'Активный герой лечится на 3' },
   juice: { name: 'Синий фруктовый сок', kind: 'Еда', cost: 1, text: 'Активный герой получает 1 энергию' },
   flies: { name: 'Кислотные мухи', kind: 'Еда', cost: 1, text: 'Следующий удар активного героя на 2 сильнее' },
@@ -100,7 +102,11 @@ export const CARDS: Record<CardId, { name: string; kind: string; cost: number; t
   night: { name: 'Ночлег в таверне', kind: 'Событие', cost: 2, text: 'Все свои лечатся на 1, стихийные эффекты снимаются' },
   mrsha: { name: 'Подарок Мрши', kind: 'Событие', cost: 0, text: 'Получить 1 кубик «Любой»' },
   rumors: { name: 'Свежие слухи', kind: 'Событие', cost: 1, text: 'Взять 2 карты' },
+  door: { name: 'Волшебная дверь', kind: 'Предмет', cost: 2, text: 'Выбранный свой герой выходит в бой, а ход остаётся за тобой', rare: true, target: true },
 }
+
+/** Сколько копий карты в колоде: обычных по две, редких — одна. */
+export const cardCopies = (c: CardId) => (CARDS[c].rare ? 1 : 2)
 export const CARD_IDS = Object.keys(CARDS) as CardId[]
 
 export const DICE_PER_ROUND = 8
@@ -163,7 +169,7 @@ export type Action =
   | { type: 'burst' }
   | { type: 'switch'; to: number }
   | { type: 'choose'; to: number }
-  | { type: 'play'; card: number }
+  | { type: 'play'; card: number; to?: number }
   | { type: 'tune'; card: number; die: number }
   | { type: 'end' }
 
@@ -200,7 +206,7 @@ function newPlayer(team: HeroId[]): Player {
     active: 0,
     dice: [],
     hand: [],
-    deck: CARD_IDS.flatMap(c => [c, c]),
+    deck: CARD_IDS.flatMap(c => Array.from({ length: cardCopies(c) }, () => c)),
     ended: false,
     rerolls: 1,
     rolling: true,
@@ -457,6 +463,10 @@ export function cardsCheck(g: Game, side: Side, a: Action): Check {
       const c = p.hand[a.card]
       if (!c) return no('Нет такой карты')
       if (c === 'potion' && !p.fighters.some(f => alive(f) && f.hp < CARD_HEROES[f.id].hp)) return no('Все здоровы')
+      if (CARDS[c].target) {
+        const f = a.to === undefined ? undefined : p.fighters[a.to]
+        if (!f || a.to === p.active || !alive(f)) return no('Выбери, кто выйдет в бой')
+      }
       return pay({ any: CARDS[c].cost })
     }
     case 'tune': {
@@ -521,7 +531,7 @@ export function cardsApply(prev: Game, side: Side, a: Action): Game {
       combat = true
       break
     case 'play':
-      playCard(g, side, a.card)
+      playCard(g, side, a.card, a.to)
       break
     case 'tune': {
       const card = p.hand.splice(a.card, 1)[0]!
@@ -611,7 +621,7 @@ function burst(g: Game, side: Side) {
   }
 }
 
-function playCard(g: Game, side: Side, idx: number) {
+function playCard(g: Game, side: Side, idx: number, to?: number) {
   const p = g.players[side]
   const me = cardsActive(p)
   const card = p.hand.splice(idx, 1)[0]!
@@ -653,6 +663,11 @@ function playCard(g: Game, side: Side, idx: number) {
       break
     case 'mrsha': p.dice.push('omni'); break
     case 'rumors': draw(p, 2); break
+    case 'door':
+      // Смена героя без передачи хода: проверка уже убедилась, что он жив.
+      p.active = to!
+      say(g, `${who(g, side)}: через дверь в бой выходит ${heroName(cardsActive(p))}`)
+      break
   }
 }
 
@@ -739,7 +754,7 @@ export function isCardsAction(a: unknown): a is Action {
   switch (x.type) {
     case 'attack': case 'skill': case 'burst': case 'end': return true
     case 'switch': case 'choose': return int(x.to)
-    case 'play': return int(x.card)
+    case 'play': return int(x.card) && (x.to === undefined || int(x.to))
     case 'tune': return int(x.card) && int(x.die)
     case 'reroll': return Array.isArray(x.dice) && x.dice.length <= 16 && x.dice.every(int)
     default: return false
@@ -810,7 +825,12 @@ export function cardsComputerMove(g: Game): Action {
 
   if (me.frozen || (me.hp <= 3 && p.dice.length >= 4)) {
     const to = p.fighters.map((f, i) => ({ f, i })).filter(x => x.i !== p.active && alive(x.f)).sort((a, b) => b.f.hp - a.f.hp)[0]
-    if (to && to.f.hp > me.hp && can({ type: 'switch', to: to.i })) return { type: 'switch', to: to.i }
+    if (to && to.f.hp > me.hp) {
+      // Есть дверь — меняемся через неё: ход остаётся, можно сразу бить.
+      const door = p.hand.indexOf('door')
+      if (door >= 0 && can({ type: 'play', card: door, to: to.i })) return { type: 'play', card: door, to: to.i }
+      if (can({ type: 'switch', to: to.i })) return { type: 'switch', to: to.i }
+    }
   }
   if (can({ type: 'burst' })) return { type: 'burst' }
 
@@ -826,6 +846,7 @@ export function cardsComputerMove(g: Game): Action {
       case 'mrsha': return true
       case 'rumors': return p.hand.length < 4 && p.dice.length >= 4
       case 'chess': return false
+      case 'door': return false // играется выше, когда нужна смена героя
     }
   }
   for (let i = 0; i < p.hand.length; i++) {
@@ -838,7 +859,7 @@ export function cardsComputerMove(g: Game): Action {
   const matching = p.dice.filter(d => d === el || d === 'omni').length
   const stray = p.dice.findIndex(d => d !== el && d !== 'omni')
   if (matching < 3 && stray >= 0 && p.hand.length > 2 && !me.frozen) {
-    const card = p.hand.findIndex(c => !want(c))
+    const card = p.hand.findIndex(c => !want(c) && !CARDS[c].rare) // редкую не жжём
     if (card >= 0) return { type: 'tune', card, die: stray }
   }
   if (can({ type: 'attack' })) return { type: 'attack' }

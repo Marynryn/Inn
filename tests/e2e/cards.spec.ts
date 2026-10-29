@@ -22,6 +22,9 @@ test.describe('Карты таверны', () => {
     await expect(page.locator('.banner')).toHaveText('Твой ход')
     await page.getByRole('button', { name: 'Закончить раунд' }).click()
     await expect(page.locator('.round')).toHaveText('Раунд 2', { timeout: 30_000 })
+    // Компьютер мог выбить активного героя за раунд — тогда сначала выбираем, кто выйдет.
+    const choose = page.locator('.fighter--choose').first()
+    if (await choose.isVisible()) await choose.click()
     await expect(page.getByRole('button', { name: 'Оставить как есть' })).toBeVisible()
   })
 
