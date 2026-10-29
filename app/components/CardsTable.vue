@@ -21,6 +21,24 @@ function act(a: Action) {
   emit('act', a)
   selected.value = null
   rerollPick.value = []
+  doorCard.value = null
+}
+
+/** Карта с выбором героя (дверь) сыграна, ждём клика по герою — как когда
+ *  герой пал: рамкой на тех, кто может выйти. Номер карты в руке. */
+const doorCard = ref<number | null>(null)
+
+function playCard(idx: number) {
+  const card = CARDS[game.value.players[0].hand[idx]!]
+  if (!card.target) return act({ type: 'play', card: idx })
+  doorCard.value = idx
+  selected.value = null
+}
+
+/** Можно ли сыграть карту: у карты с выбором — хоть на кого-то из своих. */
+function canPlay(idx: number) {
+  if (!CARDS[me.value.hand[idx]!].target) return can({ type: 'play', card: idx }).ok
+  return me.value.fighters.some((_, to) => can({ type: 'play', card: idx, to }).ok)
 }
 
 const me = computed(() => game.value.players[0])
@@ -82,11 +100,16 @@ onBeforeUnmount(() => {
 function clickMine(idx: number) {
   const g = game.value
   if (g.choosing === 0) return act({ type: 'choose', to: idx })
+  if (doorCard.value !== null) {
+    if (idx !== g.players[0].active) act({ type: 'play', card: doorCard.value, to: idx })
+    return
+  }
   if (idx === g.players[0].active) return
   selected.value = selected.value?.kind === 'fighter' && selected.value.idx === idx ? null : { kind: 'fighter', idx }
 }
 
 function clickCard(idx: number) {
+  doorCard.value = null
   selected.value = selected.value?.kind === 'card' && selected.value.idx === idx ? null : { kind: 'card', idx }
 }
 
@@ -171,6 +194,7 @@ const banner = computed(() => {
     return g.vs === 'online' ? `${g.names[1]} побеждает.` : 'Поражение. Ещё партию?'
   }
   if (g.choosing === 0) return 'Твой герой пал — выбери, кто выйдет в бой'
+  if (doorCard.value !== null) return 'Волшебная дверь: выбери, кто выйдет в бой'
   if (g.choosing === 1) return `${foeName[0]!.toUpperCase() + foeName.slice(1)} выбирает героя…`
   if (g.phase === 'reroll') return g.players[0].rolling ? 'Отметь кубики, которые хочешь перебросить' : `Ждём: ${foeName} перебрасывает кубики`
   if (g.players[0].ended) return `Ты закончил раунд — ${foeName} доигрывает`
@@ -250,7 +274,7 @@ const banner = computed(() => {
                 'fighter--active': i === me.active,
                 'fighter--down': f.hp <= 0,
                 'fighter--sel': selected?.kind === 'fighter' && selected.idx === i,
-                'fighter--choose': game.choosing === 0 && f.hp > 0,
+                'fighter--choose': (game.choosing === 0 || (doorCard !== null && i !== me.active)) && f.hp > 0,
               }"
               :style="{ '--el': elColor(CARD_HEROES[f.id].el) }"
               :disabled="f.hp <= 0"
@@ -334,24 +358,17 @@ const banner = computed(() => {
         >Выпустить в бой · {{ SWITCH_COST.any }} кубик</button>
       </section>
 
+      <section v-if="doorCard !== null" class="panel">
+        <span>Нажми на героя с рамкой — он выйдет в бой, а ход останется за тобой.</span>
+        <button class="btn btn--ghost btn--sm" @click="doorCard = null">Отмена</button>
+      </section>
+
       <section v-if="selected?.kind === 'card' && me.hand[selected.idx]" class="panel">
         <span><b>{{ CARDS[me.hand[selected.idx]!].name }}</b>: {{ CARDS[me.hand[selected.idx]!].text }}</span>
-        <!-- Карта с выбором героя (дверь) — по кнопке на каждого, кто может выйти. -->
-        <template v-if="CARDS[me.hand[selected.idx]!].target">
-          <template v-for="(f, i) in me.fighters" :key="i">
-            <button
-              v-if="i !== me.active && f.hp > 0"
-              class="btn btn--primary btn--sm"
-              :disabled="!myTurn || !can({ type: 'play', card: selected.idx, to: i }).ok"
-              @click="act({ type: 'play', card: selected.idx, to: i })"
-            >{{ CARD_HEROES[f.id].name }} — в бой{{ CARDS[me.hand[selected.idx]!].cost ? ` · ${CARDS[me.hand[selected.idx]!].cost}` : '' }}</button>
-          </template>
-        </template>
         <button
-          v-else
           class="btn btn--primary btn--sm"
-          :disabled="!myTurn || !can({ type: 'play', card: selected.idx }).ok"
-          @click="act({ type: 'play', card: selected.idx })"
+          :disabled="!myTurn || !canPlay(selected.idx)"
+          @click="playCard(selected.idx)"
         >Сыграть{{ CARDS[me.hand[selected.idx]!].cost ? ` · ${CARDS[me.hand[selected.idx]!].cost}` : '' }}</button>
         <button
           class="btn btn--ghost btn--sm"
