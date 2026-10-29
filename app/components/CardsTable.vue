@@ -241,13 +241,17 @@ const banner = computed(() => {
               <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(1, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
 <span class="effects" :title="statusTitle(f)">
                 <span v-if="f.frozen" class="frost"><span class="frost-flake">❄</span></span>
-                <span v-if="f.poison" class="venom" />
-                <span v-if="f.shield" class="barrier" />
                 <span v-if="f.shield || f.bonus" class="buffs">
-                  <span v-if="f.shield" class="buff buff--shield">🛡 щит {{ f.shield }}</span>
                   <span v-if="f.bonus" class="buff buff--atk">⚔ +{{ f.bonus }}</span>
+                  <span v-if="f.shield" class="badge badge--shield">
+                    <svg viewBox="0 0 30 34" aria-hidden="true"><path d="M15 1 L28 5 V16 C28 25 21 31 15 33 C9 31 2 25 2 16 V5 Z" fill="#3d6fa8" stroke="#cfe6ff" stroke-width="2" /><path d="M15 4 L25 7 V16 C25 23 20 28 15 30 Z" fill="#5d93cf" /></svg>
+                    <span>{{ f.shield }}</span>
+                  </span>
                 </span>
-                <span v-if="f.poison" class="buff buff--poison">🧪 {{ f.poison }}</span>
+                <span v-if="f.poison" class="badge badge--poison">
+                  <svg viewBox="0 0 30 36" aria-hidden="true"><rect x="11" y="1" width="8" height="3" rx="1" fill="#a07a4a" /><path d="M12 4 H18 V13 A11 11 0 1 1 12 13 Z" fill="#e8f5d0" stroke="#fff" stroke-width="1.5" /><path d="M5.2 23 H24.8 A10 10 0 0 1 5.2 23 Z" fill="#7cc22e" /></svg>
+                  <span>{{ f.poison }}</span>
+                </span>
               </span>
             </div>
           </div>
@@ -288,13 +292,17 @@ const banner = computed(() => {
               <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(0, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
 <span class="effects" :title="statusTitle(f)">
                 <span v-if="f.frozen" class="frost"><span class="frost-flake">❄</span></span>
-                <span v-if="f.poison" class="venom" />
-                <span v-if="f.shield" class="barrier" />
                 <span v-if="f.shield || f.bonus" class="buffs">
-                  <span v-if="f.shield" class="buff buff--shield">🛡 щит {{ f.shield }}</span>
                   <span v-if="f.bonus" class="buff buff--atk">⚔ +{{ f.bonus }}</span>
+                  <span v-if="f.shield" class="badge badge--shield">
+                    <svg viewBox="0 0 30 34" aria-hidden="true"><path d="M15 1 L28 5 V16 C28 25 21 31 15 33 C9 31 2 25 2 16 V5 Z" fill="#3d6fa8" stroke="#cfe6ff" stroke-width="2" /><path d="M15 4 L25 7 V16 C25 23 20 28 15 30 Z" fill="#5d93cf" /></svg>
+                    <span>{{ f.shield }}</span>
+                  </span>
                 </span>
-                <span v-if="f.poison" class="buff buff--poison">🧪 {{ f.poison }}</span>
+                <span v-if="f.poison" class="badge badge--poison">
+                  <svg viewBox="0 0 30 36" aria-hidden="true"><rect x="11" y="1" width="8" height="3" rx="1" fill="#a07a4a" /><path d="M12 4 H18 V13 A11 11 0 1 1 12 13 Z" fill="#e8f5d0" stroke="#fff" stroke-width="1.5" /><path d="M5.2 23 H24.8 A10 10 0 0 1 5.2 23 Z" fill="#7cc22e" /></svg>
+                  <span>{{ f.poison }}</span>
+                </span>
               </span>
             </button>
           </div>
@@ -604,27 +612,6 @@ button.fighter { cursor: pointer; }
   text-shadow: 0 0 10px #9fd6ff;
 }
 
-/* Яд — зелёная дымка поднимается снизу. */
-.venom {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 20% 92%, rgba(170, 230, 80, .55) 0 10%, transparent 11%),
-    radial-gradient(circle at 70% 85%, rgba(170, 230, 80, .45) 0 7%, transparent 8%),
-    radial-gradient(circle at 45% 75%, rgba(170, 230, 80, .35) 0 5%, transparent 6%),
-    linear-gradient(to top, rgba(95, 160, 30, .75), rgba(95, 160, 30, .25) 45%, transparent 70%);
-  animation: venom 2.4s ease-in-out infinite alternate;
-}
-
-@keyframes venom {
-  from { opacity: .75; }
-  to { opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .venom { animation: none; }
-}
-
 /* Значки с числами: щит и удар — слева внизу, яд — справа внизу. */
 .buffs {
   position: absolute;
@@ -647,34 +634,27 @@ button.fighter { cursor: pointer; }
   white-space: nowrap;
 }
 
-/* Щит — светящийся голубой пузырь поверх портрета, как в оригинале. */
-.barrier {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  border: 2px solid rgba(140, 200, 255, .95);
-  background: radial-gradient(ellipse at center, transparent 55%, rgba(120, 190, 255, .35) 100%);
-  box-shadow: inset 0 0 16px rgba(140, 200, 255, .9);
-  animation: barrier 2s ease-in-out infinite alternate;
+/* Щит и колба с кислотой — нарисованные значки с числом внутри. */
+.badge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 34px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
 }
 
-@keyframes barrier {
-  from { box-shadow: inset 0 0 10px rgba(140, 200, 255, .7); }
-  to { box-shadow: inset 0 0 20px rgba(160, 215, 255, 1); }
-}
+.badge svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.badge span { position: relative; font-size: 13px; font-weight: 800; color: #fff; margin-top: -2px; }
+.badge--poison span { color: #10200a; margin-top: 12px; }
 
-@media (prefers-reduced-motion: reduce) {
-  .barrier { animation: none; }
-}
-
-.buff--shield { color: #bfe0ff; border-color: #8cc8ff; background: rgba(20, 50, 90, .9); }
 .buff--atk { color: var(--ember-soft); }
 
-.buff--poison {
+.badge--poison {
   position: absolute;
   right: 4px;
   bottom: 4px;
-  color: #b5e26a;
+  height: 36px;
 }
 
 .log {
