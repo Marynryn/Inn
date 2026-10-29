@@ -238,7 +238,6 @@ const banner = computed(() => {
               <span v-if="f.aura" class="aura" :style="{ '--el': elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`">{{ CARD_ELEMENTS[f.aura].symbol }}</span>
               <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
               <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
-              <span v-if="f.poison" class="poisoned">отравлен · {{ f.poison }}</span>
               <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(1, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
 <span class="effects" :title="statusTitle(f)">
                 <span v-if="f.frozen" class="frost"><span class="frost-flake">❄</span></span>
@@ -286,7 +285,6 @@ const banner = computed(() => {
               <span v-if="f.aura" class="aura" :style="{ '--el': elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`">{{ CARD_ELEMENTS[f.aura].symbol }}</span>
               <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
               <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
-              <span v-if="f.poison" class="poisoned">отравлен · {{ f.poison }}</span>
               <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(0, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
 <span class="effects" :title="statusTitle(f)">
                 <span v-if="f.frozen" class="frost"><span class="frost-flake">❄</span></span>
@@ -640,15 +638,8 @@ button.fighter { cursor: pointer; }
 .buff--shield svg { width: 11px; height: 13px; }
 
 /* Отравленный герой — зеленеет вся карточка: значок Яда и так вверху. */
-.fighter--poisoned:not(.fighter--active) { border-color: #7cc22e; }
-
-.fighter--poisoned {
-  background: linear-gradient(180deg, rgba(124, 194, 46, .12), rgba(124, 194, 46, .35));
-  box-shadow: 0 0 10px rgba(124, 194, 46, .45);
-}
-
-.fighter--poisoned .fighter-img { filter: sepia(.25) hue-rotate(40deg) saturate(1.25); }
-.poisoned { font-size: 11px; color: #b5e26a; }
+/* Отравленный герой — портрет слегка зеленеет; сколько раундов, — в подсказке. */
+.fighter--poisoned .fighter-img { filter: sepia(.15) hue-rotate(35deg) saturate(1.1); }
 
 .log {
   display: flex;

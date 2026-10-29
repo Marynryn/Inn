@@ -17,7 +17,7 @@ export const CARD_ELEMENTS: Record<Element, { name: string; color: string; symbo
   ice: { name: 'Лёд', color: '#8fc6e8', symbol: '❄' },
   magic: { name: 'Магия', color: '#b48ae0', symbol: '✦' },
   wind: { name: 'Ветер', color: '#7ad6b8', symbol: '༄' },
-  poison: { name: 'Яд', color: '#9cc25a', symbol: '🧪' }, // баночка с кислотой: череп — у скелета Пишеса
+  poison: { name: 'Яд', color: '#9cc25a', symbol: '☣' },
   steel: { name: 'Сталь', color: '#b9b2a6', symbol: '⚔' },
 }
 export const CARD_OMNI = { name: 'Любой', color: '#c9a02e', symbol: '★' }
