@@ -21,11 +21,15 @@ test.describe('Карты таверны', () => {
     // «Конец раунда» — боевой ход: соперник доигрывает раунд, потом начинается второй.
     await expect(page.locator('.banner')).toHaveText('Твой ход')
     await page.getByRole('button', { name: 'Закончить раунд' }).click()
-    await expect(page.locator('.round')).toHaveText('Раунд 2', { timeout: 30_000 })
-    // Компьютер мог выбить активного героя за раунд — тогда сначала выбираем, кто выйдет.
+    // Компьютер может выбить активного героя — и в этом раунде, и в конце
+    // его. Тогда игра ждёт, кто выйдет вместо него: выбираем и ждём дальше.
     const choose = page.locator('.fighter--choose').first()
-    if (await choose.isVisible()) await choose.click()
-    await expect(page.getByRole('button', { name: 'Оставить как есть' })).toBeVisible()
+    const reroll = page.getByRole('button', { name: 'Оставить как есть' })
+    await expect(async () => {
+      if (await choose.isVisible()) await choose.click()
+      await expect(page.locator('.round')).toHaveText('Раунд 2', { timeout: 1000 })
+      await expect(reroll).toBeVisible({ timeout: 1000 })
+    }).toPass({ timeout: 40_000 })
   })
 
   test('против компьютера — пока только админам', async ({ page }) => {
