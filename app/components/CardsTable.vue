@@ -230,7 +230,7 @@ const banner = computed(() => {
               v-for="(f, i) in foe.fighters"
               :key="i"
               class="fighter"
-              :class="{ 'fighter--active': i === foe.active, 'fighter--down': f.hp <= 0 }"
+              :class="{ 'fighter--active': i === foe.active, 'fighter--down': f.hp <= 0, 'fighter--poisoned': f.poison > 0 }"
               :style="{ '--el': elColor(CARD_HEROES[f.id].el) }"
             >
               <img :src="imgOf(f.id)" :alt="CARD_HEROES[f.id].name" class="fighter-img">
@@ -238,19 +238,16 @@ const banner = computed(() => {
               <span v-if="f.aura" class="aura" :style="{ '--el': elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`">{{ CARD_ELEMENTS[f.aura].symbol }}</span>
               <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
               <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
+              <span v-if="f.poison" class="poisoned">отравлен · {{ f.poison }}</span>
               <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(1, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
 <span class="effects" :title="statusTitle(f)">
                 <span v-if="f.frozen" class="frost"><span class="frost-flake">❄</span></span>
                 <span v-if="f.shield || f.bonus" class="buffs">
                   <span v-if="f.bonus" class="buff buff--atk">⚔ +{{ f.bonus }}</span>
-                  <span v-if="f.shield" class="badge badge--shield">
-                    <svg viewBox="0 0 30 34" aria-hidden="true"><path d="M15 1 L28 5 V16 C28 25 21 31 15 33 C9 31 2 25 2 16 V5 Z" fill="#3d6fa8" stroke="#cfe6ff" stroke-width="2" /><path d="M15 4 L25 7 V16 C25 23 20 28 15 30 Z" fill="#5d93cf" /></svg>
-                    <span>{{ f.shield }}</span>
+                  <span v-if="f.shield" class="buff buff--shield">
+                    <svg viewBox="0 0 30 34" aria-hidden="true"><path d="M15 1 L28 5 V16 C28 25 21 31 15 33 C9 31 2 25 2 16 V5 Z" fill="#3d6fa8" stroke="#cfe6ff" stroke-width="2.5" /><path d="M15 4 L25 7 V16 C25 23 20 28 15 30 Z" fill="#5d93cf" /></svg>
+                    {{ f.shield }}
                   </span>
-                </span>
-                <span v-if="f.poison" class="badge badge--poison">
-                  <svg viewBox="0 0 30 36" aria-hidden="true"><rect x="11" y="1" width="8" height="3" rx="1" fill="#a07a4a" /><path d="M12 4 H18 V13 A11 11 0 1 1 12 13 Z" fill="#e8f5d0" stroke="#fff" stroke-width="1.5" /><path d="M5.2 23 H24.8 A10 10 0 0 1 5.2 23 Z" fill="#7cc22e" /></svg>
-                  <span>{{ f.poison }}</span>
                 </span>
               </span>
             </div>
@@ -276,7 +273,7 @@ const banner = computed(() => {
               class="fighter"
               :class="{
                 'fighter--active': i === me.active,
-                'fighter--down': f.hp <= 0,
+                'fighter--down': f.hp <= 0, 'fighter--poisoned': f.poison > 0,
                 'fighter--sel': selected?.kind === 'fighter' && selected.idx === i,
                 'fighter--choose': (game.choosing === 0 || (doorCard !== null && i !== me.active)) && f.hp > 0,
               }"
@@ -289,19 +286,16 @@ const banner = computed(() => {
               <span v-if="f.aura" class="aura" :style="{ '--el': elColor(f.aura) }" :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`">{{ CARD_ELEMENTS[f.aura].symbol }}</span>
               <span class="energy"><i v-for="n in CARD_HEROES[f.id].energy" :key="n" :class="{ on: n <= f.energy }" /></span>
               <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
+              <span v-if="f.poison" class="poisoned">отравлен · {{ f.poison }}</span>
               <span class="pops" aria-hidden="true"><span v-for="(x, k) in popsFor(0, i)" :key="`${fxGen}-${k}`" class="pop" :class="`pop--${x.kind}`" :style="{ animationDelay: `${k * 0.15}s` }">{{ x.text }}</span></span>
 <span class="effects" :title="statusTitle(f)">
                 <span v-if="f.frozen" class="frost"><span class="frost-flake">❄</span></span>
                 <span v-if="f.shield || f.bonus" class="buffs">
                   <span v-if="f.bonus" class="buff buff--atk">⚔ +{{ f.bonus }}</span>
-                  <span v-if="f.shield" class="badge badge--shield">
-                    <svg viewBox="0 0 30 34" aria-hidden="true"><path d="M15 1 L28 5 V16 C28 25 21 31 15 33 C9 31 2 25 2 16 V5 Z" fill="#3d6fa8" stroke="#cfe6ff" stroke-width="2" /><path d="M15 4 L25 7 V16 C25 23 20 28 15 30 Z" fill="#5d93cf" /></svg>
-                    <span>{{ f.shield }}</span>
+                  <span v-if="f.shield" class="buff buff--shield">
+                    <svg viewBox="0 0 30 34" aria-hidden="true"><path d="M15 1 L28 5 V16 C28 25 21 31 15 33 C9 31 2 25 2 16 V5 Z" fill="#3d6fa8" stroke="#cfe6ff" stroke-width="2.5" /><path d="M15 4 L25 7 V16 C25 23 20 28 15 30 Z" fill="#5d93cf" /></svg>
+                    {{ f.shield }}
                   </span>
-                </span>
-                <span v-if="f.poison" class="badge badge--poison">
-                  <svg viewBox="0 0 30 36" aria-hidden="true"><rect x="11" y="1" width="8" height="3" rx="1" fill="#a07a4a" /><path d="M12 4 H18 V13 A11 11 0 1 1 12 13 Z" fill="#e8f5d0" stroke="#fff" stroke-width="1.5" /><path d="M5.2 23 H24.8 A10 10 0 0 1 5.2 23 Z" fill="#7cc22e" /></svg>
-                  <span>{{ f.poison }}</span>
                 </span>
               </span>
             </button>
@@ -634,28 +628,27 @@ button.fighter { cursor: pointer; }
   white-space: nowrap;
 }
 
-/* Щит и колба с кислотой — нарисованные значки с числом внутри. */
-.badge {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 34px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
-}
-
-.badge svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.badge span { position: relative; font-size: 13px; font-weight: 800; color: #fff; margin-top: -2px; }
-.badge--poison span { color: #10200a; margin-top: 12px; }
-
 .buff--atk { color: var(--ember-soft); }
 
-.badge--poison {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  height: 36px;
+.buff--shield {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #bfe0ff;
 }
+
+.buff--shield svg { width: 11px; height: 13px; }
+
+/* Отравленный герой — зеленеет вся карточка: значок Яда и так вверху. */
+.fighter--poisoned:not(.fighter--active) { border-color: #7cc22e; }
+
+.fighter--poisoned {
+  background: linear-gradient(180deg, rgba(124, 194, 46, .12), rgba(124, 194, 46, .35));
+  box-shadow: 0 0 10px rgba(124, 194, 46, .45);
+}
+
+.fighter--poisoned .fighter-img { filter: sepia(.25) hue-rotate(40deg) saturate(1.25); }
+.poisoned { font-size: 11px; color: #b5e26a; }
 
 .log {
   display: flex;
