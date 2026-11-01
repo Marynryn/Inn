@@ -7,7 +7,7 @@ export function slugifyChapterId(id: string): string {
   return id
     .trim()
     .toLowerCase()
-    .replace(/[.\s]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
+    .replace(/[.\s]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }

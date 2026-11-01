@@ -4,23 +4,24 @@
  * страницы: читать. Тексты редактируются в админке, значения тут — запасные.
  */
 const props = defineProps<{
-  title?: string
-  text?: string
-  maxVolume?: string
-}>()
+  title?: string;
+  text?: string;
+  maxVolume?: string;
+}>();
 
-const heading = computed(() => props.title || 'Кто из таверны?')
+const heading = computed(() => props.title || "Кто из таверны?");
 
 /**
  * {том} в тексте подставляется из настройки игры: обещание «без спойлеров»
  * должно двигаться вместе с переводом, а не устаревать в ручном тексте.
  */
 const body = computed(() => {
-  const raw = props.text
-    || 'Угадай персонажа по признакам: вид, занятие, том появления. Новый — каждый день, и только те, кто встречался до {том} тома.'
+  const raw =
+    props.text ||
+    "Угадай персонажа по признакам: вид, занятие, том появления. Новый — каждый день, и только те, кто встречался до {том} тома.";
 
-  return raw.replace(/\{том\}/g, props.maxVolume || '10')
-})
+  return raw.replace(/\{том\}/g, props.maxVolume || "10");
+});
 </script>
 
 <template>
@@ -34,7 +35,9 @@ const body = computed(() => {
       <p class="game-sub">{{ body }}</p>
     </div>
 
-    <NuxtLink href="/game" class="btn btn--lg btn--primary game-btn">Играть</NuxtLink>
+    <NuxtLink href="/game" class="btn btn--lg btn--primary game-btn"
+      >Играть</NuxtLink
+    >
   </aside>
 </template>
 
@@ -49,10 +52,10 @@ const body = computed(() => {
   align-items: center;
   gap: 16px;
   padding: 18px 22px;
-  border: 1px solid rgba(43, 30, 22, .14);
+  border: 1px solid rgba(43, 30, 22, 0.14);
   border-left: 3px solid var(--ember);
   border-radius: var(--radius-md);
-  background: rgba(214, 136, 62, .06);
+  background: rgba(214, 136, 62, 0.06);
 }
 
 /* Восклицательный знак заголовочным шрифтом: он тут вместо иконки, поэтому

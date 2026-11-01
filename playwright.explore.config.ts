@@ -1,5 +1,5 @@
-import { defineConfig } from '@playwright/test'
-import base from './playwright.config'
+import { defineConfig } from "@playwright/test";
+import base from "./playwright.config";
 
 /*
   Конфиг исследователя: тот же сервер и посев, что у e2e, но один долгий
@@ -7,10 +7,13 @@ import base from './playwright.config'
 */
 export default defineConfig({
   ...base,
-  testDir: 'tests/explorer',
+  testDir: "tests/explorer",
   timeout: 45 * 60_000,
   retries: 0,
-  reporter: [['list'], ['html', { open: 'never', outputFolder: '.data/explorer-report-html' }]],
-  outputDir: '.data/explorer-results',
-  projects: [{ name: 'explorer', use: { ...base.use } }],
-})
+  reporter: [
+    ["list"],
+    ["html", { open: "never", outputFolder: ".data/explorer-report-html" }],
+  ],
+  outputDir: ".data/explorer-results",
+  projects: [{ name: "explorer", use: { ...base.use } }],
+});

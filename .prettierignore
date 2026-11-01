@@ -1,0 +1,7 @@
+# Тексты и разметку не трогаем: массовая правка .md ломает таблицы и списки
+*.md
+public/
+storage/
+package-lock.json
+# Анимации Lottie хранятся сжатой строкой
+app/assets/halloween/*.json

@@ -1,147 +1,192 @@
 <script setup lang="ts">
-import type { ProfileSkin, SkinEffect } from '#shared/utils/profileSkins'
-import { SKIN_EFFECTS, SKIN_NAME_MAX } from '#shared/utils/profileSkins'
+import type { ProfileSkin, SkinEffect } from "#shared/utils/profileSkins";
+import { SKIN_EFFECTS, SKIN_NAME_MAX } from "#shared/utils/profileSkins";
 
 /**
  * Скины публичной страницы в панели: завести, поправить, выдать и забрать —
  * как рамки. Картинка — левый верхний угол, остальные углы код отражает сам.
  */
 
-type AdminSkin = ProfileSkin & { owners: { id: number; name: string; wearing: boolean }[] }
-type FoundUser = { id: number; name: string; email: string | null; avatarUrl: string | null }
+type AdminSkin = ProfileSkin & {
+  owners: { id: number; name: string; wearing: boolean }[];
+};
+type FoundUser = {
+  id: number;
+  name: string;
+  email: string | null;
+  avatarUrl: string | null;
+};
 
-const skins = ref<AdminSkin[]>([])
-const msg = ref('')
-const err = ref('')
-const busy = ref(false)
+const skins = ref<AdminSkin[]>([]);
+const msg = ref("");
+const err = ref("");
+const busy = ref(false);
 
 const load = async () => {
-  skins.value = await $fetch<AdminSkin[]>('/api/admin/skins')
-}
+  skins.value = await $fetch<AdminSkin[]>("/api/admin/skins");
+};
 
 const run = async (action: () => Promise<unknown>, done?: string) => {
-  busy.value = true
-  msg.value = ''
-  err.value = ''
+  busy.value = true;
+  msg.value = "";
+  err.value = "";
   try {
-    await action()
-    if (done) msg.value = done
-    await load()
+    await action();
+    if (done) msg.value = done;
+    await load();
   } catch (e: any) {
-    err.value = e.data?.message || 'Не получилось'
+    err.value = e.data?.message || "Не получилось";
   } finally {
-    busy.value = false
+    busy.value = false;
   }
-}
+};
 
 // ── Новый скин ──────────────────────────────────
-const fresh = reactive({ name: '', accent: '#c9b8e6', tint: '#24212a', effects: ['spider', 'dust'] as SkinEffect[] })
-const freshFile = ref<File | null>(null)
-const freshPreview = ref<string | null>(null)
+const fresh = reactive({
+  name: "",
+  accent: "#c9b8e6",
+  tint: "#24212a",
+  effects: ["spider", "dust"] as SkinEffect[],
+});
+const freshFile = ref<File | null>(null);
+const freshPreview = ref<string | null>(null);
 
 const onFreshFile = (e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0] ?? null
-  freshFile.value = file
-  freshPreview.value = file ? URL.createObjectURL(file) : null
-}
+  const file = (e.target as HTMLInputElement).files?.[0] ?? null;
+  freshFile.value = file;
+  freshPreview.value = file ? URL.createObjectURL(file) : null;
+};
 
-const create = () => run(async () => {
-  if (!freshFile.value) throw { data: { message: 'Выбери картинку угла' } }
-  const form = new FormData()
-  form.append('name', fresh.name)
-  form.append('accent', fresh.accent)
-  form.append('tint', fresh.tint)
-  form.append('effects', fresh.effects.join(','))
-  form.append('image', freshFile.value)
-  await $fetch('/api/admin/skins', { method: 'POST', body: form })
-  fresh.name = ''
-  freshFile.value = null
-  freshPreview.value = null
-}, 'Скин заведён')
+const create = () =>
+  run(async () => {
+    if (!freshFile.value) throw { data: { message: "Выбери картинку угла" } };
+    const form = new FormData();
+    form.append("name", fresh.name);
+    form.append("accent", fresh.accent);
+    form.append("tint", fresh.tint);
+    form.append("effects", fresh.effects.join(","));
+    form.append("image", freshFile.value);
+    await $fetch("/api/admin/skins", { method: "POST", body: form });
+    fresh.name = "";
+    freshFile.value = null;
+    freshPreview.value = null;
+  }, "Скин заведён");
 
 // ── Правка ──────────────────────────────────────
-const save = (s: AdminSkin, fields: Record<string, string>, file?: File) => run(async () => {
-  const form = new FormData()
-  for (const [k, v] of Object.entries(fields)) form.append(k, v)
-  if (file) form.append('image', file)
-  await $fetch(`/api/admin/skins/${s.id}`, { method: 'PUT', body: form })
-}, 'Сохранено')
+const save = (s: AdminSkin, fields: Record<string, string>, file?: File) =>
+  run(async () => {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(fields)) form.append(k, v);
+    if (file) form.append("image", file);
+    await $fetch(`/api/admin/skins/${s.id}`, { method: "PUT", body: form });
+  }, "Сохранено");
 
 const toggleEffect = (s: AdminSkin, effect: SkinEffect, on: boolean) => {
-  const next = on ? [...s.effects, effect] : s.effects.filter(e => e !== effect)
-  return save(s, { effects: next.join(',') })
-}
+  const next = on
+    ? [...s.effects, effect]
+    : s.effects.filter((e) => e !== effect);
+  return save(s, { effects: next.join(",") });
+};
 
-const confirmDelete = ref<number | null>(null)
-const remove = (s: AdminSkin) => run(async () => {
-  await $fetch(`/api/admin/skins/${s.id}`, { method: 'DELETE' })
-  confirmDelete.value = null
-}, 'Скин удалён')
+const confirmDelete = ref<number | null>(null);
+const remove = (s: AdminSkin) =>
+  run(async () => {
+    await $fetch(`/api/admin/skins/${s.id}`, { method: "DELETE" });
+    confirmDelete.value = null;
+  }, "Скин удалён");
 
 // ── Выдача ──────────────────────────────────────
-const grantSkinId = ref<number | null>(null)
-const userQuery = ref('')
-const found = ref<FoundUser[]>([])
-let searchTimer: ReturnType<typeof setTimeout> | null = null
+const grantSkinId = ref<number | null>(null);
+const userQuery = ref("");
+const found = ref<FoundUser[]>([]);
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 watch(userQuery, (q) => {
-  if (searchTimer) clearTimeout(searchTimer)
-  if (q.trim().length < 2) return void (found.value = [])
+  if (searchTimer) clearTimeout(searchTimer);
+  if (q.trim().length < 2) return void (found.value = []);
   searchTimer = setTimeout(async () => {
-    found.value = await $fetch<FoundUser[]>('/api/admin/users', { query: { q: q.trim() } }).catch(() => [])
-  }, 250)
-})
+    found.value = await $fetch<FoundUser[]>("/api/admin/users", {
+      query: { q: q.trim() },
+    }).catch(() => []);
+  }, 250);
+});
 
-const grant = (u: FoundUser) => run(async () => {
-  const res = await $fetch<{ message: string }>('/api/admin/skins/grant', { method: 'POST', body: { userId: u.id, skinId: grantSkinId.value } })
-  msg.value = res.message
-  userQuery.value = ''
-  found.value = []
-})
+const grant = (u: FoundUser) =>
+  run(async () => {
+    const res = await $fetch<{ message: string }>("/api/admin/skins/grant", {
+      method: "POST",
+      body: { userId: u.id, skinId: grantSkinId.value },
+    });
+    msg.value = res.message;
+    userQuery.value = "";
+    found.value = [];
+  });
 
-const revoke = (s: AdminSkin, userId: number) => run(async () => {
-  await $fetch('/api/admin/skins/grant', { method: 'POST', body: { userId, skinId: s.id, revoke: true } })
-}, 'Скин забран')
+const revoke = (s: AdminSkin, userId: number) =>
+  run(async () => {
+    await $fetch("/api/admin/skins/grant", {
+      method: "POST",
+      body: { userId, skinId: s.id, revoke: true },
+    });
+  }, "Скин забран");
 
 watch(skins, (list) => {
-  if (!list.some(s => s.id === grantSkinId.value)) grantSkinId.value = list[0]?.id ?? null
-})
+  if (!list.some((s) => s.id === grantSkinId.value))
+    grantSkinId.value = list[0]?.id ?? null;
+});
 
-onMounted(load)
+onMounted(load);
 </script>
 
 <template>
   <div class="skins-admin">
     <p class="note">
-      Скин — оформление публичной страницы читателя. Картинка — это левый верхний угол
-      с прозрачным фоном: остальные углы код отражает сам. Паучка и пылинки рисует код,
-      здесь их только включают. Скин виден, только когда его выдали и надели, — читатели
-      без скинов раздела в профиле даже не увидят.
+      Скин — оформление публичной страницы читателя. Картинка — это левый
+      верхний угол с прозрачным фоном: остальные углы код отражает сам. Паучка и
+      пылинки рисует код, здесь их только включают. Скин виден, только когда его
+      выдали и надели, — читатели без скинов раздела в профиле даже не увидят.
     </p>
 
     <!-- Новый -->
     <div class="new">
       <div class="preview" :style="{ background: fresh.tint }">
-        <img v-if="freshPreview" :src="freshPreview" alt="">
+        <img v-if="freshPreview" :src="freshPreview" alt="" />
         <span v-else>угол</span>
       </div>
       <div class="new-fields">
         <label class="fld">
           <span>Название</span>
-          <input v-model="fresh.name" type="text" :maxlength="SKIN_NAME_MAX" placeholder="Паутина">
+          <input
+            v-model="fresh.name"
+            type="text"
+            :maxlength="SKIN_NAME_MAX"
+            placeholder="Паутина"
+          />
         </label>
         <label class="fld">
           <span>Картинка угла (png или webp с прозрачностью)</span>
-          <input type="file" accept="image/*" @change="onFreshFile">
+          <input type="file" accept="image/*" @change="onFreshFile" />
         </label>
         <div class="row">
-          <label class="color"><input v-model="fresh.tint" type="color"> фон</label>
-          <label class="color"><input v-model="fresh.accent" type="color"> акцент</label>
+          <label class="color"
+            ><input v-model="fresh.tint" type="color" /> фон</label
+          >
+          <label class="color"
+            ><input v-model="fresh.accent" type="color" /> акцент</label
+          >
           <label v-for="(label, key) in SKIN_EFFECTS" :key="key" class="check">
-            <input v-model="fresh.effects" type="checkbox" :value="key"> {{ label }}
+            <input v-model="fresh.effects" type="checkbox" :value="key" />
+            {{ label }}
           </label>
         </div>
-        <button class="btn btn--primary" type="button" :disabled="busy || !fresh.name.trim()" @click="create">Добавить скин</button>
+        <button
+          class="btn btn--primary"
+          type="button"
+          :disabled="busy || !fresh.name.trim()"
+          @click="create"
+        >
+          Добавить скин
+        </button>
       </div>
     </div>
 
@@ -153,7 +198,9 @@ onMounted(load)
     <p v-if="!skins.length" class="empty">Скинов пока нет.</p>
 
     <div v-for="s in skins" :key="s.id" class="skin">
-      <div class="preview" :style="{ background: s.tint }"><img :src="s.url" alt=""></div>
+      <div class="preview" :style="{ background: s.tint }">
+        <img :src="s.url" alt="" />
+      </div>
       <div class="skin-main">
         <input
           class="name-in"
@@ -162,35 +209,93 @@ onMounted(load)
           :maxlength="SKIN_NAME_MAX"
           aria-label="Название скина"
           @change="save(s, { name: ($event.target as HTMLInputElement).value })"
-        >
+        />
         <div class="row">
-          <label class="color"><input :value="s.tint" type="color" @change="save(s, { tint: ($event.target as HTMLInputElement).value })"> фон</label>
-          <label class="color"><input :value="s.accent" type="color" @change="save(s, { accent: ($event.target as HTMLInputElement).value })"> акцент</label>
+          <label class="color"
+            ><input
+              :value="s.tint"
+              type="color"
+              @change="
+                save(s, { tint: ($event.target as HTMLInputElement).value })
+              "
+            />
+            фон</label
+          >
+          <label class="color"
+            ><input
+              :value="s.accent"
+              type="color"
+              @change="
+                save(s, { accent: ($event.target as HTMLInputElement).value })
+              "
+            />
+            акцент</label
+          >
           <label v-for="(label, key) in SKIN_EFFECTS" :key="key" class="check">
             <input
               type="checkbox"
               :checked="s.effects.includes(key)"
-              @change="toggleEffect(s, key, ($event.target as HTMLInputElement).checked)"
-            > {{ label }}
+              @change="
+                toggleEffect(
+                  s,
+                  key,
+                  ($event.target as HTMLInputElement).checked,
+                )
+              "
+            />
+            {{ label }}
           </label>
           <label class="replace">
             заменить картинку
-            <input type="file" accept="image/*" hidden @change="($event.target as HTMLInputElement).files?.[0] && save(s, {}, ($event.target as HTMLInputElement).files![0])">
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              @change="
+                ($event.target as HTMLInputElement).files?.[0] &&
+                save(s, {}, ($event.target as HTMLInputElement).files![0])
+              "
+            />
           </label>
         </div>
         <div class="owners">
-          <span class="owners-label">У кого: {{ s.owners.length || 'ни у кого' }}</span>
+          <span class="owners-label"
+            >У кого: {{ s.owners.length || "ни у кого" }}</span
+          >
           <span v-for="o in s.owners" :key="o.id" class="owner">
             {{ o.name }}<template v-if="o.wearing"> · носит</template>
-            <button class="x" type="button" :aria-label="`Забрать у ${o.name}`" @click="revoke(s, o.id)">×</button>
+            <button
+              class="x"
+              type="button"
+              :aria-label="`Забрать у ${o.name}`"
+              @click="revoke(s, o.id)"
+            >
+              ×
+            </button>
           </span>
         </div>
         <div class="row">
-          <button v-if="confirmDelete !== s.id" class="link danger" type="button" @click="confirmDelete = s.id">Удалить</button>
+          <button
+            v-if="confirmDelete !== s.id"
+            class="link danger"
+            type="button"
+            @click="confirmDelete = s.id"
+          >
+            Удалить
+          </button>
           <template v-else>
             <span class="confirm">Удалить скин и забрать у всех?</span>
-            <button class="link danger" type="button" :disabled="busy" @click="remove(s)">Да, удалить</button>
-            <button class="link" type="button" @click="confirmDelete = null">Отмена</button>
+            <button
+              class="link danger"
+              type="button"
+              :disabled="busy"
+              @click="remove(s)"
+            >
+              Да, удалить
+            </button>
+            <button class="link" type="button" @click="confirmDelete = null">
+              Отмена
+            </button>
           </template>
         </div>
       </div>
@@ -203,17 +308,36 @@ onMounted(load)
         <label class="fld">
           <span>Какой</span>
           <select v-model="grantSkinId">
-            <option v-for="s in skins" :key="s.id" :value="s.id">{{ s.name }}</option>
+            <option v-for="s in skins" :key="s.id" :value="s.id">
+              {{ s.name }}
+            </option>
           </select>
         </label>
         <label class="fld grow">
           <span>Кому</span>
-          <input v-model="userQuery" type="text" placeholder="имя или почта — от двух букв">
+          <input
+            v-model="userQuery"
+            type="text"
+            placeholder="имя или почта — от двух букв"
+          />
         </label>
       </div>
       <div v-if="found.length" class="found">
-        <button v-for="u in found" :key="u.id" class="hit" type="button" :disabled="busy" @click="grant(u)">
-          <UserAvatar :src="u.avatarUrl" :name="u.name" :frame="null" :size="26" alt="" />
+        <button
+          v-for="u in found"
+          :key="u.id"
+          class="hit"
+          type="button"
+          :disabled="busy"
+          @click="grant(u)"
+        >
+          <UserAvatar
+            :src="u.avatarUrl"
+            :name="u.name"
+            :frame="null"
+            :size="26"
+            alt=""
+          />
           <span>{{ u.name }}</span>
           <span class="hit-mail">{{ u.email }}</span>
         </button>
@@ -234,10 +358,14 @@ onMounted(load)
   max-width: 70ch;
   font-size: 13px;
   line-height: 1.55;
-  color: rgba(241, 230, 210, .6);
+  color: rgba(241, 230, 210, 0.6);
 }
 
-.empty { margin: 0; font-size: 13px; color: rgba(241, 230, 210, .5); }
+.empty {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(241, 230, 210, 0.5);
+}
 
 .sub {
   margin: 8px 0 0;
@@ -264,7 +392,7 @@ onMounted(load)
   display: grid;
   place-items: center;
   font-size: 11px;
-  color: rgba(241, 230, 210, .4);
+  color: rgba(241, 230, 210, 0.4);
 }
 
 .preview img {
@@ -299,13 +427,15 @@ onMounted(load)
   min-width: 160px;
 }
 
-.fld.grow { flex: 1 1 200px; }
+.fld.grow {
+  flex: 1 1 200px;
+}
 
 .fld > span {
   font-size: 11px;
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgba(241, 230, 210, .45);
+  color: rgba(241, 230, 210, 0.45);
 }
 
 input[type="text"],
@@ -325,11 +455,13 @@ select:focus-visible {
   border-color: var(--ember-soft);
 }
 
-select option { background: var(--bg-dark-2); }
+select option {
+  background: var(--bg-dark-2);
+}
 
 input[type="file"] {
   font-size: 12px;
-  color: rgba(241, 230, 210, .7);
+  color: rgba(241, 230, 210, 0.7);
 }
 
 .name-in {
@@ -344,7 +476,7 @@ input[type="file"] {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: rgba(241, 230, 210, .75);
+  color: rgba(241, 230, 210, 0.75);
   cursor: pointer;
 }
 
@@ -357,8 +489,12 @@ input[type="file"] {
   cursor: pointer;
 }
 
-.replace { color: var(--ember-soft); }
-.replace:hover { text-decoration: underline; }
+.replace {
+  color: var(--ember-soft);
+}
+.replace:hover {
+  text-decoration: underline;
+}
 
 .owners {
   display: flex;
@@ -368,7 +504,9 @@ input[type="file"] {
   font-size: 12px;
 }
 
-.owners-label { color: rgba(241, 230, 210, .5); }
+.owners-label {
+  color: rgba(241, 230, 210, 0.5);
+}
 
 .owner {
   display: inline-flex;
@@ -385,11 +523,14 @@ input[type="file"] {
   border: none;
   border-radius: var(--radius-round);
   background: none;
-  color: rgba(241, 230, 210, .5);
+  color: rgba(241, 230, 210, 0.5);
   cursor: pointer;
 }
 
-.x:hover { color: var(--danger); background: rgba(224, 112, 112, .12); }
+.x:hover {
+  color: var(--danger);
+  background: rgba(224, 112, 112, 0.12);
+}
 
 .btn {
   align-self: flex-start;
@@ -405,13 +546,28 @@ input[type="file"] {
   cursor: pointer;
 }
 
-.link:hover { text-decoration: underline; }
-.link.danger { color: var(--danger); }
-.confirm { font-size: 13px; color: var(--ember-soft); }
+.link:hover {
+  text-decoration: underline;
+}
+.link.danger {
+  color: var(--danger);
+}
+.confirm {
+  font-size: 13px;
+  color: var(--ember-soft);
+}
 
-.msg, .err { margin: 0; font-size: 13px; }
-.msg { color: var(--ember-soft); }
-.err { color: var(--danger); }
+.msg,
+.err {
+  margin: 0;
+  font-size: 13px;
+}
+.msg {
+  color: var(--ember-soft);
+}
+.err {
+  color: var(--danger);
+}
 
 .found {
   display: flex;
@@ -434,11 +590,19 @@ input[type="file"] {
   cursor: pointer;
 }
 
-.hit:hover { background: rgba(241, 230, 210, .05); }
-.hit-mail { margin-left: auto; font-size: 12px; color: rgba(241, 230, 210, .45); }
+.hit:hover {
+  background: rgba(241, 230, 210, 0.05);
+}
+.hit-mail {
+  margin-left: auto;
+  font-size: 12px;
+  color: rgba(241, 230, 210, 0.45);
+}
 
 @media (max-width: 600px) {
   .new,
-  .skin { flex-direction: column; }
+  .skin {
+    flex-direction: column;
+  }
 }
 </style>

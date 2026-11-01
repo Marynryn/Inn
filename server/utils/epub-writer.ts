@@ -1,28 +1,45 @@
-import JSZip from 'jszip'
+import JSZip from "jszip";
 
 const escapeXml = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
 // Пустая строка из редактора — это <p></p>, а читалки такой абзац схлопывают,
 // и отступ пропадает. Неразрывный пробел даёт ему высоту строки; числом, а не
 // &nbsp;: в XHTML без DTD именованной сущности нет.
 const fillEmptyParagraphs = (html: string) =>
-  html.replace(/<p([^>]*)>\s*<\/p>/g, '<p$1>&#160;</p>')
+  html.replace(/<p([^>]*)>\s*<\/p>/g, "<p$1>&#160;</p>");
 
-export async function buildEpub({ id, title, contentHtml }: { id: string; title: string; contentHtml: string }): Promise<Buffer> {
-  const zip = new JSZip()
-  const uid = `urn:uuid:tavern-chapter-${id.replace(/[^a-zA-Z0-9.-]/g, '')}`
+export async function buildEpub({
+  id,
+  title,
+  contentHtml,
+}: {
+  id: string;
+  title: string;
+  contentHtml: string;
+}): Promise<Buffer> {
+  const zip = new JSZip();
+  const uid = `urn:uuid:tavern-chapter-${id.replace(/[^a-zA-Z0-9.-]/g, "")}`;
 
-  zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' })
+  zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
 
-  zip.file('META-INF/container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+  zip.file(
+    "META-INF/container.xml",
+    `<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
-</container>`)
+</container>`,
+  );
 
-  zip.file('OEBPS/content.opf', `<?xml version="1.0" encoding="UTF-8"?>
+  zip.file(
+    "OEBPS/content.opf",
+    `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="BookId">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:title>${escapeXml(title)}</dc:title>
@@ -37,9 +54,12 @@ export async function buildEpub({ id, title, contentHtml }: { id: string; title:
   <spine toc="ncx">
     <itemref idref="chapter"/>
   </spine>
-</package>`)
+</package>`,
+  );
 
-  zip.file('OEBPS/toc.ncx', `<?xml version="1.0" encoding="UTF-8"?>
+  zip.file(
+    "OEBPS/toc.ncx",
+    `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head>
     <meta name="dtb:uid" content="${uid}"/>
@@ -51,28 +71,38 @@ export async function buildEpub({ id, title, contentHtml }: { id: string; title:
       <content src="chapter.xhtml"/>
     </navPoint>
   </navMap>
-</ncx>`)
+</ncx>`,
+  );
 
   // «Невидимый» текст: класс приходит из исходного epub и переживает правку в
   // админке, но без стилей скачанная глава показала бы спрятанное обычным
   // текстом. Цвет считается от currentColor — читалка со своей темой (бумага,
   // ночь) получит след нужной светлоты сама.
-  zip.file('OEBPS/style.css', `.invisible-text {
+  zip.file(
+    "OEBPS/style.css",
+    `.invisible-text {
   color: rgba(128, 128, 128, 0.08);
   color: color-mix(in srgb, currentColor 6%, transparent);
 }
 
 .invisible-text::selection { color: inherit; }
-`)
+`,
+  );
 
-  zip.file('OEBPS/chapter.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+  zip.file(
+    "OEBPS/chapter.xhtml",
+    `<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head><title>${escapeXml(title)}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
 <body>
 <h1>${escapeXml(title)}</h1>
 ${fillEmptyParagraphs(contentHtml)}
 </body>
-</html>`)
+</html>`,
+  );
 
-  return zip.generateAsync({ type: 'nodebuffer', mimeType: 'application/epub+zip' })
+  return zip.generateAsync({
+    type: "nodebuffer",
+    mimeType: "application/epub+zip",
+  });
 }

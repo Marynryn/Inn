@@ -1,4 +1,4 @@
-import { refreshOriginalChaptersIfStale } from '../utils/original-toc'
+import { refreshOriginalChaptersIfStale } from "../utils/original-toc";
 
 /*
   Число глав оригинала подтягиваем на старте, если оно устарело: будильник
@@ -8,5 +8,5 @@ import { refreshOriginalChaptersIfStale } from '../utils/original-toc'
   запрос наружу упрётся в заслон и просто запишется в лог).
 */
 export default defineNitroPlugin(() => {
-  refreshOriginalChaptersIfStale()
-})
+  refreshOriginalChaptersIfStale();
+});

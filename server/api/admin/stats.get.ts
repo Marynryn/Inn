@@ -1,28 +1,41 @@
-import { useDb } from '../../utils/db'
-import { boardGameDays, boardVisitDays, chapterDownloadDays, chapters, chapterStats, chapterViewDays, comments, gameStats, pumpkinClickDays, readerDays, userIdentities, users } from '../../database/schema'
-import { and, eq, desc, gte, sql, sum, count } from 'drizzle-orm'
+import { useDb } from "../../utils/db";
+import {
+  boardGameDays,
+  boardVisitDays,
+  chapterDownloadDays,
+  chapters,
+  chapterStats,
+  chapterViewDays,
+  comments,
+  gameStats,
+  pumpkinClickDays,
+  readerDays,
+  userIdentities,
+  users,
+} from "../../database/schema";
+import { and, eq, desc, gte, sql, sum, count } from "drizzle-orm";
 
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
-  if (session.user?.role !== 'admin') {
-    throw createError({ statusCode: 403, message: 'Нет доступа' })
+  const session = await getUserSession(event);
+  if (session.user?.role !== "admin") {
+    throw createError({ statusCode: 403, message: "Нет доступа" });
   }
 
-  const db = useDb()
+  const db = useDb();
 
   const [totals] = await db
     .select({
       totalViews: sum(chapterStats.viewsCount),
       totalDownloads: sum(chapterStats.downloadsCount),
     })
-    .from(chapterStats)
+    .from(chapterStats);
 
-  const [commentCount] = await db.select({ total: count() }).from(comments)
+  const [commentCount] = await db.select({ total: count() }).from(comments);
 
   const [today] = await db
     .select({ total: sum(chapterViewDays.count) })
     .from(chapterViewDays)
-    .where(eq(chapterViewDays.day, mskDay()))
+    .where(eq(chapterViewDays.day, mskDay()));
 
   // Игра: сегодня и за всё время. Партии администраторов в счётчики не попадают —
   // их не пишут вовсе, отдельно фильтровать нечего.
@@ -33,16 +46,17 @@ export default defineEventHandler(async (event) => {
       won: gameStats.won,
       guesses: gameStats.guesses,
     })
-    .from(gameStats)
+    .from(gameStats);
 
-  const sumRows = (rows: typeof gameRows) => rows.reduce(
-    (acc, r) => ({
-      played: acc.played + r.played,
-      won: acc.won + r.won,
-      guesses: acc.guesses + r.guesses,
-    }),
-    { played: 0, won: 0, guesses: 0 },
-  )
+  const sumRows = (rows: typeof gameRows) =>
+    rows.reduce(
+      (acc, r) => ({
+        played: acc.played + r.played,
+        won: acc.won + r.won,
+        guesses: acc.guesses + r.guesses,
+      }),
+      { played: 0, won: 0, guesses: 0 },
+    );
 
   // Читатели. Отдельным запросом это намеренно не ходит: страница админки и так
   // делает шесть обращений при открытии, а здесь пара счётчиков по маленьким
@@ -50,17 +64,22 @@ export default defineEventHandler(async (event) => {
   const [readerTotal] = await db
     .select({ total: count() })
     .from(users)
-    .where(eq(users.role, 'reader'))
+    .where(eq(users.role, "reader"));
 
   const [readerWeek] = await db
     .select({ total: count() })
     .from(users)
-    .where(and(eq(users.role, 'reader'), gte(users.createdAt, sql`date('now', '-7 day')`)))
+    .where(
+      and(
+        eq(users.role, "reader"),
+        gte(users.createdAt, sql`date('now', '-7 day')`),
+      ),
+    );
 
   const providerRows = await db
     .select({ provider: userIdentities.provider, total: count() })
     .from(userIdentities)
-    .groupBy(userIdentities.provider)
+    .groupBy(userIdentities.provider);
 
   // Живые — те, кто хоть что-то сделал: написал комментарий, сыграл партию или
   // отметил главу прочитанной. Регистраций может быть двести, а говорящих пять,
@@ -69,7 +88,7 @@ export default defineEventHandler(async (event) => {
     SELECT user_id FROM comments WHERE user_id IS NOT NULL
     UNION SELECT user_id FROM game_results
     UNION SELECT user_id FROM reading_progress
-  `)
+  `);
 
   // Что именно читали сегодня — та же таблица, что и счётчик выше, только
   // построчно. Присоединение левое: строка остаётся и у снятой с сайта главы,
@@ -83,7 +102,7 @@ export default defineEventHandler(async (event) => {
     .from(chapterViewDays)
     .leftJoin(chapters, eq(chapters.id, chapterViewDays.chapterId))
     .where(eq(chapterViewDays.day, mskDay()))
-    .orderBy(desc(chapterViewDays.count))
+    .orderBy(desc(chapterViewDays.count));
 
   // Скачивания за сегодня — тем же образом. Отдельной плитки «сегодня» у них
   // нет, список открывается с общей суммы, поэтому сегодняшнюю сумму считаем
@@ -97,39 +116,39 @@ export default defineEventHandler(async (event) => {
     .from(chapterDownloadDays)
     .leftJoin(chapters, eq(chapters.id, chapterDownloadDays.chapterId))
     .where(eq(chapterDownloadDays.day, mskDay()))
-    .orderBy(desc(chapterDownloadDays.count))
+    .orderBy(desc(chapterDownloadDays.count));
 
   // Разные читатели по дням — сколько людей, а не просмотров, открывали главы.
   // Две недели: по ним уже видно, растёт ли аудитория или скачет вокруг одного.
-  const since = mskDay(Date.now() - 13 * 24 * 60 * 60 * 1000)
+  const since = mskDay(Date.now() - 13 * 24 * 60 * 60 * 1000);
   const readerDayRows = await db
     .select({ day: readerDays.day, total: count() })
     .from(readerDays)
     .where(gte(readerDays.day, since))
-    .groupBy(readerDays.day)
-  const readerByDay = new Map(readerDayRows.map(r => [r.day, r.total]))
+    .groupBy(readerDays.day);
+  const readerByDay = new Map(readerDayRows.map((r) => [r.day, r.total]));
   // Все четырнадцать дней подряд, пустые — нулём: иначе дыра в днях выглядела бы
   // как отсутствие данных, а не как день без читателей.
   const readersByDay = Array.from({ length: 14 }, (_, i) => {
-    const day = mskDay(Date.now() - (13 - i) * 24 * 60 * 60 * 1000)
-    return { day, count: readerByDay.get(day) ?? 0 }
-  })
+    const day = mskDay(Date.now() - (13 - i) * 24 * 60 * 60 * 1000);
+    return { day, count: readerByDay.get(day) ?? 0 };
+  });
 
   // Тыква на Хеллоуин: строк по одной на день, их за сезон — десяток-другой.
   // Вне Хеллоуина счётчик не нужен — панель его не показывает.
-  const halloween = await isHalloween()
-  const pumpkinRows = halloween ? await db.select().from(pumpkinClickDays) : []
+  const halloween = await isHalloween();
+  const pumpkinRows = halloween ? await db.select().from(pumpkinClickDays) : [];
 
   // Настольная игра: разные люди на её страницах по дням и доигранные партии.
   // Заходы хранятся месяц — «за 30 дней» это сумма по дням, а не число разных
   // людей за месяц: дни между собой не связаны, см. boardVisitDays.
-  const month = mskDay(Date.now() - 29 * 24 * 60 * 60 * 1000)
+  const month = mskDay(Date.now() - 29 * 24 * 60 * 60 * 1000);
   const boardVisitRows = await db
     .select({ day: boardVisitDays.day, total: count() })
     .from(boardVisitDays)
     .where(gte(boardVisitDays.day, month))
-    .groupBy(boardVisitDays.day)
-  const boardGameRows = await db.select().from(boardGameDays)
+    .groupBy(boardVisitDays.day);
+  const boardGameRows = await db.select().from(boardGameDays);
 
   const topChapters = await db
     .select({
@@ -142,7 +161,7 @@ export default defineEventHandler(async (event) => {
     })
     .from(chapterStats)
     .innerJoin(chapters, eq(chapters.id, chapterStats.chapterId))
-    .orderBy(desc(chapterStats.viewsCount))
+    .orderBy(desc(chapterStats.viewsCount));
 
   return {
     totalViews: Number(totals?.totalViews ?? 0),
@@ -155,29 +174,32 @@ export default defineEventHandler(async (event) => {
     downloadsTodayChapters,
     totalComments: commentCount?.total ?? 0,
     game: {
-      today: sumRows(gameRows.filter(r => r.day === mskDay())),
+      today: sumRows(gameRows.filter((r) => r.day === mskDay())),
       total: sumRows(gameRows),
     },
     board: {
-      visitorsToday: boardVisitRows.find(r => r.day === mskDay())?.total ?? 0,
+      visitorsToday: boardVisitRows.find((r) => r.day === mskDay())?.total ?? 0,
       visitorsMonth: boardVisitRows.reduce((s, r) => s + r.total, 0),
-      finishedToday: boardGameRows.find(r => r.day === mskDay())?.finished ?? 0,
-      finishedMonth: boardGameRows.filter(r => r.day >= month).reduce((s, r) => s + r.finished, 0),
+      finishedToday:
+        boardGameRows.find((r) => r.day === mskDay())?.finished ?? 0,
+      finishedMonth: boardGameRows
+        .filter((r) => r.day >= month)
+        .reduce((s, r) => s + r.finished, 0),
       finishedTotal: boardGameRows.reduce((s, r) => s + r.finished, 0),
     },
     readers: {
       total: readerTotal?.total ?? 0,
       week: readerWeek?.total ?? 0,
-      google: providerRows.find(r => r.provider === 'google')?.total ?? 0,
-      telegram: providerRows.find(r => r.provider === 'telegram')?.total ?? 0,
+      google: providerRows.find((r) => r.provider === "google")?.total ?? 0,
+      telegram: providerRows.find((r) => r.provider === "telegram")?.total ?? 0,
       active: activeRows.length,
     },
     pumpkin: halloween
       ? {
-          today: pumpkinRows.find(r => r.day === mskDay())?.count ?? 0,
+          today: pumpkinRows.find((r) => r.day === mskDay())?.count ?? 0,
           total: pumpkinRows.reduce((sum, r) => sum + r.count, 0),
         }
       : null,
     topChapters,
-  }
-})
+  };
+});

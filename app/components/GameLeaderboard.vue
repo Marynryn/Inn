@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { AvatarFrame } from '#shared/utils/avatarFrames'
-import type { GameMode } from '#shared/utils/gameColumns'
+import type { AvatarFrame } from "#shared/utils/avatarFrames";
+import type { GameMode } from "#shared/utils/gameColumns";
 
 /**
  * Таблица рейтинга поверх страницы игры. Два режима считаются врозь: персонаж
@@ -10,126 +10,164 @@ import type { GameMode } from '#shared/utils/gameColumns'
  */
 
 const MONTHS = [
-  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
-]
+  "январь",
+  "февраль",
+  "март",
+  "апрель",
+  "май",
+  "июнь",
+  "июль",
+  "август",
+  "сентябрь",
+  "октябрь",
+  "ноябрь",
+  "декабрь",
+];
 
 // Месяц берём по Москве, как и сервер: иначе у читателя за границей подпись
 // разъедется с таблицей в последние часы месяца.
 const monthName = computed(() => {
-  const msk = new Date(Date.now() + 3 * 60 * 60 * 1000)
-  return MONTHS[msk.getUTCMonth()]
-})
+  const msk = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  return MONTHS[msk.getUTCMonth()];
+});
 
 type Row = {
-  code: string | null
-  name: string
-  avatarUrl: string | null
-  avatarFrame: AvatarFrame | null
-  played: number
-  wins: number
-  averageGuesses: number
-  streak: number
-  me: boolean
-  place: number
-}
+  code: string | null;
+  name: string;
+  avatarUrl: string | null;
+  avatarFrame: AvatarFrame | null;
+  played: number;
+  wins: number;
+  averageGuesses: number;
+  streak: number;
+  me: boolean;
+  place: number;
+};
 
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: [] }>();
 
-const mode = ref<GameMode>('daily')
-const loading = ref(true)
-const error = ref('')
+const mode = ref<GameMode>("daily");
+const loading = ref(true);
+const error = ref("");
 
 // Вкладку, однажды загруженную, не перезапрашиваем: за время одного окна
 // рейтинг не меняется, а переключаться между вкладками хочется мгновенно.
-const boards = ref<Partial<Record<GameMode, Row[]>>>({})
-const rows = computed(() => boards.value[mode.value] ?? [])
+const boards = ref<Partial<Record<GameMode, Row[]>>>({});
+const rows = computed(() => boards.value[mode.value] ?? []);
 
 const load = async (value: GameMode) => {
-  if (boards.value[value]) return
+  if (boards.value[value]) return;
 
-  loading.value = true
-  error.value = ''
+  loading.value = true;
+  error.value = "";
   try {
-    boards.value[value] = await $fetch<Row[]>('/api/game/leaderboard', { query: { mode: value } })
+    boards.value[value] = await $fetch<Row[]>("/api/game/leaderboard", {
+      query: { mode: value },
+    });
   } catch {
-    error.value = 'Рейтинг не загрузился'
+    error.value = "Рейтинг не загрузился";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const switchMode = (value: GameMode) => {
-  mode.value = value
-  load(value)
-  if (hallOpen.value) loadHall(value)
-}
+  mode.value = value;
+  load(value);
+  if (hallOpen.value) loadHall(value);
+};
 
 /**
  * Зал славы — кто был первым в прошлые месяцы. Свёрнут по умолчанию: пришли
  * сюда за нынешней таблицей, а история нужна не каждый раз. Тянем её только
  * когда развернут, и тоже по разу на режим.
  */
-type Champion = Row & { month: string }
+type Champion = Row & { month: string };
 
-const hallOpen = ref(false)
-const hallLoading = ref(false)
-const halls = ref<Partial<Record<GameMode, Champion[]>>>({})
-const champions = computed(() => halls.value[mode.value] ?? [])
+const hallOpen = ref(false);
+const hallLoading = ref(false);
+const halls = ref<Partial<Record<GameMode, Champion[]>>>({});
+const champions = computed(() => halls.value[mode.value] ?? []);
 
 const loadHall = async (value: GameMode) => {
-  if (halls.value[value]) return
+  if (halls.value[value]) return;
 
-  hallLoading.value = true
+  hallLoading.value = true;
   try {
-    halls.value[value] = await $fetch<Champion[]>('/api/game/champions', { query: { mode: value } })
+    halls.value[value] = await $fetch<Champion[]>("/api/game/champions", {
+      query: { mode: value },
+    });
   } catch {
-    halls.value[value] = []
+    halls.value[value] = [];
   } finally {
-    hallLoading.value = false
+    hallLoading.value = false;
   }
-}
+};
 
 const toggleHall = () => {
-  hallOpen.value = !hallOpen.value
-  if (hallOpen.value) loadHall(mode.value)
-}
+  hallOpen.value = !hallOpen.value;
+  if (hallOpen.value) loadHall(mode.value);
+};
 
 /** '2026-08' → 'Август 2026'. */
 const monthLabel = (month: string) => {
-  const [year, mon] = month.split('-')
-  const name = MONTHS[Number(mon) - 1] ?? month
-  return `${name[0]!.toUpperCase()}${name.slice(1)} ${year}`
-}
+  const [year, mon] = month.split("-");
+  const name = MONTHS[Number(mon) - 1] ?? month;
+  return `${name[0]!.toUpperCase()}${name.slice(1)} ${year}`;
+};
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') emit('close')
-}
+  if (e.key === "Escape") emit("close");
+};
 
 onMounted(() => {
-  load('daily')
-  document.addEventListener('keydown', onKeydown)
-})
+  load("daily");
+  document.addEventListener("keydown", onKeydown);
+});
 
-onUnmounted(() => document.removeEventListener('keydown', onKeydown))
+onUnmounted(() => document.removeEventListener("keydown", onKeydown));
 
-useScrollLock()
+useScrollLock();
 </script>
 
 <template>
   <Teleport to="body">
     <div class="backdrop" @click.self="emit('close')">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="Рейтинг игроков">
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Рейтинг игроков"
+      >
         <div class="head">
-          <h2 class="modal-title title">Рейтинг<span class="month">за {{ monthName }}</span></h2>
-          <button class="close" type="button" aria-label="Закрыть" @click="emit('close')">×</button>
+          <h2 class="modal-title title">
+            Рейтинг<span class="month">за {{ monthName }}</span>
+          </h2>
+          <button
+            class="close"
+            type="button"
+            aria-label="Закрыть"
+            @click="emit('close')"
+          >
+            ×
+          </button>
         </div>
 
         <div class="tabs">
-          <button class="tab" :class="{ active: mode === 'daily' }" type="button" @click="switchMode('daily')">
+          <button
+            class="tab"
+            :class="{ active: mode === 'daily' }"
+            type="button"
+            @click="switchMode('daily')"
+          >
             Персонаж дня
           </button>
-          <button class="tab" :class="{ active: mode === 'endless' }" type="button" @click="switchMode('endless')">
+          <button
+            class="tab"
+            :class="{ active: mode === 'endless' }"
+            type="button"
+            @click="switchMode('endless')"
+          >
             Свободная игра
           </button>
         </div>
@@ -137,7 +175,8 @@ useScrollLock()
         <p v-if="loading" class="note">В таверне считают победы…</p>
         <p v-else-if="error" class="note err">{{ error }}</p>
         <p v-else-if="!rows.length" class="note">
-          В этом месяце здесь пока пусто. Угадай персонажа — и первая строка будет твоей.
+          В этом месяце здесь пока пусто. Угадай персонажа — и первая строка
+          будет твоей.
         </p>
 
         <div v-else class="table-wrap thin-scroll">
@@ -145,12 +184,12 @@ useScrollLock()
             <!-- Ширины колонок живут здесь: так подпись «Игрок» может занять
                  сразу две ячейки — аватарку и имя — и начаться там же, где она. -->
             <colgroup>
-              <col class="c-place">
-              <col class="c-avatar">
-              <col>
-              <col class="c-num">
-              <col class="c-num">
-              <col v-if="mode === 'daily'" class="c-num">
+              <col class="c-place" />
+              <col class="c-avatar" />
+              <col />
+              <col class="c-num" />
+              <col class="c-num" />
+              <col v-if="mode === 'daily'" class="c-num" />
             </colgroup>
             <thead>
               <tr>
@@ -167,7 +206,10 @@ useScrollLock()
               <tr
                 v-for="(row, i) in rows"
                 :key="row.name"
-                :class="{ me: row.me, apart: i > 0 && row.place > rows[i - 1]!.place + 1 }"
+                :class="{
+                  me: row.me,
+                  apart: i > 0 && row.place > rows[i - 1]!.place + 1,
+                }"
               >
                 <td class="col-place">
                   <span class="place">
@@ -196,38 +238,63 @@ useScrollLock()
                   />
                 </td>
                 <td class="name" :title="row.name">
-                  <NuxtLink v-if="row.code" :to="`/reader/${row.code}`" class="reader-link">{{ row.name }}</NuxtLink>
+                  <NuxtLink
+                    v-if="row.code"
+                    :to="`/reader/${row.code}`"
+                    class="reader-link"
+                    >{{ row.name }}</NuxtLink
+                  >
                   <template v-else>{{ row.name }}</template>
                 </td>
-                <td class="num">{{ row.wins }}<span class="of"> из {{ row.played }}</span></td>
-                <td class="num">{{ row.averageGuesses || '—' }}</td>
-                <td v-if="mode === 'daily'" class="num">{{ row.streak || '—' }}</td>
+                <td class="num">
+                  {{ row.wins }}<span class="of"> из {{ row.played }}</span>
+                </td>
+                <td class="num">{{ row.averageGuesses || "—" }}</td>
+                <td v-if="mode === 'daily'" class="num">
+                  {{ row.streak || "—" }}
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <p class="fine">
-          Выше тот, у кого больше побед. Побед поровну — впереди тот, кто угадывал за меньшее
-          число попыток.
+          Выше тот, у кого больше побед. Побед поровну — впереди тот, кто
+          угадывал за меньшее число попыток.
         </p>
         <p v-if="mode === 'daily'" class="fine">
-          Серия — сколько дней подряд угадан персонаж дня. Пропущенный день её обрывает,
-          а сегодняшняя несыгранная партия — нет.
+          Серия — сколько дней подряд угадан персонаж дня. Пропущенный день её
+          обрывает, а сегодняшняя несыгранная партия — нет.
         </p>
         <div class="hall">
-          <button class="hall-head" type="button" :aria-expanded="hallOpen" @click="toggleHall">
+          <button
+            class="hall-head"
+            type="button"
+            :aria-expanded="hallOpen"
+            @click="toggleHall"
+          >
             <span class="hall-title">Чемпионы прошлых месяцев</span>
-            <span class="hall-sign" :class="{ open: hallOpen }" aria-hidden="true">▾</span>
+            <span
+              class="hall-sign"
+              :class="{ open: hallOpen }"
+              aria-hidden="true"
+              >▾</span
+            >
           </button>
 
           <div v-if="hallOpen" class="hall-body">
             <p v-if="hallLoading" class="note">В таверне листают летопись…</p>
             <p v-else-if="!champions.length" class="note">
-              Месяц ещё не закончился ни разу — первым чемпионом может стать кто угодно.
+              Месяц ещё не закончился ни разу — первым чемпионом может стать кто
+              угодно.
             </p>
             <ul v-else class="hall-list">
-              <li v-for="champ in champions" :key="champ.month" class="hall-row" :class="{ me: champ.me }">
+              <li
+                v-for="champ in champions"
+                :key="champ.month"
+                class="hall-row"
+                :class="{ me: champ.me }"
+              >
                 <span class="hall-month">{{ monthLabel(champ.month) }}</span>
                 <UserAvatar
                   class="avatar"
@@ -237,10 +304,23 @@ useScrollLock()
                   :size="26"
                   alt=""
                 />
-                <NuxtLink v-if="champ.code" :to="`/reader/${champ.code}`" class="hall-name reader-link" :title="champ.name">{{ champ.name }}</NuxtLink>
-                <span v-else class="hall-name" :title="champ.name">{{ champ.name }}</span>
+                <NuxtLink
+                  v-if="champ.code"
+                  :to="`/reader/${champ.code}`"
+                  class="hall-name reader-link"
+                  :title="champ.name"
+                  >{{ champ.name }}</NuxtLink
+                >
+                <span v-else class="hall-name" :title="champ.name">{{
+                  champ.name
+                }}</span>
                 <span class="hall-wins">
-                  {{ champ.wins }}<span class="hall-wins-word">&nbsp;{{ pluralize(champ.wins, 'победа', 'победы', 'побед') }}</span>
+                  {{ champ.wins
+                  }}<span class="hall-wins-word"
+                    >&nbsp;{{
+                      pluralize(champ.wins, "победа", "победы", "побед")
+                    }}</span
+                  >
                 </span>
               </li>
             </ul>
@@ -248,8 +328,8 @@ useScrollLock()
         </div>
 
         <p class="fine">
-          Счёт идёт за текущий месяц: 1-го числа таблица начинается заново, а сыгранные
-          партии никуда не деваются.
+          Счёт идёт за текущий месяц: 1-го числа таблица начинается заново, а
+          сыгранные партии никуда не деваются.
         </p>
         <p class="fine">
           В рейтинге участвуют только зарегистрированные читатели.
@@ -270,7 +350,7 @@ useScrollLock()
   justify-content: center;
   z-index: var(--z-modal);
   padding: 20px;
-  animation: fade-in .15s ease;
+  animation: fade-in 0.15s ease;
 }
 
 .modal {
@@ -281,7 +361,7 @@ useScrollLock()
   display: flex;
   flex-direction: column;
   color: var(--parchment);
-  animation: slide-up .2s ease;
+  animation: slide-up 0.2s ease;
 }
 
 .head {
@@ -300,7 +380,7 @@ useScrollLock()
   color: var(--parchment-2);
   font-size: 13px;
   font-weight: 400;
-  opacity: .7;
+  opacity: 0.7;
   white-space: nowrap;
 }
 
@@ -315,14 +395,16 @@ useScrollLock()
   background: none;
   border: none;
   color: var(--parchment);
-  opacity: .5;
+  opacity: 0.5;
   font-size: 26px;
   line-height: 1;
   padding: 0 4px;
   cursor: pointer;
 }
 
-.close:hover { opacity: 1; }
+.close:hover {
+  opacity: 1;
+}
 
 .tabs {
   display: flex;
@@ -350,11 +432,14 @@ useScrollLock()
 .note {
   margin: 24px 0;
   font-size: 14px;
-  opacity: .6;
+  opacity: 0.6;
   text-align: center;
 }
 
-.note.err { color: var(--danger); opacity: 1; }
+.note.err {
+  color: var(--danger);
+  opacity: 1;
+}
 
 /* Таблица в своей рамке: так она читается блоком, а не текстом внавал. */
 .table-wrap {
@@ -385,13 +470,13 @@ useScrollLock()
   text-align: left;
   font-weight: 500;
   font-size: 12px;
-  color: rgba(241, 230, 210, .5);
+  color: rgba(241, 230, 210, 0.5);
   padding: 8px 10px;
   position: sticky;
   top: 0;
   z-index: 1;
   background: var(--bg-dark-2);
-  box-shadow: inset 0 -1px rgba(241, 230, 210, .12);
+  box-shadow: inset 0 -1px rgba(241, 230, 210, 0.12);
 }
 
 .table td {
@@ -401,19 +486,29 @@ useScrollLock()
 
 /* Линию под шапкой рисует сама шапка — своя граница первой строке не нужна,
    иначе между ними получается двойная черта. */
-.table tbody tr:first-child td { border-top: none; }
+.table tbody tr:first-child td {
+  border-top: none;
+}
 
 /* Ширины колонок — на <col>: при фиксированной раскладке их берут все ячейки,
    и объединённый заголовок «Игрок» ничего не ломает. */
-.c-place { width: 56px; }
+.c-place {
+  width: 56px;
+}
 /* Ширина <col> при table-layout: fixed и box-sizing: border-box считается
    вместе с полями ячейки. 26px на колонку не оставляли аватарке ничего: под
    картинку выходило 6px, она вылезала за ячейку и упиралась в имя вплотную.
    Держим поле слева плюс саму аватарку: 10 + 26. */
-.c-avatar { width: 36px; }
-.c-num { width: 66px; }
+.c-avatar {
+  width: 36px;
+}
+.c-num {
+  width: 66px;
+}
 
-.col-place { color: rgba(241, 230, 210, .5); }
+.col-place {
+  color: rgba(241, 230, 210, 0.5);
+}
 
 .place {
   display: inline-flex;
@@ -438,17 +533,29 @@ useScrollLock()
   fill: currentColor;
 }
 
-.crown.gold { color: #e0a53f; }
-.crown.silver { color: #c6c1b6; }
-.crown.bronze { color: #b57a45; }
+.crown.gold {
+  color: #e0a53f;
+}
+.crown.silver {
+  color: #c6c1b6;
+}
+.crown.bronze {
+  color: #b57a45;
+}
 
 /* Числовые колонки по центру: под своими заголовками они так и читаются.
    Заголовок пишем отдельным селектором с .table th: у общего .table th
    { text-align: left } вес выше, чем у одного класса, и голый .num его не
    перебивал — числа центрировались, а подписи над ними оставались слева. */
 .table th.num,
-.table td.num { text-align: center; white-space: nowrap; }
-.of { opacity: .4; font-size: 12px; }
+.table td.num {
+  text-align: center;
+  white-space: nowrap;
+}
+.of {
+  opacity: 0.4;
+  font-size: 12px;
+}
 
 /* Своя строка обведена рамкой: в двадцати строках взгляд иначе её не найдёт. */
 .me td {
@@ -457,31 +564,47 @@ useScrollLock()
   border-bottom: 1px solid var(--ember-soft);
 }
 
-.me td:first-child { border-left: 1px solid var(--ember-soft); }
-.me td:last-child { border-right: 1px solid var(--ember-soft); }
+.me td:first-child {
+  border-left: 1px solid var(--ember-soft);
+}
+.me td:last-child {
+  border-right: 1px solid var(--ember-soft);
+}
 
 /* Своя строка на первом месте. Правило выше гасит верхнюю границу у первой
    строки, чтобы не двоить линию под шапкой, и оно специфичнее обводки — рамка
    вокруг своей строки оставалась открытой сверху. Возвращаем ей верх. */
-.table tbody tr.me:first-child td { border-top: 1px solid var(--ember-soft); }
+.table tbody tr.me:first-child td {
+  border-top: 1px solid var(--ember-soft);
+}
 
 /* Строка, оторванная от таблицы: между нею и двадцаткой пропуск, и отступ
    сверху не даёт ей читаться двадцать первым местом. */
-.apart td { padding-top: 18px; }
+.apart td {
+  padding-top: 18px;
+}
 
 /* Зазор между аватаркой и именем. Селекторы с .table td обязательны: у .table td
    вес выше, чем у одного класса, и правило без него молча проигрывает общему
    padding — прежний .col-avatar { padding-right: 7px } так и не сработал ни разу. */
-.table td.col-avatar { padding-right: 0; }
-.table td.name { padding-left: 12px; }
+.table td.col-avatar {
+  padding-right: 0;
+}
+.table td.name {
+  padding-left: 12px;
+}
 
 /* Крайние колонки не липнут к рамке таблицы. */
 
 .table th:first-child,
-.table td:first-child { padding-left: 12px; }
+.table td:first-child {
+  padding-left: 12px;
+}
 
 .table th:last-child,
-.table td:last-child { padding-right: 14px; }
+.table td:last-child {
+  padding-right: 14px;
+}
 
 .avatar {
   background: var(--fill-strong);
@@ -490,7 +613,7 @@ useScrollLock()
 /* Буква вместо картинки — приглушённая: в таблице она соседствует с числами,
    и спорить с ними за внимание ей незачем. */
 .avatar :deep(.ua-letter) {
-  opacity: .7;
+  opacity: 0.7;
 }
 
 /* При фиксированной раскладке колонка имени забирает весь остаток сама. */
@@ -530,19 +653,23 @@ useScrollLock()
   font-size: 13px;
   text-align: left;
   cursor: pointer;
-  opacity: .75;
-  transition: opacity .15s;
+  opacity: 0.75;
+  transition: opacity 0.15s;
 }
 
 .hall-head:hover,
-.hall-head:focus-visible { opacity: 1; }
+.hall-head:focus-visible {
+  opacity: 1;
+}
 
 .hall-sign {
   font-size: 11px;
-  transition: transform .15s ease;
+  transition: transform 0.15s ease;
 }
 
-.hall-sign.open { transform: rotate(180deg); }
+.hall-sign.open {
+  transform: rotate(180deg);
+}
 
 .hall-list {
   margin: 0 0 4px;
@@ -558,15 +685,19 @@ useScrollLock()
   font-size: 13px;
 }
 
-.hall-row + .hall-row { border-top: 1px solid rgba(241, 230, 210, .06); }
+.hall-row + .hall-row {
+  border-top: 1px solid rgba(241, 230, 210, 0.06);
+}
 
 /* Своя строка — тем же цветом, что и в таблице выше. */
-.hall-row.me { color: var(--ember-soft); }
+.hall-row.me {
+  color: var(--ember-soft);
+}
 
 .hall-month {
   flex: 0 0 auto;
   width: 108px;
-  opacity: .6;
+  opacity: 0.6;
   font-size: 12px;
 }
 
@@ -582,39 +713,50 @@ useScrollLock()
 .hall-wins {
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums lining-nums;
-  opacity: .8;
+  opacity: 0.8;
 }
 
 .hall-wins-word {
   font-size: 11px;
-  opacity: .6;
+  opacity: 0.6;
 }
 
 @media (max-width: 560px) {
-  .hall-month { width: 92px; }
+  .hall-month {
+    width: 92px;
+  }
 }
 
 .fine {
   margin: 14px 0 0;
   font-size: 11px;
   line-height: 1.5;
-  opacity: .45;
+  opacity: 0.45;
 }
 
-.fine + .fine { margin-top: 6px; }
+.fine + .fine {
+  margin-top: 6px;
+}
 
 @keyframes fade-in {
-  from { opacity: 0; }
+  from {
+    opacity: 0;
+  }
 }
 
 @keyframes slide-up {
-  from { transform: translateY(10px); opacity: 0; }
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
 }
 
 /* На телефоне окно занимает экран целиком: полей по краям там нет, а таблице
    нужна каждая точка ширины. Длинное имя обрезается многоточием. */
 @media (max-width: 560px) {
-  .backdrop { padding: 0; }
+  .backdrop {
+    padding: 0;
+  }
 
   .modal {
     max-width: none;
@@ -625,12 +767,28 @@ useScrollLock()
     padding: 16px 12px calc(16px + env(safe-area-inset-bottom));
   }
 
-  .title { font-size: 19px; }
-  .tab { padding: 7px 11px; font-size: 12px; }
-  .table { font-size: 13px; }
-  .table th, .table td { padding: 8px 6px; }
-  .table th:first-child, .table td:first-child { padding-left: 9px; }
-  .table th:last-child, .table td:last-child { padding-right: 10px; }
+  .title {
+    font-size: 19px;
+  }
+  .tab {
+    padding: 7px 11px;
+    font-size: 12px;
+  }
+  .table {
+    font-size: 13px;
+  }
+  .table th,
+  .table td {
+    padding: 8px 6px;
+  }
+  .table th:first-child,
+  .table td:first-child {
+    padding-left: 9px;
+  }
+  .table th:last-child,
+  .table td:last-child {
+    padding-right: 10px;
+  }
 
   /* Числовые колонки меряются не числом, а своим заголовком: «Попыток» длиннее
      всех и не переносится. В колонку он не влезал и уходил вправо — у средних
@@ -639,15 +797,25 @@ useScrollLock()
      раз «Попыток».
      Место берём шириной колонки, а не полями: отступ крайних колонок от рамки
      таблицы поставлен нарочно. Плюс заголовок на ступень мельче — для запаса. */
-  .table th { font-size: 11px; }
-  .c-num { width: 68px; }
+  .table th {
+    font-size: 11px;
+  }
+  .c-num {
+    width: 68px;
+  }
 
   /* Колонка места должна вмещать своё содержимое целиком: номер (min-width 18px),
      зазор 6px и корону 14px — это 38px, плюс поля ячейки 9 и 6. Меньше 53px — и
      корона вылезает вправо, к аватарке. */
-  .c-place { width: 53px; }
-  .c-avatar { width: 32px; }
+  .c-place {
+    width: 53px;
+  }
+  .c-avatar {
+    width: 32px;
+  }
 
-  .of { display: none; }
+  .of {
+    display: none;
+  }
 }
 </style>

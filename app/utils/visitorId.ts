@@ -1,4 +1,4 @@
-const LS_VISITOR = 'tavern:visitor'
+const LS_VISITOR = "tavern:visitor";
 
 /**
  * Случайный код этого браузера — для счётчика «разных читателей за день».
@@ -11,16 +11,18 @@ const LS_VISITOR = 'tavern:visitor'
  */
 export function visitorId(): string | null {
   try {
-    let id = localStorage.getItem(LS_VISITOR)
+    let id = localStorage.getItem(LS_VISITOR);
     if (!id) {
-      id = typeof crypto?.randomUUID === 'function'
-        ? crypto.randomUUID()
-        : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('')
-      localStorage.setItem(LS_VISITOR, id)
+      id =
+        typeof crypto?.randomUUID === "function"
+          ? crypto.randomUUID()
+          : Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
+              b.toString(16).padStart(2, "0"),
+            ).join("");
+      localStorage.setItem(LS_VISITOR, id);
     }
-    return id
-  }
-  catch {
-    return null
+    return id;
+  } catch {
+    return null;
   }
 }

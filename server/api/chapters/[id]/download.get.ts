@@ -1,36 +1,50 @@
-import { useDb } from '../../../utils/db'
-import { chapterDownloadDays, chapters, chapterStats } from '../../../database/schema'
-import { eq, sql } from 'drizzle-orm'
-import { readFile } from 'fs/promises'
-import { resolve } from 'path'
+import { useDb } from "../../../utils/db";
+import {
+  chapterDownloadDays,
+  chapters,
+  chapterStats,
+} from "../../../database/schema";
+import { eq, sql } from "drizzle-orm";
+import { readFile } from "fs/promises";
+import { resolve } from "path";
 
 export default defineEventHandler(async (event) => {
-  const param = getRouterParam(event, 'id')!
-  const db = useDb()
+  const param = getRouterParam(event, "id")!;
+  const db = useDb();
 
-  const id = await resolveChapterId(db, param)
-  if (!id) throw createError({ statusCode: 404, message: 'Глава не найдена' })
+  const id = await resolveChapterId(db, param);
+  if (!id) throw createError({ statusCode: 404, message: "Глава не найдена" });
 
   const [chapter] = await db
-    .select({ id: chapters.id, title: chapters.title, epubPath: chapters.epubPath, isPublished: chapters.isPublished })
+    .select({
+      id: chapters.id,
+      title: chapters.title,
+      epubPath: chapters.epubPath,
+      isPublished: chapters.isPublished,
+    })
     .from(chapters)
-    .where(eq(chapters.id, id))
+    .where(eq(chapters.id, id));
 
-  if (!chapter) throw createError({ statusCode: 404, message: 'Глава не найдена' })
+  if (!chapter)
+    throw createError({ statusCode: 404, message: "Глава не найдена" });
 
-  const session = await getUserSession(event)
-  if (!chapter.isPublished && session.user?.role !== 'admin') {
-    throw createError({ statusCode: 404, message: 'Глава не найдена' })
+  const session = await getUserSession(event);
+  if (!chapter.isPublished && session.user?.role !== "admin") {
+    throw createError({ statusCode: 404, message: "Глава не найдена" });
   }
 
-  if (!chapter.epubPath) throw createError({ statusCode: 404, message: 'epub для этой главы недоступен' })
+  if (!chapter.epubPath)
+    throw createError({
+      statusCode: 404,
+      message: "epub для этой главы недоступен",
+    });
 
-  const filePath = resolve(chapter.epubPath)
-  const file = await readFile(filePath)
+  const filePath = resolve(chapter.epubPath);
+  const file = await readFile(filePath);
 
-  const safeName = `chapter-${slugifyChapterId(id)}.epub`
-  setHeader(event, 'Content-Type', 'application/epub+zip')
-  setHeader(event, 'Content-Disposition', `attachment; filename="${safeName}"`)
+  const safeName = `chapter-${slugifyChapterId(id)}.epub`;
+  setHeader(event, "Content-Type", "application/epub+zip");
+  setHeader(event, "Content-Disposition", `attachment; filename="${safeName}"`);
 
   // Общий счётчик и строка за день — одной транзакцией, как у просмотров.
   // Свои скачивания администратора в дневной список не идут: это проверки, а
@@ -42,9 +56,9 @@ export default defineEventHandler(async (event) => {
       .onConflictDoUpdate({
         target: chapterStats.chapterId,
         set: { downloadsCount: sql`downloads_count + 1` },
-      })
-    if (session.user?.role === 'admin') {
-      await bumpTotal
+      });
+    if (session.user?.role === "admin") {
+      await bumpTotal;
     } else {
       await db.batch([
         bumpTotal,
@@ -55,9 +69,9 @@ export default defineEventHandler(async (event) => {
             target: [chapterDownloadDays.chapterId, chapterDownloadDays.day],
             set: { count: sql`count + 1` },
           }),
-      ])
+      ]);
     }
   }
 
-  return file
-})
+  return file;
+});

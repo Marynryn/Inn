@@ -4,13 +4,15 @@
  * насыщенности, середина и более светлый фиолетовый.
  */
 export const READER_BG_PRESETS = [
-  { hex: '#2b221c', label: 'обычный' },
-  { hex: '#201c2b', label: 'та же яркость' },
-  { hex: '#262036', label: 'посередине' },
-  { hex: '#2b2541', label: 'светлее' },
-] as const
+  { hex: "#2b221c", label: "обычный" },
+  { hex: "#201c2b", label: "та же яркость" },
+  { hex: "#262036", label: "посередине" },
+  { hex: "#2b2541", label: "светлее" },
+] as const;
 
 /** Цвет вида #rrggbb в нижнем регистре или null. Настройка уходит прямо в стиль
  *  страницы — всё, что не цвет, не должно туда попасть. */
 export const safeHex = (v: unknown): string | null =>
-  typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v.trim()) ? v.trim().toLowerCase() : null
+  typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v.trim())
+    ? v.trim().toLowerCase()
+    : null;

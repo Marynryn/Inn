@@ -13,45 +13,53 @@ import {
   READER_WIDTH,
   isDefaultReaderSettings,
   type ReaderTheme,
-} from '#shared/utils/readerSettings'
+} from "#shared/utils/readerSettings";
 
-const auth = useAuthStore()
-const { settings, set, reset } = useReaderSettings()
+const auth = useAuthStore();
+const { settings, set, reset } = useReaderSettings();
 
-const open = ref(false)
+const open = ref(false);
 
 // Пока окно открыто, книгу не убираем: человек как раз её и открыл.
-const { tucked } = useScrollTuck(() => !open.value)
+const { tucked } = useScrollTuck(() => !open.value);
 
-const isDefault = computed(() => isDefaultReaderSettings(settings.value))
+const isDefault = computed(() => isDefaultReaderSettings(settings.value));
 
-const themeOptions = READER_THEMES.map(t => ({ value: t, label: READER_THEME_NAMES[t] }))
-const fontOptions = READER_FONT_SIZES.map(n => ({ value: n, label: `${n} pt` }))
+const themeOptions = READER_THEMES.map((t) => ({
+  value: t,
+  label: READER_THEME_NAMES[t],
+}));
+const fontOptions = READER_FONT_SIZES.map((n) => ({
+  value: n,
+  label: `${n} pt`,
+}));
 
 // Ползунки шлют строки — приводим к числу здесь, чтобы в состоянии не завёлся
 // текст, который потом сравнивали бы с числом.
-const onLineHeight = (e: Event) => set({ lineHeight: Number((e.target as HTMLInputElement).value) })
-const onWidth = (e: Event) => set({ width: Number((e.target as HTMLInputElement).value) })
+const onLineHeight = (e: Event) =>
+  set({ lineHeight: Number((e.target as HTMLInputElement).value) });
+const onWidth = (e: Event) =>
+  set({ width: Number((e.target as HTMLInputElement).value) });
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') open.value = false
-}
+  if (e.key === "Escape") open.value = false;
+};
 
 // Прокрутку под окном держим: на телефоне палец, ведущий ползунок, иначе
 // уносит за собой главу. useScrollLock вешается на монтирование, а окно
 // открывается и закрывается много раз — поэтому руками.
 watch(open, (isOpen) => {
-  if (!import.meta.client) return
-  document.body.style.overflow = isOpen ? 'hidden' : ''
-  if (isOpen) document.addEventListener('keydown', onKeydown)
-  else document.removeEventListener('keydown', onKeydown)
-})
+  if (!import.meta.client) return;
+  document.body.style.overflow = isOpen ? "hidden" : "";
+  if (isOpen) document.addEventListener("keydown", onKeydown);
+  else document.removeEventListener("keydown", onKeydown);
+});
 
 onUnmounted(() => {
-  if (!import.meta.client) return
-  document.removeEventListener('keydown', onKeydown)
-  if (open.value) document.body.style.overflow = ''
-})
+  if (!import.meta.client) return;
+  document.removeEventListener("keydown", onKeydown);
+  if (open.value) document.body.style.overflow = "";
+});
 </script>
 
 <template>
@@ -66,7 +74,14 @@ onUnmounted(() => {
       <!-- Размер — тот, каким книжка видна (высота 64 в стилях ниже): по нему
            NuxtImg нарезает файл. С исходным 174×210 на каждую главу ехало
            45 КБ ради значка в палец. x3 — для экранов iPhone, иначе значок мылится. -->
-      <NuxtImg src="/reader-book.webp" class="book" width="53" height="64" densities="x1 x2 x3" alt="" />
+      <NuxtImg
+        src="/reader-book.webp"
+        class="book"
+        width="53"
+        height="64"
+        densities="x1 x2 x3"
+        alt=""
+      />
     </button>
   </div>
 
@@ -76,10 +91,22 @@ onUnmounted(() => {
            здесь врало бы — цвет темы выбирают глазами, и страница под окном
            должна выглядеть ровно так, как после закрытия. -->
       <div v-if="open" class="rs-backdrop" @click.self="open = false">
-        <div class="rs-modal thin-scroll" role="dialog" aria-modal="true" aria-labelledby="rs-title">
+        <div
+          class="rs-modal thin-scroll"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rs-title"
+        >
           <div class="rs-head">
             <h2 id="rs-title" class="rs-title">Настройки</h2>
-            <button class="rs-close" type="button" aria-label="Закрыть" @click="open = false">×</button>
+            <button
+              class="rs-close"
+              type="button"
+              aria-label="Закрыть"
+              @click="open = false"
+            >
+              ×
+            </button>
           </div>
 
           <div class="rs-field">
@@ -88,7 +115,7 @@ onUnmounted(() => {
               label="Тема"
               :model-value="settings.theme"
               :options="themeOptions"
-              @update:model-value="v => set({ theme: v as ReaderTheme })"
+              @update:model-value="(v) => set({ theme: v as ReaderTheme })"
             />
           </div>
 
@@ -98,7 +125,7 @@ onUnmounted(() => {
               label="Текст"
               :model-value="settings.fontSize"
               :options="fontOptions"
-              @update:model-value="v => set({ fontSize: Number(v) })"
+              @update:model-value="(v) => set({ fontSize: Number(v) })"
             />
           </div>
 
@@ -115,7 +142,7 @@ onUnmounted(() => {
               :step="READER_LINE_HEIGHT.step"
               :value="settings.lineHeight"
               @input="onLineHeight"
-            >
+            />
           </label>
 
           <!-- Ширину прячем на телефоне: там колонка всегда во всё окно (тот же
@@ -133,11 +160,16 @@ onUnmounted(() => {
               :step="READER_WIDTH.step"
               :value="settings.width"
               @input="onWidth"
-            >
+            />
           </label>
 
           <div class="rs-actions">
-            <button class="rs-reset" type="button" :disabled="isDefault" @click="reset">
+            <button
+              class="rs-reset"
+              type="button"
+              :disabled="isDefault"
+              @click="reset"
+            >
               По умолчанию
             </button>
           </div>
@@ -154,7 +186,9 @@ onUnmounted(() => {
   /* Над жест-баром телефона, как и шар уведомлений. */
   bottom: calc(18px + env(safe-area-inset-bottom));
   z-index: var(--z-float);
-  transition: transform .25s ease, opacity .25s ease;
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease;
 }
 
 /* У вошедшего в углу стоит шар уведомлений (64px высотой) — книга над ним. */
@@ -169,7 +203,9 @@ onUnmounted(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reader-settings { transition: none; }
+  .reader-settings {
+    transition: none;
+  }
 }
 
 /* Книга ростом с шар уведомлений (64px) — они стоят в одном углу друг над
@@ -181,16 +217,18 @@ onUnmounted(() => {
   background: none;
   line-height: 0;
   cursor: pointer;
-  transition: transform .15s;
+  transition: transform 0.15s;
 }
 
-.book-btn:hover { transform: translateY(-2px); }
+.book-btn:hover {
+  transform: translateY(-2px);
+}
 
 .book {
   display: block;
   width: auto;
   height: 64px;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .45));
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
 }
 </style>
 
@@ -216,7 +254,7 @@ onUnmounted(() => {
   background: var(--bg-dark-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, .5);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   padding: 20px 24px 22px;
   color: var(--parchment);
   font-family: var(--font-body);
@@ -248,7 +286,9 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
-.rs-close:hover { color: var(--parchment); }
+.rs-close:hover {
+  color: var(--parchment);
+}
 
 .rs-field {
   display: block;
@@ -268,7 +308,6 @@ onUnmounted(() => {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
-
 /* Ползунок: тонкая дорожка и янтарная ручка, как остальные акценты сайта. */
 .rs-range {
   display: block;
@@ -282,13 +321,13 @@ onUnmounted(() => {
 .rs-range::-webkit-slider-runnable-track {
   height: 3px;
   border-radius: 2px;
-  background: rgba(241, 230, 210, .2);
+  background: rgba(241, 230, 210, 0.2);
 }
 
 .rs-range::-moz-range-track {
   height: 3px;
   border-radius: 2px;
-  background: rgba(241, 230, 210, .2);
+  background: rgba(241, 230, 210, 0.2);
 }
 
 .rs-range::-webkit-slider-thumb {
@@ -299,7 +338,7 @@ onUnmounted(() => {
   border-radius: var(--radius-round);
   border: 2px solid var(--bg-dark-2);
   background: var(--ember);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 .rs-range::-moz-range-thumb {
@@ -308,7 +347,7 @@ onUnmounted(() => {
   border-radius: var(--radius-round);
   border: 2px solid var(--bg-dark-2);
   background: var(--ember);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 .rs-range:focus-visible {
@@ -316,7 +355,7 @@ onUnmounted(() => {
 }
 
 .rs-range:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px rgba(232, 176, 122, .35);
+  box-shadow: 0 0 0 3px rgba(232, 176, 122, 0.35);
 }
 
 .rs-actions {
@@ -334,15 +373,17 @@ onUnmounted(() => {
   font-family: var(--font-body);
   font-size: 13px;
   cursor: pointer;
-  transition: border-color .15s, opacity .15s;
+  transition:
+    border-color 0.15s,
+    opacity 0.15s;
 }
 
 .rs-reset:hover:not(:disabled) {
-  border-color: rgba(241, 230, 210, .4);
+  border-color: rgba(241, 230, 210, 0.4);
 }
 
 .rs-reset:disabled {
-  opacity: .45;
+  opacity: 0.45;
   cursor: default;
 }
 
@@ -358,19 +399,23 @@ onUnmounted(() => {
     padding: 18px 18px 20px;
   }
 
-  .rs-field--width { display: none; }
+  .rs-field--width {
+    display: none;
+  }
 
-  .rs-range { padding: 6px 0; }
+  .rs-range {
+    padding: 6px 0;
+  }
 }
 
 .rs-modal-enter-active,
 .rs-modal-leave-active {
-  transition: opacity .18s ease;
+  transition: opacity 0.18s ease;
 }
 
 .rs-modal-enter-active .rs-modal,
 .rs-modal-leave-active .rs-modal {
-  transition: transform .18s ease;
+  transition: transform 0.18s ease;
 }
 
 .rs-modal-enter-from,

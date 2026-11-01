@@ -5,24 +5,25 @@
  * просто символами и не ломают отправку.
  */
 export const TELEGRAM_MARKS = [
-  { mark: '**', tag: 'b' },
-  { mark: '~~', tag: 's' },
-  { mark: '||', tag: 'tg-spoiler' },
-] as const
+  { mark: "**", tag: "b" },
+  { mark: "~~", tag: "s" },
+  { mark: "||", tag: "tg-spoiler" },
+] as const;
 
-const escapeHtml = (s: string) => s
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export function telegramMarkupToHtml(text: string): string {
-  let html = escapeHtml(text)
+  let html = escapeHtml(text);
   for (const { mark, tag } of TELEGRAM_MARKS) {
-    const m = escapeRe(mark)
+    const m = escapeRe(mark);
     // Внутри пары — хоть что-то, кроме пробелов, иначе «** **» тоже стал бы тегом.
-    html = html.replace(new RegExp(`${m}(?=\\S)([\\s\\S]*?\\S)${m}`, 'g'), `<${tag}>$1</${tag}>`)
+    html = html.replace(
+      new RegExp(`${m}(?=\\S)([\\s\\S]*?\\S)${m}`, "g"),
+      `<${tag}>$1</${tag}>`,
+    );
   }
-  return html
+  return html;
 }

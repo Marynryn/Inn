@@ -1,33 +1,36 @@
 <script setup lang="ts">
-const { data: settings } = await useFetch('/api/settings')
+const { data: settings } = await useFetch("/api/settings");
 
-const siteUrl = useRuntimeConfig().public.siteUrl
+const siteUrl = useRuntimeConfig().public.siteUrl;
 // Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
 // позже, вне контекста Nuxt, и useRuntimeConfig там падает.
-const ogImage = ogImageUrl()
+const ogImage = ogImageUrl();
 
-const title = computed(() => settings.value?.about_title || 'О проекте')
+const title = computed(() => settings.value?.about_title || "О проекте");
 
-const aboutDescription = 'Фанатский перевод The Wandering Inn на русский язык. Почему отдельный сайт, как переводим имена и названия, как можно помочь проекту.'
+const aboutDescription =
+  "Фанатский перевод The Wandering Inn на русский язык. Почему отдельный сайт, как переводим имена и названия, как можно помочь проекту.";
 
 useHead(() => ({
   title: `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
-  link: [{ rel: 'canonical', href: `${siteUrl}/about` }],
-}))
+  link: [{ rel: "canonical", href: `${siteUrl}/about` }],
+}));
 
 useSeoMeta({
   description: aboutDescription,
-  ogTitle: () => `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
+  ogTitle: () =>
+    `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
   ogDescription: aboutDescription,
   ogUrl: `${siteUrl}/about`,
-  ogType: 'website',
-  ogLocale: 'ru_RU',
+  ogType: "website",
+  ogLocale: "ru_RU",
   ogImage,
-  twitterCard: 'summary_large_image',
-  twitterTitle: () => `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
+  twitterCard: "summary_large_image",
+  twitterTitle: () =>
+    `${title.value} · Странствующая Таверна — перевод The Wandering Inn`,
   twitterDescription: aboutDescription,
   twitterImage: ogImage,
-})
+});
 </script>
 
 <template>

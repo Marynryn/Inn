@@ -2,14 +2,21 @@
 // Дым в исходном рисунке вшит намертво и нарисован под тёмный фон — на
 // пергаменте он не виден, поэтому его срезали и рисуют здесь.
 // Идентификаторы фильтра уникальны на случай, если пчела появится дважды.
-const uid = useId()
-const filterId = `bee-smoke-${uid}`
-const fadeId = `bee-fade-${uid}`
+const uid = useId();
+const filterId = `bee-smoke-${uid}`;
+const fadeId = `bee-fade-${uid}`;
 </script>
 
 <template>
   <div class="bee">
-    <NuxtImg src="/bee.webp" alt="Аписта" title="Аписта" width="232" height="161" loading="lazy" />
+    <NuxtImg
+      src="/bee.webp"
+      alt="Аписта"
+      title="Аписта"
+      width="232"
+      height="161"
+      loading="lazy"
+    />
 
     <span class="bee-ember" aria-hidden="true" />
 
@@ -18,8 +25,20 @@ const fadeId = `bee-fade-${uid}`
         <!-- Фрактальный шум сдвигает пиксели клубов, превращая ровные пятна
              в рваные струйки. Без него это просто размытые кружки. -->
         <filter :id="filterId" x="-60%" y="-25%" width="220%" height="150%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.028 0.045" numOctaves="3" seed="11" result="noise" />
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="22" xChannelSelector="R" yChannelSelector="G" />
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.028 0.045"
+            numOctaves="3"
+            seed="11"
+            result="noise"
+          />
+          <feDisplacementMap
+            in="SourceGraphic"
+            in2="noise"
+            scale="22"
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
           <feGaussianBlur stdDeviation="1.2" />
         </filter>
 
@@ -32,9 +51,30 @@ const fadeId = `bee-fade-${uid}`
       </defs>
 
       <g :filter="`url(#${filterId})`">
-        <ellipse class="puff puff-1" cx="32" cy="112" rx="5" ry="13" :fill="`url(#${fadeId})`" />
-        <ellipse class="puff puff-2" cx="32" cy="112" rx="7" ry="16" :fill="`url(#${fadeId})`" />
-        <ellipse class="puff puff-3" cx="32" cy="112" rx="4" ry="11" :fill="`url(#${fadeId})`" />
+        <ellipse
+          class="puff puff-1"
+          cx="32"
+          cy="112"
+          rx="5"
+          ry="13"
+          :fill="`url(#${fadeId})`"
+        />
+        <ellipse
+          class="puff puff-2"
+          cx="32"
+          cy="112"
+          rx="7"
+          ry="16"
+          :fill="`url(#${fadeId})`"
+        />
+        <ellipse
+          class="puff puff-3"
+          cx="32"
+          cy="112"
+          rx="4"
+          ry="11"
+          :fill="`url(#${fadeId})`"
+        />
       </g>
     </svg>
   </div>
@@ -61,26 +101,38 @@ const fadeId = `bee-fade-${uid}`
   position: absolute;
   left: 24.8%;
   top: 27.2%;
-  width: calc(var(--bee-w) * .085);
-  height: calc(var(--bee-w) * .085);
-  margin: calc(var(--bee-w) * -.0425) 0 0 calc(var(--bee-w) * -.0425);
+  width: calc(var(--bee-w) * 0.085);
+  height: calc(var(--bee-w) * 0.085);
+  margin: calc(var(--bee-w) * -0.0425) 0 0 calc(var(--bee-w) * -0.0425);
   border-radius: var(--radius-round);
-  background: radial-gradient(circle, rgba(255, 196, 92, .95), rgba(255, 92, 0, .55) 45%, rgba(255, 92, 0, 0) 72%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 196, 92, 0.95),
+    rgba(255, 92, 0, 0.55) 45%,
+    rgba(255, 92, 0, 0) 72%
+  );
   filter: blur(1.5px);
   animation: bee-ember 3.4s ease-in-out infinite;
 }
 
 @keyframes bee-ember {
-  0%, 100% { opacity: .45; transform: scale(.85); }
-  50% { opacity: 1; transform: scale(1.2); }
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
 }
 
 .bee-smoke {
   position: absolute;
   left: 24.8%;
   top: 27.2%;
-  width: calc(var(--bee-w) * .46);
-  height: calc(var(--bee-w) * .92);
+  width: calc(var(--bee-w) * 0.46);
+  height: calc(var(--bee-w) * 0.92);
   /* Сдвиг струйки относительно кончика сигареты — подбирается на глаз.
      Отрицательное значение поднимет её выше. */
   --smoke-dy: 5px;
@@ -109,15 +161,15 @@ const fadeId = `bee-fade-${uid}`
 
 @keyframes bee-puff {
   0% {
-    transform: translate(0, 0) scale(.35);
+    transform: translate(0, 0) scale(0.35);
     opacity: 0;
   }
   18% {
-    opacity: .85;
+    opacity: 0.85;
   }
   55% {
     transform: translate(3px, -46px) scale(1.15) rotate(6deg);
-    opacity: .5;
+    opacity: 0.5;
   }
   100% {
     transform: translate(-4px, -96px) scale(2.1) rotate(-8deg);
@@ -131,7 +183,7 @@ const fadeId = `bee-fade-${uid}`
 @media (prefers-reduced-motion: reduce) {
   .bee-ember {
     animation: none;
-    opacity: .8;
+    opacity: 0.8;
   }
 
   .puff {
@@ -144,7 +196,7 @@ const fadeId = `bee-fade-${uid}`
   }
 
   .puff-2 {
-    opacity: .5;
+    opacity: 0.5;
     transform: translate(2px, -26px) scale(1.5);
   }
 }

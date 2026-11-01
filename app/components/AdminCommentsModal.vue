@@ -5,90 +5,124 @@
  * посмотреть, о чём пишут, и уйти, а не сидеть подолгу.
  */
 type CommentRow = {
-  id: number
-  authorName: string
-  authorCode: string | null
-  body: string
-  isSpoiler: boolean | null
-  chapterId: string | null
-  createdAt: string | null
-}
+  id: number;
+  authorName: string;
+  authorCode: string | null;
+  body: string;
+  isSpoiler: boolean | null;
+  chapterId: string | null;
+  createdAt: string | null;
+};
 
 const props = defineProps<{
-  rows: CommentRow[]
-  total: number
-}>()
+  rows: CommentRow[];
+  total: number;
+}>();
 
-const emit = defineEmits<{ close: []; refresh: [] }>()
+const emit = defineEmits<{ close: []; refresh: [] }>();
 
 /**
  * Время из базы — UTC без зоны ('YYYY-MM-DD HH:MM:SS'). Хозяйка сайта живёт по
  * Москве, и «13:33» вместо «16:33» сбивало бы с толку.
  */
 const fmtMsk = (iso?: string | null) => {
-  if (!iso) return ''
-  const date = new Date(iso.replace(' ', 'T') + 'Z')
-  return new Intl.DateTimeFormat('ru-RU', {
-    timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-  }).format(date)
-}
+  if (!iso) return "";
+  const date = new Date(iso.replace(" ", "T") + "Z");
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
 
-const refreshing = ref(false)
+const refreshing = ref(false);
 
 const refresh = async () => {
-  refreshing.value = true
-  emit('refresh')
+  refreshing.value = true;
+  emit("refresh");
   // Обновление уходит наверх и возвращается новыми строками; полсекунды
   // «крутится» нужны только чтобы нажатие не осталось без ответа.
-  setTimeout(() => { refreshing.value = false }, 500)
-}
+  setTimeout(() => {
+    refreshing.value = false;
+  }, 500);
+};
 
 const plural = (n: number, forms: [string, string, string]) => {
-  const ten = n % 10
-  const hundred = n % 100
-  if (ten === 1 && hundred !== 11) return forms[0]
-  if (ten >= 2 && ten <= 4 && (hundred < 12 || hundred > 14)) return forms[1]
-  return forms[2]
-}
+  const ten = n % 10;
+  const hundred = n % 100;
+  if (ten === 1 && hundred !== 11) return forms[0];
+  if (ten >= 2 && ten <= 4 && (hundred < 12 || hundred > 14)) return forms[1];
+  return forms[2];
+};
 
 // На плитке — всё за время жизни сайта, в списке — полсотни последних. Подпись
 // называет оба числа, чтобы короткий список не выглядел потерей.
 const summary = computed(() => {
-  const all = `${props.total.toLocaleString('ru')} ${plural(props.total, ['комментарий', 'комментария', 'комментариев'])} за всё время`
+  const all = `${props.total.toLocaleString("ru")} ${plural(props.total, ["комментарий", "комментария", "комментариев"])} за всё время`;
   return props.rows.length < props.total
     ? `${all}; ниже — ${props.rows.length} последних`
-    : all
-})
+    : all;
+});
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') emit('close')
-}
+  if (e.key === "Escape") emit("close");
+};
 
-onMounted(() => document.addEventListener('keydown', onKeydown))
-onUnmounted(() => document.removeEventListener('keydown', onKeydown))
+onMounted(() => document.addEventListener("keydown", onKeydown));
+onUnmounted(() => document.removeEventListener("keydown", onKeydown));
 
-useScrollLock()
+useScrollLock();
 </script>
 
 <template>
   <Teleport to="body">
     <div class="modal-backdrop" @click.self="emit('close')">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="Последние комментарии">
-        <button class="close" type="button" aria-label="Закрыть" @click="emit('close')">×</button>
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Последние комментарии"
+      >
+        <button
+          class="close"
+          type="button"
+          aria-label="Закрыть"
+          @click="emit('close')"
+        >
+          ×
+        </button>
 
         <p class="modal-title">Последние комментарии</p>
         <div class="modal-head">
           <p class="modal-note">{{ summary }}</p>
-          <button class="refresh" type="button" :disabled="refreshing" @click="refresh">
-            ↻ {{ refreshing ? 'Обновляем…' : 'Обновить' }}
+          <button
+            class="refresh"
+            type="button"
+            :disabled="refreshing"
+            @click="refresh"
+          >
+            ↻ {{ refreshing ? "Обновляем…" : "Обновить" }}
           </button>
         </div>
 
         <div class="rows thin-scroll">
           <div v-for="c in rows" :key="c.id" class="row">
             <div class="row-meta">
-              <NuxtLink v-if="c.authorCode" :href="`/reader/${c.authorCode}`" class="row-author" target="_blank">{{ c.authorName }}</NuxtLink>
-              <span v-else class="row-author">{{ c.authorName }} <span v-if="c.authorName !== 'Гость'" class="row-guest">гость</span></span>
+              <NuxtLink
+                v-if="c.authorCode"
+                :href="`/reader/${c.authorCode}`"
+                class="row-author"
+                target="_blank"
+                >{{ c.authorName }}</NuxtLink
+              >
+              <span v-else class="row-author"
+                >{{ c.authorName }}
+                <span v-if="c.authorName !== 'Гость'" class="row-guest"
+                  >гость</span
+                ></span
+              >
               <span class="row-time">{{ fmtMsk(c.createdAt) }}</span>
               <span v-if="c.isSpoiler" class="row-spoiler">спойлер</span>
               <NuxtLink
@@ -99,7 +133,9 @@ useScrollLock()
               >
                 гл. {{ c.chapterId }} ↗
               </NuxtLink>
-              <NuxtLink v-else href="/" class="row-link" target="_blank">отзыв о сайте ↗</NuxtLink>
+              <NuxtLink v-else href="/" class="row-link" target="_blank"
+                >отзыв о сайте ↗</NuxtLink
+              >
             </div>
             <div class="row-body">{{ c.body }}</div>
           </div>
@@ -114,7 +150,7 @@ useScrollLock()
 .modal-backdrop {
   z-index: var(--z-modal);
   padding: 20px;
-  animation: fade-in .15s ease;
+  animation: fade-in 0.15s ease;
 }
 
 .modal {
@@ -125,7 +161,7 @@ useScrollLock()
   max-height: calc(100vh - 40px);
   max-height: calc(100dvh - 40px);
   padding: var(--space-24);
-  animation: slide-up .2s ease;
+  animation: slide-up 0.2s ease;
 }
 
 .close {
@@ -176,17 +212,19 @@ useScrollLock()
   font: inherit;
   font-size: 12px;
   cursor: pointer;
-  transition: border-color .15s, color .15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .refresh:hover:not(:disabled) {
-  border-color: rgba(214, 136, 62, .5);
+  border-color: rgba(214, 136, 62, 0.5);
   color: var(--ember-soft);
 }
 
 .refresh:disabled {
   cursor: default;
-  opacity: .6;
+  opacity: 0.6;
 }
 
 /* Список прокручивается сам, шапка остаётся на месте. */
@@ -224,7 +262,9 @@ useScrollLock()
   color: var(--parchment);
 }
 
-a.row-author:hover { color: var(--ember-soft); }
+a.row-author:hover {
+  color: var(--ember-soft);
+}
 
 .row-guest {
   font-size: 11px;
@@ -259,7 +299,7 @@ a.row-author:hover { color: var(--ember-soft); }
   font-size: 13px;
   line-height: 1.5;
   color: var(--parchment-2);
-  opacity: .85;
+  opacity: 0.85;
   word-break: break-word;
 }
 
@@ -270,12 +310,22 @@ a.row-author:hover { color: var(--ember-soft); }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-up {
-  from { transform: translateY(16px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 </style>

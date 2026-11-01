@@ -1,29 +1,31 @@
 <script setup lang="ts">
 defineProps<{
-  settings: Record<string, string> | null
+  settings: Record<string, string> | null;
   /** Вариант для тёмной подложки — страница игры. По умолчанию светлая, как главная. */
-  onDark?: boolean
-}>()
+  onDark?: boolean;
+}>();
 
-const route = useRoute()
+const route = useRoute();
 
 const goToChapters = (e: Event) => {
-  if (route.path === '/') {
-    e.preventDefault()
-    const el = document.getElementById('ledger')
+  if (route.path === "/") {
+    e.preventDefault();
+    const el = document.getElementById("ledger");
     if (el) {
-      const top = el.getBoundingClientRect().top + window.scrollY - 56
-      smoothScrollTo(top)
+      const top = el.getBoundingClientRect().top + window.scrollY - 56;
+      smoothScrollTo(top);
     }
   }
-}
+};
 </script>
 
 <template>
   <footer class="site-footer" :class="{ 'on-dark': onDark }">
     <div class="footer-links">
       <a href="/#ledger" @click="goToChapters">Главы</a>
-      <NuxtLink v-if="route.path !== '/about'" href="/about">О проекте</NuxtLink>
+      <NuxtLink v-if="route.path !== '/about'" href="/about"
+        >О проекте</NuxtLink
+      >
       <a
         :href="settings?.telegram_url || '#'"
         target="_blank"
@@ -51,7 +53,7 @@ const goToChapters = (e: Event) => {
 .site-footer {
   text-align: center;
   padding: 48px 24px 36px;
-  border-top: 1px solid rgba(43, 30, 22, .1);
+  border-top: 1px solid rgba(43, 30, 22, 0.1);
   color: var(--ink-soft);
   font-size: 13px;
 }
@@ -67,7 +69,7 @@ const goToChapters = (e: Event) => {
 }
 
 .footer-links a {
-  transition: color .15s;
+  transition: color 0.15s;
 }
 
 .footer-links :deep(.footer-support-link) {
@@ -77,7 +79,7 @@ const goToChapters = (e: Event) => {
   color: inherit;
   cursor: pointer;
   padding: 0;
-  transition: color .15s;
+  transition: color 0.15s;
 }
 
 .footer-links :deep(.footer-support-link:hover) {
@@ -90,14 +92,14 @@ const goToChapters = (e: Event) => {
 
 @media (max-width: 480px) {
   .footer-links {
-flex-direction: column;
-gap:4px;
+    flex-direction: column;
+    gap: 4px;
   }
 }
 
 .footer-rule {
   height: 1px;
-  background: rgba(43, 30, 22, .1);
+  background: rgba(43, 30, 22, 0.1);
   margin-bottom: 20px;
 }
 

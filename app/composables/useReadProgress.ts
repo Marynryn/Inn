@@ -1,10 +1,10 @@
-const LS_LAST = 'tavern:lastReadChapter'
-const LS_LIST = 'tavern:readChapters'
+const LS_LAST = "tavern:lastReadChapter";
+const LS_LIST = "tavern:readChapters";
 
 /** Тот же префикс, которым useScrollProgress помечает свои ключи. */
-const LS_SCROLL = 'tavern:scroll:'
+const LS_SCROLL = "tavern:scroll:";
 
-type Chapter = { id: string; title: string }
+type Chapter = { id: string; title: string };
 
 /**
  * Закладка читателя. У гостя живёт в браузере, как и жила; у вошедшего — ещё и
@@ -15,62 +15,77 @@ type Chapter = { id: string; title: string }
  * дорисуется сама.
  */
 export const useReadProgress = () => {
-  const auth = useAuthStore()
-  const lastRead = useState<Chapter | null>('lastRead', () => null)
-  const readChapters = useState<string[]>('readChapters', () => [])
+  const auth = useAuthStore();
+  const lastRead = useState<Chapter | null>("lastRead", () => null);
+  const readChapters = useState<string[]>("readChapters", () => []);
 
   /** Места в главах, пришедшие с сервера: в этом браузере их может не быть вовсе. */
-  const serverScroll = useState<Record<string, number>>('serverScroll', () => ({}))
+  const serverScroll = useState<Record<string, number>>(
+    "serverScroll",
+    () => ({}),
+  );
 
   /** Сервер ответил про закладку (или не ответил вовсе) — дальше ждать нечего. */
-  const synced = useState('progressSynced', () => false)
+  const synced = useState("progressSynced", () => false);
 
-  const push = (body: { chapterId: string; read?: boolean; scroll?: number }) => {
-    if (!auth.isAuthed) return
-    $fetch('/api/progress', { method: 'POST', body }).catch(() => {})
-  }
+  const push = (body: {
+    chapterId: string;
+    read?: boolean;
+    scroll?: number;
+  }) => {
+    if (!auth.isAuthed) return;
+    $fetch("/api/progress", { method: "POST", body }).catch(() => {});
+  };
 
   const load = () => {
-    if (!import.meta.client) return
+    if (!import.meta.client) return;
     try {
-      const raw = localStorage.getItem(LS_LAST)
-      lastRead.value = raw ? JSON.parse(raw) : null
-      const rawList = localStorage.getItem(LS_LIST)
-      readChapters.value = rawList ? JSON.parse(rawList) : []
+      const raw = localStorage.getItem(LS_LAST);
+      lastRead.value = raw ? JSON.parse(raw) : null;
+      const rawList = localStorage.getItem(LS_LIST);
+      readChapters.value = rawList ? JSON.parse(rawList) : [];
     } catch {}
-  }
+  };
 
   const setLastRead = (chapter: Chapter) => {
-    lastRead.value = chapter
-    try { localStorage.setItem(LS_LAST, JSON.stringify(chapter)) } catch {}
-    push({ chapterId: chapter.id })
-  }
+    lastRead.value = chapter;
+    try {
+      localStorage.setItem(LS_LAST, JSON.stringify(chapter));
+    } catch {}
+    push({ chapterId: chapter.id });
+  };
 
   const markRead = (id: string) => {
-    push({ chapterId: id, read: true })
-    if (readChapters.value.includes(id)) return
-    readChapters.value = [...readChapters.value, id]
-    try { localStorage.setItem(LS_LIST, JSON.stringify(readChapters.value)) } catch {}
-  }
+    push({ chapterId: id, read: true });
+    if (readChapters.value.includes(id)) return;
+    readChapters.value = [...readChapters.value, id];
+    try {
+      localStorage.setItem(LS_LIST, JSON.stringify(readChapters.value));
+    } catch {}
+  };
 
-  const isRead = (id: string) => readChapters.value.includes(id)
+  const isRead = (id: string) => readChapters.value.includes(id);
 
   /** Место в главе — только для вошедшего, и только под конец чтения. */
   const saveScroll = (chapterId: string, scroll: number) => {
-    if (scroll > 0) push({ chapterId, scroll })
-  }
+    if (scroll > 0) push({ chapterId, scroll });
+  };
 
   /** Всё, что накопилось в браузере, — чтобы сравнить с тем, что знает сервер. */
   const localPayload = () => {
-    const scroll: Record<string, number> = {}
+    const scroll: Record<string, number> = {};
     for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (!key?.startsWith(LS_SCROLL)) continue
-      const value = parseFloat(localStorage.getItem(key) ?? '')
-      if (value > 0) scroll[key.slice(LS_SCROLL.length)] = value
+      const key = localStorage.key(i);
+      if (!key?.startsWith(LS_SCROLL)) continue;
+      const value = parseFloat(localStorage.getItem(key) ?? "");
+      if (value > 0) scroll[key.slice(LS_SCROLL.length)] = value;
     }
-    return { read: readChapters.value, scroll, lastReadId: lastRead.value?.id ?? null }
-  }
+    return {
+      read: readChapters.value,
+      scroll,
+      lastReadId: lastRead.value?.id ?? null,
+    };
+  };
 
   /**
    * Сводит закладку браузера с серверной. Сначала спрашиваем сервер, потом
@@ -82,49 +97,60 @@ export const useReadProgress = () => {
    * досылать нечего, а дырки не останется, если есть.
    */
   const syncFromServer = async () => {
-    if (!import.meta.client || !auth.isAuthed) return
-    try { await syncInner() } finally { synced.value = true }
-  }
+    if (!import.meta.client || !auth.isAuthed) return;
+    try {
+      await syncInner();
+    } finally {
+      synced.value = true;
+    }
+  };
 
   const syncInner = async () => {
-    load()
+    load();
 
     const server = await $fetch<{
-      lastRead: Chapter | null
-      read: string[]
-      scroll: Record<string, number>
-    }>('/api/progress').catch(() => null)
+      lastRead: Chapter | null;
+      read: string[];
+      scroll: Record<string, number>;
+    }>("/api/progress").catch(() => null);
 
-    if (!server) return
+    if (!server) return;
 
-    const local = localPayload()
-    const newRead = local.read.filter(id => !server.read.includes(id))
+    const local = localPayload();
+    const newRead = local.read.filter((id) => !server.read.includes(id));
     const newScroll = Object.fromEntries(
-      Object.entries(local.scroll).filter(([id, value]) => value > (server.scroll[id] ?? 0)),
-    )
+      Object.entries(local.scroll).filter(
+        ([id, value]) => value > (server.scroll[id] ?? 0),
+      ),
+    );
 
     if (newRead.length || Object.keys(newScroll).length) {
-      const touched = new Set([...newRead, ...Object.keys(newScroll)])
+      const touched = new Set([...newRead, ...Object.keys(newScroll)]);
 
-      await $fetch('/api/progress/merge', {
-        method: 'POST',
+      await $fetch("/api/progress/merge", {
+        method: "POST",
         body: {
           read: newRead,
           scroll: newScroll,
           // Закладку двигаем, только если она указывает на то, что мы как раз
           // досылаем: иначе местная, застоявшаяся, откатила бы серверную назад.
-          lastReadId: local.lastReadId && touched.has(local.lastReadId) ? local.lastReadId : null,
+          lastReadId:
+            local.lastReadId && touched.has(local.lastReadId)
+              ? local.lastReadId
+              : null,
         },
-      }).catch(() => {})
+      }).catch(() => {});
     }
 
-    readChapters.value = [...new Set([...readChapters.value, ...server.read])]
-    if (server.lastRead && !newRead.length) lastRead.value = server.lastRead
-    serverScroll.value = { ...server.scroll, ...newScroll }
+    readChapters.value = [...new Set([...readChapters.value, ...server.read])];
+    if (server.lastRead && !newRead.length) lastRead.value = server.lastRead;
+    serverScroll.value = { ...server.scroll, ...newScroll };
 
     // Список прочитанного пригодится и до следующего ответа сервера.
-    try { localStorage.setItem(LS_LIST, JSON.stringify(readChapters.value)) } catch {}
-  }
+    try {
+      localStorage.setItem(LS_LIST, JSON.stringify(readChapters.value));
+    } catch {}
+  };
 
   /**
    * Стереть закладку в этом браузере. Нужна при выходе: иначе на общем
@@ -132,19 +158,20 @@ export const useReadProgress = () => {
    * На сервере всё уже лежит — при следующем входе вернётся оттуда.
    */
   const clearLocal = () => {
-    lastRead.value = null
-    readChapters.value = []
-    serverScroll.value = {}
-    if (!import.meta.client) return
+    lastRead.value = null;
+    readChapters.value = [];
+    serverScroll.value = {};
+    if (!import.meta.client) return;
     try {
-      const keys: string[] = []
+      const keys: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key === LS_LAST || key === LS_LIST || key?.startsWith(LS_SCROLL)) keys.push(key)
+        const key = localStorage.key(i);
+        if (key === LS_LAST || key === LS_LIST || key?.startsWith(LS_SCROLL))
+          keys.push(key);
       }
-      for (const key of keys) localStorage.removeItem(key)
+      for (const key of keys) localStorage.removeItem(key);
     } catch {}
-  }
+  };
 
   return {
     lastRead,
@@ -158,5 +185,5 @@ export const useReadProgress = () => {
     isRead,
     saveScroll,
     syncFromServer,
-  }
-}
+  };
+};

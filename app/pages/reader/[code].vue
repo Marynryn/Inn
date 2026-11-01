@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PublicReader } from '#shared/utils/readerProfile'
+import type { PublicReader } from "#shared/utils/readerProfile";
 
 /**
  * Публичная страница читателя: кто он, с каких пор с нами и какие рамки
@@ -7,64 +7,93 @@ import type { PublicReader } from '#shared/utils/readerProfile'
  * игры. Почты и способов входа здесь нет и быть не должно.
  */
 
-const route = useRoute()
-const auth = useAuthStore()
-const { data: settings } = await useFetch('/api/settings')
+const route = useRoute();
+const auth = useAuthStore();
+const { data: settings } = await useFetch("/api/settings");
 
-const code = computed(() => String(route.params.code))
+const code = computed(() => String(route.params.code));
 // ?skin= — примерка скина хозяйкой сайта на своей странице; остальным сервер
 // его не применит.
-const trySkin = computed(() => (typeof route.query.skin === 'string' ? route.query.skin : undefined))
-const { data: reader, error, refresh } = await useFetch<PublicReader>(() => `/api/readers/${code.value}`, {
+const trySkin = computed(() =>
+  typeof route.query.skin === "string" ? route.query.skin : undefined,
+);
+const {
+  data: reader,
+  error,
+  refresh,
+} = await useFetch<PublicReader>(() => `/api/readers/${code.value}`, {
   query: { skin: trySkin },
-})
+});
 
-const skin = computed(() => reader.value?.skin ?? null)
-const hasSpider = computed(() => Boolean(skin.value?.effects.includes('spider')))
-const trying = computed(() => Boolean(trySkin.value && reader.value?.isMe && skin.value))
-const skinStyle = computed(() => skin.value
-  ? { '--skin-tint': skin.value.tint, '--skin-accent': skin.value.accent }
-  : undefined)
+const skin = computed(() => reader.value?.skin ?? null);
+const hasSpider = computed(() =>
+  Boolean(skin.value?.effects.includes("spider")),
+);
+const trying = computed(() =>
+  Boolean(trySkin.value && reader.value?.isMe && skin.value),
+);
+const skinStyle = computed(() =>
+  skin.value
+    ? { "--skin-tint": skin.value.tint, "--skin-accent": skin.value.accent }
+    : undefined,
+);
 
-const isMe = computed(() => Boolean(reader.value?.isMe))
+const isMe = computed(() => Boolean(reader.value?.isMe));
 
 // Даты в базе — UTC без пометки; показываем по Москве, как и всё на сайте.
-const asDate = (raw: string) => new Date(`${raw.replace(' ', 'T')}Z`)
+const asDate = (raw: string) => new Date(`${raw.replace(" ", "T")}Z`);
 
-const since = computed(() => reader.value
-  ? asDate(reader.value.since)
-      .toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' })
-      .replace(/\s*г\.$/, '')
-  : '')
+const since = computed(() =>
+  reader.value
+    ? asDate(reader.value.since)
+        .toLocaleDateString("ru-RU", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          timeZone: "Europe/Moscow",
+        })
+        .replace(/\s*г\.$/, "")
+    : "",
+);
 
-const grantedOn = (raw: string) => asDate(raw)
-  .toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' })
-  .replace(/\s*г\.$/, '')
+const grantedOn = (raw: string) =>
+  asDate(raw)
+    .toLocaleDateString("ru-RU", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "Europe/Moscow",
+    })
+    .replace(/\s*г\.$/, "");
 
-const clearing = ref(false)
-const clearError = ref('')
+const clearing = ref(false);
+const clearError = ref("");
 
 // Страница открыта всем — если в «О себе» написали гадость, хозяйка сайта
 // убирает её отсюда же, где и увидела.
 const clearAbout = async () => {
-  if (!reader.value) return
-  clearing.value = true
-  clearError.value = ''
+  if (!reader.value) return;
+  clearing.value = true;
+  clearError.value = "";
   try {
-    await $fetch(`/api/admin/readers/${reader.value.code}/about`, { method: 'DELETE' })
-    await refresh()
+    await $fetch(`/api/admin/readers/${reader.value.code}/about`, {
+      method: "DELETE",
+    });
+    await refresh();
   } catch (e: any) {
-    clearError.value = e.data?.message || 'Не получилось стереть'
+    clearError.value = e.data?.message || "Не получилось стереть";
   } finally {
-    clearing.value = false
+    clearing.value = false;
   }
-}
+};
 
 useHead(() => ({
-  title: reader.value ? `${reader.value.name} · Странствующая Таверна` : 'Читатель · Странствующая Таверна',
+  title: reader.value
+    ? `${reader.value.name} · Странствующая Таверна`
+    : "Читатель · Странствующая Таверна",
   // Страницы читателей — не для поисковиков: это люди, а не содержимое сайта.
-  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
-}))
+  meta: [{ name: "robots", content: "noindex, nofollow" }],
+}));
 </script>
 
 <template>
@@ -78,86 +107,107 @@ useHead(() => ({
     <div class="reader-wrap">
       <div v-if="error || !reader" class="reader-card missing">
         <h1 class="display missing-title">Такого читателя нет</h1>
-        <p class="missing-note">Может, ссылка неточная, а может, страницу закрыли.</p>
+        <p class="missing-note">
+          Может, ссылка неточная, а может, страницу закрыли.
+        </p>
         <NuxtLink to="/" class="link-btn">На главную</NuxtLink>
       </div>
 
       <template v-else>
-      <p v-if="trying" class="try-banner">
-        Примерка скина «{{ skin?.name }}» — так страницу видишь только ты.
-        <NuxtLink to="/profile" class="link-btn">Вернуться в профиль</NuxtLink>
-      </p>
+        <p v-if="trying" class="try-banner">
+          Примерка скина «{{ skin?.name }}» — так страницу видишь только ты.
+          <NuxtLink to="/profile" class="link-btn"
+            >Вернуться в профиль</NuxtLink
+          >
+        </p>
 
-      <article
-        class="reader-card"
-        :class="{ skinned: skin }"
-        :style="skinStyle"
-        data-clarity-mask="true"
-      >
-        <SkinDeco v-if="skin" :skin="skin" />
+        <article
+          class="reader-card"
+          :class="{ skinned: skin }"
+          :style="skinStyle"
+          data-clarity-mask="true"
+        >
+          <SkinDeco v-if="skin" :skin="skin" />
 
-        <header class="top" :class="{ 'has-spider': hasSpider }">
-          <SkinSpider v-if="hasSpider" />
-          <UserAvatar
-            class="big-face"
-            :src="reader.avatarUrl"
-            :name="reader.name"
-            :frame="reader.avatarFrame"
-            :size="140"
-            alt=""
-          />
+          <header class="top" :class="{ 'has-spider': hasSpider }">
+            <SkinSpider v-if="hasSpider" />
+            <UserAvatar
+              class="big-face"
+              :src="reader.avatarUrl"
+              :name="reader.name"
+              :frame="reader.avatarFrame"
+              :size="140"
+              alt=""
+            />
 
-          <div class="info">
-            <h1 class="display name">
-              {{ reader.name }}<NameFigure v-if="reader.figure" :figure="reader.figure" />
-            </h1>
-            <!-- Здесь встанет титул, когда их начнут разыгрывать. Пустой строки
+            <div class="info">
+              <h1 class="display name">
+                {{ reader.name
+                }}<NameFigure v-if="reader.figure" :figure="reader.figure" />
+              </h1>
+              <!-- Здесь встанет титул, когда их начнут разыгрывать. Пустой строки
                  под именем быть не должно — поэтому пока ничего. -->
 
-            <ul class="meta">
-              <li>С нами с <b>{{ since }}</b></li>
-              <li><b>{{ reader.comments }}</b> {{ pluralize(reader.comments, 'комментарий', 'комментария', 'комментариев') }}</li>
-            </ul>
+              <ul class="meta">
+                <li>
+                  С нами с <b>{{ since }}</b>
+                </li>
+                <li>
+                  <b>{{ reader.comments }}</b>
+                  {{
+                    pluralize(
+                      reader.comments,
+                      "комментарий",
+                      "комментария",
+                      "комментариев",
+                    )
+                  }}
+                </li>
+              </ul>
 
-            <p v-if="reader.about" class="about">{{ reader.about }}</p>
+              <p v-if="reader.about" class="about">{{ reader.about }}</p>
 
-            <div v-if="isMe || auth.isAdmin" class="own-row">
-              <NuxtLink v-if="isMe" to="/profile" class="link-btn">Изменить профиль</NuxtLink>
-              <button
-                v-if="auth.isAdmin && !isMe && reader.about"
-                class="link-btn danger"
-                type="button"
-                :disabled="clearing"
-                @click="clearAbout"
-              >
-                {{ clearing ? 'Стираем...' : 'Стереть «О себе»' }}
-              </button>
-              <span v-if="clearError" class="err-msg">{{ clearError }}</span>
+              <div v-if="isMe || auth.isAdmin" class="own-row">
+                <NuxtLink v-if="isMe" to="/profile" class="link-btn"
+                  >Изменить профиль</NuxtLink
+                >
+                <button
+                  v-if="auth.isAdmin && !isMe && reader.about"
+                  class="link-btn danger"
+                  type="button"
+                  :disabled="clearing"
+                  @click="clearAbout"
+                >
+                  {{ clearing ? "Стираем..." : "Стереть «О себе»" }}
+                </button>
+                <span v-if="clearError" class="err-msg">{{ clearError }}</span>
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        <section class="frames">
-          <h2 class="display frames-title">
-            Рамки<span class="frames-count">{{ reader.frames.length }}</span>
-          </h2>
+          <section class="frames">
+            <h2 class="display frames-title">
+              Рамки<span class="frames-count">{{ reader.frames.length }}</span>
+            </h2>
 
-          <p v-if="!reader.frames.length" class="frames-empty">
-            Рамок пока нет. Они достаются за участие в ивентах таверны.
-          </p>
+            <p v-if="!reader.frames.length" class="frames-empty">
+              Рамок пока нет. Они достаются за участие в ивентах таверны.
+            </p>
 
-          <ul v-else class="frame-grid">
-            <li v-for="f in reader.frames" :key="f.id" class="frame-tile">
-              <span v-if="reader.avatarFrame?.id === f.id" class="worn">надета</span>
-              <span class="frame-ring">
-                <img :src="f.url" alt="" draggable="false">
-              </span>
-              <span class="frame-name">{{ f.name }}</span>
-              <span class="frame-when">{{ grantedOn(f.grantedAt) }}</span>
-            </li>
-          </ul>
-        </section>
-      </article>
+            <ul v-else class="frame-grid">
+              <li v-for="f in reader.frames" :key="f.id" class="frame-tile">
+                <span v-if="reader.avatarFrame?.id === f.id" class="worn"
+                  >надета</span
+                >
+                <span class="frame-ring">
+                  <img :src="f.url" alt="" draggable="false" />
+                </span>
+                <span class="frame-name">{{ f.name }}</span>
+                <span class="frame-when">{{ grantedOn(f.grantedAt) }}</span>
+              </li>
+            </ul>
+          </section>
+        </article>
       </template>
     </div>
 
@@ -186,8 +236,12 @@ useHead(() => ({
    под содержимым, поэтому шапка и рамки подняты над ними. */
 .reader-card.skinned {
   background:
-    radial-gradient(120% 70% at 50% 0%, rgba(255, 255, 255, .06), transparent 60%),
-    radial-gradient(60% 50% at 100% 100%, rgba(0, 0, 0, .35), transparent 70%),
+    radial-gradient(
+      120% 70% at 50% 0%,
+      rgba(255, 255, 255, 0.06),
+      transparent 60%
+    ),
+    radial-gradient(60% 50% at 100% 100%, rgba(0, 0, 0, 0.35), transparent 70%),
     var(--skin-tint);
   border-color: color-mix(in srgb, var(--skin-accent) 22%, transparent);
 }
@@ -195,7 +249,8 @@ useHead(() => ({
 /* Кружок аватарки без картинки — полупрозрачный, и паутина просвечивала бы
    сквозь лицо. В скине подкладываем под него фон карточки. */
 .reader-card.skinned .big-face {
-  background: linear-gradient(var(--fill-strong), var(--fill-strong)), var(--skin-tint);
+  background:
+    linear-gradient(var(--fill-strong), var(--fill-strong)), var(--skin-tint);
 }
 
 .reader-card.skinned .meta b {
@@ -207,7 +262,7 @@ useHead(() => ({
 }
 
 .reader-card.skinned .frame-tile {
-  background: rgba(0, 0, 0, .3);
+  background: rgba(0, 0, 0, 0.3);
   border-color: color-mix(in srgb, var(--skin-accent) 18%, transparent);
 }
 
@@ -229,7 +284,7 @@ useHead(() => ({
   align-items: center;
   margin: 0 0 14px;
   padding: 10px 14px;
-  border: 1px dashed rgba(232, 176, 122, .4);
+  border: 1px dashed rgba(232, 176, 122, 0.4);
   border-radius: var(--radius-md);
   font-size: 13px;
   color: var(--ember-soft);
@@ -290,7 +345,7 @@ useHead(() => ({
   padding: 0;
   list-style: none;
   font-size: 13px;
-  color: rgba(241, 230, 210, .6);
+  color: rgba(241, 230, 210, 0.6);
 }
 
 .meta b {
@@ -303,7 +358,7 @@ useHead(() => ({
   margin: 16px 0 0;
   font-size: 14px;
   line-height: 1.65;
-  color: rgba(241, 230, 210, .88);
+  color: rgba(241, 230, 210, 0.88);
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
@@ -332,14 +387,14 @@ useHead(() => ({
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 400;
-  opacity: .45;
+  opacity: 0.45;
   margin-left: 8px;
 }
 
 .frames-empty {
   margin: 0;
   font-size: 13px;
-  opacity: .5;
+  opacity: 0.5;
 }
 
 .frame-grid {
@@ -384,7 +439,7 @@ useHead(() => ({
 
 .frame-when {
   font-size: 11px;
-  opacity: .45;
+  opacity: 0.45;
 }
 
 .worn {
@@ -412,7 +467,7 @@ useHead(() => ({
 .missing-note {
   margin: 0 0 18px;
   font-size: 14px;
-  opacity: .6;
+  opacity: 0.6;
 }
 
 .link-btn {
@@ -426,10 +481,20 @@ useHead(() => ({
   text-decoration: none;
 }
 
-.link-btn:hover { text-decoration: underline; }
-.link-btn:disabled { opacity: .5; cursor: default; }
-.link-btn.danger { color: var(--danger); }
-.err-msg { font-size: 13px; color: var(--danger); }
+.link-btn:hover {
+  text-decoration: underline;
+}
+.link-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.link-btn.danger {
+  color: var(--danger);
+}
+.err-msg {
+  font-size: 13px;
+  color: var(--danger);
+}
 
 @media (max-width: 560px) {
   .reader-wrap {

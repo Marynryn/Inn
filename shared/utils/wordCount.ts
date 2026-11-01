@@ -7,8 +7,6 @@
  * «кто-нибудь» — одно слово, а не два. Знаки препинания и теги не в счёт.
  */
 export function countWords(html: string): number {
-  const text = html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&[a-z#0-9]+;/gi, ' ')
-  return text.match(/[\p{L}\p{N}]+(?:[-'’][\p{L}\p{N}]+)*/gu)?.length ?? 0
+  const text = html.replace(/<[^>]*>/g, " ").replace(/&[a-z#0-9]+;/gi, " ");
+  return text.match(/[\p{L}\p{N}]+(?:[-'’][\p{L}\p{N}]+)*/gu)?.length ?? 0;
 }

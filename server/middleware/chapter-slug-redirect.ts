@@ -5,23 +5,27 @@
  * case — gets a permanent redirect to the clean form.
  */
 export default defineEventHandler((event) => {
-  const { pathname, search } = getRequestURL(event)
-  const match = pathname.match(/^\/chapter\/([^/]+)((?:\/comments)?)\/?$/)
-  if (!match) return
+  const { pathname, search } = getRequestURL(event);
+  const match = pathname.match(/^\/chapter\/([^/]+)((?:\/comments)?)\/?$/);
+  if (!match) return;
 
-  const [, rawSegment, suffix] = match
+  const [, rawSegment, suffix] = match;
   // A broken escape ("%E0%A4%A") made decodeURIComponent throw, and the
   // request ended as a 500 "Ошибка" page. No chapter can live there: 404.
-  let decoded: string
+  let decoded: string;
   try {
-    decoded = decodeURIComponent(rawSegment.replace(/\+/g, ' '))
+    decoded = decodeURIComponent(rawSegment.replace(/\+/g, " "));
   } catch {
-    throw createError({ statusCode: 404, statusMessage: 'Глава не найдена' })
+    throw createError({ statusCode: 404, statusMessage: "Глава не найдена" });
   }
-  const normalized = slugifyChapterId(decoded)
-  const encodedNormalized = encodeURIComponent(normalized)
+  const normalized = slugifyChapterId(decoded);
+  const encodedNormalized = encodeURIComponent(normalized);
 
   if (encodedNormalized && encodedNormalized !== rawSegment) {
-    return sendRedirect(event, `/chapter/${encodedNormalized}${suffix}${search}`, 301)
+    return sendRedirect(
+      event,
+      `/chapter/${encodedNormalized}${suffix}${search}`,
+      301,
+    );
   }
-})
+});

@@ -6,13 +6,13 @@
  */
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) {
-    const { user } = useUserSession()
-    if ((user.value as { role?: string } | null)?.role === 'admin') return
+    const { user } = useUserSession();
+    if ((user.value as { role?: string } | null)?.role === "admin") return;
   } else {
-    const auth = useAuthStore()
-    if (!auth.user) await auth.fetchMe()
-    if (auth.isAdmin) return
+    const auth = useAuthStore();
+    if (!auth.user) await auth.fetchMe();
+    if (auth.isAdmin) return;
   }
 
-  return navigateTo(`/login?pw=1&next=${encodeURIComponent(to.fullPath)}`)
-})
+  return navigateTo(`/login?pw=1&next=${encodeURIComponent(to.fullPath)}`);
+});

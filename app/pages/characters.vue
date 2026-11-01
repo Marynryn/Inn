@@ -1,30 +1,47 @@
 <script setup lang="ts">
 // Импортируем явно, а не через автоимпорт: новый экспорт из shared/ попадает в
 // сгенерированный список не сразу, и в шаблоне он оказывается undefined.
-import { CHARACTER_FILTERS, type Character, type CharacterFilterKey, type Origin } from '#shared/utils/characters'
+import {
+  CHARACTER_FILTERS,
+  type Character,
+  type CharacterFilterKey,
+  type Origin,
+} from "#shared/utils/characters";
 
-type Sort = 'name' | 'flames'
+type Sort = "name" | "flames";
 
-const auth = useAuthStore()
-const { data: settings } = await useFetch('/api/settings')
+const auth = useAuthStore();
+const { data: settings } = await useFetch("/api/settings");
 // deep: огонёк меняет поля карточки на месте, и без глубокой реактивности
 // (в Nuxt 4 она по умолчанию выключена) страница этого не увидит.
-const { data } = await useFetch<{ characters: Character[] }>('/api/characters', { deep: true })
+const { data } = await useFetch<{ characters: Character[] }>(
+  "/api/characters",
+  { deep: true },
+);
 
-const characters = computed(() => data.value?.characters ?? [])
+const characters = computed(() => data.value?.characters ?? []);
 
 // ── Поиск, фильтры, сортировка ─────────────────────────────
-const query = ref('')
-const sort = ref<Sort>('name')
+const query = ref("");
+const sort = ref<Sort>("name");
 const filters = reactive<Record<CharacterFilterKey, string>>({
-  gender: '', species: '', cls: '', occupation: '', continent: '', volume: '',
-})
+  gender: "",
+  species: "",
+  cls: "",
+  occupation: "",
+  continent: "",
+  volume: "",
+});
 
-const normalize = (v: string) => v.toLowerCase().replace(/ё/g, 'е').trim()
+const normalize = (v: string) => v.toLowerCase().replace(/ё/g, "е").trim();
 
 /** Значения признака у персонажа: у тома одно число, у остальных — список. */
 const valuesOf = (c: Character, key: CharacterFilterKey): string[] =>
-  key === 'volume' ? [String(c.volume)] : key === 'gender' ? [c.gender] : c[key]
+  key === "volume"
+    ? [String(c.volume)]
+    : key === "gender"
+      ? [c.gender]
+      : c[key];
 
 /**
  * Варианты для каждой выпадашки собираются из самих карточек: что есть у
@@ -32,89 +49,115 @@ const valuesOf = (c: Character, key: CharacterFilterKey): string[] =>
  * по номеру.
  */
 const options = computed(() => {
-  const out = {} as Record<CharacterFilterKey, string[]>
+  const out = {} as Record<CharacterFilterKey, string[]>;
   for (const { key } of CHARACTER_FILTERS) {
-    const set = new Set<string>()
-    for (const c of characters.value) for (const v of valuesOf(c, key)) if (v) set.add(v)
+    const set = new Set<string>();
+    for (const c of characters.value)
+      for (const v of valuesOf(c, key)) if (v) set.add(v);
     out[key] = [...set].sort((a, b) =>
-      key === 'volume' ? Number(a) - Number(b) : a.localeCompare(b, 'ru'),
-    )
+      key === "volume" ? Number(a) - Number(b) : a.localeCompare(b, "ru"),
+    );
   }
-  return out
-})
+  return out;
+});
 
-const activeFilters = computed(() => CHARACTER_FILTERS.filter(f => filters[f.key]))
+const activeFilters = computed(() =>
+  CHARACTER_FILTERS.filter((f) => filters[f.key]),
+);
 
 const resetFilters = () => {
-  for (const { key } of CHARACTER_FILTERS) filters[key] = ''
-  query.value = ''
-}
+  for (const { key } of CHARACTER_FILTERS) filters[key] = "";
+  query.value = "";
+};
 
 /** Имя ищется и по-русски, и латиницей: строка сравнивается с обоими написаниями. */
 const visible = computed(() => {
-  const q = normalize(query.value)
+  const q = normalize(query.value);
   const list = characters.value.filter((c) => {
-    if (q && !normalize(c.name).includes(q) && !normalize(c.original).includes(q)) return false
-    return activeFilters.value.every(f => valuesOf(c, f.key).includes(filters[f.key]))
-  })
+    if (
+      q &&
+      !normalize(c.name).includes(q) &&
+      !normalize(c.original).includes(q)
+    )
+      return false;
+    return activeFilters.value.every((f) =>
+      valuesOf(c, f.key).includes(filters[f.key]),
+    );
+  });
   // Пришли уже по алфавиту; по огонькам — больше сверху, при равенстве алфавит.
-  return sort.value === 'flames' ? [...list].sort((a, b) => b.flames - a.flames) : list
-})
+  return sort.value === "flames"
+    ? [...list].sort((a, b) => b.flames - a.flames)
+    : list;
+});
 
-const list = (values: string[]) => values.length ? values.join(', ') : '—'
+const list = (values: string[]) => (values.length ? values.join(", ") : "—");
 
 // ── Модалка ────────────────────────────────────────────────
-const openedId = ref<string | null>(null)
-const opened = computed(() => characters.value.find(c => c.id === openedId.value) ?? null)
+const openedId = ref<string | null>(null);
+const opened = computed(
+  () => characters.value.find((c) => c.id === openedId.value) ?? null,
+);
 /** Место карточки на экране в момент клика — из него вылетает модалка. */
-const origin = ref<Origin | null>(null)
+const origin = ref<Origin | null>(null);
 
 const openCard = (c: Character, e: Event) => {
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  origin.value = { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
-  openedId.value = c.id
-}
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  origin.value = {
+    x: rect.x,
+    y: rect.y,
+    width: rect.width,
+    height: rect.height,
+  };
+  openedId.value = c.id;
+};
 
 // ── Огонёк ─────────────────────────────────────────────────
-const toggleFlame = useCharacterFlame()
+const toggleFlame = useCharacterFlame();
 
 // ── Админ: спрятать карточку ───────────────────────────────
 const toggleHidden = async (c: Character) => {
-  const hidden = !c.hidden
+  const hidden = !c.hidden;
   try {
-    await $fetch(`/api/admin/characters/${c.id}/hidden`, { method: 'PUT', body: { hidden } })
-    c.hidden = hidden
+    await $fetch(`/api/admin/characters/${c.id}/hidden`, {
+      method: "PUT",
+      body: { hidden },
+    });
+    c.hidden = hidden;
   } catch {
     // не вышло — карточка остаётся как была
   }
-}
+};
 
-const siteUrl = useRuntimeConfig().public.siteUrl
-const ogImage = ogImageUrl()
+const siteUrl = useRuntimeConfig().public.siteUrl;
+const ogImage = ogImageUrl();
 
-const pageTitle = computed(() => `${settings.value?.characters_title || 'Персонажи'} · Странствующая Таверна — The Wandering Inn`)
+const pageTitle = computed(
+  () =>
+    `${settings.value?.characters_title || "Персонажи"} · Странствующая Таверна — The Wandering Inn`,
+);
 // Своя фраза, не подзаголовок из админки: тот объясняет, куда нажимать, а без
 // описания поисковик выдернул бы в выдачу случайный кусок карточек.
-const pageDescription = 'Персонажи The Wandering Inn на русском: карточки героев Странствующей Таверны — кто они и откуда.'
+const pageDescription =
+  "Персонажи The Wandering Inn на русском: карточки героев Странствующей Таверны — кто они и откуда.";
 
 useHead(() => ({
   title: pageTitle.value,
-  link: [{ rel: 'canonical', href: `${siteUrl}/characters` }],
-}))
+  link: [{ rel: "canonical", href: `${siteUrl}/characters` }],
+}));
 
 useSeoMeta({
   description: pageDescription,
   ogTitle: () => pageTitle.value,
   ogDescription: pageDescription,
   ogUrl: `${siteUrl}/characters`,
-  ogType: 'website',
-  ogLocale: 'ru_RU',
+  ogType: "website",
+  ogLocale: "ru_RU",
   ogImage,
-  twitterCard: 'summary_large_image',
+  twitterCard: "summary_large_image",
   twitterTitle: () => pageTitle.value,
   twitterDescription: pageDescription,
   twitterImage: ogImage,
-})
+});
 </script>
 
 <template>
@@ -128,8 +171,12 @@ useSeoMeta({
     <main class="characters">
       <header class="intro">
         <div class="eyebrow">Персонажи · The Wandering Inn</div>
-        <h1 class="page-title title">{{ settings?.characters_title || 'Кто живёт в таверне' }}</h1>
-        <p v-if="settings?.characters_subtitle" class="lead">{{ settings.characters_subtitle }}</p>
+        <h1 class="page-title title">
+          {{ settings?.characters_title || "Кто живёт в таверне" }}
+        </h1>
+        <p v-if="settings?.characters_subtitle" class="lead">
+          {{ settings.characters_subtitle }}
+        </p>
       </header>
 
       <!-- Поиск, сортировка, фильтры — один блок: на телефоне порядок другой
@@ -142,23 +189,46 @@ useSeoMeta({
           autocomplete="off"
           spellcheck="false"
           placeholder="Имя по-русски или в оригинале…"
-        >
+        />
         <div class="sorts" role="group" aria-label="Сортировка">
-          <button class="sort" :class="{ active: sort === 'name' }" type="button" @click="sort = 'name'">По алфавиту</button>
-          <button class="sort" :class="{ active: sort === 'flames' }" type="button" @click="sort = 'flames'">По огонькам</button>
+          <button
+            class="sort"
+            :class="{ active: sort === 'name' }"
+            type="button"
+            @click="sort = 'name'"
+          >
+            По алфавиту
+          </button>
+          <button
+            class="sort"
+            :class="{ active: sort === 'flames' }"
+            type="button"
+            @click="sort = 'flames'"
+          >
+            По огонькам
+          </button>
         </div>
 
         <div class="filters">
-          <label v-for="f in CHARACTER_FILTERS" :key="f.key" class="filter" :class="{ set: filters[f.key] }">
+          <label
+            v-for="f in CHARACTER_FILTERS"
+            :key="f.key"
+            class="filter"
+            :class="{ set: filters[f.key] }"
+          >
             <span class="filter-label">{{ f.label }}</span>
             <select v-model="filters[f.key]">
               <option value="">Все</option>
-              <option v-for="v in options[f.key]" :key="v" :value="v">{{ v }}</option>
+              <option v-for="v in options[f.key]" :key="v" :value="v">
+                {{ v }}
+              </option>
             </select>
           </label>
           <span v-if="activeFilters.length || query" class="tally">
             <span class="count">Найдено: {{ visible.length }}</span>
-            <button class="reset" type="button" @click="resetFilters">Сбросить</button>
+            <button class="reset" type="button" @click="resetFilters">
+              Сбросить
+            </button>
           </span>
         </div>
       </div>
@@ -177,12 +247,17 @@ useSeoMeta({
           @keydown.enter="openCard(c, $event)"
         >
           <div class="portrait">
-            <img v-if="c.image" :src="c.image" :alt="c.name" loading="lazy">
+            <img v-if="c.image" :src="c.image" :alt="c.name" loading="lazy" />
             <div v-else class="placeholder" aria-hidden="true">
               <span class="initial display">{{ c.name.slice(0, 1) }}</span>
             </div>
             <div class="flame-slot">
-              <CharacterFlame :count="c.flames" :lit="c.lit" :character-id="c.id" @toggle="toggleFlame(c)" />
+              <CharacterFlame
+                :count="c.flames"
+                :lit="c.lit"
+                :character-id="c.id"
+                @toggle="toggleFlame(c)"
+              />
             </div>
             <button
               v-if="auth.isAdmin"
@@ -191,7 +266,7 @@ useSeoMeta({
               :title="c.hidden ? 'Показать читателям' : 'Спрятать от читателей'"
               @click.stop="toggleHidden(c)"
             >
-              {{ c.hidden ? 'Спрятана' : 'Спрятать' }}
+              {{ c.hidden ? "Спрятана" : "Спрятать" }}
             </button>
           </div>
           <div class="body">
@@ -199,7 +274,7 @@ useSeoMeta({
             <dl class="facts">
               <div class="fact">
                 <dt>Возраст</dt>
-                <dd>{{ c.age || '—' }}</dd>
+                <dd>{{ c.age || "—" }}</dd>
               </div>
               <div class="fact">
                 <dt>Раса</dt>
@@ -215,7 +290,13 @@ useSeoMeta({
       </div>
     </main>
 
-    <CharacterModal v-if="opened" :character="opened" :origin="origin" @close="openedId = null" @flame="toggleFlame" />
+    <CharacterModal
+      v-if="opened"
+      :character="opened"
+      :origin="origin"
+      @close="openedId = null"
+      @flame="toggleFlame"
+    />
 
     <AppFooter on-dark :settings="settings as any" />
   </div>
@@ -245,7 +326,7 @@ useSeoMeta({
 
 .eyebrow {
   font-size: 12px;
-  letter-spacing: .18em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ember-soft);
   margin-bottom: 12px;
@@ -289,11 +370,11 @@ useSeoMeta({
 }
 
 .search-input::placeholder {
-  color: rgba(241, 230, 210, .4);
+  color: rgba(241, 230, 210, 0.4);
 }
 
 .search-input::-webkit-search-cancel-button {
-  filter: invert(.8);
+  filter: invert(0.8);
 }
 
 .sorts {
@@ -315,7 +396,7 @@ useSeoMeta({
 }
 
 .sort.active {
-  background: rgba(214, 136, 62, .18);
+  background: rgba(214, 136, 62, 0.18);
   color: var(--ember-soft);
 }
 
@@ -363,7 +444,7 @@ useSeoMeta({
 }
 
 .filter.set select {
-  border-color: rgba(214, 136, 62, .6);
+  border-color: rgba(214, 136, 62, 0.6);
   color: var(--ember-soft);
 }
 
@@ -427,14 +508,18 @@ useSeoMeta({
   display: grid;
   place-items: center;
   background:
-    radial-gradient(ellipse at 50% 110%, rgba(214, 136, 62, .28), transparent 60%),
+    radial-gradient(
+      ellipse at 50% 110%,
+      rgba(214, 136, 62, 0.28),
+      transparent 60%
+    ),
     linear-gradient(180deg, #2b221c, #1a1410);
 }
 
 .initial {
   font-size: 64px;
   font-weight: 500;
-  color: rgba(232, 176, 122, .55);
+  color: rgba(232, 176, 122, 0.55);
   line-height: 1;
 }
 
@@ -451,8 +536,8 @@ useSeoMeta({
   top: 8px;
   padding: 4px 8px;
   border-radius: var(--radius-pill);
-  border: 1px dashed rgba(241, 230, 210, .35);
-  background: rgba(31, 24, 19, .75);
+  border: 1px dashed rgba(241, 230, 210, 0.35);
+  background: rgba(31, 24, 19, 0.75);
   color: var(--text-muted);
   font-family: var(--font-body);
   font-size: 11px;
@@ -465,7 +550,7 @@ useSeoMeta({
 }
 
 .card.hidden {
-  opacity: .45;
+  opacity: 0.45;
 }
 
 .card.hidden .hide-btn {

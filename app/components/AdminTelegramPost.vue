@@ -3,52 +3,56 @@
  * Своё сообщение в телеграм-канал: написать и отправить. Отправка — в два
  * нажатия: сообщение сразу видят все подписчики, и отозвать его отсюда нельзя.
  */
-const TEXT_MAX = 4096
+const TEXT_MAX = 4096;
 
-const text = ref('')
-const confirming = ref(false)
-const sending = ref(false)
-const result = ref('')
-const error = ref('')
+const text = ref("");
+const confirming = ref(false);
+const sending = ref(false);
+const result = ref("");
+const error = ref("");
 
-const trimmed = computed(() => text.value.trim())
+const trimmed = computed(() => text.value.trim());
 
-const textEl = ref<HTMLTextAreaElement | null>(null)
+const textEl = ref<HTMLTextAreaElement | null>(null);
 
 watch(text, () => {
-  confirming.value = false
-  result.value = ''
-})
+  confirming.value = false;
+  result.value = "";
+});
 
 const send = async () => {
   if (!confirming.value) {
-    confirming.value = true
-    return
+    confirming.value = true;
+    return;
   }
 
-  sending.value = true
-  error.value = ''
+  sending.value = true;
+  error.value = "";
   try {
-    await $fetch('/api/admin/notify/custom', { method: 'POST', body: { text: text.value } })
+    await $fetch("/api/admin/notify/custom", {
+      method: "POST",
+      body: { text: text.value },
+    });
     // Сначала чистим поле — watch сбросит результат, — и только потом пишем его.
-    text.value = ''
-    await nextTick()
-    result.value = '✓ Отправлено в канал'
+    text.value = "";
+    await nextTick();
+    result.value = "✓ Отправлено в канал";
   } catch (e: any) {
-    error.value = e?.data?.message || 'Не удалось отправить'
+    error.value = e?.data?.message || "Не удалось отправить";
   } finally {
-    sending.value = false
-    confirming.value = false
+    sending.value = false;
+    confirming.value = false;
   }
-}
+};
 </script>
 
 <template>
   <div class="tg-post">
     <h3 class="tg-sub">Своё сообщение</h3>
     <p class="tg-hint">
-      Уходит в тот же канал, что и главы. Разметка как в телеграме: **жирный**, ~~зачёркнутый~~,
-      ||спойлер|| — или выдели слова и нажми кнопку. Ссылки станут кликабельными сами.
+      Уходит в тот же канал, что и главы. Разметка как в телеграме: **жирный**,
+      ~~зачёркнутый~~, ||спойлер|| — или выдели слова и нажми кнопку. Ссылки
+      станут кликабельными сами.
     </p>
 
     <AdminTgMarks v-model="text" :target="textEl" :max="TEXT_MAX" />
@@ -69,10 +73,29 @@ const send = async () => {
     <p v-if="error" class="tg-err">{{ error }}</p>
 
     <div class="tg-actions">
-      <button class="btn" :class="confirming ? 'btn--danger' : 'btn--primary'" type="button" :disabled="sending || !trimmed" @click="send">
-        {{ sending ? 'Отправляем...' : confirming ? 'Да, отправить всем подписчикам' : 'Отправить в канал' }}
+      <button
+        class="btn"
+        :class="confirming ? 'btn--danger' : 'btn--primary'"
+        type="button"
+        :disabled="sending || !trimmed"
+        @click="send"
+      >
+        {{
+          sending
+            ? "Отправляем..."
+            : confirming
+              ? "Да, отправить всем подписчикам"
+              : "Отправить в канал"
+        }}
       </button>
-      <button v-if="confirming && !sending" class="tg-link" type="button" @click="confirming = false">Отмена</button>
+      <button
+        v-if="confirming && !sending"
+        class="tg-link"
+        type="button"
+        @click="confirming = false"
+      >
+        Отмена
+      </button>
       <span v-if="result" class="tg-ok">{{ result }}</span>
     </div>
   </div>
@@ -94,7 +117,7 @@ const send = async () => {
 .tg-hint {
   margin: 0 0 12px;
   font-size: 12px;
-  color: rgba(241, 230, 210, .55);
+  color: rgba(241, 230, 210, 0.55);
 }
 
 .tg-text {
@@ -125,7 +148,7 @@ const send = async () => {
 
 .tg-count {
   font-size: 11px;
-  color: rgba(241, 230, 210, .4);
+  color: rgba(241, 230, 210, 0.4);
   font-variant-numeric: tabular-nums lining-nums;
 }
 

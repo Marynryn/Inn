@@ -1,245 +1,269 @@
 <script setup lang="ts">
-import type { AvatarFrame, OwnedFrame } from '#shared/utils/avatarFrames'
-import { ABOUT_MAX } from '#shared/utils/readerProfile'
-import type { OwnedSkin, ProfileSkin } from '#shared/utils/profileSkins'
-import type { NameFigure, OwnedFigure } from '#shared/utils/nameFigures'
+import type { AvatarFrame, OwnedFrame } from "#shared/utils/avatarFrames";
+import { ABOUT_MAX } from "#shared/utils/readerProfile";
+import type { OwnedSkin, ProfileSkin } from "#shared/utils/profileSkins";
+import type { NameFigure, OwnedFigure } from "#shared/utils/nameFigures";
 
-const auth = useAuthStore()
-const { data: settings } = await useFetch('/api/settings')
+const auth = useAuthStore();
+const { data: settings } = await useFetch("/api/settings");
 
 type Profile = {
   /** Только у хозяйки сайта — для «выдать себе». */
-  id?: number
-  email: string | null
-  role: string
-  displayName: string | null
-  avatarUrl: string | null
-  avatarFrame: AvatarFrame | null
-  about: string | null
-  publicId: string | null
-  frames: OwnedFrame[]
-  skin: ProfileSkin | null
-  skins: OwnedSkin[]
-  figure: NameFigure | null
-  figures: OwnedFigure[]
-  hasPassword: boolean
-  providers: ('google' | 'telegram')[]
-}
+  id?: number;
+  email: string | null;
+  role: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  avatarFrame: AvatarFrame | null;
+  about: string | null;
+  publicId: string | null;
+  frames: OwnedFrame[];
+  skin: ProfileSkin | null;
+  skins: OwnedSkin[];
+  figure: NameFigure | null;
+  figures: OwnedFigure[];
+  hasPassword: boolean;
+  providers: ("google" | "telegram")[];
+};
 
-const { data: profile, refresh, error: loadError } = await useFetch<Profile>('/api/profile')
+const {
+  data: profile,
+  refresh,
+  error: loadError,
+} = await useFetch<Profile>("/api/profile");
 
 // Страница целиком про своего пользователя — гостю тут показывать нечего.
 watchEffect(() => {
-  if (loadError.value) navigateTo('/login?next=/profile')
-})
+  if (loadError.value) navigateTo("/login?next=/profile");
+});
 
-const displayName = ref('')
-const about = ref('')
-const fileInput = ref<HTMLInputElement | null>(null)
-const preview = ref<string | null>(null)
-const saving = ref(false)
-const message = ref('')
-const error = ref('')
+const displayName = ref("");
+const about = ref("");
+const fileInput = ref<HTMLInputElement | null>(null);
+const preview = ref<string | null>(null);
+const saving = ref(false);
+const message = ref("");
+const error = ref("");
 
-const frameId = ref<number | null>(null)
+const frameId = ref<number | null>(null);
 
 watchEffect(() => {
-  displayName.value = profile.value?.displayName ?? ''
-  about.value = profile.value?.about ?? ''
-  frameId.value = profile.value?.avatarFrame?.id ?? null
-})
+  displayName.value = profile.value?.displayName ?? "";
+  about.value = profile.value?.about ?? "";
+  frameId.value = profile.value?.avatarFrame?.id ?? null;
+});
 
 // Рамка показывается на своей же аватарке сразу при выборе, до сохранения:
 // решить, идёт она или нет, можно только глядя на своё лицо в ней.
-const frames = computed(() => profile.value?.frames ?? [])
+const frames = computed(() => profile.value?.frames ?? []);
 // Хозяйке сайта сервер отдаёт весь каталог, а не только выигранное: рамку надо
 // примерить на живом лице раньше, чем она кому-то достанется.
-const isAdmin = computed(() => profile.value?.role === 'admin')
-const chosenFrame = computed(() => frames.value.find(f => f.id === frameId.value) ?? null)
+const isAdmin = computed(() => profile.value?.role === "admin");
+const chosenFrame = computed(
+  () => frames.value.find((f) => f.id === frameId.value) ?? null,
+);
 
 // Примерка — рамка из каталога, которой у хозяйки сайта нет. Видна только ей
 // здесь; надеть такую сервер не даст, пока рамка не выдана.
-const trying = computed(() => Boolean(chosenFrame.value && !chosenFrame.value.owned))
+const trying = computed(() =>
+  Boolean(chosenFrame.value && !chosenFrame.value.owned),
+);
 
-const granting = ref(false)
+const granting = ref(false);
 
 const grantToSelf = async () => {
-  if (!profile.value?.id || !chosenFrame.value) return
-  granting.value = true
-  error.value = ''
+  if (!profile.value?.id || !chosenFrame.value) return;
+  granting.value = true;
+  error.value = "";
   try {
-    const picked = chosenFrame.value.id
-    await $fetch('/api/admin/frames/grant', {
-      method: 'POST',
+    const picked = chosenFrame.value.id;
+    await $fetch("/api/admin/frames/grant", {
+      method: "POST",
       body: { userId: profile.value.id, frameId: picked },
-    })
+    });
 
     // Выдала себе — значит, хочет носить: надеваем сразу. Шлём одну рамку —
     // имя и «О себе» сохраняются своей кнопкой.
-    const form = new FormData()
-    form.append('avatarFrameId', String(picked))
-    await $fetch('/api/profile', { method: 'PUT', body: form })
-    await Promise.all([refresh(), auth.fetchMe()])
+    const form = new FormData();
+    form.append("avatarFrameId", String(picked));
+    await $fetch("/api/profile", { method: "PUT", body: form });
+    await Promise.all([refresh(), auth.fetchMe()]);
   } catch (e: any) {
-    error.value = e.data?.message || 'Не выдалась'
+    error.value = e.data?.message || "Не выдалась";
   } finally {
-    granting.value = false
+    granting.value = false;
   }
-}
+};
 
 // ── Скин страницы ──────────────────────────────
 // Выданный скин надевается сразу, по щелчку: это не поле формы, а выбор, как
 // включить свет. Невыданный — примерка хозяйки сайта: его можно посмотреть на
 // своей странице или выдать себе.
-const skins = computed(() => profile.value?.skins ?? [])
-const skinPicked = ref<number | null>(null)
-const skinBusy = ref(false)
-const skinError = ref('')
-const pickedTrySkin = computed(() => skins.value.find(s => s.id === skinPicked.value && !s.owned) ?? null)
+const skins = computed(() => profile.value?.skins ?? []);
+const skinPicked = ref<number | null>(null);
+const skinBusy = ref(false);
+const skinError = ref("");
+const pickedTrySkin = computed(
+  () => skins.value.find((s) => s.id === skinPicked.value && !s.owned) ?? null,
+);
 
 const wearSkin = async (id: number | null) => {
-  skinBusy.value = true
-  skinError.value = ''
+  skinBusy.value = true;
+  skinError.value = "";
   try {
-    const form = new FormData()
-    form.append('skinId', id ? String(id) : '')
-    await $fetch('/api/profile', { method: 'PUT', body: form })
-    skinPicked.value = null
-    await refresh()
+    const form = new FormData();
+    form.append("skinId", id ? String(id) : "");
+    await $fetch("/api/profile", { method: "PUT", body: form });
+    skinPicked.value = null;
+    await refresh();
   } catch (e: any) {
-    skinError.value = e.data?.message || 'Не получилось'
+    skinError.value = e.data?.message || "Не получилось";
   } finally {
-    skinBusy.value = false
+    skinBusy.value = false;
   }
-}
+};
 
 const pickSkin = (s: OwnedSkin) => {
-  if (s.owned) return wearSkin(s.id)
-  skinPicked.value = s.id
-}
+  if (s.owned) return wearSkin(s.id);
+  skinPicked.value = s.id;
+};
 
 const grantSkinToSelf = async () => {
-  const skin = pickedTrySkin.value
-  if (!profile.value?.id || !skin) return
-  skinBusy.value = true
-  skinError.value = ''
+  const skin = pickedTrySkin.value;
+  if (!profile.value?.id || !skin) return;
+  skinBusy.value = true;
+  skinError.value = "";
   try {
-    await $fetch('/api/admin/skins/grant', { method: 'POST', body: { userId: profile.value.id, skinId: skin.id } })
+    await $fetch("/api/admin/skins/grant", {
+      method: "POST",
+      body: { userId: profile.value.id, skinId: skin.id },
+    });
   } catch (e: any) {
-    skinError.value = e.data?.message || 'Не выдался'
-    skinBusy.value = false
-    return
+    skinError.value = e.data?.message || "Не выдался";
+    skinBusy.value = false;
+    return;
   }
-  await wearSkin(skin.id)
-}
+  await wearSkin(skin.id);
+};
 
 // ── Фигурка у имени ────────────────────────────
 // Как скин: выданная надевается по щелчку, невыданная — примерка хозяйки сайта.
-const figures = computed(() => profile.value?.figures ?? [])
-const figurePicked = ref<string | null>(null)
-const figureBusy = ref(false)
-const figureError = ref('')
-const pickedTryFigure = computed(() => figures.value.find(g => g.id === figurePicked.value && !g.owned) ?? null)
+const figures = computed(() => profile.value?.figures ?? []);
+const figurePicked = ref<string | null>(null);
+const figureBusy = ref(false);
+const figureError = ref("");
+const pickedTryFigure = computed(
+  () =>
+    figures.value.find((g) => g.id === figurePicked.value && !g.owned) ?? null,
+);
 
 const wearFigure = async (id: string | null) => {
-  figureBusy.value = true
-  figureError.value = ''
+  figureBusy.value = true;
+  figureError.value = "";
   try {
-    const form = new FormData()
-    form.append('figure', id ?? '')
-    await $fetch('/api/profile', { method: 'PUT', body: form })
-    figurePicked.value = null
-    await refresh()
+    const form = new FormData();
+    form.append("figure", id ?? "");
+    await $fetch("/api/profile", { method: "PUT", body: form });
+    figurePicked.value = null;
+    await refresh();
   } catch (e: any) {
-    figureError.value = e.data?.message || 'Не получилось'
+    figureError.value = e.data?.message || "Не получилось";
   } finally {
-    figureBusy.value = false
+    figureBusy.value = false;
   }
-}
+};
 
 const pickFigure = (g: OwnedFigure) => {
-  if (g.owned) return wearFigure(g.id)
-  figurePicked.value = g.id
-}
+  if (g.owned) return wearFigure(g.id);
+  figurePicked.value = g.id;
+};
 
 const grantFigureToSelf = async () => {
-  const figure = pickedTryFigure.value
-  if (!figure) return
-  figureBusy.value = true
-  figureError.value = ''
+  const figure = pickedTryFigure.value;
+  if (!figure) return;
+  figureBusy.value = true;
+  figureError.value = "";
   try {
-    await $fetch('/api/admin/figures/grant', { method: 'POST', body: { figure: figure.id } })
+    await $fetch("/api/admin/figures/grant", {
+      method: "POST",
+      body: { figure: figure.id },
+    });
   } catch (e: any) {
-    figureError.value = e.data?.message || 'Не выдалась'
-    figureBusy.value = false
-    return
+    figureError.value = e.data?.message || "Не выдалась";
+    figureBusy.value = false;
+    return;
   }
-  await wearFigure(figure.id)
-}
+  await wearFigure(figure.id);
+};
 
-const avatarSrc = computed(() => preview.value || profile.value?.avatarUrl || null)
+const avatarSrc = computed(
+  () => preview.value || profile.value?.avatarUrl || null,
+);
 
-const pickFile = () => fileInput.value?.click()
+const pickFile = () => fileInput.value?.click();
 
 const onFile = (e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
   if (file.size > 5 * 1024 * 1024) {
-    error.value = 'Картинка больше 5 МБ'
-    return
+    error.value = "Картинка больше 5 МБ";
+    return;
   }
-  error.value = ''
-  preview.value = URL.createObjectURL(file)
-}
+  error.value = "";
+  preview.value = URL.createObjectURL(file);
+};
 
 const save = async () => {
-  saving.value = true
-  error.value = ''
-  message.value = ''
+  saving.value = true;
+  error.value = "";
+  message.value = "";
 
   try {
-    const form = new FormData()
-    form.append('displayName', displayName.value)
-    form.append('about', about.value)
+    const form = new FormData();
+    form.append("displayName", displayName.value);
+    form.append("about", about.value);
     // Примерку не надеваем: остаётся та рамка, что была.
-    const wear = trying.value ? (profile.value?.avatarFrame?.id ?? null) : frameId.value
-    form.append('avatarFrameId', wear ? String(wear) : '')
-    const file = fileInput.value?.files?.[0]
-    if (file) form.append('avatar', await toSmallSquare(file), 'avatar.webp')
+    const wear = trying.value
+      ? (profile.value?.avatarFrame?.id ?? null)
+      : frameId.value;
+    form.append("avatarFrameId", wear ? String(wear) : "");
+    const file = fileInput.value?.files?.[0];
+    if (file) form.append("avatar", await toSmallSquare(file), "avatar.webp");
 
-    await $fetch('/api/profile', { method: 'PUT', body: form })
-    preview.value = null
-    if (fileInput.value) fileInput.value.value = ''
-    await Promise.all([refresh(), auth.fetchMe()])
-    message.value = 'Сохранено'
+    await $fetch("/api/profile", { method: "PUT", body: form });
+    preview.value = null;
+    if (fileInput.value) fileInput.value.value = "";
+    await Promise.all([refresh(), auth.fetchMe()]);
+    message.value = "Сохранено";
   } catch (e: any) {
-    error.value = e.data?.message || 'Не сохранилось'
+    error.value = e.data?.message || "Не сохранилось";
   } finally {
-    saving.value = false
+    saving.value = false;
   }
-}
+};
 
-const unlink = async (provider: 'google' | 'telegram') => {
-  error.value = ''
+const unlink = async (provider: "google" | "telegram") => {
+  error.value = "";
   try {
-    await $fetch('/api/profile/unlink', { method: 'POST', body: { provider } })
-    await refresh()
+    await $fetch("/api/profile/unlink", { method: "POST", body: { provider } });
+    await refresh();
   } catch (e: any) {
-    error.value = e.data?.message || 'Не отвязалось'
+    error.value = e.data?.message || "Не отвязалось";
   }
-}
+};
 
 const logout = async () => {
-  await auth.logout()
-  navigateTo('/')
-}
+  await auth.logout();
+  navigateTo("/");
+};
 
-const has = (p: 'google' | 'telegram') => profile.value?.providers.includes(p) ?? false
+const has = (p: "google" | "telegram") =>
+  profile.value?.providers.includes(p) ?? false;
 
 useHead({
-  title: 'Профиль · Странствующая Таверна',
-  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
-})
+  title: "Профиль · Странствующая Таверна",
+  meta: [{ name: "robots", content: "noindex, nofollow" }],
+});
 </script>
 
 <template>
@@ -266,11 +290,23 @@ useHead({
             />
             <span class="avatar-hint">Сменить</span>
           </button>
-          <input ref="fileInput" type="file" accept="image/*" hidden @change="onFile">
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/*"
+            hidden
+            @change="onFile"
+          />
 
           <div class="name-field">
             <label for="pf-name">Имя под комментариями</label>
-            <input id="pf-name" v-model="displayName" type="text" maxlength="40" placeholder="Как тебя звать">
+            <input
+              id="pf-name"
+              v-model="displayName"
+              type="text"
+              maxlength="40"
+              placeholder="Как тебя звать"
+            />
           </div>
         </div>
 
@@ -288,30 +324,47 @@ useHead({
         </div>
 
         <div class="form-foot">
-          <button class="btn btn--primary" type="button" :disabled="saving" @click="save">
-            {{ saving ? 'Сохраняем...' : 'Сохранить' }}
+          <button
+            class="btn btn--primary"
+            type="button"
+            :disabled="saving"
+            @click="save"
+          >
+            {{ saving ? "Сохраняем..." : "Сохранить" }}
           </button>
           <span v-if="message" class="ok-msg">{{ message }}</span>
           <span v-if="error" class="err-msg">{{ error }}</span>
-          <NuxtLink v-if="profile.publicId" :to="`/reader/${profile.publicId}`" class="link-btn">Как меня видят другие</NuxtLink>
+          <NuxtLink
+            v-if="profile.publicId"
+            :to="`/reader/${profile.publicId}`"
+            class="link-btn"
+            >Как меня видят другие</NuxtLink
+          >
         </div>
 
-        <hr class="divider">
+        <hr class="divider" />
 
         <h2 class="section-title">Рамка</h2>
 
         <p v-if="!frames.length" class="section-note">
-          <template v-if="isAdmin">В каталоге пока пусто — рамки заводятся в панели.</template>
-          <template v-else>Рамки достаются за участие в ивентах таверны. Как выиграешь — появится здесь.</template>
+          <template v-if="isAdmin"
+            >В каталоге пока пусто — рамки заводятся в панели.</template
+          >
+          <template v-else
+            >Рамки достаются за участие в ивентах таверны. Как выиграешь —
+            появится здесь.</template
+          >
         </p>
 
         <template v-else>
           <p class="section-note">
             <template v-if="isAdmin">
-              Тебе показан весь каталог для примерки — её видишь только ты. Носить можно свои:
-              выдай рамку себе, и она станет твоей.
+              Тебе показан весь каталог для примерки — её видишь только ты.
+              Носить можно свои: выдай рамку себе, и она станет твоей.
             </template>
-            <template v-else>Носить можно любую из своих — или ходить без рамки.</template>
+            <template v-else
+              >Носить можно любую из своих — или ходить без рамки.</template
+            >
           </p>
 
           <div class="frame-grid">
@@ -354,9 +407,17 @@ useHead({
           </div>
 
           <div v-if="trying" class="try-note">
-            <span>«{{ chosenFrame?.name }}» — примерка: сохранить её не выйдет, все увидят прежнюю рамку.</span>
-            <button class="link-btn" type="button" :disabled="granting" @click="grantToSelf">
-              {{ granting ? 'Выдаём...' : 'Выдать себе и надеть' }}
+            <span
+              >«{{ chosenFrame?.name }}» — примерка: сохранить её не выйдет, все
+              увидят прежнюю рамку.</span
+            >
+            <button
+              class="link-btn"
+              type="button"
+              :disabled="granting"
+              @click="grantToSelf"
+            >
+              {{ granting ? "Выдаём..." : "Выдать себе и надеть" }}
             </button>
           </div>
         </template>
@@ -364,12 +425,14 @@ useHead({
         <!-- Скинов ни одного — и раздела нет: читателю, у которого их не бывало,
              незачем знать о пустой полке. -->
         <template v-if="skins.length">
-          <hr class="divider">
+          <hr class="divider" />
 
           <h2 class="section-title">Скин страницы</h2>
           <p class="section-note">
             Видят все, кто открывает твою страницу.
-            <template v-if="isAdmin">Невыданные — для примерки, их видишь только ты.</template>
+            <template v-if="isAdmin"
+              >Невыданные — для примерки, их видишь только ты.</template
+            >
           </p>
 
           <div class="skin-grid">
@@ -389,12 +452,15 @@ useHead({
               :key="s.id"
               class="skin-pick"
               type="button"
-              :class="{ active: profile.skin?.id === s.id, picked: skinPicked === s.id }"
+              :class="{
+                active: profile.skin?.id === s.id,
+                picked: skinPicked === s.id,
+              }"
               :disabled="skinBusy"
               @click="pickSkin(s)"
             >
               <span class="skin-thumb" :style="{ background: s.tint }">
-                <img :src="s.url" alt="" draggable="false">
+                <img :src="s.url" alt="" draggable="false" />
               </span>
               <span class="frame-name">{{ s.name }}</span>
               <span v-if="!s.owned" class="frame-tag">примерка</span>
@@ -410,7 +476,12 @@ useHead({
             >
               Посмотреть на своей странице
             </NuxtLink>
-            <button class="link-btn" type="button" :disabled="skinBusy" @click="grantSkinToSelf">
+            <button
+              class="link-btn"
+              type="button"
+              :disabled="skinBusy"
+              @click="grantSkinToSelf"
+            >
               Выдать себе и надеть
             </button>
           </div>
@@ -419,12 +490,14 @@ useHead({
 
         <!-- Фигурок ни одной — и раздела нет, как со скинами. -->
         <template v-if="figures.length">
-          <hr class="divider">
+          <hr class="divider" />
 
           <h2 class="section-title">Фигурка у имени</h2>
           <p class="section-note">
             Стоит рядом с твоим именем в комментариях и на твоей странице.
-            <template v-if="isAdmin">Невыданные — для примерки, их видишь только ты.</template>
+            <template v-if="isAdmin"
+              >Невыданные — для примерки, их видишь только ты.</template
+            >
           </p>
 
           <div class="skin-grid">
@@ -444,12 +517,15 @@ useHead({
               :key="g.id"
               class="skin-pick"
               type="button"
-              :class="{ active: profile.figure?.id === g.id, picked: figurePicked === g.id }"
+              :class="{
+                active: profile.figure?.id === g.id,
+                picked: figurePicked === g.id,
+              }"
               :disabled="figureBusy"
               @click="pickFigure(g)"
             >
               <span class="figure-thumb">
-                <img :src="g.url" alt="" draggable="false">
+                <img :src="g.url" alt="" draggable="false" />
               </span>
               <span class="frame-name">{{ g.name }}</span>
               <span v-if="!g.owned" class="frame-tag">примерка</span>
@@ -461,14 +537,19 @@ useHead({
               {{ auth.name }}<NameFigure :figure="pickedTryFigure" />
             </span>
             <span>— примерка: наружу не видна.</span>
-            <button class="link-btn" type="button" :disabled="figureBusy" @click="grantFigureToSelf">
+            <button
+              class="link-btn"
+              type="button"
+              :disabled="figureBusy"
+              @click="grantFigureToSelf"
+            >
               Выдать себе и надеть
             </button>
           </div>
           <p v-if="figureError" class="err-msg">{{ figureError }}</p>
         </template>
 
-        <hr class="divider">
+        <hr class="divider" />
 
         <h2 class="section-title">Способы входа</h2>
         <p class="section-note">
@@ -479,24 +560,37 @@ useHead({
           <span class="provider-name">Google</span>
           <template v-if="has('google')">
             <span class="provider-state">привязан</span>
-            <button class="link-btn" type="button" @click="unlink('google')">Отвязать</button>
+            <button class="link-btn" type="button" @click="unlink('google')">
+              Отвязать
+            </button>
           </template>
-          <a v-else class="link-btn" href="/auth/google?next=/profile">Привязать</a>
+          <a v-else class="link-btn" href="/auth/google?next=/profile"
+            >Привязать</a
+          >
         </div>
 
         <div class="provider-row">
           <span class="provider-name">Telegram</span>
           <template v-if="has('telegram')">
             <span class="provider-state">привязан</span>
-            <button class="link-btn" type="button" @click="unlink('telegram')">Отвязать</button>
+            <button class="link-btn" type="button" @click="unlink('telegram')">
+              Отвязать
+            </button>
           </template>
-          <NuxtLink v-else class="link-btn" to="/login?next=/profile">Привязать</NuxtLink>
+          <NuxtLink v-else class="link-btn" to="/login?next=/profile"
+            >Привязать</NuxtLink
+          >
         </div>
 
-        <hr class="divider">
+        <hr class="divider" />
 
         <div class="foot-row">
-          <NuxtLink v-if="profile.role !== 'admin'" to="/progress" class="link-btn">Прогресс чтения</NuxtLink>
+          <NuxtLink
+            v-if="profile.role !== 'admin'"
+            to="/progress"
+            class="link-btn"
+            >Прогресс чтения</NuxtLink
+          >
           <button class="link-btn" type="button" @click="logout">Выйти</button>
         </div>
       </div>
@@ -571,9 +665,9 @@ useHead({
   place-items: center;
   border-radius: var(--radius-round);
   font-size: 11px;
-  background: rgba(31, 24, 19, .78);
+  background: rgba(31, 24, 19, 0.78);
   opacity: 0;
-  transition: opacity .2s ease;
+  transition: opacity 0.2s ease;
 }
 
 .avatar-btn:hover .avatar-hint,
@@ -590,7 +684,7 @@ useHead({
 
 .name-field label {
   font-size: 12px;
-  opacity: .5;
+  opacity: 0.5;
 }
 
 .name-field input {
@@ -618,7 +712,7 @@ useHead({
 
 .about-field label {
   font-size: 12px;
-  opacity: .5;
+  opacity: 0.5;
 }
 
 .about-field textarea {
@@ -643,7 +737,7 @@ useHead({
 .about-count {
   align-self: flex-end;
   font-size: 11px;
-  opacity: .4;
+  opacity: 0.4;
   font-variant-numeric: tabular-nums lining-nums;
 }
 
@@ -655,8 +749,14 @@ useHead({
   margin-top: 18px;
 }
 
-.ok-msg { font-size: 13px; color: var(--moss); }
-.err-msg { font-size: 13px; color: var(--danger); }
+.ok-msg {
+  font-size: 13px;
+  color: var(--moss);
+}
+.err-msg {
+  font-size: 13px;
+  color: var(--danger);
+}
 
 /* ── Рамка ──────────────────────────────────── */
 /* Просвет между рамками щедрее обычного: рамка вылезает за круг, и на тесной
@@ -698,22 +798,22 @@ useHead({
 .frame-name {
   font-size: 11px;
   line-height: 1.25;
-  opacity: .6;
+  opacity: 0.6;
   text-align: center;
 }
 
 .frame-pick.active .frame-name {
-  opacity: .9;
+  opacity: 0.9;
 }
 
 /* Рамка из каталога, но не выигранная: так помечено то, что видно только
    хозяйке сайта, — чтобы не спутать примерку со своей наградой. */
 .frame-tag {
   font-size: 10px;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ember-soft);
-  opacity: .65;
+  opacity: 0.65;
 }
 
 /* Скин — как рамка в сетке, только превью прямоугольное: это кусок страницы. */
@@ -738,10 +838,21 @@ useHead({
   cursor: pointer;
 }
 
-.skin-pick:hover { background: rgba(241, 230, 210, .05); }
-.skin-pick.active { border-color: var(--ember-soft); background: rgba(241, 230, 210, .05); }
-.skin-pick.picked { border-color: rgba(232, 176, 122, .45); border-style: dashed; }
-.skin-pick:disabled { cursor: default; opacity: .7; }
+.skin-pick:hover {
+  background: rgba(241, 230, 210, 0.05);
+}
+.skin-pick.active {
+  border-color: var(--ember-soft);
+  background: rgba(241, 230, 210, 0.05);
+}
+.skin-pick.picked {
+  border-color: rgba(232, 176, 122, 0.45);
+  border-style: dashed;
+}
+.skin-pick:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
 
 .skin-thumb {
   position: relative;
@@ -813,7 +924,7 @@ useHead({
 .section-note {
   margin: 0 0 14px;
   font-size: 12px;
-  opacity: .45;
+  opacity: 0.45;
 }
 
 .provider-row {
@@ -846,14 +957,18 @@ useHead({
   text-decoration: none;
 }
 
-.link-btn:hover { text-decoration: underline; }
+.link-btn:hover {
+  text-decoration: underline;
+}
 
 .foot-row {
   display: flex;
   gap: 20px;
 }
 
-.foot-row .link-btn { margin-left: 0; }
+.foot-row .link-btn {
+  margin-left: 0;
+}
 
 @media (max-width: 480px) {
   .avatar-row {

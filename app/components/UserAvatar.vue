@@ -1,28 +1,31 @@
 <script setup lang="ts">
-import type { AvatarFrame } from '#shared/utils/avatarFrames'
-import { frameScale } from '#shared/utils/avatarFrames'
+import type { AvatarFrame } from "#shared/utils/avatarFrames";
+import { frameScale } from "#shared/utils/avatarFrames";
 
 /**
  * Аватарка с рамкой. Рамка не сжимает аватарку, а ложится поверх и выходит за
  * её края: человек с рамкой должен смотреться нарядно, а не мельче соседа.
  * Место в разметке аватарка занимает то же самое — рамка выходит за него.
  */
-const props = withDefaults(defineProps<{
-  src?: string | null
-  /** Имя — из него берётся буква, когда картинки нет, и подпись для читалки. */
-  name?: string | null
-  frame?: AvatarFrame | null
-  /** Сторона круга в пикселях. */
-  size: number
-  /** Пустая подпись — когда рядом и так написано, чьё это лицо. */
-  alt?: string | null
-}>(), { alt: undefined })
+const props = withDefaults(
+  defineProps<{
+    src?: string | null;
+    /** Имя — из него берётся буква, когда картинки нет, и подпись для читалки. */
+    name?: string | null;
+    frame?: AvatarFrame | null;
+    /** Сторона круга в пикселях. */
+    size: number;
+    /** Пустая подпись — когда рядом и так написано, чьё это лицо. */
+    alt?: string | null;
+  }>(),
+  { alt: undefined },
+);
 
-const initial = computed(() => (props.name?.trim() || '?')[0]!.toUpperCase())
+const initial = computed(() => (props.name?.trim() || "?")[0]!.toUpperCase());
 
 // Насколько картинка рамки шире вписанной в неё аватарки: у рамки с дыркой в
 // 72% ширины кольцо занимает по 19% с каждой стороны.
-const scale = computed(() => (props.frame ? frameScale(props.frame.fit) : 1))
+const scale = computed(() => (props.frame ? frameScale(props.frame.fit) : 1));
 </script>
 
 <template>
@@ -34,8 +37,17 @@ const scale = computed(() => (props.frame ? frameScale(props.frame.fit) : 1))
     <!-- Аватарки и рамки чаще всего ниже первого экрана — в обсуждении, в списках.
          Рамка — картинка 512×512 на сто с лишним КБ при показе в 48 px: качать
          её, пока до неё не долистали, незачем. На экране lazy грузит сразу. -->
-    <img v-if="src" :src="src" class="ua-pic" :alt="alt ?? name ?? ''" loading="lazy" decoding="async">
-    <span v-else class="ua-letter display" aria-hidden="true">{{ initial }}</span>
+    <img
+      v-if="src"
+      :src="src"
+      class="ua-pic"
+      :alt="alt ?? name ?? ''"
+      loading="lazy"
+      decoding="async"
+    />
+    <span v-else class="ua-letter display" aria-hidden="true">{{
+      initial
+    }}</span>
     <img
       v-if="frame"
       :src="frame.url"
@@ -45,7 +57,7 @@ const scale = computed(() => (props.frame ? frameScale(props.frame.fit) : 1))
       alt=""
       aria-hidden="true"
       draggable="false"
-    >
+    />
   </span>
 </template>
 
@@ -86,7 +98,7 @@ const scale = computed(() => (props.frame ? frameScale(props.frame.fit) : 1))
 /* Цвет и фон буква берёт с самой аватарки — так каждое место на сайте
    оставляет себе свою заглушку, а компонент не спорит с их оформлением. */
 .ua-letter {
-  font-size: calc(var(--ua-size) * .44);
+  font-size: calc(var(--ua-size) * 0.44);
   font-weight: 600;
 }
 

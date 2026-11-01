@@ -1,15 +1,15 @@
 <script setup lang="ts">
 // Пункт шторки и колонки админки: значок, подпись, подсветка текущей страницы.
 defineProps<{
-  to: string
-  icon: string
-  label: string
-  active?: boolean
-  accent?: boolean
-  compact?: boolean
+  to: string;
+  icon: string;
+  label: string;
+  active?: boolean;
+  accent?: boolean;
+  compact?: boolean;
   /** Точка «есть новое» — без числа, только знак, что туда стоит заглянуть. */
-  dot?: boolean
-}>()
+  dot?: boolean;
+}>();
 </script>
 
 <template>
@@ -36,7 +36,9 @@ defineProps<{
   color: var(--parchment-2);
   font-size: 14px;
   text-decoration: none;
-  transition: background .15s, color .15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .side-link.compact {
@@ -53,7 +55,7 @@ defineProps<{
 }
 
 .side-link.active {
-  background: rgba(214, 136, 62, .14);
+  background: rgba(214, 136, 62, 0.14);
   color: var(--ember-soft);
   font-weight: 500;
 }
@@ -64,7 +66,7 @@ defineProps<{
   height: 8px;
   border-radius: var(--radius-round);
   background: var(--ember-soft);
-  box-shadow: 0 0 6px rgba(214, 136, 62, .7);
+  box-shadow: 0 0 6px rgba(214, 136, 62, 0.7);
 }
 
 .side-label {

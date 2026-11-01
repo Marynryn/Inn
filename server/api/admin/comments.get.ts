@@ -1,12 +1,12 @@
-import { useDb } from '../../utils/db'
-import { comments, chapters, users } from '../../database/schema'
-import { desc, leftJoin, eq } from 'drizzle-orm'
+import { useDb } from "../../utils/db";
+import { comments, chapters, users } from "../../database/schema";
+import { desc, leftJoin, eq } from "drizzle-orm";
 
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
-  if (session.user?.role !== 'admin') throw createError({ statusCode: 403 })
+  const session = await getUserSession(event);
+  if (session.user?.role !== "admin") throw createError({ statusCode: 403 });
 
-  const db = useDb()
+  const db = useDb();
 
   const rows = await db
     .select({
@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
     .leftJoin(chapters, eq(comments.chapterId, chapters.id))
     .leftJoin(users, eq(comments.userId, users.id))
     .orderBy(desc(comments.createdAt))
-    .limit(50)
+    .limit(50);
 
-  return rows
-})
+  return rows;
+});

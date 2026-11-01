@@ -1,6 +1,6 @@
-import { eq, sql } from 'drizzle-orm'
-import { chapters, readingProgress } from '../../database/schema'
-import { useDb } from '../../utils/db'
+import { eq, sql } from "drizzle-orm";
+import { chapters, readingProgress } from "../../database/schema";
+import { useDb } from "../../utils/db";
 
 /**
  * Отметка о главе: дочитал и/или где остановился. Гостю молча отвечаем «ладно» —
@@ -10,24 +10,31 @@ import { useDb } from '../../utils/db'
  * и было бы обидно потерять галочку оттого, что главу переоткрыли с начала.
  */
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
-  const userId = (session.user as { id?: number } | undefined)?.id
-  if (!userId) return { ok: false }
+  const session = await getUserSession(event);
+  const userId = (session.user as { id?: number } | undefined)?.id;
+  if (!userId) return { ok: false };
 
-  const body = await readBody(event)
-  const chapterId = String(body?.chapterId ?? '').trim()
-  if (!chapterId) throw createError({ statusCode: 400, message: 'Нужен chapterId' })
+  const body = await readBody(event);
+  const chapterId = String(body?.chapterId ?? "").trim();
+  if (!chapterId)
+    throw createError({ statusCode: 400, message: "Нужен chapterId" });
 
-  const isRead = Boolean(body?.read)
-  const scroll = Number(body?.scroll)
-  const safeScroll = Number.isFinite(scroll) ? Math.min(Math.max(scroll, 0), 1) : 0
+  const isRead = Boolean(body?.read);
+  const scroll = Number(body?.scroll);
+  const safeScroll = Number.isFinite(scroll)
+    ? Math.min(Math.max(scroll, 0), 1)
+    : 0;
 
-  const db = useDb()
+  const db = useDb();
 
   // Закладка ставится только в существующей главе: иначе в таблице копились бы
   // строки про главы, которых нет.
-  const [chapter] = await db.select({ id: chapters.id }).from(chapters).where(eq(chapters.id, chapterId))
-  if (!chapter) throw createError({ statusCode: 404, message: 'Глава не найдена' })
+  const [chapter] = await db
+    .select({ id: chapters.id })
+    .from(chapters)
+    .where(eq(chapters.id, chapterId));
+  if (!chapter)
+    throw createError({ statusCode: 404, message: "Глава не найдена" });
 
   await db
     .insert(readingProgress)
@@ -39,7 +46,7 @@ export default defineEventHandler(async (event) => {
         scroll: safeScroll > 0 ? safeScroll : sql`scroll`,
         updatedAt: sql`(datetime('now'))`,
       },
-    })
+    });
 
-  return { ok: true }
-})
+  return { ok: true };
+});

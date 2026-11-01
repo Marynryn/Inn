@@ -1,21 +1,31 @@
 <script setup lang="ts">
-const props = defineProps<{ error: { statusCode: number; message?: string } }>()
+const props = defineProps<{
+  error: { statusCode: number; message?: string };
+}>();
 
-const { data: settings } = await useFetch('/api/settings')
+const { data: settings } = await useFetch("/api/settings");
 
 useHead({
-  title: props.error.statusCode === 404 ? '404 · Странствующая Таверна' : 'Ошибка · Странствующая Таверна',
+  title:
+    props.error.statusCode === 404
+      ? "404 · Странствующая Таверна"
+      : "Ошибка · Странствующая Таверна",
   // Если страница сломается уже в браузере, сервер к тому времени ответил 200 —
   // и Яндекс, выполняющий JS, взял бы «Ошибку» в выдачу вместо настоящей страницы.
-  meta: [{ name: 'robots', content: 'noindex' }],
-})
+  meta: [{ name: "robots", content: "noindex" }],
+});
 </script>
 
 <template>
   <div class="error-page">
     <template v-if="error.statusCode === 404">
       <NuxtImg src="/404.webp" alt="404 — страница съедена" class="error-img" />
-      <p class="error-sub">{{ settings?.error_404_sub || 'Козёл добрался до этой страницы раньше тебя.' }}</p>
+      <p class="error-sub">
+        {{
+          settings?.error_404_sub ||
+          "Козёл добрался до этой страницы раньше тебя."
+        }}
+      </p>
     </template>
 
     <template v-else-if="error.statusCode === 403">
@@ -24,16 +34,24 @@ useHead({
     </template>
 
     <template v-else-if="error.statusCode === 500">
-      <NuxtImg src="/500.webp" alt="500 — что-то пошло не так" class="error-img" />
-      <p class="error-sub">{{ error.message || 'Таверна временно закрыта. Попробуй позже.' }}</p>
+      <NuxtImg
+        src="/500.webp"
+        alt="500 — что-то пошло не так"
+        class="error-img"
+      />
+      <p class="error-sub">
+        {{ error.message || "Таверна временно закрыта. Попробуй позже." }}
+      </p>
     </template>
 
     <template v-else>
       <div class="error-code display">{{ error.statusCode }}</div>
-      <p class="error-sub">{{ error.message || 'Что-то пошло не так.' }}</p>
+      <p class="error-sub">{{ error.message || "Что-то пошло не так." }}</p>
     </template>
 
-    <NuxtLink href="/" class="btn-home btn btn--primary btn--lg">← На главную</NuxtLink>
+    <NuxtLink href="/" class="btn-home btn btn--primary btn--lg"
+      >← На главную</NuxtLink
+    >
   </div>
 </template>
 
@@ -61,13 +79,13 @@ useHead({
   font-size: 96px;
   line-height: 1;
   color: #8b5e3c;
-  opacity: .25;
+  opacity: 0.25;
 }
 
 .error-sub {
   font-size: 15px;
   color: #3a2510;
-  opacity: .7;
+  opacity: 0.7;
   margin: 0;
   text-align: center;
 }

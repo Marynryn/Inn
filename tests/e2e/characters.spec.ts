@@ -1,181 +1,225 @@
-import { test, expect, open, login, apiLogin } from './helpers'
-import { ADMIN, READER } from './fixtures'
+import { test, expect, open, login, apiLogin } from "./helpers";
+import { ADMIN, READER } from "./fixtures";
 
-const SEARCH = 'Имя по-русски или в оригинале…'
+const SEARCH = "Имя по-русски или в оригинале…";
 
-test.describe('Карточки персонажей', () => {
-  test('карточки видны сразу, поиск ищет и по-русски, и латиницей', async ({ page }) => {
-    await open(page, '/characters')
-    const cards = page.locator('.card')
-    await expect(cards.first()).toBeVisible()
+test.describe("Карточки персонажей", () => {
+  test("карточки видны сразу, поиск ищет и по-русски, и латиницей", async ({
+    page,
+  }) => {
+    await open(page, "/characters");
+    const cards = page.locator(".card");
+    await expect(cards.first()).toBeVisible();
     // В стенде во втором томе одна глава из нужных 35, так что открыт только
     // первый том — а в нём известных персонажей за три десятка.
-    expect(await cards.count()).toBeGreaterThan(30)
+    expect(await cards.count()).toBeGreaterThan(30);
 
-    await page.getByPlaceholder(SEARCH).fill('erin')
-    await expect(cards).toHaveCount(1)
-    await expect(cards.first().locator('.name')).toHaveText('Эрин Солстис')
+    await page.getByPlaceholder(SEARCH).fill("erin");
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first().locator(".name")).toHaveText("Эрин Солстис");
 
-    await page.getByPlaceholder(SEARCH).fill('торен')
-    await expect(cards.first().locator('.name')).toHaveText('Торен')
-  })
+    await page.getByPlaceholder(SEARCH).fill("торен");
+    await expect(cards.first().locator(".name")).toHaveText("Торен");
+  });
 
-  test('том открывается после 35 глав: начатого тома в карточках нет', async ({ request }) => {
-    const res = await request.get('/api/characters')
-    expect(res.ok()).toBeTruthy()
-    const { characters: cards } = await res.json() as { characters: { volume: number }[] }
-    expect(cards.length).toBeGreaterThan(0)
-    expect(cards.every(c => c.volume === 1)).toBe(true)
-  })
+  test("том открывается после 35 глав: начатого тома в карточках нет", async ({
+    request,
+  }) => {
+    const res = await request.get("/api/characters");
+    expect(res.ok()).toBeTruthy();
+    const { characters: cards } = (await res.json()) as {
+      characters: { volume: number }[];
+    };
+    expect(cards.length).toBeGreaterThan(0);
+    expect(cards.every((c) => c.volume === 1)).toBe(true);
+  });
 
-  test('фильтр по расе сужает список, «Сбросить» возвращает всех', async ({ page }) => {
-    await open(page, '/characters')
-    const cards = page.locator('.card')
-    const total = await cards.count()
+  test("фильтр по расе сужает список, «Сбросить» возвращает всех", async ({
+    page,
+  }) => {
+    await open(page, "/characters");
+    const cards = page.locator(".card");
+    const total = await cards.count();
 
-    await page.locator('.filter select').nth(1).selectOption({ label: 'Гоблин' })
-    const filtered = await cards.count()
-    expect(filtered).toBeGreaterThan(0)
-    expect(filtered).toBeLessThan(total)
-    await expect(page.getByText(`Найдено: ${filtered}`)).toBeVisible()
+    await page
+      .locator(".filter select")
+      .nth(1)
+      .selectOption({ label: "Гоблин" });
+    const filtered = await cards.count();
+    expect(filtered).toBeGreaterThan(0);
+    expect(filtered).toBeLessThan(total);
+    await expect(page.getByText(`Найдено: ${filtered}`)).toBeVisible();
 
-    await page.getByRole('button', { name: 'Сбросить' }).click()
-    await expect(cards).toHaveCount(total)
-  })
+    await page.getByRole("button", { name: "Сбросить" }).click();
+    await expect(cards).toHaveCount(total);
+  });
 
-  test('огонёк зажигается, гаснет и поднимает карточку в сортировке', async ({ page }) => {
-    await open(page, '/characters')
-    await page.getByPlaceholder(SEARCH).fill('Торен')
-    const card = page.locator('.card').first()
-    const flame = card.locator('.flame')
+  test("огонёк зажигается, гаснет и поднимает карточку в сортировке", async ({
+    page,
+  }) => {
+    await open(page, "/characters");
+    await page.getByPlaceholder(SEARCH).fill("Торен");
+    const card = page.locator(".card").first();
+    const flame = card.locator(".flame");
 
     // Страница зажигает огонёк сразу, а на сервер ходит следом; пока ответ не
     // пришёл, повторные клики она пропускает. Поэтому ждём ответ, а не рисунок.
-    const toggled = () => page.waitForResponse(r => r.url().includes('/flame') && r.ok())
+    const toggled = () =>
+      page.waitForResponse((r) => r.url().includes("/flame") && r.ok());
 
-    await expect(flame.locator('.num')).toHaveText('0')
-    let done = toggled()
-    await flame.click()
-    await done
-    await expect(flame).toHaveClass(/lit/)
-    await expect(flame.locator('.num')).toHaveText('1')
+    await expect(flame.locator(".num")).toHaveText("0");
+    let done = toggled();
+    await flame.click();
+    await done;
+    await expect(flame).toHaveClass(/lit/);
+    await expect(flame.locator(".num")).toHaveText("1");
 
     // Огонёк — единственный на странице: по огонькам Торен встаёт первым.
-    await page.getByPlaceholder(SEARCH).fill('')
-    await page.getByRole('button', { name: 'По огонькам' }).click()
-    await expect(page.locator('.card').first().locator('.name')).toHaveText('Торен')
+    await page.getByPlaceholder(SEARCH).fill("");
+    await page.getByRole("button", { name: "По огонькам" }).click();
+    await expect(page.locator(".card").first().locator(".name")).toHaveText(
+      "Торен",
+    );
 
-    done = toggled()
-    await page.locator('.card').first().locator('.flame').click()
-    await done
-    await expect(page.locator('.card').first().locator('.flame .num')).toHaveText('0')
-  })
+    done = toggled();
+    await page.locator(".card").first().locator(".flame").click();
+    await done;
+    await expect(
+      page.locator(".card").first().locator(".flame .num"),
+    ).toHaveText("0");
+  });
 
-  test('клик по карточке открывает её, Esc закрывает', async ({ page }) => {
-    await open(page, '/characters')
-    await page.getByPlaceholder(SEARCH).fill('Торен')
-    await page.locator('.card').first().click()
+  test("клик по карточке открывает её, Esc закрывает", async ({ page }) => {
+    await open(page, "/characters");
+    await page.getByPlaceholder(SEARCH).fill("Торен");
+    await page.locator(".card").first().click();
 
-    const dialog = page.getByRole('dialog', { name: 'Торен' })
-    await expect(dialog).toBeVisible()
-    await expect(dialog.getByText('Нежить')).toBeVisible()
-    await expect(dialog.getByText('Toren')).toBeVisible()
+    const dialog = page.getByRole("dialog", { name: "Торен" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText("Нежить")).toBeVisible();
+    await expect(dialog.getByText("Toren")).toBeVisible();
 
-    await page.keyboard.press('Escape')
-    await expect(dialog).toBeHidden()
-  })
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  });
 
-  test('портрет с полной картинкой увеличивается, Esc закрывает её раньше карточки', async ({ page }) => {
-    await open(page, '/characters')
-    await page.getByPlaceholder(SEARCH).fill('Эрин')
-    await page.locator('.card').first().click()
+  test("портрет с полной картинкой увеличивается, Esc закрывает её раньше карточки", async ({
+    page,
+  }) => {
+    await open(page, "/characters");
+    await page.getByPlaceholder(SEARCH).fill("Эрин");
+    await page.locator(".card").first().click();
 
-    const dialog = page.getByRole('dialog', { name: 'Эрин Солстис' })
-    await dialog.getByRole('button', { name: /Показать картинку целиком/ }).click()
+    const dialog = page.getByRole("dialog", { name: "Эрин Солстис" });
+    await dialog
+      .getByRole("button", { name: /Показать картинку целиком/ })
+      .click();
 
-    const photo = page.locator('.photo img')
-    await expect(photo).toBeVisible()
-    await expect(photo).toHaveAttribute('src', '/characters/full/erin.webp')
+    const photo = page.locator(".photo img");
+    await expect(photo).toBeVisible();
+    await expect(photo).toHaveAttribute("src", "/characters/full/erin.webp");
 
     // Щелчок по самой картинке приближает её, повторный — возвращает как было.
-    await photo.click()
-    await expect(photo).toHaveClass(/zoomed/)
-    await photo.click()
-    await expect(photo).not.toHaveClass(/zoomed/)
+    await photo.click();
+    await expect(photo).toHaveClass(/zoomed/);
+    await photo.click();
+    await expect(photo).not.toHaveClass(/zoomed/);
 
     // Первый Esc убирает картинку, лист под ней остаётся открытым.
-    await page.keyboard.press('Escape')
-    await expect(photo).toBeHidden()
-    await expect(dialog).toBeVisible()
+    await page.keyboard.press("Escape");
+    await expect(photo).toBeHidden();
+    await expect(dialog).toBeVisible();
 
-    await page.keyboard.press('Escape')
-    await expect(dialog).toBeHidden()
-  })
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  });
 
-  test('без полной картинки увеличивается сама карточка', async ({ page }) => {
-    await open(page, '/characters')
-    await page.getByPlaceholder(SEARCH).fill('Торен')
-    await page.locator('.card').first().click()
+  test("без полной картинки увеличивается сама карточка", async ({ page }) => {
+    await open(page, "/characters");
+    await page.getByPlaceholder(SEARCH).fill("Торен");
+    await page.locator(".card").first().click();
 
-    const dialog = page.getByRole('dialog', { name: 'Торен' })
-    await dialog.getByRole('button', { name: /Показать картинку целиком/ }).click()
-    await expect(page.locator('.photo img')).toHaveAttribute('src', '/characters/toren.webp')
-  })
+    const dialog = page.getByRole("dialog", { name: "Торен" });
+    await dialog
+      .getByRole("button", { name: /Показать картинку целиком/ })
+      .click();
+    await expect(page.locator(".photo img")).toHaveAttribute(
+      "src",
+      "/characters/toren.webp",
+    );
+  });
 
-  test('админ прячет карточку, и читатель её не получает', async ({ page, browser }) => {
-    await login(page, ADMIN)
-    await open(page, '/characters')
-    await page.getByPlaceholder(SEARCH).fill('Торен')
-    const card = page.locator('.card').first()
-    await card.locator('.hide-btn').click()
-    await expect(card).toHaveClass(/hidden/)
+  test("админ прячет карточку, и читатель её не получает", async ({
+    page,
+    browser,
+  }) => {
+    await login(page, ADMIN);
+    await open(page, "/characters");
+    await page.getByPlaceholder(SEARCH).fill("Торен");
+    const card = page.locator(".card").first();
+    await card.locator(".hide-btn").click();
+    await expect(card).toHaveClass(/hidden/);
 
-    const guest = await browser.newContext()
-    const res = await guest.request.get('/api/characters')
-    const names = ((await res.json()).characters as { name: string }[]).map(c => c.name)
-    expect(names).not.toContain('Торен')
-    await guest.close()
+    const guest = await browser.newContext();
+    const res = await guest.request.get("/api/characters");
+    const names = ((await res.json()).characters as { name: string }[]).map(
+      (c) => c.name,
+    );
+    expect(names).not.toContain("Торен");
+    await guest.close();
 
-    await card.locator('.hide-btn').click()
-    await expect(card).not.toHaveClass(/hidden/)
-  })
+    await card.locator(".hide-btn").click();
+    await expect(card).not.toHaveClass(/hidden/);
+  });
 
-  test('админ видит, кто зажёг огонёк', async ({ page }) => {
-    await login(page, ADMIN)
-    await open(page, '/characters')
-    await page.getByPlaceholder(SEARCH).fill('Торен')
-    const card = page.locator('.card').first()
+  test("админ видит, кто зажёг огонёк", async ({ page }) => {
+    await login(page, ADMIN);
+    await open(page, "/characters");
+    await page.getByPlaceholder(SEARCH).fill("Торен");
+    const card = page.locator(".card").first();
     // Только POST: список «кто зажёг» — тоже /flames, и его ответ не в счёт.
-    const toggled = () => page.waitForResponse(r => r.url().endsWith('/flame') && r.request().method() === 'POST' && r.ok())
+    const toggled = () =>
+      page.waitForResponse(
+        (r) =>
+          r.url().endsWith("/flame") &&
+          r.request().method() === "POST" &&
+          r.ok(),
+      );
 
-    const flame = card.locator('.flame')
-    let done = toggled()
-    await flame.click()
-    await done
-    await expect(flame.locator('.num')).toHaveText('1')
+    const flame = card.locator(".flame");
+    let done = toggled();
+    await flame.click();
+    await done;
+    await expect(flame.locator(".num")).toHaveText("1");
 
     // Зажали на 0,7 с: показан список, а сам огонёк не переключился.
-    await flame.click({ delay: 700 })
-    const who = page.locator('.flame-who')
-    await expect(who).toContainText(ADMIN.name)
-    await expect(flame.locator('.num')).toHaveText('1')
+    await flame.click({ delay: 700 });
+    const who = page.locator(".flame-who");
+    await expect(who).toContainText(ADMIN.name);
+    await expect(flame.locator(".num")).toHaveText("1");
 
     // Коротким кликом гасим за собой: тест огонька ждёт, что у Торена их ноль.
-    done = toggled()
-    await flame.click()
-    await done
-    await expect(who).toBeHidden()
-    await expect(flame.locator('.num')).toHaveText('0')
-  })
+    done = toggled();
+    await flame.click();
+    await done;
+    await expect(who).toBeHidden();
+    await expect(flame.locator(".num")).toHaveText("0");
+  });
 
-  test('кто зажёг огонёк — только админу: гостю и читателю отказ', async ({ browser }) => {
-    const guest = await browser.newContext()
-    expect((await guest.request.get('/api/admin/characters/toren/flames')).status()).toBe(403)
-    await guest.close()
+  test("кто зажёг огонёк — только админу: гостю и читателю отказ", async ({
+    browser,
+  }) => {
+    const guest = await browser.newContext();
+    expect(
+      (await guest.request.get("/api/admin/characters/toren/flames")).status(),
+    ).toBe(403);
+    await guest.close();
 
-    const reader = await browser.newContext()
-    await apiLogin(reader.request, READER)
-    expect((await reader.request.get('/api/admin/characters/toren/flames')).status()).toBe(403)
-    await reader.close()
-  })
-})
+    const reader = await browser.newContext();
+    await apiLogin(reader.request, READER);
+    expect(
+      (await reader.request.get("/api/admin/characters/toren/flames")).status(),
+    ).toBe(403);
+    await reader.close();
+  });
+});

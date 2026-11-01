@@ -1,4 +1,4 @@
-import type { Character } from '#shared/utils/characters'
+import type { Character } from "#shared/utils/characters";
 
 /**
  * Огонёк на карточке персонажа — общий для страницы персонажей и игры: обе
@@ -6,22 +6,25 @@ import type { Character } from '#shared/utils/characters'
  * ответ только сверяет счётчик. Не вышло — откатываем.
  */
 export function useCharacterFlame() {
-  const busy = new Set<string>()
+  const busy = new Set<string>();
 
   return async (c: Character) => {
-    if (busy.has(c.id)) return
-    busy.add(c.id)
-    const before = { lit: c.lit, flames: c.flames }
-    c.lit = !c.lit
-    c.flames += c.lit ? 1 : -1
+    if (busy.has(c.id)) return;
+    busy.add(c.id);
+    const before = { lit: c.lit, flames: c.flames };
+    c.lit = !c.lit;
+    c.flames += c.lit ? 1 : -1;
     try {
-      const res = await $fetch<{ lit: boolean; flames: number }>(`/api/characters/${c.id}/flame`, { method: 'POST' })
-      c.lit = res.lit
-      c.flames = res.flames
+      const res = await $fetch<{ lit: boolean; flames: number }>(
+        `/api/characters/${c.id}/flame`,
+        { method: "POST" },
+      );
+      c.lit = res.lit;
+      c.flames = res.flames;
     } catch {
-      Object.assign(c, before)
+      Object.assign(c, before);
     } finally {
-      busy.delete(c.id)
+      busy.delete(c.id);
     }
-  }
+  };
 }

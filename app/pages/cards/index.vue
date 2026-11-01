@@ -5,37 +5,50 @@
  * про неё не знает. Пока карты в разработке, страница только для админов;
  * стол на двоих накрывают в /board.
  */
-import { newCardsGame, randomCardsTeam, cardsApply, cardsComputerMove, type Game, type HeroId, type Action } from '#shared/utils/cards'
+import {
+  newCardsGame,
+  randomCardsTeam,
+  cardsApply,
+  cardsComputerMove,
+  type Game,
+  type HeroId,
+  type Action,
+} from "#shared/utils/cards";
 
-definePageMeta({ middleware: 'admin' })
+definePageMeta({ middleware: "admin" });
 
-const { data: settings } = await useFetch('/api/settings')
+const { data: settings } = await useFetch("/api/settings");
 
-useHead({ title: 'Карты таверны · Странствующая Таверна', meta: [{ name: 'robots', content: 'noindex' }] })
+useHead({
+  title: "Карты таверны · Странствующая Таверна",
+  meta: [{ name: "robots", content: "noindex" }],
+});
 
-const picked = ref<HeroId[]>([])
-const game = shallowRef<Game | null>(null)
+const picked = ref<HeroId[]>([]);
+const game = shallowRef<Game | null>(null);
 
 function start() {
-  const seed = Date.now()
-  game.value = newCardsGame([...picked.value], randomCardsTeam(seed + 1), seed)
+  const seed = Date.now();
+  game.value = newCardsGame([...picked.value], randomCardsTeam(seed + 1), seed);
 }
 
 function act(a: Action) {
-  if (game.value) game.value = cardsApply(game.value, 0, a)
+  if (game.value) game.value = cardsApply(game.value, 0, a);
 }
 
 // Ход компьютера — с паузой, чтобы было видно, что он делает.
-let timer: ReturnType<typeof setTimeout> | null = null
+let timer: ReturnType<typeof setTimeout> | null = null;
 watch(game, (g) => {
-  if (timer) clearTimeout(timer)
-  if (!g || g.phase !== 'action' || g.choosing !== null || g.turn !== 1) return
+  if (timer) clearTimeout(timer);
+  if (!g || g.phase !== "action" || g.choosing !== null || g.turn !== 1) return;
   timer = setTimeout(() => {
-    const cur = game.value
-    if (cur) game.value = cardsApply(cur, 1, cardsComputerMove(cur))
-  }, 750)
-})
-onBeforeUnmount(() => { if (timer) clearTimeout(timer) })
+    const cur = game.value;
+    if (cur) game.value = cardsApply(cur, 1, cardsComputerMove(cur));
+  }, 750);
+});
+onBeforeUnmount(() => {
+  if (timer) clearTimeout(timer);
+});
 </script>
 
 <template>
@@ -51,15 +64,23 @@ onBeforeUnmount(() => { if (timer) clearTimeout(timer) })
         <div class="eyebrow">Карточная игра · The Wandering Inn</div>
         <h1 class="page-title title">Карты таверны</h1>
         <p class="lead">
-          Собери отряд из трёх героев и сразись с компьютером. Кубики стихий — твой ресурс:
-          ими платят за удары, навыки и карты. Стихии сталкиваются и дают реакции.
-          Сыграть с другом — в <NuxtLink to="/board">настольной игре</NuxtLink>: там накрывают стол на двоих.
+          Собери отряд из трёх героев и сразись с компьютером. Кубики стихий —
+          твой ресурс: ими платят за удары, навыки и карты. Стихии сталкиваются
+          и дают реакции. Сыграть с другом — в
+          <NuxtLink to="/board">настольной игре</NuxtLink>: там накрывают стол
+          на двоих.
         </p>
       </header>
 
       <CardsPicker v-model="picked">
         <div class="actions">
-          <button class="btn btn--primary" :disabled="picked.length !== 3" @click="start">В бой</button>
+          <button
+            class="btn btn--primary"
+            :disabled="picked.length !== 3"
+            @click="start"
+          >
+            В бой
+          </button>
         </div>
       </CardsPicker>
     </main>
@@ -67,8 +88,12 @@ onBeforeUnmount(() => { if (timer) clearTimeout(timer) })
     <main v-else class="wrap">
       <CardsTable :game="game" @act="act" @leave="game = null">
         <template #over>
-          <button class="btn btn--primary" @click="start">Ещё партия тем же отрядом</button>
-          <button class="btn btn--ghost" @click="game = null">Сменить отряд</button>
+          <button class="btn btn--primary" @click="start">
+            Ещё партия тем же отрядом
+          </button>
+          <button class="btn btn--ghost" @click="game = null">
+            Сменить отряд
+          </button>
         </template>
       </CardsTable>
       <CardsRules />
@@ -79,7 +104,6 @@ onBeforeUnmount(() => { if (timer) clearTimeout(timer) })
 </template>
 
 <style scoped>
-
 .page {
   min-height: 100vh;
   background: var(--bg-dark);
@@ -97,17 +121,21 @@ onBeforeUnmount(() => { if (timer) clearTimeout(timer) })
   padding: 96px 16px 48px;
 }
 
-.intro { margin-bottom: 24px; }
+.intro {
+  margin-bottom: 24px;
+}
 
 .eyebrow {
   font-size: 12px;
-  letter-spacing: .18em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ember-soft);
   margin-bottom: 12px;
 }
 
-.title { margin: 0 0 12px; }
+.title {
+  margin: 0 0 12px;
+}
 
 .lead {
   margin: 0;
@@ -121,9 +149,16 @@ onBeforeUnmount(() => { if (timer) clearTimeout(timer) })
   font-size: 22px;
 }
 
-.note { color: var(--text-muted); font-size: 14px; }
+.note {
+  color: var(--text-muted);
+  font-size: 14px;
+}
 
-.actions { margin: 20px 0; }
+.actions {
+  margin: 20px 0;
+}
 
-.lead a { color: var(--ember-soft); }
+.lead a {
+  color: var(--ember-soft);
+}
 </style>

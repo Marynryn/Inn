@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import type { Character, Origin } from '#shared/utils/characters'
+import type { Character, Origin } from "#shared/utils/characters";
 
 const props = defineProps<{
-  character: Character
-  origin?: Origin | null
-}>()
+  character: Character;
+  origin?: Origin | null;
+}>();
 
 const emit = defineEmits<{
-  close: []
-  flame: [character: Character]
-}>()
+  close: [];
+  flame: [character: Character];
+}>();
 
 // Цвета свечения по расе: один или до трёх. Недостающие повторяют последний,
 // так одноцветная карточка светится ровно, а переливчатая — тремя пятнами.
 const glowStyle = computed(() => {
-  const [a, b = a, c = b] = props.character.glow
-  return { '--glow': a, '--glow-2': b, '--glow-3': c }
-})
+  const [a, b = a, c = b] = props.character.glow;
+  return { "--glow": a, "--glow-2": b, "--glow-3": c };
+});
 
 /**
  * Почти чёрное свечение (у Богов) на тёмной подложке не видно вовсе — тень
@@ -24,17 +24,20 @@ const glowStyle = computed(() => {
  * Порог — по яркости цвета.
  */
 const luminance = (hex: string) => {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
-  if (!m) return 1
-  const n = parseInt(m[1]!, 16)
-  const lin = (c: number) => (c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  return 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255)
-}
-const eclipse = computed(() => luminance(props.character.glow[0] ?? '') < 0.02)
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return 1;
+  const n = parseInt(m[1]!, 16);
+  const lin = (c: number) =>
+    (c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  return (
+    0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255)
+  );
+};
+const eclipse = computed(() => luminance(props.character.glow[0] ?? "") < 0.02);
 
-const sheetEl = ref<HTMLElement | null>(null)
-const portraitEl = ref<HTMLElement | null>(null)
-const photoEl = ref<HTMLElement | null>(null)
+const sheetEl = ref<HTMLElement | null>(null);
+const portraitEl = ref<HTMLElement | null>(null);
+const photoEl = ref<HTMLElement | null>(null);
 
 /**
  * Лист вылетает из карточки: в первом кадре он сжат до размера превью и стоит
@@ -44,240 +47,287 @@ const photoEl = ref<HTMLElement | null>(null)
  *
  * Тем же путём картинка целиком вырастает из портрета.
  */
-const flightFrames = (el: HTMLElement | null, from: Origin | null | undefined): Keyframe[] | null => {
-  if (!el || !from) return null
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return null
+const flightFrames = (
+  el: HTMLElement | null,
+  from: Origin | null | undefined,
+): Keyframe[] | null => {
+  if (!el || !from) return null;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    return null;
 
-  const rect = el.getBoundingClientRect()
-  const dx = from.x + from.width / 2 - (rect.x + rect.width / 2)
-  const dy = from.y + from.height / 2 - (rect.y + rect.height / 2)
-  const scale = Math.min(from.width / rect.width, from.height / rect.height)
+  const rect = el.getBoundingClientRect();
+  const dx = from.x + from.width / 2 - (rect.x + rect.width / 2);
+  const dy = from.y + from.height / 2 - (rect.y + rect.height / 2);
+  const scale = Math.min(from.width / rect.width, from.height / rect.height);
   return [
     { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: 0.3 },
-    { transform: 'none', opacity: 1 },
-  ]
-}
+    { transform: "none", opacity: 1 },
+  ];
+};
 
-let closing = false
+let closing = false;
 
 const close = () => {
-  if (closing) return
-  const frames = flightFrames(sheetEl.value, props.origin)
-  if (!frames) return emit('close')
-  closing = true
-  sheetEl.value!.animate([...frames].reverse(), { duration: 200, easing: 'cubic-bezier(.4, 0, 1, 1)', fill: 'forwards' })
-    .finished.finally(() => emit('close'))
-}
+  if (closing) return;
+  const frames = flightFrames(sheetEl.value, props.origin);
+  if (!frames) return emit("close");
+  closing = true;
+  sheetEl
+    .value!.animate([...frames].reverse(), {
+      duration: 200,
+      easing: "cubic-bezier(.4, 0, 1, 1)",
+      fill: "forwards",
+    })
+    .finished.finally(() => emit("close"));
+};
 
 /**
  * Картинка целиком поверх листа. Портрет в карточке квадратный, и у высокого
  * рисунка видна только середина — увеличение показывает его без обрезки.
  * Прокрутку страницы уже держит лист, второй замок не нужен.
  */
-const photo = ref(false)
+const photo = ref(false);
 // Пока картинка не разобрана и полёт не запущен, она спрятана: иначе на
 // медленной сети браузер успевает нарисовать её во весь размер за кадр до
 // анимации, и она вспыхивает, прыгает в портрет и только потом вылетает.
-const photoReady = ref(false)
-let photoFrom: Origin | null = null
-let photoClosing = false
+const photoReady = ref(false);
+let photoFrom: Origin | null = null;
+let photoClosing = false;
 
 /**
  * Увеличение внутри самой картинки — чтобы рассмотреть мелочи: колесо, щипок
  * двумя пальцами или щелчок по рисунку. Пока масштаб больше единицы, картинку
  * можно таскать, но за собственные края она не уходит.
  */
-const MIN_ZOOM = 1
-const MAX_ZOOM = 6
-const CLICK_ZOOM = 2.5
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 6;
+const CLICK_ZOOM = 2.5;
 
-const view = reactive({ scale: MIN_ZOOM, x: 0, y: 0 })
-const dragging = ref(false)
-const smooth = ref(false) // плавный переход нужен щелчку, а колесу и перетаскиванию мешает
+const view = reactive({ scale: MIN_ZOOM, x: 0, y: 0 });
+const dragging = ref(false);
+const smooth = ref(false); // плавный переход нужен щелчку, а колесу и перетаскиванию мешает
 
-const photoStyle = computed(() => ({ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }))
+const photoStyle = computed(() => ({
+  transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+}));
 
 const resetView = () => {
-  view.scale = MIN_ZOOM
-  view.x = 0
-  view.y = 0
-}
+  view.scale = MIN_ZOOM;
+  view.x = 0;
+  view.y = 0;
+};
 
 /** Сдвиг не больше той части картинки, что свисает за экран: пустых полей не будет. */
 const clampPan = () => {
-  const el = photoEl.value
-  if (!el) return
-  const slack = (size: number, screen: number) => Math.max(0, (size * view.scale - screen) / 2)
-  const maxX = slack(el.offsetWidth, window.innerWidth)
-  const maxY = slack(el.offsetHeight, window.innerHeight)
-  view.x = Math.min(maxX, Math.max(-maxX, view.x))
-  view.y = Math.min(maxY, Math.max(-maxY, view.y))
-}
+  const el = photoEl.value;
+  if (!el) return;
+  const slack = (size: number, screen: number) =>
+    Math.max(0, (size * view.scale - screen) / 2);
+  const maxX = slack(el.offsetWidth, window.innerWidth);
+  const maxY = slack(el.offsetHeight, window.innerHeight);
+  view.x = Math.min(maxX, Math.max(-maxX, view.x));
+  view.y = Math.min(maxY, Math.max(-maxY, view.y));
+};
 
 /** Масштаб вокруг точки экрана: что было под пальцем, под ним и остаётся. */
 const zoomAt = (clientX: number, clientY: number, next: number) => {
-  const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next))
-  const cx = window.innerWidth / 2
-  const cy = window.innerHeight / 2
-  const u = (clientX - cx - view.x) / view.scale
-  const v = (clientY - cy - view.y) / view.scale
-  view.scale = scale
+  const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  const u = (clientX - cx - view.x) / view.scale;
+  const v = (clientY - cy - view.y) / view.scale;
+  view.scale = scale;
   if (scale === MIN_ZOOM) {
-    view.x = 0
-    view.y = 0
-    return
+    view.x = 0;
+    view.y = 0;
+    return;
   }
-  view.x = clientX - cx - u * scale
-  view.y = clientY - cy - v * scale
-  clampPan()
-}
+  view.x = clientX - cx - u * scale;
+  view.y = clientY - cy - v * scale;
+  clampPan();
+};
 
 const onWheel = (e: WheelEvent) => {
-  smooth.value = false
-  zoomAt(e.clientX, e.clientY, view.scale * (e.deltaY < 0 ? 1.18 : 1 / 1.18))
-}
+  smooth.value = false;
+  zoomAt(e.clientX, e.clientY, view.scale * (e.deltaY < 0 ? 1.18 : 1 / 1.18));
+};
 
 /**
  * Пальцы и мышь — одними и теми же событиями. Два пальца — щипок, один —
  * таскание; если палец не сдвинулся, это щелчок, и он переключает масштаб.
  */
-const pointers = new Map<number, { x: number; y: number }>()
-let pinchFrom = 0
-let pinchScale = MIN_ZOOM
-let pressAt = { x: 0, y: 0 }
-let moved = false
+const pointers = new Map<number, { x: number; y: number }>();
+let pinchFrom = 0;
+let pinchScale = MIN_ZOOM;
+let pressAt = { x: 0, y: 0 };
+let moved = false;
 
 const onPointerDown = (e: PointerEvent) => {
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
-  ;(e.target as Element).setPointerCapture?.(e.pointerId)
-  smooth.value = false
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  (e.target as Element).setPointerCapture?.(e.pointerId);
+  smooth.value = false;
 
   if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()] as [{ x: number; y: number }, { x: number; y: number }]
-    pinchFrom = Math.hypot(a.x - b.x, a.y - b.y)
-    pinchScale = view.scale
-    moved = true
-    return
+    const [a, b] = [...pointers.values()] as [
+      { x: number; y: number },
+      { x: number; y: number },
+    ];
+    pinchFrom = Math.hypot(a.x - b.x, a.y - b.y);
+    pinchScale = view.scale;
+    moved = true;
+    return;
   }
-  pressAt = { x: e.clientX, y: e.clientY }
-  moved = false
-  dragging.value = view.scale > MIN_ZOOM
-}
+  pressAt = { x: e.clientX, y: e.clientY };
+  moved = false;
+  dragging.value = view.scale > MIN_ZOOM;
+};
 
 const onPointerMove = (e: PointerEvent) => {
-  const prev = pointers.get(e.pointerId)
-  if (!prev) return
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  const prev = pointers.get(e.pointerId);
+  if (!prev) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
   if (pointers.size === 2 && pinchFrom) {
-    const [a, b] = [...pointers.values()] as [{ x: number; y: number }, { x: number; y: number }]
-    zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, pinchScale * (Math.hypot(a.x - b.x, a.y - b.y) / pinchFrom))
-    return
+    const [a, b] = [...pointers.values()] as [
+      { x: number; y: number },
+      { x: number; y: number },
+    ];
+    zoomAt(
+      (a.x + b.x) / 2,
+      (a.y + b.y) / 2,
+      pinchScale * (Math.hypot(a.x - b.x, a.y - b.y) / pinchFrom),
+    );
+    return;
   }
 
-  if (Math.hypot(e.clientX - pressAt.x, e.clientY - pressAt.y) > 6) moved = true
-  if (!dragging.value) return
-  view.x += e.clientX - prev.x
-  view.y += e.clientY - prev.y
-  clampPan()
-}
+  if (Math.hypot(e.clientX - pressAt.x, e.clientY - pressAt.y) > 6)
+    moved = true;
+  if (!dragging.value) return;
+  view.x += e.clientX - prev.x;
+  view.y += e.clientY - prev.y;
+  clampPan();
+};
 
 const onPointerUp = (e: PointerEvent) => {
-  pointers.delete(e.pointerId)
-  if (pointers.size < 2) pinchFrom = 0
-  dragging.value = false
-  if (pointers.size || moved) return
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinchFrom = 0;
+  dragging.value = false;
+  if (pointers.size || moved) return;
 
-  smooth.value = true
-  zoomAt(e.clientX, e.clientY, view.scale > MIN_ZOOM ? MIN_ZOOM : CLICK_ZOOM)
-}
+  smooth.value = true;
+  zoomAt(e.clientX, e.clientY, view.scale > MIN_ZOOM ? MIN_ZOOM : CLICK_ZOOM);
+};
 
 const openPhoto = async () => {
-  resetView()
-  photoReady.value = false
-  const rect = portraitEl.value?.getBoundingClientRect()
-  photoFrom = rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null
-  photo.value = true
-  await nextTick()
+  resetView();
+  photoReady.value = false;
+  const rect = portraitEl.value?.getBoundingClientRect();
+  photoFrom = rect
+    ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+    : null;
+  photo.value = true;
+  await nextTick();
 
   // Картинку целиком браузер тянет только сейчас: пока она не разобрана, её
   // размеров нет и лететь неоткуда — ждём, а фон в это время уже затемнён.
-  const img = photoEl.value as HTMLImageElement | null
-  if (img && !img.complete) await img.decode().catch(() => {})
-  if (!photo.value) return
+  const img = photoEl.value as HTMLImageElement | null;
+  if (img && !img.complete) await img.decode().catch(() => {});
+  if (!photo.value) return;
 
   // Показать и запустить полёт в одном тике — между ними кадра не будет.
-  const frames = flightFrames(photoEl.value, photoFrom)
-  photoReady.value = true
-  if (frames) photoEl.value!.animate(frames, { duration: 240, easing: 'cubic-bezier(.2, .8, .2, 1)' })
-}
+  const frames = flightFrames(photoEl.value, photoFrom);
+  photoReady.value = true;
+  if (frames)
+    photoEl.value!.animate(frames, {
+      duration: 240,
+      easing: "cubic-bezier(.2, .8, .2, 1)",
+    });
+};
 
 const closePhoto = async () => {
-  if (photoClosing) return
+  if (photoClosing) return;
   // Увеличенная картинка складывается в портрет не из своего масштаба, а из
   // обычного: иначе полёт считается по раздутому размеру и уезжает мимо.
   if (view.scale > MIN_ZOOM) {
-    smooth.value = false
-    resetView()
-    await nextTick()
+    smooth.value = false;
+    resetView();
+    await nextTick();
   }
-  const frames = flightFrames(photoEl.value, photoFrom)
-  if (!frames) return void (photo.value = false)
-  photoClosing = true
-  photoEl.value!.animate([...frames].reverse(), { duration: 180, easing: 'cubic-bezier(.4, 0, 1, 1)', fill: 'forwards' })
-    .finished.finally(() => {
-      photo.value = false
-      photoClosing = false
+  const frames = flightFrames(photoEl.value, photoFrom);
+  if (!frames) return void (photo.value = false);
+  photoClosing = true;
+  photoEl
+    .value!.animate([...frames].reverse(), {
+      duration: 180,
+      easing: "cubic-bezier(.4, 0, 1, 1)",
+      fill: "forwards",
     })
-}
+    .finished.finally(() => {
+      photo.value = false;
+      photoClosing = false;
+    });
+};
 
-const list = (values: string[]) => values.length ? values.join(', ') : '—'
+const list = (values: string[]) => (values.length ? values.join(", ") : "—");
 
 const facts = computed(() => [
-  { label: 'Пол', value: props.character.gender || '—' },
-  { label: 'Возраст', value: props.character.age || '—' },
-  { label: 'Раса', value: list(props.character.species) },
-  { label: 'Класс', value: list(props.character.cls) },
-  { label: 'Занятие', value: list(props.character.occupation) },
-  { label: 'Континент', value: list(props.character.continent) },
-  { label: 'Локации', value: list(props.character.locations) },
-  { label: 'Появляется', value: `${props.character.volume} том` },
-])
+  { label: "Пол", value: props.character.gender || "—" },
+  { label: "Возраст", value: props.character.age || "—" },
+  { label: "Раса", value: list(props.character.species) },
+  { label: "Класс", value: list(props.character.cls) },
+  { label: "Занятие", value: list(props.character.occupation) },
+  { label: "Континент", value: list(props.character.continent) },
+  { label: "Локации", value: list(props.character.locations) },
+  { label: "Появляется", value: `${props.character.volume} том` },
+]);
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (e.key !== 'Escape') return
+  if (e.key !== "Escape") return;
   // Сначала закрывается картинка — лист под ней остаётся открытым.
-  if (photo.value) return closePhoto()
-  close()
-}
+  if (photo.value) return closePhoto();
+  close();
+};
 
 onMounted(() => {
-  document.addEventListener('keydown', onKeydown)
-  const frames = flightFrames(sheetEl.value, props.origin)
+  document.addEventListener("keydown", onKeydown);
+  const frames = flightFrames(sheetEl.value, props.origin);
   if (frames) {
-    sheetEl.value!.classList.add('flying')
-    sheetEl.value!.animate(frames, { duration: 320, easing: 'cubic-bezier(.2, .8, .2, 1)' })
+    sheetEl.value!.classList.add("flying");
+    sheetEl.value!.animate(frames, {
+      duration: 320,
+      easing: "cubic-bezier(.2, .8, .2, 1)",
+    });
   }
 
   // Картинку целиком тянем заранее, пока читатель смотрит на карточку: иначе
   // при щелчке по портрету она приезжает с опозданием и въезжает рывком.
   // Загрузка ленивая по смыслу — до открытия карточки её никто не начинает.
   if (props.character.full) {
-    const ahead = new Image()
-    ahead.src = props.character.full
-    ahead.decode().catch(() => {})
+    const ahead = new Image();
+    ahead.src = props.character.full;
+    ahead.decode().catch(() => {});
   }
-})
-onUnmounted(() => document.removeEventListener('keydown', onKeydown))
+});
+onUnmounted(() => document.removeEventListener("keydown", onKeydown));
 
-useScrollLock()
+useScrollLock();
 </script>
 
 <template>
   <Teleport to="body">
     <div class="backdrop" @click.self="close">
-      <div ref="sheetEl" class="sheet" :class="{ eclipse, multi: character.glow.length > 1 }" role="dialog" aria-modal="true" :aria-label="character.name" :style="glowStyle">
-        <button class="close" type="button" aria-label="Закрыть" @click="close">×</button>
+      <div
+        ref="sheetEl"
+        class="sheet"
+        :class="{ eclipse, multi: character.glow.length > 1 }"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="character.name"
+        :style="glowStyle"
+      >
+        <button class="close" type="button" aria-label="Закрыть" @click="close">
+          ×
+        </button>
 
         <div class="portrait-wrap">
           <button
@@ -288,18 +338,32 @@ useScrollLock()
             :aria-label="`Показать картинку целиком: ${character.name}`"
             @click="openPhoto"
           >
-            <img :src="character.image" :alt="character.name">
+            <img :src="character.image" :alt="character.name" />
             <span class="zoom" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              >
                 <circle cx="10.5" cy="10.5" r="6.5" />
                 <path d="M15.5 15.5 L21 21M10.5 7.5v6M7.5 10.5h6" />
               </svg>
             </span>
           </button>
           <div v-else class="portrait">
-            <img v-if="character.image" :src="character.image" :alt="character.name">
+            <img
+              v-if="character.image"
+              :src="character.image"
+              :alt="character.name"
+            />
             <div v-else class="placeholder" aria-hidden="true">
-              <span class="initial display">{{ character.name.slice(0, 1) }}</span>
+              <span class="initial display">{{
+                character.name.slice(0, 1)
+              }}</span>
             </div>
           </div>
         </div>
@@ -308,9 +372,19 @@ useScrollLock()
           <div class="head">
             <div>
               <h2 class="name display">{{ character.name }}</h2>
-              <div v-if="character.original !== character.name" class="original">{{ character.original }}</div>
+              <div
+                v-if="character.original !== character.name"
+                class="original"
+              >
+                {{ character.original }}
+              </div>
             </div>
-            <CharacterFlame :count="character.flames" :lit="character.lit" :character-id="character.id" @toggle="emit('flame', character)" />
+            <CharacterFlame
+              :count="character.flames"
+              :lit="character.lit"
+              :character-id="character.id"
+              @toggle="emit('flame', character)"
+            />
           </div>
 
           <dl class="facts">
@@ -327,12 +401,23 @@ useScrollLock()
       </div>
     </div>
 
-    <div v-if="photo && character.full" class="photo" :class="{ eclipse }" :style="glowStyle" @click="closePhoto">
+    <div
+      v-if="photo && character.full"
+      class="photo"
+      :class="{ eclipse }"
+      :style="glowStyle"
+      @click="closePhoto"
+    >
       <img
         ref="photoEl"
         :src="character.full"
         :alt="character.name"
-        :class="{ ready: photoReady, zoomed: view.scale > MIN_ZOOM, dragging, smooth }"
+        :class="{
+          ready: photoReady,
+          zoomed: view.scale > MIN_ZOOM,
+          dragging,
+          smooth,
+        }"
         :style="photoStyle"
         draggable="false"
         @click.stop
@@ -341,8 +426,15 @@ useScrollLock()
         @pointermove="onPointerMove"
         @pointerup="onPointerUp"
         @pointercancel="onPointerUp"
+      />
+      <button
+        class="photo-close"
+        type="button"
+        aria-label="Закрыть картинку"
+        @click.stop="closePhoto"
       >
-      <button class="photo-close" type="button" aria-label="Закрыть картинку" @click.stop="closePhoto">×</button>
+        ×
+      </button>
     </div>
   </Teleport>
 </template>
@@ -352,13 +444,13 @@ useScrollLock()
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
-  background: rgba(20, 14, 10, .72);
+  background: rgba(20, 14, 10, 0.72);
   backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  animation: fade-in .15s ease;
+  animation: fade-in 0.15s ease;
 }
 
 .sheet {
@@ -378,10 +470,10 @@ useScrollLock()
   /* Тень листа светится цветом расы (--glow приходит с карточкой) — ровно со
      всех сторон. */
   box-shadow:
-    0 30px 60px -30px rgba(0, 0, 0, .9),
+    0 30px 60px -30px rgba(0, 0, 0, 0.9),
     0 0 90px -10px color-mix(in srgb, var(--glow) 70%, transparent),
     0 0 0 1px color-mix(in srgb, var(--glow) 35%, transparent);
-  animation: slide-up .22s ease;
+  animation: slide-up 0.22s ease;
   transform-origin: center;
 }
 
@@ -390,7 +482,7 @@ useScrollLock()
    пятна сделали бы свечение неровным по углам. */
 .sheet.multi {
   box-shadow:
-    0 30px 60px -30px rgba(0, 0, 0, .9),
+    0 30px 60px -30px rgba(0, 0, 0, 0.9),
     0 0 90px -10px color-mix(in srgb, var(--glow-2) 55%, transparent),
     -36px -28px 80px -24px color-mix(in srgb, var(--glow) 45%, transparent),
     36px 28px 80px -24px color-mix(in srgb, var(--glow-3) 45%, transparent),
@@ -402,17 +494,17 @@ useScrollLock()
 .sheet.eclipse {
   border: 2px solid #000;
   box-shadow:
-    0 30px 60px -30px rgba(0, 0, 0, .9),
+    0 30px 60px -30px rgba(0, 0, 0, 0.9),
     0 0 24px 6px rgba(0, 0, 0, 1),
-    0 0 70px 24px rgba(0, 0, 0, .95),
-    0 0 140px 50px rgba(0, 0, 0, .85);
+    0 0 70px 24px rgba(0, 0, 0, 0.95),
+    0 0 140px 50px rgba(0, 0, 0, 0.85);
 }
 
 .photo.eclipse img {
   box-shadow:
-    0 30px 60px -30px rgba(0, 0, 0, .9),
+    0 30px 60px -30px rgba(0, 0, 0, 0.9),
     0 0 0 2px #000,
-    0 0 40px 12px rgba(0, 0, 0, .95);
+    0 0 40px 12px rgba(0, 0, 0, 0.95);
 }
 
 /* Когда лист летит из карточки, CSS-появление не нужно — оно бы наложилось. */
@@ -429,7 +521,7 @@ useScrollLock()
   height: 36px;
   border: none;
   border-radius: var(--radius-round);
-  background: rgba(31, 24, 19, .7);
+  background: rgba(31, 24, 19, 0.7);
   color: var(--parchment-2);
   font-size: 24px;
   line-height: 1;
@@ -451,7 +543,7 @@ useScrollLock()
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--bg-dark);
-  box-shadow: 0 16px 30px -18px rgba(0, 0, 0, .9);
+  box-shadow: 0 16px 30px -18px rgba(0, 0, 0, 0.9);
 }
 
 .portrait img {
@@ -480,15 +572,17 @@ useScrollLock()
   width: 34px;
   height: 34px;
   border-radius: var(--radius-round);
-  background: rgba(20, 14, 10, .66);
+  background: rgba(20, 14, 10, 0.66);
   color: var(--parchment-2);
-  transition: opacity .15s ease, color .15s ease;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
 }
 
 /* С мышью значок всплывает при наведении и не мешает смотреть на портрет;
    на телефоне наводить нечем — там он виден всегда, только приглушённый. */
 .zoom {
-  opacity: .8;
+  opacity: 0.8;
 }
 
 @media (hover: hover) {
@@ -513,9 +607,9 @@ useScrollLock()
   place-items: center;
   padding: 20px;
   overflow: hidden;
-  background: rgba(12, 8, 6, .9);
+  background: rgba(12, 8, 6, 0.9);
   cursor: zoom-out;
-  animation: fade-in .15s ease;
+  animation: fade-in 0.15s ease;
 }
 
 .photo img {
@@ -525,7 +619,7 @@ useScrollLock()
   max-height: calc(100dvh - 40px);
   border-radius: var(--radius-md);
   box-shadow:
-    0 30px 60px -30px rgba(0, 0, 0, .9),
+    0 30px 60px -30px rgba(0, 0, 0, 0.9),
     0 0 0 1px color-mix(in srgb, var(--glow) 35%, transparent);
   cursor: zoom-in;
   /* Щипок и перетаскивание ведём сами — иначе браузер начнёт возить страницу. */
@@ -539,7 +633,7 @@ useScrollLock()
 }
 
 .photo img.smooth {
-  transition: transform .18s ease;
+  transition: transform 0.18s ease;
 }
 
 .photo img.zoomed {
@@ -575,14 +669,18 @@ useScrollLock()
   display: grid;
   place-items: center;
   background:
-    radial-gradient(ellipse at 50% 110%, rgba(214, 136, 62, .28), transparent 60%),
+    radial-gradient(
+      ellipse at 50% 110%,
+      rgba(214, 136, 62, 0.28),
+      transparent 60%
+    ),
     linear-gradient(180deg, #2b221c, #1a1410);
 }
 
 .initial {
   font-size: 110px;
   font-weight: 500;
-  color: rgba(232, 176, 122, .55);
+  color: rgba(232, 176, 122, 0.55);
   line-height: 1;
 }
 
@@ -654,13 +752,23 @@ useScrollLock()
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-up {
-  from { transform: translateY(16px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* На телефоне — та же карточка по центру, с полями по краям: портрет

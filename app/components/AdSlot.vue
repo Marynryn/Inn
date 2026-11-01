@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineProps<{
-  id: string
-}>()
+  id: string;
+}>();
 </script>
 
 <template>
@@ -25,8 +25,8 @@ defineProps<{
   width: 100%;
   max-width: 728px;
   min-height: 90px;
-  background: rgba(43, 30, 22, .04);
-  border: 1px dashed rgba(43, 30, 22, .15);
+  background: rgba(43, 30, 22, 0.04);
+  border: 1px dashed rgba(43, 30, 22, 0.15);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -35,9 +35,9 @@ defineProps<{
 
 .ad-placeholder span {
   font-size: 11px;
-  letter-spacing: .1em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-soft);
-  opacity: .5;
+  opacity: 0.5;
 }
 </style>

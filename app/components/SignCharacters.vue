@@ -8,74 +8,84 @@
  */
 // Ссылка — компонент, а следим за её элементом: саму табличку смотреть
 // бесполезно, до выезда она спрятана за краем и «не видна» никогда.
-const link = ref<{ $el: HTMLElement } | null>(null)
-const img = ref<HTMLImageElement | null>(null)
-const shown = ref(false)
+const link = ref<{ $el: HTMLElement } | null>(null);
+const img = ref<HTMLImageElement | null>(null);
+const shown = ref(false);
 
-let observer: IntersectionObserver | null = null
-let timer: ReturnType<typeof setTimeout> | null = null
+let observer: IntersectionObserver | null = null;
+let timer: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Если вывеска видна прямо при открытии страницы, выезд случился бы, пока
  * грузятся картинки и шрифты, — глаз бы его не поймал. Поэтому первый выезд —
  * с паузой, когда страница уже успокоилась; дальше — сразу, как только видно.
  */
-const FIRST_DELAY = 900
-let first = true
+const FIRST_DELAY = 900;
+let first = true;
 
 const show = () => {
-  if (timer) return
-  const wait = first ? FIRST_DELAY : 0
-  first = false
+  if (timer) return;
+  const wait = first ? FIRST_DELAY : 0;
+  first = false;
   timer = setTimeout(() => {
-    timer = null
-    shown.value = true
-  }, wait)
-}
+    timer = null;
+    shown.value = true;
+  }, wait);
+};
 
 const hide = () => {
-  if (timer) clearTimeout(timer)
-  timer = null
-  shown.value = false
-}
+  if (timer) clearTimeout(timer);
+  timer = null;
+  shown.value = false;
+};
 
 // Картинка — главное в вывеске: выезжать пустой рамкой незачем.
-const imageReady = () => new Promise<void>((resolve) => {
-  const el = img.value
-  if (!el || el.complete) return resolve()
-  el.addEventListener('load', () => resolve(), { once: true })
-  el.addEventListener('error', () => resolve(), { once: true })
-})
+const imageReady = () =>
+  new Promise<void>((resolve) => {
+    const el = img.value;
+    if (!el || el.complete) return resolve();
+    el.addEventListener("load", () => resolve(), { once: true });
+    el.addEventListener("error", () => resolve(), { once: true });
+  });
 
 onMounted(async () => {
-  const el = link.value?.$el
-  if (!el || typeof IntersectionObserver === 'undefined') {
-    shown.value = true
-    return
+  const el = link.value?.$el;
+  if (!el || typeof IntersectionObserver === "undefined") {
+    shown.value = true;
+    return;
   }
-  await imageReady()
+  await imageReady();
   // Выезжает, только когда место вывески видно целиком; уезжает, когда
   // осталось меньше десятой, — так повтор случается и после небольшой
   // прокрутки туда-обратно, а разрыв между порогами не даёт ей дёргаться на
   // границе. «Целиком» — с допуском в пару процентов: дробные пиксели на
   // масштабе экрана не дают ровно единицы.
-  observer = new IntersectionObserver((entries) => {
-    for (const e of entries) {
-      if (e.intersectionRatio >= 0.98) show()
-      else if (e.intersectionRatio < 0.1) hide()
-    }
-  }, { threshold: [0, 0.1, 0.98, 1] })
-  observer.observe(el)
-})
+  observer = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (e.intersectionRatio >= 0.98) show();
+        else if (e.intersectionRatio < 0.1) hide();
+      }
+    },
+    { threshold: [0, 0.1, 0.98, 1] },
+  );
+  observer.observe(el);
+});
 
 onUnmounted(() => {
-  observer?.disconnect()
-  if (timer) clearTimeout(timer)
-})
+  observer?.disconnect();
+  if (timer) clearTimeout(timer);
+});
 </script>
 
 <template>
-  <NuxtLink ref="link" to="/characters" class="sign" :class="{ shown }" aria-label="Карточки персонажей">
+  <NuxtLink
+    ref="link"
+    to="/characters"
+    class="sign"
+    :class="{ shown }"
+    aria-label="Карточки персонажей"
+  >
     <span class="slide">
       <!-- Вывеска выезжает с паузой, а в первом экране главное — картинка героя:
            низкий приоритет пускает её вперёд по каналу. -->
@@ -88,7 +98,7 @@ onUnmounted(() => {
         width="520"
         height="650"
         draggable="false"
-      >
+      />
     </span>
   </NuxtLink>
 </template>
@@ -123,7 +133,7 @@ onUnmounted(() => {
 .slide {
   display: block;
   transform: translateY(-105%);
-  transition: transform 1.2s cubic-bezier(.3, 1.3, .5, 1);
+  transition: transform 1.2s cubic-bezier(0.3, 1.3, 0.5, 1);
 }
 
 .sign.shown .slide {
@@ -146,7 +156,7 @@ onUnmounted(() => {
   height: auto;
   margin-top: calc(-80 / 520 * 100%);
   transform-origin: 50% calc(80 / 650 * 100%);
-  filter: drop-shadow(0 10px 12px rgba(40, 24, 12, .35));
+  filter: drop-shadow(0 10px 12px rgba(40, 24, 12, 0.35));
   user-select: none;
 }
 
@@ -159,19 +169,39 @@ onUnmounted(() => {
 }
 
 @keyframes swing {
-  0% { transform: rotate(0); }
-  15% { transform: rotate(5deg); }
-  35% { transform: rotate(-3.5deg); }
-  55% { transform: rotate(2deg); }
-  75% { transform: rotate(-1deg); }
-  100% { transform: rotate(0); }
+  0% {
+    transform: rotate(0);
+  }
+  15% {
+    transform: rotate(5deg);
+  }
+  35% {
+    transform: rotate(-3.5deg);
+  }
+  55% {
+    transform: rotate(2deg);
+  }
+  75% {
+    transform: rotate(-1deg);
+  }
+  100% {
+    transform: rotate(0);
+  }
 }
 
 @keyframes nudge {
-  0% { transform: rotate(0); }
-  25% { transform: rotate(2.5deg); }
-  55% { transform: rotate(-1.5deg); }
-  100% { transform: rotate(0); }
+  0% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(2.5deg);
+  }
+  55% {
+    transform: rotate(-1.5deg);
+  }
+  100% {
+    transform: rotate(0);
+  }
 }
 
 /* Где сбоку от баннера игры места нет, вывеска висит по центру над ним,
@@ -184,7 +214,6 @@ onUnmounted(() => {
     margin: 0 auto -16px;
     padding: 0 24px 24px;
   }
-
 }
 
 @media (prefers-reduced-motion: reduce) {

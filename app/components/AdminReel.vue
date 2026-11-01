@@ -1,12 +1,23 @@
 <script setup lang="ts">
-import { ALL_FIGURES, figureById } from '#shared/utils/nameFigures'
-import type { AdminReel } from '#shared/utils/reel'
-import type { ReelTextKey } from '#shared/utils/reel'
+import { ALL_FIGURES, figureById } from "#shared/utils/nameFigures";
+import type { AdminReel } from "#shared/utils/reel";
+import type { ReelTextKey } from "#shared/utils/reel";
 import {
-  REEL_BLUR_DEFAULT, REEL_BLUR_MAX, REEL_DIM_DEFAULT, REEL_DIM_MAX,
-  REEL_IMAGE_MAX_SIDE, REEL_LABEL_MAX, REEL_SPINS_MAX, REEL_TEXT_KEYS, REEL_TEXT_MAX, REEL_TEXTS, REEL_TITLE_MAX, REEL_WEIGHT_TOTAL,
-  percentToWeight, weightToPercent,
-} from '#shared/utils/reel'
+  REEL_BLUR_DEFAULT,
+  REEL_BLUR_MAX,
+  REEL_DIM_DEFAULT,
+  REEL_DIM_MAX,
+  REEL_IMAGE_MAX_SIDE,
+  REEL_LABEL_MAX,
+  REEL_SPINS_MAX,
+  REEL_TEXT_KEYS,
+  REEL_TEXT_MAX,
+  REEL_TEXTS,
+  REEL_TITLE_MAX,
+  REEL_WEIGHT_TOTAL,
+  percentToWeight,
+  weightToPercent,
+} from "#shared/utils/reel";
 
 /**
  * Барабан в панели: сегменты с шансами и тиражом, запуск и завершение ивента,
@@ -14,239 +25,320 @@ import {
  * запущенного они заморожены, чтобы шансы не менялись посреди ивента.
  */
 
-type CatalogFrame = { id: number; name: string; url: string }
-type CatalogSkin = { id: number; name: string; url: string; tint: string }
-type LogRow = { id: number; name: string; label: string; outcome: 'won' | 'duplicate' | 'scene'; createdAt: string }
+type CatalogFrame = { id: number; name: string; url: string };
+type CatalogSkin = { id: number; name: string; url: string; tint: string };
+type LogRow = {
+  id: number;
+  name: string;
+  label: string;
+  outcome: "won" | "duplicate" | "scene";
+  createdAt: string;
+};
 
 /** Сегмент в редакторе. Шанс — строкой процентов, как его ввели: «2,5». */
 type Draft = {
-  label: string
-  frameId: number | null
-  figure: string | null
-  skinId: number | null
-  image: string | null
-  imageUrl: string | null
-  text: string
-  pct: string
-  stock: string
-}
+  label: string;
+  frameId: number | null;
+  figure: string | null;
+  skinId: number | null;
+  image: string | null;
+  imageUrl: string | null;
+  text: string;
+  pct: string;
+  stock: string;
+};
 
-const reels = ref<AdminReel[]>([])
-const frames = ref<CatalogFrame[]>([])
-const skins = ref<CatalogSkin[]>([])
-const selectedId = ref<number | null>(null)
-const drafts = ref<Draft[]>([])
-const title = ref('')
+const reels = ref<AdminReel[]>([]);
+const frames = ref<CatalogFrame[]>([]);
+const skins = ref<CatalogSkin[]>([]);
+const selectedId = ref<number | null>(null);
+const drafts = ref<Draft[]>([]);
+const title = ref("");
 /** Тексты окна в правке: пустое поле — текст по умолчанию, он же в подсказке. */
-const texts = ref<Record<ReelTextKey, string>>(Object.fromEntries(REEL_TEXT_KEYS.map(k => [k, ''])) as Record<ReelTextKey, string>)
-const textsOpen = ref(false)
+const texts = ref<Record<ReelTextKey, string>>(
+  Object.fromEntries(REEL_TEXT_KEYS.map((k) => [k, ""])) as Record<
+    ReelTextKey,
+    string
+  >,
+);
+const textsOpen = ref(false);
 /** Фон окна в правке: файл, его адрес для превью, затемнение (%) и размытие (px). */
-const bg = ref<string | null>(null)
-const bgUrl = ref<string | null>(null)
-const bgDim = ref(REEL_DIM_DEFAULT)
-const bgBlur = ref(REEL_BLUR_DEFAULT)
-const bgOpen = ref(false)
-const bgUploading = ref(false)
+const bg = ref<string | null>(null);
+const bgUrl = ref<string | null>(null);
+const bgDim = ref(REEL_DIM_DEFAULT);
+const bgBlur = ref(REEL_BLUR_DEFAULT);
+const bgOpen = ref(false);
+const bgUploading = ref(false);
 /** Баннер на главной: картинки для широкого экрана и для телефона. */
-type BannerKey = 'desk' | 'mob'
-type BannerPic = { file: string | null; url: string | null }
+type BannerKey = "desk" | "mob";
+type BannerPic = { file: string | null; url: string | null };
 // Одним объектом, а не двумя ref: в шаблоне ref внутри списка не разворачивается
 // так, как в скрипте, и обращение через .value уронило всю вкладку.
-const banner = ref<Record<BannerKey, BannerPic>>({ desk: { file: null, url: null }, mob: { file: null, url: null } })
-const BANNER_SLOTS: { key: BannerKey; label: string }[] = [{ key: 'desk', label: 'Компьютер' }, { key: 'mob', label: 'Телефон' }]
-const bannerOpen = ref(false)
-const bannerUploading = ref(false)
+const banner = ref<Record<BannerKey, BannerPic>>({
+  desk: { file: null, url: null },
+  mob: { file: null, url: null },
+});
+const BANNER_SLOTS: { key: BannerKey; label: string }[] = [
+  { key: "desk", label: "Компьютер" },
+  { key: "mob", label: "Телефон" },
+];
+const bannerOpen = ref(false);
+const bannerUploading = ref(false);
 /** Тексты баннера правятся в его разделе, а не в общем списке текстов окна. */
-const BANNER_TEXT_KEYS: ReelTextKey[] = ['bannerTitle', 'bannerText', 'bannerButton']
-const windowTextKeys = REEL_TEXT_KEYS.filter(k => !BANNER_TEXT_KEYS.includes(k))
-const log = ref<LogRow[]>([])
+const BANNER_TEXT_KEYS: ReelTextKey[] = [
+  "bannerTitle",
+  "bannerText",
+  "bannerButton",
+];
+const windowTextKeys = REEL_TEXT_KEYS.filter(
+  (k) => !BANNER_TEXT_KEYS.includes(k),
+);
+const log = ref<LogRow[]>([]);
 /** В журнале — только выигрыши: кому какой приз выпал, повторки тоже; без сценок. */
-const onlyWon = ref(false)
+const onlyWon = ref(false);
 // Оба выбора помнит браузер: после обновления страницы не настраивать заново.
-const ONLY_WON_KEY = 'tavern:admin:reel-only-won'
-const SEGS_KEY = 'tavern:admin:reel-segs-open'
-const segsPref = ref(true)
+const ONLY_WON_KEY = "tavern:admin:reel-only-won";
+const SEGS_KEY = "tavern:admin:reel-segs-open";
+const segsPref = ref(true);
 
-const newTitle = ref('')
-const busy = ref(false)
-const msg = ref('')
-const err = ref('')
-const uploading = ref<number | null>(null)
+const newTitle = ref("");
+const busy = ref(false);
+const msg = ref("");
+const err = ref("");
+const uploading = ref<number | null>(null);
 /** Ошибка загрузки картинки — у того сегмента, куда грузили, а не внизу панели. */
-const segErr = ref<Record<number, string>>({})
-const confirmFinish = ref(false)
-const confirmDelete = ref(false)
-const trialId = ref<number | null>(null)
+const segErr = ref<Record<number, string>>({});
+const confirmFinish = ref(false);
+const confirmDelete = ref(false);
+const trialId = ref<number | null>(null);
 
-const selected = computed(() => reels.value.find(r => r.id === selectedId.value) ?? null)
-const editable = computed(() => selected.value?.status === 'draft')
+const selected = computed(
+  () => reels.value.find((r) => r.id === selectedId.value) ?? null,
+);
+const editable = computed(() => selected.value?.status === "draft");
 
-const STATUS: Record<AdminReel['status'], string> = { draft: 'черновик', running: 'идёт', finished: 'завершён' }
+const STATUS: Record<AdminReel["status"], string> = {
+  draft: "черновик",
+  running: "идёт",
+  finished: "завершён",
+};
 
-const toDraft = (r: AdminReel): Draft[] => r.segments.map(s => ({
-  label: s.label,
-  frameId: s.frameId,
-  figure: s.figure,
-  skinId: s.skinId,
-  image: s.image,
-  imageUrl: s.imageUrl,
-  text: s.text ?? '',
-  pct: String(weightToPercent(s.weight)).replace('.', ','),
-  stock: s.stock == null ? '' : String(s.stock),
-}))
+const toDraft = (r: AdminReel): Draft[] =>
+  r.segments.map((s) => ({
+    label: s.label,
+    frameId: s.frameId,
+    figure: s.figure,
+    skinId: s.skinId,
+    image: s.image,
+    imageUrl: s.imageUrl,
+    text: s.text ?? "",
+    pct: String(weightToPercent(s.weight)).replace(".", ","),
+    stock: s.stock == null ? "" : String(s.stock),
+  }));
 
 const pctOf = (d: Draft) => {
-  const n = parseFloat(d.pct.replace(',', '.'))
-  return Number.isFinite(n) ? n : 0
-}
+  const n = parseFloat(d.pct.replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
+};
 
-const total = computed(() => drafts.value.reduce((sum, d) => sum + percentToWeight(pctOf(d)), 0))
-const totalOk = computed(() => total.value === REEL_WEIGHT_TOTAL)
-const fmt = (weight: number) => String(weightToPercent(weight)).replace('.', ',')
+const total = computed(() =>
+  drafts.value.reduce((sum, d) => sum + percentToWeight(pctOf(d)), 0),
+);
+const totalOk = computed(() => total.value === REEL_WEIGHT_TOTAL);
+const fmt = (weight: number) =>
+  String(weightToPercent(weight)).replace(".", ",");
 
 /** Рамки, стоящие в других барабанах. Брать их можно — подпись только для справки. */
 const usedElsewhere = computed(() => {
-  const map = new Map<number, string>()
+  const map = new Map<number, string>();
   for (const r of reels.value) {
-    if (r.id === selectedId.value) continue
-    for (const s of r.segments) if (s.frameId) map.set(s.frameId, r.title)
+    if (r.id === selectedId.value) continue;
+    for (const s of r.segments) if (s.frameId) map.set(s.frameId, r.title);
   }
-  return map
-})
+  return map;
+});
 
-const frameName = (id: number | null) => frames.value.find(f => f.id === id)?.name ?? 'рамка удалена'
-const frameUrl = (id: number | null) => frames.value.find(f => f.id === id)?.url ?? null
+const frameName = (id: number | null) =>
+  frames.value.find((f) => f.id === id)?.name ?? "рамка удалена";
+const frameUrl = (id: number | null) =>
+  frames.value.find((f) => f.id === id)?.url ?? null;
 
-const skinOf = (id: number | null) => skins.value.find(s => s.id === id) ?? null
+const skinOf = (id: number | null) =>
+  skins.value.find((s) => s.id === id) ?? null;
 
 /** Приз сегмента одной строкой для выпадающего списка: «f5» — рамка, «gghost» —
  *  фигурка, «s3» — скин, пусто — сценка. */
-const prizeKey = (d: Draft) => (d.frameId ? `f${d.frameId}` : d.figure ? `g${d.figure}` : d.skinId ? `s${d.skinId}` : '')
-const isPrize = (d: Draft) => Boolean(d.frameId || d.figure || d.skinId)
-const picOf = (d: Draft) => d.frameId
-  ? frameUrl(d.frameId)
-  : d.figure ? figureById(d.figure)?.big ?? null : d.skinId ? skinOf(d.skinId)?.url ?? null : d.imageUrl
-const prizeName = (d: Draft) => d.frameId
-  ? frameName(d.frameId)
-  : d.figure ? figureById(d.figure)?.name ?? '' : skinOf(d.skinId)?.name ?? ''
+const prizeKey = (d: Draft) =>
+  d.frameId
+    ? `f${d.frameId}`
+    : d.figure
+      ? `g${d.figure}`
+      : d.skinId
+        ? `s${d.skinId}`
+        : "";
+const isPrize = (d: Draft) => Boolean(d.frameId || d.figure || d.skinId);
+const picOf = (d: Draft) =>
+  d.frameId
+    ? frameUrl(d.frameId)
+    : d.figure
+      ? (figureById(d.figure)?.big ?? null)
+      : d.skinId
+        ? (skinOf(d.skinId)?.url ?? null)
+        : d.imageUrl;
+const prizeName = (d: Draft) =>
+  d.frameId
+    ? frameName(d.frameId)
+    : d.figure
+      ? (figureById(d.figure)?.name ?? "")
+      : (skinOf(d.skinId)?.name ?? "");
 
 const load = async () => {
   const [list, catalog, skinList] = await Promise.all([
-    $fetch<AdminReel[]>('/api/admin/reels'),
-    $fetch<{ frames: CatalogFrame[] }>('/api/admin/frames'),
-    $fetch<CatalogSkin[]>('/api/admin/skins'),
-  ])
-  reels.value = list
-  frames.value = catalog.frames
-  skins.value = skinList
-  if (!list.some(r => r.id === selectedId.value)) selectedId.value = list[0]?.id ?? null
-  select(selectedId.value)
-}
+    $fetch<AdminReel[]>("/api/admin/reels"),
+    $fetch<{ frames: CatalogFrame[] }>("/api/admin/frames"),
+    $fetch<CatalogSkin[]>("/api/admin/skins"),
+  ]);
+  reels.value = list;
+  frames.value = catalog.frames;
+  skins.value = skinList;
+  if (!list.some((r) => r.id === selectedId.value))
+    selectedId.value = list[0]?.id ?? null;
+  select(selectedId.value);
+};
 
 const select = async (id: number | null) => {
-  selectedId.value = id
-  confirmFinish.value = false
-  confirmDelete.value = false
-  segErr.value = {}
-  const r = selected.value
-  drafts.value = r ? toDraft(r) : []
-  title.value = r?.title ?? ''
-  for (const k of REEL_TEXT_KEYS) texts.value[k] = r?.texts[k] ?? ''
-  bg.value = r?.background ?? null
-  bgUrl.value = r?.look.background ?? null
-  bgDim.value = r?.look.dim ?? REEL_DIM_DEFAULT
-  bgBlur.value = r?.look.blur ?? REEL_BLUR_DEFAULT
+  selectedId.value = id;
+  confirmFinish.value = false;
+  confirmDelete.value = false;
+  segErr.value = {};
+  const r = selected.value;
+  drafts.value = r ? toDraft(r) : [];
+  title.value = r?.title ?? "";
+  for (const k of REEL_TEXT_KEYS) texts.value[k] = r?.texts[k] ?? "";
+  bg.value = r?.background ?? null;
+  bgUrl.value = r?.look.background ?? null;
+  bgDim.value = r?.look.dim ?? REEL_DIM_DEFAULT;
+  bgBlur.value = r?.look.blur ?? REEL_BLUR_DEFAULT;
   banner.value = {
     desk: { file: r?.bannerDesk ?? null, url: r?.banner?.desk ?? null },
     mob: { file: r?.bannerMob ?? null, url: r?.banner?.mob ?? null },
-  }
-  await loadLog()
-}
+  };
+  await loadLog();
+};
 
 const loadLog = async () => {
-  const r = selected.value
-  log.value = r && r.status !== 'draft'
-    ? await $fetch<LogRow[]>(`/api/admin/reels/${r.id}/log`, { query: onlyWon.value ? { won: 1 } : {} }).catch(() => [])
-    : []
-}
+  const r = selected.value;
+  log.value =
+    r && r.status !== "draft"
+      ? await $fetch<LogRow[]>(`/api/admin/reels/${r.id}/log`, {
+          query: onlyWon.value ? { won: 1 } : {},
+        }).catch(() => [])
+      : [];
+};
 
 const run = async (action: () => Promise<unknown>, done?: string) => {
-  busy.value = true
-  msg.value = ''
-  err.value = ''
+  busy.value = true;
+  msg.value = "";
+  err.value = "";
   try {
-    await action()
-    if (done) msg.value = done
-    return true
+    await action();
+    if (done) msg.value = done;
+    return true;
   } catch (e: any) {
-    err.value = e.data?.message || 'Не получилось'
-    return false
+    err.value = e.data?.message || "Не получилось";
+    return false;
   } finally {
-    busy.value = false
+    busy.value = false;
   }
-}
+};
 
-const create = () => run(async () => {
-  const { id } = await $fetch<{ id: number }>('/api/admin/reels', { method: 'POST', body: { title: newTitle.value } })
-  newTitle.value = ''
-  selectedId.value = id
-  await load()
-}, 'Барабан заведён — добавь сегменты')
+const create = () =>
+  run(async () => {
+    const { id } = await $fetch<{ id: number }>("/api/admin/reels", {
+      method: "POST",
+      body: { title: newTitle.value },
+    });
+    newTitle.value = "";
+    selectedId.value = id;
+    await load();
+  }, "Барабан заведён — добавь сегменты");
 
-const addSegment = (kind: 'frame' | 'figure' | 'skin' | 'scene') => {
+const addSegment = (kind: "frame" | "figure" | "skin" | "scene") => {
   // Сначала нигде не разыгранная рамка, а нет таких — любая не занятая здесь.
-  const unused = frames.value.filter(f => !drafts.value.some(d => d.frameId === f.id))
-  const free = unused.find(f => !usedElsewhere.value.has(f.id)) ?? unused[0]
-  const freeFigure = ALL_FIGURES.find(g => !drafts.value.some(d => d.figure === g.id))
-  const freeSkin = skins.value.find(s => !drafts.value.some(d => d.skinId === s.id))
-  const label = kind === 'frame' ? free?.name : kind === 'figure' ? freeFigure?.name : kind === 'skin' ? freeSkin?.name : ''
+  const unused = frames.value.filter(
+    (f) => !drafts.value.some((d) => d.frameId === f.id),
+  );
+  const free = unused.find((f) => !usedElsewhere.value.has(f.id)) ?? unused[0];
+  const freeFigure = ALL_FIGURES.find(
+    (g) => !drafts.value.some((d) => d.figure === g.id),
+  );
+  const freeSkin = skins.value.find(
+    (s) => !drafts.value.some((d) => d.skinId === s.id),
+  );
+  const label =
+    kind === "frame"
+      ? free?.name
+      : kind === "figure"
+        ? freeFigure?.name
+        : kind === "skin"
+          ? freeSkin?.name
+          : "";
   drafts.value.push({
-    label: (label ?? '').slice(0, REEL_LABEL_MAX),
-    frameId: kind === 'frame' ? (free?.id ?? null) : null,
-    figure: kind === 'figure' ? (freeFigure?.id ?? null) : null,
-    skinId: kind === 'skin' ? (freeSkin?.id ?? null) : null,
+    label: (label ?? "").slice(0, REEL_LABEL_MAX),
+    frameId: kind === "frame" ? (free?.id ?? null) : null,
+    figure: kind === "figure" ? (freeFigure?.id ?? null) : null,
+    skinId: kind === "skin" ? (freeSkin?.id ?? null) : null,
     image: null,
     imageUrl: null,
-    text: '',
-    pct: '0',
-    stock: '',
-  })
-}
+    text: "",
+    pct: "0",
+    stock: "",
+  });
+};
 
 /** Выбрали приз — подставляем его имя, если своё ещё не придумано. */
 const onPrizePick = (d: Draft, key: string) => {
-  const before = prizeName(d).slice(0, REEL_LABEL_MAX)
-  d.frameId = key.startsWith('f') ? Number(key.slice(1)) : null
-  d.figure = key.startsWith('g') ? key.slice(1) : null
-  d.skinId = key.startsWith('s') ? Number(key.slice(1)) : null
-  if (isPrize(d) && (!d.label || d.label === before)) d.label = prizeName(d).slice(0, REEL_LABEL_MAX)
-}
+  const before = prizeName(d).slice(0, REEL_LABEL_MAX);
+  d.frameId = key.startsWith("f") ? Number(key.slice(1)) : null;
+  d.figure = key.startsWith("g") ? key.slice(1) : null;
+  d.skinId = key.startsWith("s") ? Number(key.slice(1)) : null;
+  if (isPrize(d) && (!d.label || d.label === before))
+    d.label = prizeName(d).slice(0, REEL_LABEL_MAX);
+};
 
 const uploadImage = async (d: Draft, i: number, e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  uploading.value = i
-  delete segErr.value[i]
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  uploading.value = i;
+  delete segErr.value[i];
   try {
-    const form = new FormData()
+    const form = new FormData();
     // Большую картинку ужимаем ещё в браузере, как фон, — сценке хватает
     // 1024 px. GIF не трогаем: холст оставил бы от анимации первый кадр.
-    form.append('image', file.type === 'image/gif' ? file : await shrinkBg(file, REEL_IMAGE_MAX_SIDE))
-    const res = await $fetch<{ file: string; url: string }>('/api/admin/reel-images', { method: 'POST', body: form })
-    d.image = res.file
-    d.imageUrl = res.url
+    form.append(
+      "image",
+      file.type === "image/gif"
+        ? file
+        : await shrinkBg(file, REEL_IMAGE_MAX_SIDE),
+    );
+    const res = await $fetch<{ file: string; url: string }>(
+      "/api/admin/reel-images",
+      { method: "POST", body: form },
+    );
+    d.image = res.file;
+    d.imageUrl = res.url;
   } catch (e: any) {
-    segErr.value[i] = e.data?.message || 'Картинка не загрузилась'
+    segErr.value[i] = e.data?.message || "Картинка не загрузилась";
   } finally {
-    uploading.value = null
-    ;(e.target as HTMLInputElement).value = ''
+    uploading.value = null;
+    (e.target as HTMLInputElement).value = "";
   }
-}
+};
 
 const payload = () => ({
   title: title.value,
   texts: texts.value,
-  segments: drafts.value.map(d => ({
+  segments: drafts.value.map((d) => ({
     label: d.label,
     frameId: d.frameId,
     figure: d.frameId ? null : d.figure,
@@ -256,195 +348,281 @@ const payload = () => ({
     weight: percentToWeight(pctOf(d)),
     stock: isPrize(d) && d.stock ? Number(d.stock) : null,
   })),
-})
+});
 
-const save = () => run(async () => {
-  await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: payload() })
-  await load()
-}, 'Сохранено')
+const save = () =>
+  run(async () => {
+    await $fetch(`/api/admin/reels/${selectedId.value}`, {
+      method: "PUT",
+      body: payload(),
+    });
+    await load();
+  }, "Сохранено");
 
-const saveTitle = () => run(async () => {
-  await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: { title: title.value } })
-  await load()
-}, 'Название сохранено')
+const saveTitle = () =>
+  run(async () => {
+    await $fetch(`/api/admin/reels/${selectedId.value}`, {
+      method: "PUT",
+      body: { title: title.value },
+    });
+    await load();
+  }, "Название сохранено");
 
 /** Тексты окна — отдельной кнопкой: у идущего барабана сегменты заморожены, а слова нет. */
-const changedTexts = computed(() => REEL_TEXT_KEYS.filter(k => texts.value[k].trim()).length)
-const saveTexts = () => run(async () => {
-  await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: { title: title.value, texts: texts.value } })
-  await load()
-}, 'Тексты сохранены')
+const changedTexts = computed(
+  () => REEL_TEXT_KEYS.filter((k) => texts.value[k].trim()).length,
+);
+const saveTexts = () =>
+  run(async () => {
+    await $fetch(`/api/admin/reels/${selectedId.value}`, {
+      method: "PUT",
+      body: { title: title.value, texts: texts.value },
+    });
+    await load();
+  }, "Тексты сохранены");
 
 /** Фон ужимаем ещё в браузере: обои с телефона бывают 4096 px и тяжелее
  *  мегабайта, а окну барабана хватает 2000 по длинной стороне. Сервер сам
  *  картинки не пережимает, только проверяет — так через него проходит любая. */
-const BG_SIDE = 2000
+const BG_SIDE = 2000;
 const shrinkBg = async (file: File, side = BG_SIDE): Promise<Blob> => {
-  const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height))
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.round(bitmap.width * scale)
-  canvas.height = Math.round(bitmap.height * scale)
-  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  bitmap.close()
-  const encode = (type: string) => new Promise<Blob | null>(resolve => canvas.toBlob(resolve, type, 0.85))
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const encode = (type: string) =>
+    new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, 0.85));
   // Старый Safari webp не пишет и молча отдаёт png — тогда jpeg.
-  const webp = await encode('image/webp')
-  return webp?.type === 'image/webp' ? webp : (await encode('image/jpeg'))!
-}
+  const webp = await encode("image/webp");
+  return webp?.type === "image/webp" ? webp : (await encode("image/jpeg"))!;
+};
 
 /** Фон окна — отдельной кнопкой, как и тексты: менять его можно и посреди ивента. */
 const uploadBg = async (e: Event) => {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  bgUploading.value = true
-  err.value = ''
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  bgUploading.value = true;
+  err.value = "";
   try {
-    const form = new FormData()
-    form.append('image', await shrinkBg(file))
-    form.append('kind', 'bg')
-    const res = await $fetch<{ file: string; url: string }>('/api/admin/reel-images', { method: 'POST', body: form })
-    bg.value = res.file
-    bgUrl.value = res.url
+    const form = new FormData();
+    form.append("image", await shrinkBg(file));
+    form.append("kind", "bg");
+    const res = await $fetch<{ file: string; url: string }>(
+      "/api/admin/reel-images",
+      { method: "POST", body: form },
+    );
+    bg.value = res.file;
+    bgUrl.value = res.url;
   } catch (e: any) {
-    err.value = e.data?.message || 'Фон не загрузился'
+    err.value = e.data?.message || "Фон не загрузился";
   } finally {
-    bgUploading.value = false
-    input.value = ''
+    bgUploading.value = false;
+    input.value = "";
   }
-}
+};
 
 const removeBg = () => {
-  bg.value = null
-  bgUrl.value = null
-}
+  bg.value = null;
+  bgUrl.value = null;
+};
 
-const saveBg = () => run(async () => {
-  await $fetch(`/api/admin/reels/${selectedId.value}`, {
-    method: 'PUT',
-    body: { title: title.value, background: bg.value, bgDim: bgDim.value, bgBlur: bgBlur.value },
-  })
-  await load()
-}, 'Фон сохранён')
+const saveBg = () =>
+  run(async () => {
+    await $fetch(`/api/admin/reels/${selectedId.value}`, {
+      method: "PUT",
+      body: {
+        title: title.value,
+        background: bg.value,
+        bgDim: bgDim.value,
+        bgBlur: bgBlur.value,
+      },
+    });
+    await load();
+  }, "Фон сохранён");
 
 /** Картинка баннера — тем же путём, что фон: ужать в браузере, положить файл. */
 const uploadBanner = async (e: Event, key: BannerKey) => {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  bannerUploading.value = true
-  err.value = ''
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  bannerUploading.value = true;
+  err.value = "";
   try {
-    const form = new FormData()
-    form.append('image', await shrinkBg(file))
-    form.append('kind', 'banner')
-    banner.value[key] = await $fetch<{ file: string; url: string }>('/api/admin/reel-images', { method: 'POST', body: form })
+    const form = new FormData();
+    form.append("image", await shrinkBg(file));
+    form.append("kind", "banner");
+    banner.value[key] = await $fetch<{ file: string; url: string }>(
+      "/api/admin/reel-images",
+      { method: "POST", body: form },
+    );
   } catch (e: any) {
-    err.value = e.data?.message || 'Картинка не загрузилась'
+    err.value = e.data?.message || "Картинка не загрузилась";
   } finally {
-    bannerUploading.value = false
-    input.value = ''
+    bannerUploading.value = false;
+    input.value = "";
   }
-}
+};
 
-const saveBanner = () => run(async () => {
-  await $fetch(`/api/admin/reels/${selectedId.value}`, {
-    method: 'PUT',
-    body: { title: title.value, texts: texts.value, bannerDesk: banner.value.desk.file, bannerMob: banner.value.mob.file },
-  })
-  await load()
-}, 'Баннер сохранён')
+const saveBanner = () =>
+  run(async () => {
+    await $fetch(`/api/admin/reels/${selectedId.value}`, {
+      method: "PUT",
+      body: {
+        title: title.value,
+        texts: texts.value,
+        bannerDesk: banner.value.desk.file,
+        bannerMob: banner.value.mob.file,
+      },
+    });
+    await load();
+  }, "Баннер сохранён");
 
 /** Превью фона: та же картинка под тем же затемнением, что и в окне. */
 const bgPreview = computed(() => {
-  if (!bgUrl.value) return {}
-  const dim = `rgba(20, 14, 10, ${bgDim.value / 100})`
-  return { backgroundImage: `linear-gradient(${dim}, ${dim}), url("${bgUrl.value}")` }
-})
+  if (!bgUrl.value) return {};
+  const dim = `rgba(20, 14, 10, ${bgDim.value / 100})`;
+  return {
+    backgroundImage: `linear-gradient(${dim}, ${dim}), url("${bgUrl.value}")`,
+  };
+});
 
 /** Попыток в день — сохраняется сразу, как и «только для админов». */
 const setSpinsPerDay = (raw: string) => {
-  const n = Math.round(Number(raw))
-  if (!Number.isFinite(n) || n < 1) return
-  run(async () => {
-    await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: { title: title.value, spinsPerDay: n } })
-    await load()
-  }, `Попыток в день: ${Math.min(n, REEL_SPINS_MAX)}`)
-}
+  const n = Math.round(Number(raw));
+  if (!Number.isFinite(n) || n < 1) return;
+  run(
+    async () => {
+      await $fetch(`/api/admin/reels/${selectedId.value}`, {
+        method: "PUT",
+        body: { title: title.value, spinsPerDay: n },
+      });
+      await load();
+    },
+    `Попыток в день: ${Math.min(n, REEL_SPINS_MAX)}`,
+  );
+};
 
 /** «Только для админов» сохраняется сразу — и у идущего барабана тоже. */
-const setAdminsOnly = (adminsOnly: boolean) => run(async () => {
-  await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: { title: title.value, adminsOnly } })
-  await load()
-}, adminsOnly ? 'Теперь барабан видят только админы' : 'Барабан открыт читателям')
+const setAdminsOnly = (adminsOnly: boolean) =>
+  run(
+    async () => {
+      await $fetch(`/api/admin/reels/${selectedId.value}`, {
+        method: "PUT",
+        body: { title: title.value, adminsOnly },
+      });
+      await load();
+    },
+    adminsOnly
+      ? "Теперь барабан видят только админы"
+      : "Барабан открыт читателям",
+  );
 
 const start = async () => {
-  const adminsOnly = selected.value?.adminsOnly
-  await run(async () => {
-    await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: payload() })
-    await $fetch(`/api/admin/reels/${selectedId.value}/start`, { method: 'POST' })
-    await load()
-  }, adminsOnly
-    ? 'Барабан запущен для админов — читатели его пока не видят'
-    : 'Барабан запущен — читатели увидят приглашение в колокольчике')
-}
+  const adminsOnly = selected.value?.adminsOnly;
+  await run(
+    async () => {
+      await $fetch(`/api/admin/reels/${selectedId.value}`, {
+        method: "PUT",
+        body: payload(),
+      });
+      await $fetch(`/api/admin/reels/${selectedId.value}/start`, {
+        method: "POST",
+      });
+      await load();
+    },
+    adminsOnly
+      ? "Барабан запущен для админов — читатели его пока не видят"
+      : "Барабан запущен — читатели увидят приглашение в колокольчике",
+  );
+};
 
-const finish = () => run(async () => {
-  await $fetch(`/api/admin/reels/${selectedId.value}/finish`, { method: 'POST' })
-  await load()
-}, 'Ивент завершён')
+const finish = () =>
+  run(async () => {
+    await $fetch(`/api/admin/reels/${selectedId.value}/finish`, {
+      method: "POST",
+    });
+    await load();
+  }, "Ивент завершён");
 
 const remove = () => {
-  const done = selected.value?.status === 'finished' ? 'Барабан удалён' : 'Черновик удалён'
+  const done =
+    selected.value?.status === "finished"
+      ? "Барабан удалён"
+      : "Черновик удалён";
   return run(async () => {
-    await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'DELETE' })
-    selectedId.value = null
-    await load()
-  }, done)
-}
+    await $fetch(`/api/admin/reels/${selectedId.value}`, { method: "DELETE" });
+    selectedId.value = null;
+    await load();
+  }, done);
+};
 
 /** Пробуют то, что сохранено: у черновика сначала сохраняем правки. */
 const trial = async () => {
-  if (editable.value && !(await run(async () => {
-    await $fetch(`/api/admin/reels/${selectedId.value}`, { method: 'PUT', body: payload() })
-    await load()
-  }))) return
-  trialId.value = selectedId.value
-}
+  if (
+    editable.value &&
+    !(await run(async () => {
+      await $fetch(`/api/admin/reels/${selectedId.value}`, {
+        method: "PUT",
+        body: payload(),
+      });
+      await load();
+    }))
+  )
+    return;
+  trialId.value = selectedId.value;
+};
 
-const OUTCOME: Record<LogRow['outcome'], string> = { won: 'выиграл', duplicate: 'повторка', scene: 'сценка' }
-const when = (raw: string) => new Date(`${raw.replace(' ', 'T')}Z`)
-  .toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' })
+const OUTCOME: Record<LogRow["outcome"], string> = {
+  won: "выиграл",
+  duplicate: "повторка",
+  scene: "сценка",
+};
+const when = (raw: string) =>
+  new Date(`${raw.replace(" ", "T")}Z`).toLocaleString("ru-RU", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Moscow",
+  });
 
 // Черновику сегменты нужны раскрытыми — их правят. У идущего и завершённого
 // барабана их можно свернуть, чтобы не листать до журнала попыток.
-const segsOpen = computed(() => editable.value || segsPref.value)
+const segsOpen = computed(() => editable.value || segsPref.value);
 const onSegsToggle = (e: Event) => {
-  if (editable.value) return
-  segsPref.value = (e.target as HTMLDetailsElement).open
-  try { localStorage.setItem(SEGS_KEY, segsPref.value ? '1' : '0') } catch {}
-}
+  if (editable.value) return;
+  segsPref.value = (e.target as HTMLDetailsElement).open;
+  try {
+    localStorage.setItem(SEGS_KEY, segsPref.value ? "1" : "0");
+  } catch {}
+};
 
 watch(onlyWon, (v) => {
-  try { localStorage.setItem(ONLY_WON_KEY, v ? '1' : '0') } catch {}
-})
+  try {
+    localStorage.setItem(ONLY_WON_KEY, v ? "1" : "0");
+  } catch {}
+});
 
 onMounted(() => {
   try {
-    onlyWon.value = localStorage.getItem(ONLY_WON_KEY) === '1'
-    segsPref.value = localStorage.getItem(SEGS_KEY) !== '0'
+    onlyWon.value = localStorage.getItem(ONLY_WON_KEY) === "1";
+    segsPref.value = localStorage.getItem(SEGS_KEY) !== "0";
   } catch {}
-  load()
-})
+  load();
+});
 </script>
 
 <template>
   <div class="reel-admin">
     <p class="note">
-      Читатель крутит раз в день, пока барабан идёт. Сегмент с рамкой, фигуркой у имени или скином
-      страницы — приз, без них — сценка: картинка и пара строк вместо пустоты. Выпал приз, который уже есть, — это
-      повторка, тираж она не тратит. Кончился тираж — шанс приза делится между остальными.
+      Читатель крутит раз в день, пока барабан идёт. Сегмент с рамкой, фигуркой
+      у имени или скином страницы — приз, без них — сценка: картинка и пара
+      строк вместо пустоты. Выпал приз, который уже есть, — это повторка, тираж
+      она не тратит. Кончился тираж — шанс приза делится между остальными.
     </p>
 
     <!-- Список барабанов -->
@@ -462,12 +640,26 @@ onMounted(() => {
       </button>
 
       <form class="new-reel" @submit.prevent="create">
-        <input v-model="newTitle" type="text" :maxlength="REEL_TITLE_MAX" placeholder="Осень 2026" aria-label="Название нового барабана">
-        <button class="btn btn--primary" type="submit" :disabled="busy || !newTitle.trim()">+ Новый барабан</button>
+        <input
+          v-model="newTitle"
+          type="text"
+          :maxlength="REEL_TITLE_MAX"
+          placeholder="Осень 2026"
+          aria-label="Название нового барабана"
+        />
+        <button
+          class="btn btn--primary"
+          type="submit"
+          :disabled="busy || !newTitle.trim()"
+        >
+          + Новый барабан
+        </button>
       </form>
     </div>
 
-    <p v-if="!reels.length" class="empty">Барабанов пока нет. Заведи первый — он появится черновиком.</p>
+    <p v-if="!reels.length" class="empty">
+      Барабанов пока нет. Заведи первый — он появится черновиком.
+    </p>
 
     <template v-if="selected">
       <div class="head">
@@ -478,8 +670,10 @@ onMounted(() => {
           :maxlength="REEL_TITLE_MAX"
           aria-label="Название барабана"
           @change="!editable && saveTitle()"
-        >
-        <span class="status" :class="selected.status">{{ STATUS[selected.status] }}</span>
+        />
+        <span class="status" :class="selected.status">{{
+          STATUS[selected.status]
+        }}</span>
       </div>
 
       <label v-if="selected.status !== 'finished'" class="admins-only">
@@ -488,15 +682,16 @@ onMounted(() => {
           :checked="selected.adminsOnly"
           :disabled="busy"
           @change="setAdminsOnly(($event.target as HTMLInputElement).checked)"
-        >
+        />
         <span>
-          Только для админов — проба. Читатели барабана не видят: ни приглашения, ни окна.
-          Сними галочку, когда захочешь открыть его всем.
+          Только для админов — проба. Читатели барабана не видят: ни
+          приглашения, ни окна. Сними галочку, когда захочешь открыть его всем.
         </span>
       </label>
 
       <p v-if="selected.status === 'running'" class="note">
-        Барабан идёт: сегменты заморожены, чтобы шансы не менялись для тех, кто крутит позже.
+        Барабан идёт: сегменты заморожены, чтобы шансы не менялись для тех, кто
+        крутит позже.
       </p>
       <p v-else-if="selected.status === 'finished'" class="note">
         Ивент завершён. Выигранные призы остались у читателей.
@@ -506,12 +701,19 @@ onMounted(() => {
       <details class="texts" :open="segsOpen" @toggle="onSegsToggle">
         <summary>
           Сегменты
-          <span class="texts-count">{{ drafts.length }} · итого {{ fmt(total) }}%</span>
+          <span class="texts-count"
+            >{{ drafts.length }} · итого {{ fmt(total) }}%</span
+          >
         </summary>
         <div class="segs">
-          <div v-for="(d, i) in drafts" :key="i" class="seg" :class="{ scene: !isPrize(d) }">
+          <div
+            v-for="(d, i) in drafts"
+            :key="i"
+            class="seg"
+            :class="{ scene: !isPrize(d) }"
+          >
             <div class="seg-pic">
-              <img v-if="picOf(d)" :src="picOf(d)!" alt="">
+              <img v-if="picOf(d)" :src="picOf(d)!" alt="" />
               <span v-else class="no-pic">нет картинки</span>
             </div>
 
@@ -519,21 +721,39 @@ onMounted(() => {
               <div class="seg-row">
                 <label class="fld grow">
                   <span>Название</span>
-                  <input v-model="d.label" type="text" :maxlength="REEL_LABEL_MAX" :disabled="!editable">
+                  <input
+                    v-model="d.label"
+                    type="text"
+                    :maxlength="REEL_LABEL_MAX"
+                    :disabled="!editable"
+                  />
                 </label>
 
                 <label class="fld">
                   <span>Приз</span>
-                  <select :value="prizeKey(d)" :disabled="!editable" @change="onPrizePick(d, ($event.target as HTMLSelectElement).value)">
+                  <select
+                    :value="prizeKey(d)"
+                    :disabled="!editable"
+                    @change="
+                      onPrizePick(d, ($event.target as HTMLSelectElement).value)
+                    "
+                  >
                     <option value="">Сценка — без приза</option>
                     <optgroup label="Рамки">
                       <option
                         v-for="f in frames"
                         :key="f.id"
                         :value="`f${f.id}`"
-                        :disabled="drafts.some((o, j) => j !== i && o.frameId === f.id)"
+                        :disabled="
+                          drafts.some((o, j) => j !== i && o.frameId === f.id)
+                        "
                       >
-                        {{ f.name }}{{ usedElsewhere.has(f.id) ? ` — есть в «${usedElsewhere.get(f.id)}»` : '' }}
+                        {{ f.name
+                        }}{{
+                          usedElsewhere.has(f.id)
+                            ? ` — есть в «${usedElsewhere.get(f.id)}»`
+                            : ""
+                        }}
                       </option>
                     </optgroup>
                     <optgroup v-if="skins.length" label="Скины страницы">
@@ -541,7 +761,9 @@ onMounted(() => {
                         v-for="sk in skins"
                         :key="sk.id"
                         :value="`s${sk.id}`"
-                        :disabled="drafts.some((o, j) => j !== i && o.skinId === sk.id)"
+                        :disabled="
+                          drafts.some((o, j) => j !== i && o.skinId === sk.id)
+                        "
                       >
                         {{ sk.name }}
                       </option>
@@ -551,7 +773,9 @@ onMounted(() => {
                         v-for="g in ALL_FIGURES"
                         :key="g.id"
                         :value="`g${g.id}`"
-                        :disabled="drafts.some((o, j) => j !== i && o.figure === g.id)"
+                        :disabled="
+                          drafts.some((o, j) => j !== i && o.figure === g.id)
+                        "
                       >
                         {{ g.name }}
                       </option>
@@ -561,12 +785,24 @@ onMounted(() => {
 
                 <label class="fld num">
                   <span>Шанс, %</span>
-                  <input v-model="d.pct" type="text" inputmode="decimal" :disabled="!editable">
+                  <input
+                    v-model="d.pct"
+                    type="text"
+                    inputmode="decimal"
+                    :disabled="!editable"
+                  />
                 </label>
 
                 <label v-if="isPrize(d)" class="fld num">
                   <span>Тираж</span>
-                  <input v-model="d.stock" type="number" min="1" step="1" placeholder="∞" :disabled="!editable">
+                  <input
+                    v-model="d.stock"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="∞"
+                    :disabled="!editable"
+                  />
                 </label>
 
                 <button
@@ -575,7 +811,9 @@ onMounted(() => {
                   type="button"
                   aria-label="Убрать сегмент"
                   @click="drafts.splice(i, 1)"
-                >×</button>
+                >
+                  ×
+                </button>
               </div>
 
               <div v-if="!isPrize(d)" class="seg-row">
@@ -587,11 +825,15 @@ onMounted(() => {
                     :maxlength="REEL_TEXT_MAX"
                     placeholder="Эрин налила тебе супа. Рамки нет, но суп правда хороший."
                     :disabled="!editable"
-                  >
+                  />
                 </label>
                 <label v-if="editable" class="fld">
-                  <span>{{ uploading === i ? 'Грузим…' : 'Картинка' }}</span>
-                  <input type="file" accept="image/*" @change="uploadImage(d, i, $event)">
+                  <span>{{ uploading === i ? "Грузим…" : "Картинка" }}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    @change="uploadImage(d, i, $event)"
+                  />
                 </label>
               </div>
 
@@ -600,8 +842,9 @@ onMounted(() => {
               <p v-if="selected.status !== 'draft'" class="seg-stat">
                 выпал {{ selected.segments[i]?.landed ?? 0 }} раз
                 <template v-if="isPrize(d)">
-                  · выдано {{ selected.segments[i]?.won ?? 0 }}{{ d.stock ? ` из ${d.stock}` : '' }}
-                  · повторок {{ selected.segments[i]?.duplicates ?? 0 }}
+                  · выдано {{ selected.segments[i]?.won ?? 0
+                  }}{{ d.stock ? ` из ${d.stock}` : "" }} · повторок
+                  {{ selected.segments[i]?.duplicates ?? 0 }}
                 </template>
               </p>
             </div>
@@ -609,17 +852,34 @@ onMounted(() => {
         </div>
 
         <div v-if="editable" class="add-row">
-          <button class="link" type="button" @click="addSegment('frame')">+ Рамка</button>
-          <button class="link" type="button" @click="addSegment('figure')">+ Фигурка</button>
-          <button v-if="skins.length" class="link" type="button" @click="addSegment('skin')">+ Скин</button>
-          <button class="link" type="button" @click="addSegment('scene')">+ Сценка</button>
+          <button class="link" type="button" @click="addSegment('frame')">
+            + Рамка
+          </button>
+          <button class="link" type="button" @click="addSegment('figure')">
+            + Фигурка
+          </button>
+          <button
+            v-if="skins.length"
+            class="link"
+            type="button"
+            @click="addSegment('skin')"
+          >
+            + Скин
+          </button>
+          <button class="link" type="button" @click="addSegment('scene')">
+            + Сценка
+          </button>
         </div>
 
         <p class="sum" :class="totalOk ? 'ok' : 'bad'">
           Итого {{ fmt(total) }}%
           <template v-if="totalOk">✓</template>
-          <template v-else-if="total < REEL_WEIGHT_TOTAL"> — не хватает {{ fmt(REEL_WEIGHT_TOTAL - total) }}%</template>
-          <template v-else> — лишние {{ fmt(total - REEL_WEIGHT_TOTAL) }}%</template>
+          <template v-else-if="total < REEL_WEIGHT_TOTAL">
+            — не хватает {{ fmt(REEL_WEIGHT_TOTAL - total) }}%</template
+          >
+          <template v-else>
+            — лишние {{ fmt(total - REEL_WEIGHT_TOTAL) }}%</template
+          >
         </p>
       </details>
 
@@ -633,111 +893,295 @@ onMounted(() => {
           :value="selected.spinsPerDay"
           :disabled="busy"
           @change="setSpinsPerDay(($event.target as HTMLInputElement).value)"
-        >
+        />
       </label>
 
       <!-- Тексты окна -->
-      <details v-if="selected.status !== 'finished'" class="texts" :open="textsOpen" @toggle="textsOpen = ($event.target as HTMLDetailsElement).open">
+      <details
+        v-if="selected.status !== 'finished'"
+        class="texts"
+        :open="textsOpen"
+        @toggle="textsOpen = ($event.target as HTMLDetailsElement).open"
+      >
         <summary>
           Тексты окна и приглашения
-          <span v-if="changedTexts" class="texts-count">изменено: {{ changedTexts }}</span>
+          <span v-if="changedTexts" class="texts-count"
+            >изменено: {{ changedTexts }}</span
+          >
         </summary>
-        <p class="note">Пустое поле — текст по умолчанию, он виден серым. Править можно и у идущего барабана.</p>
+        <p class="note">
+          Пустое поле — текст по умолчанию, он виден серым. Править можно и у
+          идущего барабана.
+        </p>
         <div class="texts-grid">
           <label v-for="k in windowTextKeys" :key="k" class="fld">
             <span>{{ REEL_TEXTS[k].label }}</span>
-            <input v-model="texts[k]" type="text" :maxlength="REEL_TEXT_MAX" :placeholder="REEL_TEXTS[k].value">
+            <input
+              v-model="texts[k]"
+              type="text"
+              :maxlength="REEL_TEXT_MAX"
+              :placeholder="REEL_TEXTS[k].value"
+            />
           </label>
         </div>
-        <button class="btn btn--ghost" type="button" :disabled="busy" @click="saveTexts">Сохранить тексты</button>
+        <button
+          class="btn btn--ghost"
+          type="button"
+          :disabled="busy"
+          @click="saveTexts"
+        >
+          Сохранить тексты
+        </button>
       </details>
 
       <!-- Фон окна -->
-      <details v-if="selected.status !== 'finished'" class="texts" :open="bgOpen" @toggle="bgOpen = ($event.target as HTMLDetailsElement).open">
+      <details
+        v-if="selected.status !== 'finished'"
+        class="texts"
+        :open="bgOpen"
+        @toggle="bgOpen = ($event.target as HTMLDetailsElement).open"
+      >
         <summary>
           Фон окна
           <span v-if="selected.background" class="texts-count">есть</span>
         </summary>
-        <p class="note">Картинка во всё окно барабана, лучше вертикальная. Большую админка сама уменьшит перед загрузкой. Без фона окно тёмное. Менять можно и у идущего барабана.</p>
+        <p class="note">
+          Картинка во всё окно барабана, лучше вертикальная. Большую админка
+          сама уменьшит перед загрузкой. Без фона окно тёмное. Менять можно и у
+          идущего барабана.
+        </p>
         <div class="bg-row">
           <div class="bg-preview" :class="{ empty: !bgUrl }" :style="bgPreview">
             <span v-if="!bgUrl">нет фона</span>
           </div>
           <div class="bg-controls">
             <label class="btn btn--ghost bg-upload">
-              {{ bgUploading ? 'Загружаем…' : bgUrl ? 'Заменить картинку' : 'Загрузить картинку' }}
-              <input type="file" accept="image/*" :disabled="bgUploading" @change="uploadBg">
+              {{
+                bgUploading
+                  ? "Загружаем…"
+                  : bgUrl
+                    ? "Заменить картинку"
+                    : "Загрузить картинку"
+              }}
+              <input
+                type="file"
+                accept="image/*"
+                :disabled="bgUploading"
+                @change="uploadBg"
+              />
             </label>
-            <button v-if="bgUrl" class="link danger" type="button" @click="removeBg">Убрать фон</button>
+            <button
+              v-if="bgUrl"
+              class="link danger"
+              type="button"
+              @click="removeBg"
+            >
+              Убрать фон
+            </button>
             <label class="bg-range" for="reel-bg-dim">
               <span>Затемнение</span>
-              <input id="reel-bg-dim" v-model.number="bgDim" type="range" min="0" :max="REEL_DIM_MAX" step="5">
+              <input
+                id="reel-bg-dim"
+                v-model.number="bgDim"
+                type="range"
+                min="0"
+                :max="REEL_DIM_MAX"
+                step="5"
+              />
               <output>{{ bgDim }} %</output>
             </label>
             <label class="bg-range" for="reel-bg-blur">
               <span>Размытие под линией</span>
-              <input id="reel-bg-blur" v-model.number="bgBlur" type="range" min="0" :max="REEL_BLUR_MAX" step="1">
+              <input
+                id="reel-bg-blur"
+                v-model.number="bgBlur"
+                type="range"
+                min="0"
+                :max="REEL_BLUR_MAX"
+                step="1"
+              />
               <output>{{ bgBlur }} px</output>
             </label>
           </div>
         </div>
-        <button class="btn btn--ghost" type="button" :disabled="busy || bgUploading" @click="saveBg">Сохранить фон</button>
+        <button
+          class="btn btn--ghost"
+          type="button"
+          :disabled="busy || bgUploading"
+          @click="saveBg"
+        >
+          Сохранить фон
+        </button>
       </details>
 
       <!-- Баннер на главной -->
-      <details v-if="selected.status !== 'finished'" class="texts" :open="bannerOpen" @toggle="bannerOpen = ($event.target as HTMLDetailsElement).open">
+      <details
+        v-if="selected.status !== 'finished'"
+        class="texts"
+        :open="bannerOpen"
+        @toggle="bannerOpen = ($event.target as HTMLDetailsElement).open"
+      >
         <summary>
           Баннер на главной
-          <span v-if="selected.bannerDesk || selected.bannerMob" class="texts-count">есть</span>
+          <span
+            v-if="selected.bannerDesk || selected.bannerMob"
+            class="texts-count"
+            >есть</span
+          >
         </summary>
         <p class="note">
-          Пока барабан идёт, баннер стоит на главной вместо плашки игры; у барабана «только для админов» его видят только админы.
-          Широкая картинка — для компьютера (около 2000 × 280), вторая — для телефона. Без картинки для телефона там будет широкая.
+          Пока барабан идёт, баннер стоит на главной вместо плашки игры; у
+          барабана «только для админов» его видят только админы. Широкая
+          картинка — для компьютера (около 2000 × 280), вторая — для телефона.
+          Без картинки для телефона там будет широкая.
         </p>
         <div class="banner-row">
           <div v-for="b in BANNER_SLOTS" :key="b.key" class="banner-slot">
             <span class="banner-label">{{ b.label }}</span>
-            <div class="banner-preview" :class="[b.key, { empty: !banner[b.key].url }]" :style="banner[b.key].url ? { backgroundImage: `url(&quot;${banner[b.key].url}&quot;)` } : {}">
+            <div
+              class="banner-preview"
+              :class="[b.key, { empty: !banner[b.key].url }]"
+              :style="
+                banner[b.key].url
+                  ? { backgroundImage: `url(&quot;${banner[b.key].url}&quot;)` }
+                  : {}
+              "
+            >
               <span v-if="!banner[b.key].url">нет картинки</span>
             </div>
             <label class="btn btn--ghost bg-upload">
-              {{ bannerUploading ? 'Загружаем…' : banner[b.key].url ? 'Заменить' : 'Загрузить' }}
-              <input type="file" accept="image/*" :disabled="bannerUploading" @change="uploadBanner($event, b.key)">
+              {{
+                bannerUploading
+                  ? "Загружаем…"
+                  : banner[b.key].url
+                    ? "Заменить"
+                    : "Загрузить"
+              }}
+              <input
+                type="file"
+                accept="image/*"
+                :disabled="bannerUploading"
+                @change="uploadBanner($event, b.key)"
+              />
             </label>
-            <button v-if="banner[b.key].url" class="link danger" type="button" @click="banner[b.key] = { file: null, url: null }">Убрать</button>
+            <button
+              v-if="banner[b.key].url"
+              class="link danger"
+              type="button"
+              @click="banner[b.key] = { file: null, url: null }"
+            >
+              Убрать
+            </button>
           </div>
         </div>
         <div class="texts-grid">
           <label v-for="k in BANNER_TEXT_KEYS" :key="k" class="fld">
             <span>{{ REEL_TEXTS[k].label }}</span>
-            <input v-model="texts[k]" type="text" :maxlength="REEL_TEXT_MAX" :placeholder="REEL_TEXTS[k].value">
+            <input
+              v-model="texts[k]"
+              type="text"
+              :maxlength="REEL_TEXT_MAX"
+              :placeholder="REEL_TEXTS[k].value"
+            />
           </label>
         </div>
-        <button class="btn btn--ghost" type="button" :disabled="busy || bannerUploading" @click="saveBanner">Сохранить баннер</button>
+        <button
+          class="btn btn--ghost"
+          type="button"
+          :disabled="busy || bannerUploading"
+          @click="saveBanner"
+        >
+          Сохранить баннер
+        </button>
       </details>
 
       <div class="actions">
         <template v-if="editable">
-          <button class="btn btn--ghost" type="button" :disabled="busy" @click="save">Сохранить</button>
-          <button class="btn btn--ghost" type="button" :disabled="busy || drafts.length < 1" @click="trial">Пробная прокрутка</button>
-          <button class="btn btn--primary" type="button" :disabled="busy || !totalOk || drafts.length < 2" @click="start">Запустить</button>
-          <button class="link danger" type="button" :disabled="busy" @click="remove">Удалить черновик</button>
+          <button
+            class="btn btn--ghost"
+            type="button"
+            :disabled="busy"
+            @click="save"
+          >
+            Сохранить
+          </button>
+          <button
+            class="btn btn--ghost"
+            type="button"
+            :disabled="busy || drafts.length < 1"
+            @click="trial"
+          >
+            Пробная прокрутка
+          </button>
+          <button
+            class="btn btn--primary"
+            type="button"
+            :disabled="busy || !totalOk || drafts.length < 2"
+            @click="start"
+          >
+            Запустить
+          </button>
+          <button
+            class="link danger"
+            type="button"
+            :disabled="busy"
+            @click="remove"
+          >
+            Удалить черновик
+          </button>
         </template>
         <template v-else-if="selected.status === 'running'">
-          <button class="btn btn--ghost" type="button" @click="trial">Пробная прокрутка</button>
-          <button v-if="!confirmFinish" class="btn btn--ghost" type="button" @click="confirmFinish = true">Завершить ивент</button>
+          <button class="btn btn--ghost" type="button" @click="trial">
+            Пробная прокрутка
+          </button>
+          <button
+            v-if="!confirmFinish"
+            class="btn btn--ghost"
+            type="button"
+            @click="confirmFinish = true"
+          >
+            Завершить ивент
+          </button>
           <template v-else>
             <span class="confirm">Завершить? Крутить больше будет нельзя.</span>
-            <button class="btn btn--danger" type="button" :disabled="busy" @click="finish">Да, завершить</button>
-            <button class="link" type="button" @click="confirmFinish = false">Отмена</button>
+            <button
+              class="btn btn--danger"
+              type="button"
+              :disabled="busy"
+              @click="finish"
+            >
+              Да, завершить
+            </button>
+            <button class="link" type="button" @click="confirmFinish = false">
+              Отмена
+            </button>
           </template>
         </template>
         <template v-else-if="selected.status === 'finished'">
-          <button v-if="!confirmDelete" class="link danger" type="button" @click="confirmDelete = true">Удалить барабан</button>
+          <button
+            v-if="!confirmDelete"
+            class="link danger"
+            type="button"
+            @click="confirmDelete = true"
+          >
+            Удалить барабан
+          </button>
           <template v-else>
-            <span class="confirm">Удалить вместе с журналом прокруток? Выигранное у читателей останется.</span>
-            <button class="btn btn--danger" type="button" :disabled="busy" @click="remove">Да, удалить</button>
-            <button class="link" type="button" @click="confirmDelete = false">Отмена</button>
+            <span class="confirm"
+              >Удалить вместе с журналом прокруток? Выигранное у читателей
+              останется.</span
+            >
+            <button
+              class="btn btn--danger"
+              type="button"
+              :disabled="busy"
+              @click="remove"
+            >
+              Да, удалить
+            </button>
+            <button class="link" type="button" @click="confirmDelete = false">
+              Отмена
+            </button>
           </template>
         </template>
       </div>
@@ -750,18 +1194,27 @@ onMounted(() => {
         <div class="log-head">
           <h3>Попытки · {{ selected.spins }} от {{ selected.players }} чел.</h3>
           <label class="log-filter">
-            <input v-model="onlyWon" type="checkbox" @change="loadLog">
+            <input v-model="onlyWon" type="checkbox" @change="loadLog" />
             <span>Только выигрыши</span>
           </label>
         </div>
         <p v-if="selected.guests" class="note">
-          Гостей, которые открыли барабан, но без входа крутить не могли: {{ selected.guests }}
+          Гостей, которые открыли барабан, но без входа крутить не могли:
+          {{ selected.guests }}
         </p>
-        <p v-if="!log.length" class="empty">{{ onlyWon ? 'Выигрышей пока нет.' : 'Пока никто не крутил.' }}</p>
-        <p v-else-if="onlyWon" class="note">Выигрышей: {{ log.length }}{{ log.length >= 500 ? ' (показаны последние 500)' : '' }}</p>
+        <p v-if="!log.length" class="empty">
+          {{ onlyWon ? "Выигрышей пока нет." : "Пока никто не крутил." }}
+        </p>
+        <p v-else-if="onlyWon" class="note">
+          Выигрышей: {{ log.length
+          }}{{ log.length >= 500 ? " (показаны последние 500)" : "" }}
+        </p>
         <div v-for="row in log" :key="row.id" class="log-row">
           <span class="log-who">{{ row.name }}</span>
-          <span class="log-what">{{ row.label }} <em :class="row.outcome">{{ OUTCOME[row.outcome] }}</em></span>
+          <span class="log-what"
+            >{{ row.label }}
+            <em :class="row.outcome">{{ OUTCOME[row.outcome] }}</em></span
+          >
           <span class="log-when">{{ when(row.createdAt) }}</span>
         </div>
       </div>
@@ -783,13 +1236,13 @@ onMounted(() => {
   max-width: 70ch;
   font-size: 13px;
   line-height: 1.55;
-  color: rgba(241, 230, 210, .6);
+  color: rgba(241, 230, 210, 0.6);
 }
 
 .empty {
   margin: 0;
   font-size: 13px;
-  color: rgba(241, 230, 210, .5);
+  color: rgba(241, 230, 210, 0.5);
 }
 
 /* ── Барабаны ───────────────────────────────── */
@@ -825,9 +1278,18 @@ onMounted(() => {
   font-size: 11px;
 }
 
-.status.draft { color: var(--ember-soft); background: rgba(232, 176, 122, .12); }
-.status.running { color: var(--success); background: rgba(143, 176, 122, .13); }
-.status.finished { color: rgba(241, 230, 210, .5); background: rgba(241, 230, 210, .07); }
+.status.draft {
+  color: var(--ember-soft);
+  background: rgba(232, 176, 122, 0.12);
+}
+.status.running {
+  color: var(--success);
+  background: rgba(143, 176, 122, 0.13);
+}
+.status.finished {
+  color: rgba(241, 230, 210, 0.5);
+  background: rgba(241, 230, 210, 0.07);
+}
 
 .new-reel {
   display: flex;
@@ -869,9 +1331,13 @@ input[type="file"] {
   font-size: 12px;
 }
 
-select option { background: var(--bg-dark-2); }
+select option {
+  background: var(--bg-dark-2);
+}
 
-.new-reel input { width: 180px; }
+.new-reel input {
+  width: 180px;
+}
 
 .head {
   display: flex;
@@ -921,7 +1387,9 @@ select option { background: var(--bg-dark-2); }
   color: var(--ember-soft);
 }
 
-.texts[open] summary { margin-bottom: 8px; }
+.texts[open] summary {
+  margin-bottom: 8px;
+}
 
 .texts-grid {
   display: grid;
@@ -930,7 +1398,10 @@ select option { background: var(--bg-dark-2); }
   margin-bottom: 12px;
 }
 
-.texts-grid input { width: 100%; min-width: 0; }
+.texts-grid input {
+  width: 100%;
+  min-width: 0;
+}
 
 .bg-row {
   display: flex;
@@ -972,7 +1443,7 @@ select option { background: var(--bg-dark-2); }
 
 .banner-label {
   font-size: 12px;
-  color: rgba(241, 230, 210, .6);
+  color: rgba(241, 230, 210, 0.6);
 }
 
 /* Миниатюры в пропорциях настоящих плашек: широкая и телефонная. */
@@ -999,7 +1470,7 @@ select option { background: var(--bg-dark-2); }
   display: grid;
   place-items: center;
   font-size: 12px;
-  color: rgba(241, 230, 210, .45);
+  color: rgba(241, 230, 210, 0.45);
 }
 
 .bg-controls {
@@ -1030,12 +1501,20 @@ select option { background: var(--bg-dark-2); }
   width: 100%;
   max-width: 320px;
   font-size: 13px;
-  color: rgba(241, 230, 210, .75);
+  color: rgba(241, 230, 210, 0.75);
 }
 
-.bg-range span { grid-column: 1 / -1; }
-.bg-range input { min-width: 0; accent-color: var(--ember); }
-.bg-range output { font-variant-numeric: tabular-nums lining-nums; color: var(--parchment); }
+.bg-range span {
+  grid-column: 1 / -1;
+}
+.bg-range input {
+  min-width: 0;
+  accent-color: var(--ember);
+}
+.bg-range output {
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--parchment);
+}
 
 .per-day {
   display: flex;
@@ -1043,7 +1522,7 @@ select option { background: var(--bg-dark-2); }
   gap: 10px;
   margin: 0 0 14px;
   font-size: 13px;
-  color: rgba(241, 230, 210, .75);
+  color: rgba(241, 230, 210, 0.75);
 }
 
 .per-day input {
@@ -1058,7 +1537,7 @@ select option { background: var(--bg-dark-2); }
   gap: 8px;
   margin: 4px 0 14px;
   font-size: 13px;
-  color: rgba(241, 230, 210, .75);
+  color: rgba(241, 230, 210, 0.75);
   cursor: pointer;
 }
 
@@ -1122,14 +1601,21 @@ select option { background: var(--bg-dark-2); }
 
 .fld > span {
   font-size: 11px;
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgba(241, 230, 210, .45);
+  color: rgba(241, 230, 210, 0.45);
 }
 
-.fld.grow { flex: 1 1 180px; }
-.fld.num { flex: 0 0 84px; min-width: 84px; }
-.fld.num input { font-variant-numeric: tabular-nums lining-nums; }
+.fld.grow {
+  flex: 1 1 180px;
+}
+.fld.num {
+  flex: 0 0 84px;
+  min-width: 84px;
+}
+.fld.num input {
+  font-variant-numeric: tabular-nums lining-nums;
+}
 
 .rm {
   width: 32px;
@@ -1137,17 +1623,20 @@ select option { background: var(--bg-dark-2); }
   border: none;
   border-radius: var(--radius-sm);
   background: none;
-  color: rgba(241, 230, 210, .45);
+  color: rgba(241, 230, 210, 0.45);
   font-size: 18px;
   cursor: pointer;
 }
 
-.rm:hover { color: var(--danger); background: rgba(224, 112, 112, .1); }
+.rm:hover {
+  color: var(--danger);
+  background: rgba(224, 112, 112, 0.1);
+}
 
 .seg-stat {
   margin: 0;
   font-size: 12px;
-  color: rgba(241, 230, 210, .55);
+  color: rgba(241, 230, 210, 0.55);
   font-variant-numeric: tabular-nums lining-nums;
 }
 
@@ -1163,8 +1652,12 @@ select option { background: var(--bg-dark-2); }
   font-variant-numeric: tabular-nums lining-nums;
 }
 
-.sum.ok { color: var(--success); }
-.sum.bad { color: var(--danger); }
+.sum.ok {
+  color: var(--success);
+}
+.sum.bad {
+  color: var(--danger);
+}
 
 /* ── Кнопки ─────────────────────────────────── */
 .actions {
@@ -1184,8 +1677,12 @@ select option { background: var(--bg-dark-2); }
   cursor: pointer;
 }
 
-.link:hover { text-decoration: underline; }
-.link.danger { color: var(--danger); }
+.link:hover {
+  text-decoration: underline;
+}
+.link.danger {
+  color: var(--danger);
+}
 
 .confirm {
   font-size: 13px;
@@ -1198,10 +1695,16 @@ select option { background: var(--bg-dark-2); }
   font-size: 13px;
 }
 
-.msg { color: var(--ember-soft); }
+.msg {
+  color: var(--ember-soft);
+}
 
-.seg-err { margin-top: 8px; }
-.err { color: var(--danger); }
+.seg-err {
+  margin-top: 8px;
+}
+.err {
+  color: var(--danger);
+}
 
 /* ── Журнал ─────────────────────────────────── */
 .log {
@@ -1223,7 +1726,7 @@ select option { background: var(--bg-dark-2); }
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: rgba(241, 230, 210, .75);
+  color: rgba(241, 230, 210, 0.75);
   cursor: pointer;
 }
 
@@ -1249,8 +1752,12 @@ select option { background: var(--bg-dark-2); }
   font-size: 13px;
 }
 
-.log-who { font-weight: 500; }
-.log-what { color: rgba(241, 230, 210, .7); }
+.log-who {
+  font-weight: 500;
+}
+.log-what {
+  color: rgba(241, 230, 210, 0.7);
+}
 
 .log-what em {
   margin-left: 6px;
@@ -1258,23 +1765,45 @@ select option { background: var(--bg-dark-2); }
   font-size: 11px;
 }
 
-.log-what em.won { color: var(--success); }
-.log-what em.duplicate { color: var(--ember-soft); }
-.log-what em.scene { color: rgba(241, 230, 210, .45); }
+.log-what em.won {
+  color: var(--success);
+}
+.log-what em.duplicate {
+  color: var(--ember-soft);
+}
+.log-what em.scene {
+  color: rgba(241, 230, 210, 0.45);
+}
 
 .log-when {
   margin-left: auto;
-  color: rgba(241, 230, 210, .45);
+  color: rgba(241, 230, 210, 0.45);
   font-variant-numeric: tabular-nums lining-nums;
 }
 
 @media (max-width: 600px) {
-  .new-reel { margin-left: 0; width: 100%; }
+  .new-reel {
+    margin-left: 0;
+    width: 100%;
+  }
   /* Без min-width: 0 поле держит свою ширину по умолчанию и выталкивает кнопку за край. */
-  .new-reel input { flex: 1; width: auto; min-width: 0; }
-  .new-reel .btn { flex: none; }
-  .head { flex-wrap: wrap; }
-  .title-in { min-width: 0; flex: 1; }
-  .seg { flex-direction: column; }
+  .new-reel input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  .new-reel .btn {
+    flex: none;
+  }
+  .head {
+    flex-wrap: wrap;
+  }
+  .title-in {
+    min-width: 0;
+    flex: 1;
+  }
+  .seg {
+    flex-direction: column;
+  }
 }
 </style>

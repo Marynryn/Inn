@@ -1,95 +1,100 @@
 <script setup lang="ts">
 const props = defineProps<{
-  chapterId?: string
-  title?: string
-  placeholder?: string
-  spoilerNote?: string
-  limit?: number
-}>()
+  chapterId?: string;
+  title?: string;
+  placeholder?: string;
+  spoilerNote?: string;
+  limit?: number;
+}>();
 
-const auth = useAuthStore()
-const route = useRoute()
+const auth = useAuthStore();
+const route = useRoute();
 
 // Вошедший автор ведёт на свою страницу, гость — никуда: у гостя её нет.
-const NuxtLink = resolveComponent('NuxtLink')
-const authorTag = (c: any) => (c.authorCode ? NuxtLink : 'span')
-const authorTo = (c: any) => (c.authorCode ? `/reader/${c.authorCode}` : undefined)
-const now = useNow()
-const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
+const NuxtLink = resolveComponent("NuxtLink");
+const authorTag = (c: any) => (c.authorCode ? NuxtLink : "span");
+const authorTo = (c: any) =>
+  c.authorCode ? `/reader/${c.authorCode}` : undefined;
+const now = useNow();
+const loginHref = computed(
+  () => `/login?next=${encodeURIComponent(route.fullPath)}`,
+);
 
 // Приглашение войти — гостю, и только когда /api/auth/me уже ответил: до него
 // «не вошёл» значит «ещё не знаем», и вошедшему оно мелькало бы.
-const isGuest = computed(() => auth.ready && !auth.isAuthed)
+const isGuest = computed(() => auth.ready && !auth.isAuthed);
 
 // Гость только что написал — лучший момент сказать, что об ответе он так не
 // узнает. Держится, пока он не начнёт писать следующий.
-const guestPosted = ref(false)
+const guestPosted = ref(false);
 
 const url = computed(() =>
-  props.chapterId ? `/api/comments?chapterId=${props.chapterId}` : '/api/comments?siteWide=1'
-)
-const { data: comments, refresh } = await useFetch<any[]>(url)
+  props.chapterId
+    ? `/api/comments?chapterId=${props.chapterId}`
+    : "/api/comments?siteWide=1",
+);
+const { data: comments, refresh } = await useFetch<any[]>(url);
 
-const authorName = ref('')
-const body = ref('')
-const isSpoiler = ref(false)
-const sending = ref(false)
-const sendError = ref('')
-const remainingChars = computed(() => 500 - body.value.length)
-watch(body, (v) => { if (v) guestPosted.value = false })
+const authorName = ref("");
+const body = ref("");
+const isSpoiler = ref(false);
+const sending = ref(false);
+const sendError = ref("");
+const remainingChars = computed(() => 500 - body.value.length);
+watch(body, (v) => {
+  if (v) guestPosted.value = false;
+});
 
 // Ветка: корневой комментарий и его ответы. Вложенность одноуровневая, поэтому
 // достаточно разложить ответы по parentId — дерево строить не из чего.
 // Корневые идут от новых к старым (так их отдаёт сервер), а ответы внутри ветки
 // наоборот, от старых к новым: разговор читается сверху вниз.
 const threads = computed(() => {
-  const all = comments.value ?? []
-  const byParent = new Map<number, any[]>()
+  const all = comments.value ?? [];
+  const byParent = new Map<number, any[]>();
 
   for (const c of all) {
-    if (c.parentId == null) continue
-    const list = byParent.get(c.parentId) ?? []
-    list.push(c)
-    byParent.set(c.parentId, list)
+    if (c.parentId == null) continue;
+    const list = byParent.get(c.parentId) ?? [];
+    list.push(c);
+    byParent.set(c.parentId, list);
   }
 
   for (const list of byParent.values()) {
-    list.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+    list.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
   }
 
   return all
-    .filter(c => c.parentId == null)
-    .map(root => ({ root, replies: byParent.get(root.id) ?? [] }))
-})
+    .filter((c) => c.parentId == null)
+    .map((root) => ({ root, replies: byParent.get(root.id) ?? [] }));
+});
 
 // Кому отвечали. Все реплики ветки уже загружены, поэтому имя ищем по списку, а
 // не отдельным запросом. Подпись нужна только когда отвечали не корню: под самим
 // корнем и так понятно, кому адресован ответ.
 const nameById = computed(() => {
-  const map = new Map<number, string>()
-  for (const c of comments.value ?? []) map.set(c.id, c.authorName)
-  return map
-})
+  const map = new Map<number, string>();
+  for (const c of comments.value ?? []) map.set(c.id, c.authorName);
+  return map;
+});
 
 const answeredName = (c: any): string | null =>
   c.replyToId && c.replyToId !== c.parentId
-    ? nameById.value.get(c.replyToId) ?? null
-    : null
+    ? (nameById.value.get(c.replyToId) ?? null)
+    : null;
 
 // «Показать ещё» считает ветки, а не строки: иначе кнопка обрывала бы разговор
 // на середине, оставив ответы без их комментария.
-const visibleCount = ref(props.limit ?? Infinity)
+const visibleCount = ref(props.limit ?? Infinity);
 const visibleThreads = computed(() =>
-  props.limit ? threads.value.slice(0, visibleCount.value) : threads.value
-)
+  props.limit ? threads.value.slice(0, visibleCount.value) : threads.value,
+);
 const remaining = computed(() =>
-  props.limit ? Math.max(0, threads.value.length - visibleCount.value) : 0
-)
-const nextBatch = computed(() =>
-  Math.min(remaining.value, props.limit!)
-)
+  props.limit ? Math.max(0, threads.value.length - visibleCount.value) : 0,
+);
+const nextBatch = computed(() => Math.min(remaining.value, props.limit!));
 function showMore() {
-  visibleCount.value += props.limit!
+  visibleCount.value += props.limit!;
 }
 
 /*
@@ -97,11 +102,11 @@ function showMore() {
   не «открыт/закрыт», а у какого поля открыт: две панели разом были бы видны обе,
   а вставлять смайл надо в то поле, у которого её позвали.
 */
-type EmojiTarget = 'main' | 'reply'
+type EmojiTarget = "main" | "reply";
 
-const showEmoji = ref<EmojiTarget | null>(null)
-const textareaRef = ref<HTMLTextAreaElement | null>(null)
-const replyTextareaRef = ref<HTMLTextAreaElement | null>(null)
+const showEmoji = ref<EmojiTarget | null>(null);
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const replyTextareaRef = ref<HTMLTextAreaElement | null>(null);
 
 // Библиотеку грузим, когда смайлы впервые позвали: обсуждение стоит и на
 // главной, и под каждой главой, а смайлы открывает мало кто — незачем каждому
@@ -110,195 +115,202 @@ const replyTextareaRef = ref<HTMLTextAreaElement | null>(null)
 // или вкладка пережила деплой и старого файла уже нет) — закрываем пустую
 // панель. Повтор браузер не скачивает заново: неудачный модуль он запоминает
 // до перезагрузки страницы.
-let emojiLoad: Promise<unknown> | null = null
+let emojiLoad: Promise<unknown> | null = null;
 watch(showEmoji, (target) => {
-  if (!target || emojiLoad) return
-  emojiLoad = import('emoji-picker-element').catch(() => {
-    emojiLoad = null
-    showEmoji.value = null
-  })
-})
+  if (!target || emojiLoad) return;
+  emojiLoad = import("emoji-picker-element").catch(() => {
+    emojiLoad = null;
+    showEmoji.value = null;
+  });
+});
 
 function onEmojiClick(e: any) {
-  const emoji = e.detail?.emoji?.unicode ?? ''
-  if (!emoji) return
+  const emoji = e.detail?.emoji?.unicode ?? "";
+  if (!emoji) return;
 
-  const toReply = showEmoji.value === 'reply'
-  const model = toReply ? replyBody : body
-  const el = toReply ? replyTextareaRef.value : textareaRef.value
+  const toReply = showEmoji.value === "reply";
+  const model = toReply ? replyBody : body;
+  const el = toReply ? replyTextareaRef.value : textareaRef.value;
 
-  showEmoji.value = null
+  showEmoji.value = null;
 
   // Поля может не быть, если панель успели открыть, а форму закрыть: тогда
   // просто дописываем смайл в конец.
-  if (!el) { model.value += emoji; return }
+  if (!el) {
+    model.value += emoji;
+    return;
+  }
 
-  const start = el.selectionStart ?? model.value.length
-  const end = el.selectionEnd ?? model.value.length
-  model.value = model.value.slice(0, start) + emoji + model.value.slice(end)
+  const start = el.selectionStart ?? model.value.length;
+  const end = el.selectionEnd ?? model.value.length;
+  model.value = model.value.slice(0, start) + emoji + model.value.slice(end);
 
   nextTick(() => {
-    el.selectionStart = el.selectionEnd = start + emoji.length
-    el.focus()
-  })
+    el.selectionStart = el.selectionEnd = start + emoji.length;
+    el.focus();
+  });
 }
 
 // Закрыть панель при клике вне. Ищем ближайшую обёртку у самого клика, а не
 // первую на странице: обёрток теперь две, и querySelector нашёл бы не ту.
 function onOutsideClick(e: MouseEvent) {
-  const target = e.target as HTMLElement | null
-  if (!target?.closest?.('.emoji-trigger-wrap')) showEmoji.value = null
+  const target = e.target as HTMLElement | null;
+  if (!target?.closest?.(".emoji-trigger-wrap")) showEmoji.value = null;
 }
-onMounted(() => document.addEventListener('click', onOutsideClick))
-onUnmounted(() => document.removeEventListener('click', onOutsideClick))
+onMounted(() => document.addEventListener("click", onOutsideClick));
+onUnmounted(() => document.removeEventListener("click", onOutsideClick));
 
 const post = async () => {
   // Второй клик, пока первый в пути, — тот же комментарий дважды. На
   // реактивный disabled не полагаемся: клики, пришедшие до перерисовки, он не
   // остановит.
-  if (!body.value.trim() || sending.value) { return }
-  sending.value = true
-  sendError.value = ''
+  if (!body.value.trim() || sending.value) {
+    return;
+  }
+  sending.value = true;
+  sendError.value = "";
   try {
-    await $fetch('/api/comments', {
-      method: 'POST',
+    await $fetch("/api/comments", {
+      method: "POST",
       body: {
-        authorName: authorName.value || 'Гость',
+        authorName: authorName.value || "Гость",
         body: body.value,
         chapterId: props.chapterId ?? null,
         isSpoiler: isSpoiler.value,
       },
-    })
-    authorName.value = ''
-    body.value = ''
-    isSpoiler.value = false
-    guestPosted.value = !auth.isAuthed
+    });
+    authorName.value = "";
+    body.value = "";
+    isSpoiler.value = false;
+    guestPosted.value = !auth.isAuthed;
   } catch (e: any) {
-    sendError.value = e.data?.message || 'Ошибка при отправке'
-    await refresh()
+    sendError.value = e.data?.message || "Ошибка при отправке";
+    await refresh();
   } finally {
-    sending.value = false
+    sending.value = false;
   }
-}
+};
 
 // Кому отвечаем. id — тот комментарий, по которому нажали «Ответить» (он уйдёт
 // на сервер, и тот сам приведёт ветку к корню), rootId — под какой веткой
 // раскрыть форму, name — чьё имя показать в подсказке.
-const replyTo = ref<{ id: number, rootId: number, name: string } | null>(null)
-const replyBody = ref('')
-const replyName = ref('')
-const replySending = ref(false)
-const replyError = ref('')
+const replyTo = ref<{ id: number; rootId: number; name: string } | null>(null);
+const replyBody = ref("");
+const replyName = ref("");
+const replySending = ref(false);
+const replyError = ref("");
 
 const startReply = (c: any, rootId: number) => {
-  replyTo.value = { id: c.id, rootId, name: c.authorName }
-  replyBody.value = ''
-  replyError.value = ''
-}
+  replyTo.value = { id: c.id, rootId, name: c.authorName };
+  replyBody.value = "";
+  replyError.value = "";
+};
 
 const cancelReply = () => {
-  replyTo.value = null
-  replyBody.value = ''
-  replyError.value = ''
-  if (showEmoji.value === 'reply') showEmoji.value = null
-}
+  replyTo.value = null;
+  replyBody.value = "";
+  replyError.value = "";
+  if (showEmoji.value === "reply") showEmoji.value = null;
+};
 
 const sendReply = async () => {
-  if (!replyTo.value || !replyBody.value.trim() || replySending.value) return
+  if (!replyTo.value || !replyBody.value.trim() || replySending.value) return;
 
-  replySending.value = true
-  replyError.value = ''
+  replySending.value = true;
+  replyError.value = "";
   try {
-    await $fetch('/api/comments', {
-      method: 'POST',
+    await $fetch("/api/comments", {
+      method: "POST",
       body: {
-        authorName: replyName.value || 'Гость',
+        authorName: replyName.value || "Гость",
         body: replyBody.value,
         parentId: replyTo.value.id,
       },
-    })
-    cancelReply()
-  }
-  catch (e: any) {
-    replyError.value = e.data?.message || 'Ошибка при отправке'
+    });
+    cancelReply();
+  } catch (e: any) {
+    replyError.value = e.data?.message || "Ошибка при отправке";
     // Родителя могли удалить, пока писали ответ — перечитываем список, чтобы
     // человек увидел, что отвечать уже некому.
-    await refresh()
+    await refresh();
+  } finally {
+    replySending.value = false;
   }
-  finally {
-    replySending.value = false
-  }
-}
+};
 
 const remove = async (id: number) => {
-  await $fetch(`/api/comments/${id}`, { method: 'DELETE' })
-  await refresh()
-}
+  await $fetch(`/api/comments/${id}`, { method: "DELETE" });
+  await refresh();
+};
 
-const react = async (id: number, type: 'like' | 'dislike') => {
-  await $fetch(`/api/comments/${id}/react`, { method: 'POST', body: { type } })
-  await refresh()
-}
+const react = async (id: number, type: "like" | "dislike") => {
+  await $fetch(`/api/comments/${id}/react`, { method: "POST", body: { type } });
+  await refresh();
+};
 
-const revealedSpoilers = ref<Set<number>>(new Set())
+const revealedSpoilers = ref<Set<number>>(new Set());
 const reveal = (id: number) => {
-  revealedSpoilers.value = new Set([...revealedSpoilers.value, id])
-}
-
+  revealedSpoilers.value = new Set([...revealedSpoilers.value, id]);
+};
 
 /*
   Ссылка на конкретный комментарий (#comment-12): из уведомления или из чужого
   сообщения. Раскрываем ветку, если она спрятана за «показать ещё», прокручиваем
   к ней и на несколько секунд подсвечиваем — чтобы глаз сразу нашёл её в ленте.
 */
-const targetId = ref<number | null>(null)
+const targetId = ref<number | null>(null);
 
 const revealTarget = async () => {
-  const m = /^#comment-(\d+)$/.exec(route.hash)
-  if (!m) return
-  const id = Number(m[1])
+  const m = /^#comment-(\d+)$/.exec(route.hash);
+  if (!m) return;
+  const id = Number(m[1]);
 
-  const index = threads.value.findIndex(t => t.root.id === id || t.replies.some(r => r.id === id))
-  if (index < 0) return
-  if (props.limit && index >= visibleCount.value) visibleCount.value = index + 1
+  const index = threads.value.findIndex(
+    (t) => t.root.id === id || t.replies.some((r) => r.id === id),
+  );
+  if (index < 0) return;
+  if (props.limit && index >= visibleCount.value)
+    visibleCount.value = index + 1;
 
-  targetId.value = id
-  await nextTick()
-  document.getElementById(`comment-${id}`)?.scrollIntoView({ block: 'center' })
-  setTimeout(() => { if (targetId.value === id) targetId.value = null }, 4000)
-}
+  targetId.value = id;
+  await nextTick();
+  document.getElementById(`comment-${id}`)?.scrollIntoView({ block: "center" });
+  setTimeout(() => {
+    if (targetId.value === id) targetId.value = null;
+  }, 4000);
+};
 
-onMounted(revealTarget)
-watch(() => route.hash, revealTarget)
+onMounted(revealTarget);
+watch(() => route.hash, revealTarget);
 
 // WebSocket. Закрываем на верхнем уровне: onUnmounted, зарегистрированный
 // внутри onMounted, Vue уже не привязывает к компоненту надёжно.
-let ws: WebSocket | null = null
-onUnmounted(() => ws?.close())
+let ws: WebSocket | null = null;
+onUnmounted(() => ws?.close());
 
 onMounted(() => {
-  if (typeof WebSocket === 'undefined') return
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  const param = props.chapterId ? `?chapterId=${props.chapterId}` : ''
-  ws = new WebSocket(`${proto}://${location.host}/_ws${param}`)
+  if (typeof WebSocket === "undefined") return;
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const param = props.chapterId ? `?chapterId=${props.chapterId}` : "";
+  ws = new WebSocket(`${proto}://${location.host}/_ws${param}`);
 
   ws.onmessage = (e) => {
     try {
-      const msg = JSON.parse(e.data)
-      if (msg.type === 'new_comment' && comments.value) {
+      const msg = JSON.parse(e.data);
+      if (msg.type === "new_comment" && comments.value) {
         if (!comments.value.find((c: any) => c.id === msg.comment.id)) {
-          comments.value = [msg.comment, ...comments.value]
+          comments.value = [msg.comment, ...comments.value];
         }
       }
     } catch {}
-  }
-})
+  };
+});
 </script>
 
 <template>
   <div class="comments-section">
     <div class="comments-head">
-      <h3 class="comments-title">{{ title ?? 'Комментарии' }}</h3>
+      <h3 class="comments-title">{{ title ?? "Комментарии" }}</h3>
       <span class="comments-count">{{ comments?.length ?? 0 }}</span>
     </div>
 
@@ -311,12 +323,14 @@ onMounted(() => {
         type="text"
         placeholder="Твоё имя"
         maxlength="40"
-      >
+      />
       <p v-if="isGuest && guestPosted" class="comment-login-hint is-posted">
-        Опубликовано! <NuxtLink :to="loginHref">Войди</NuxtLink>, чтобы узнать, когда тебе ответят
+        Опубликовано! <NuxtLink :to="loginHref">Войди</NuxtLink>, чтобы узнать,
+        когда тебе ответят
       </p>
       <p v-else-if="isGuest" class="comment-login-hint">
-        <NuxtLink :to="loginHref">Войди</NuxtLink>, чтобы комментировать под своим именем и получать ответы
+        <NuxtLink :to="loginHref">Войди</NuxtLink>, чтобы комментировать под
+        своим именем и получать ответы
       </p>
       <div class="textarea-wrap">
         <textarea
@@ -326,7 +340,11 @@ onMounted(() => {
           maxlength="500"
         />
         <div class="emoji-trigger-wrap">
-          <button class="emoji-trigger" type="button" @click.stop="showEmoji = showEmoji === 'main' ? null : 'main'">
+          <button
+            class="emoji-trigger"
+            type="button"
+            @click.stop="showEmoji = showEmoji === 'main' ? null : 'main'"
+          >
             😊
           </button>
           <ClientOnly>
@@ -340,21 +358,25 @@ onMounted(() => {
       </div>
 
       <label class="spoiler-check">
-        <input v-model="isSpoiler" type="checkbox">
+        <input v-model="isSpoiler" type="checkbox" />
         <span>Содержит спойлер</span>
       </label>
 
       <div class="comment-form-footer">
         <span v-if="sendError" class="comment-error">{{ sendError }}</span>
         <span v-else class="comment-hint">
-          {{ remainingChars < 100 ? `осталось ${remainingChars} символов` : 'до 500 символов' }}
+          {{
+            remainingChars < 100
+              ? `осталось ${remainingChars} символов`
+              : "до 500 символов"
+          }}
         </span>
         <button
           class="btn btn--primary btn-send"
           :disabled="!body.trim() || sending"
           @click="post"
         >
-          {{ sending ? '...' : 'Отправить' }}
+          {{ sending ? "..." : "Отправить" }}
         </button>
       </div>
     </div>
@@ -362,13 +384,21 @@ onMounted(() => {
     <!-- Ветка: корневой комментарий и ответы под ним. Разметка у них общая,
          ответ отличается только отступом — оттого и один v-for на оба.
          data-clarity-mask: имена и текст в записях сессий Clarity замазаны. -->
-    <div v-for="t in visibleThreads" :key="t.root.id" class="comment-thread" data-clarity-mask="true">
+    <div
+      v-for="t in visibleThreads"
+      :key="t.root.id"
+      class="comment-thread"
+      data-clarity-mask="true"
+    >
       <div
         v-for="c in [t.root, ...t.replies]"
         :key="c.id"
         :id="`comment-${c.id}`"
         class="comment-item"
-        :class="{ 'is-reply': c.parentId != null, 'is-target': c.id === targetId }"
+        :class="{
+          'is-reply': c.parentId != null,
+          'is-target': c.id === targetId,
+        }"
       >
         <!-- Со ссылки на аватарке фокус не нужен: рядом та же ссылка на имени,
              и дважды проходить по одному адресу с клавиатуры незачем. -->
@@ -389,14 +419,23 @@ onMounted(() => {
           />
         </component>
         <div class="comment-content">
-          <component :is="authorTag(c)" :to="authorTo(c)" class="comment-name">{{ c.authorName }}</component>
+          <component
+            :is="authorTag(c)"
+            :to="authorTo(c)"
+            class="comment-name"
+            >{{ c.authorName }}</component
+          >
           <NameFigure v-if="c.authorFigure" :figure="c.authorFigure" />
-          <span v-if="answeredName(c)" class="in-reply">в ответ {{ answeredName(c) }}</span>
+          <span v-if="answeredName(c)" class="in-reply"
+            >в ответ {{ answeredName(c) }}</span
+          >
           <span v-if="c.isSpoiler" class="spoiler-badge">[спойлер]</span>
           <span class="comment-time">{{ timeAgo(c.createdAt, now) }}</span>
           <div
             class="comment-body"
-            :class="{ 'is-spoiler': c.isSpoiler && !revealedSpoilers.has(c.id) }"
+            :class="{
+              'is-spoiler': c.isSpoiler && !revealedSpoilers.has(c.id),
+            }"
             @click="c.isSpoiler && !revealedSpoilers.has(c.id) && reveal(c.id)"
           >
             {{ c.body }}
@@ -406,18 +445,26 @@ onMounted(() => {
               class="reaction-btn"
               :class="{ active: c.myReaction === 'like' }"
               @click="react(c.id, 'like')"
-            >👍 {{ c.likes || '' }}</button>
+            >
+              👍 {{ c.likes || "" }}
+            </button>
             <button
               class="reaction-btn"
               :class="{ active: c.myReaction === 'dislike' }"
               @click="react(c.id, 'dislike')"
-            >👎 {{ c.dislikes || '' }}</button>
-            <button class="comment-reply" @click="startReply(c, t.root.id)">Ответить</button>
+            >
+              👎 {{ c.dislikes || "" }}
+            </button>
+            <button class="comment-reply" @click="startReply(c, t.root.id)">
+              Ответить
+            </button>
             <button
               v-if="auth.isAdmin"
               class="comment-delete"
               @click="remove(c.id)"
-            >Удалить</button>
+            >
+              Удалить
+            </button>
           </div>
         </div>
       </div>
@@ -427,7 +474,9 @@ onMounted(() => {
       <div v-if="replyTo && replyTo.rootId === t.root.id" class="reply-form">
         <div class="reply-to">
           Ответ <b>{{ replyTo.name }}</b>
-          <button class="reply-cancel" type="button" @click="cancelReply">отменить</button>
+          <button class="reply-cancel" type="button" @click="cancelReply">
+            отменить
+          </button>
         </div>
         <input
           v-if="!auth.isAuthed"
@@ -435,7 +484,7 @@ onMounted(() => {
           type="text"
           placeholder="Твоё имя"
           maxlength="40"
-        >
+        />
         <div class="textarea-wrap">
           <textarea
             ref="replyTextareaRef"
@@ -445,7 +494,11 @@ onMounted(() => {
             @keydown.esc="cancelReply"
           />
           <div class="emoji-trigger-wrap">
-            <button class="emoji-trigger" type="button" @click.stop="showEmoji = showEmoji === 'reply' ? null : 'reply'">
+            <button
+              class="emoji-trigger"
+              type="button"
+              @click.stop="showEmoji = showEmoji === 'reply' ? null : 'reply'"
+            >
               😊
             </button>
             <ClientOnly>
@@ -465,16 +518,12 @@ onMounted(() => {
             :disabled="!replyBody.trim() || replySending"
             @click="sendReply"
           >
-            {{ replySending ? '...' : 'Ответить' }}
+            {{ replySending ? "..." : "Ответить" }}
           </button>
         </div>
       </div>
     </div>
-    <button
-      v-if="remaining > 0"
-      class="show-more-btn"
-      @click="showMore"
-    >
+    <button v-if="remaining > 0" class="show-more-btn" @click="showMore">
       Показать ещё {{ nextBatch }}
     </button>
   </div>
@@ -495,7 +544,7 @@ onMounted(() => {
 .comments-title {
   margin: 0;
   font-size: 14px;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--parchment-2);
   font-weight: 500;
@@ -551,7 +600,7 @@ onMounted(() => {
   padding: 8px 12px;
   border-left: 2px solid var(--ember);
   border-radius: var(--radius-sm);
-  background: rgba(214, 136, 62, .08);
+  background: rgba(214, 136, 62, 0.08);
   color: var(--parchment);
 }
 
@@ -599,8 +648,8 @@ onMounted(() => {
   font-size: 18px;
   line-height: 1;
   padding: 2px;
-  opacity: .5;
-  transition: opacity .15s;
+  opacity: 0.5;
+  transition: opacity 0.15s;
 }
 
 .emoji-trigger:hover {
@@ -615,13 +664,13 @@ onMounted(() => {
   --num-columns: 8;
   --emoji-size: 1.3rem;
   --background: #1a1108;
-  --border-color: rgba(241, 230, 210, .15);
+  --border-color: rgba(241, 230, 210, 0.15);
   --indicator-color: var(--ember-soft, #d6883e);
-  --input-border-color: rgba(241, 230, 210, .2);
+  --input-border-color: rgba(241, 230, 210, 0.2);
   --input-font-color: #f1e6d2;
-  --input-placeholder-color: rgba(241, 230, 210, .4);
-  --search-icon-no-results-color: rgba(241, 230, 210, .3);
-  --category-font-color: rgba(241, 230, 210, .5);
+  --input-placeholder-color: rgba(241, 230, 210, 0.4);
+  --search-icon-no-results-color: rgba(241, 230, 210, 0.3);
+  --category-font-color: rgba(241, 230, 210, 0.5);
 }
 
 @media (max-width: 480px) {
@@ -679,8 +728,13 @@ onMounted(() => {
 }
 
 @keyframes target-fade {
-  0% { background: rgba(214, 154, 74, 0.18); }
-  100% { background: transparent; box-shadow: 0 0 0 2px transparent; }
+  0% {
+    background: rgba(214, 154, 74, 0.18);
+  }
+  100% {
+    background: transparent;
+    box-shadow: 0 0 0 2px transparent;
+  }
 }
 
 .comment-item {
@@ -723,7 +777,7 @@ a.comment-name:hover {
   font-size: 11px;
   color: var(--ember-soft);
   margin-left: 6px;
-  opacity: .8;
+  opacity: 0.8;
   font-style: italic;
 }
 
@@ -742,7 +796,7 @@ a.comment-name:hover {
   word-break: break-word;
   min-width: 0;
   position: relative;
-  transition: filter .2s;
+  transition: filter 0.2s;
 }
 
 .comment-body.is-spoiler {
@@ -754,7 +808,6 @@ a.comment-name:hover {
 .comment-body.is-spoiler:hover {
   filter: blur(3px);
 }
-
 
 .comment-actions {
   display: flex;
@@ -771,21 +824,24 @@ a.comment-name:hover {
   font-size: 12px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: border-color .15s, color .15s, background .15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
 .reaction-btn:hover {
-  border-color: rgba(241, 230, 210, .3);
+  border-color: rgba(241, 230, 210, 0.3);
   color: var(--parchment-2);
 }
 
 .reaction-btn.active {
   border-color: var(--ember-soft);
   color: var(--ember-soft);
-  background: rgba(214, 136, 62, .1);
+  background: rgba(214, 136, 62, 0.1);
 }
 
 .comment-delete {
@@ -838,7 +894,7 @@ a.comment-name:hover {
   font-size: 12px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: color .15s;
+  transition: color 0.15s;
 }
 
 .comment-reply:hover {
@@ -926,8 +982,12 @@ a.comment-name:hover {
 
 /* На телефоне отступ ветки режет и без того узкую строку — хватает и половины. */
 @media (max-width: 480px) {
-  .comment-item.is-reply { margin-left: 22px; }
-  .reply-form { margin-left: 22px; }
+  .comment-item.is-reply {
+    margin-left: 22px;
+  }
+  .reply-form {
+    margin-left: 22px;
+  }
 }
 
 .show-more-btn {
@@ -942,11 +1002,13 @@ a.comment-name:hover {
   font-family: var(--font-body);
   font-size: 13px;
   cursor: pointer;
-  transition: border-color .15s, color .15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .show-more-btn:hover {
-  border-color: rgba(241, 230, 210, .3);
+  border-color: rgba(241, 230, 210, 0.3);
   color: var(--parchment-2);
 }
 </style>

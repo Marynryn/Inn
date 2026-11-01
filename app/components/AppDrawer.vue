@@ -3,112 +3,122 @@
 // Навигация по сайту живёт только здесь — в шапке остались логотип,
 // «Поддержать» и аватарка.
 const props = defineProps<{
-  open: boolean
-  telegramUrl?: string
-  boostyUrl?: string
-  tributeUrl?: string
-  commentsHref?: string
-  commentsLabel?: string
-  backToChapterHref?: string
-  backToChapterLabel?: string
-}>()
+  open: boolean;
+  telegramUrl?: string;
+  boostyUrl?: string;
+  tributeUrl?: string;
+  commentsHref?: string;
+  commentsLabel?: string;
+  backToChapterHref?: string;
+  backToChapterLabel?: string;
+}>();
 
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: [] }>();
 
-const route = useRoute()
-const auth = useAuthStore()
+const route = useRoute();
+const auth = useAuthStore();
 
-const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
+const loginHref = computed(
+  () => `/login?next=${encodeURIComponent(route.fullPath)}`,
+);
 
-const onAdmin = computed(() => route.path === '/admin')
-const adminTab = computed(() => toAdminTab(route.query.tab))
+const onAdmin = computed(() => route.path === "/admin");
+const adminTab = computed(() => toAdminTab(route.query.tab));
 
-const close = () => emit('close')
+const close = () => emit("close");
 
-const tabs = ADMIN_TABS
-const { has: unreadMessages } = useAdminUnread()
+const tabs = ADMIN_TABS;
+const { has: unreadMessages } = useAdminUnread();
 
 // До списка глав доводит сам роутер (router.options.ts). Если адрес уже
 // /#ledger, перехода не будет — тогда докручиваем сами.
 const goToChapters = () => {
-  close()
-  if (route.path === '/' && route.hash === '#ledger') {
+  close();
+  if (route.path === "/" && route.hash === "#ledger") {
     nextTick(() => {
-      const el = document.getElementById('ledger')
-      if (el) smoothScrollTo(el.getBoundingClientRect().top + window.scrollY - 64)
-    })
+      const el = document.getElementById("ledger");
+      if (el)
+        smoothScrollTo(el.getBoundingClientRect().top + window.scrollY - 64);
+    });
   }
-}
+};
 
 const logout = async () => {
-  close()
-  await auth.logout()
-  if (route.path === '/admin' || route.path === '/profile') navigateTo('/')
-}
+  close();
+  await auth.logout();
+  if (route.path === "/admin" || route.path === "/profile") navigateTo("/");
+};
 
-const supportLinks = computed(() => [
-  props.boostyUrl && { label: 'Boosty', href: props.boostyUrl },
-  props.tributeUrl && { label: 'Tribute', href: props.tributeUrl },
-].filter(Boolean) as { label: string, href: string }[])
+const supportLinks = computed(
+  () =>
+    [
+      props.boostyUrl && { label: "Boosty", href: props.boostyUrl },
+      props.tributeUrl && { label: "Tribute", href: props.tributeUrl },
+    ].filter(Boolean) as { label: string; href: string }[],
+);
 
 // ── Открытие: страница под шторкой стоит, Esc и свайп влево закрывают ──
-const closeBtn = ref<HTMLButtonElement | null>(null)
+const closeBtn = ref<HTMLButtonElement | null>(null);
 
 const onKey = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') close()
-}
+  if (e.key === "Escape") close();
+};
 
 // Полоса прокрутки при блокировке исчезает, и страница прыгала бы вбок на
 // её ширину — возвращаем это место отступом.
 const lockScroll = (lock: boolean) => {
-  const html = document.documentElement
+  const html = document.documentElement;
   if (lock) {
-    const gap = window.innerWidth - html.clientWidth
-    html.style.overflow = 'hidden'
-    if (gap > 0) html.style.paddingRight = `${gap}px`
+    const gap = window.innerWidth - html.clientWidth;
+    html.style.overflow = "hidden";
+    if (gap > 0) html.style.paddingRight = `${gap}px`;
+  } else {
+    html.style.overflow = "";
+    html.style.paddingRight = "";
   }
-  else {
-    html.style.overflow = ''
-    html.style.paddingRight = ''
-  }
-}
+};
 
 /** Сколько столов ищут игроков. Спрашиваем, когда шторку открыли: ради точки
  *  у ссылки держать запрос на каждой странице незачем. */
-const openTables = ref(0)
-const loadOpenTables = () => $fetch<{ open: number }>('/api/board/open')
-  .then((r) => { openTables.value = r.open })
-  .catch(() => {})
+const openTables = ref(0);
+const loadOpenTables = () =>
+  $fetch<{ open: number }>("/api/board/open")
+    .then((r) => {
+      openTables.value = r.open;
+    })
+    .catch(() => {});
 
-watch(() => props.open, (open) => {
-  if (!import.meta.client) return
-  lockScroll(open)
-  if (open) {
-    loadOpenTables()
-    document.addEventListener('keydown', onKey)
-    nextTick(() => closeBtn.value?.focus({ preventScroll: true }))
-  }
-  else {
-    document.removeEventListener('keydown', onKey)
-  }
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (!import.meta.client) return;
+    lockScroll(open);
+    if (open) {
+      loadOpenTables();
+      document.addEventListener("keydown", onKey);
+      nextTick(() => closeBtn.value?.focus({ preventScroll: true }));
+    } else {
+      document.removeEventListener("keydown", onKey);
+    }
+  },
+);
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', onKey)
-  if (props.open) lockScroll(false)
-})
+  document.removeEventListener("keydown", onKey);
+  if (props.open) lockScroll(false);
+});
 
-let touchX = 0
-let touchY = 0
+let touchX = 0;
+let touchY = 0;
 const onTouchStart = (e: TouchEvent) => {
-  touchX = e.touches[0]!.clientX
-  touchY = e.touches[0]!.clientY
-}
+  touchX = e.touches[0]!.clientX;
+  touchY = e.touches[0]!.clientY;
+};
 const onTouchEnd = (e: TouchEvent) => {
-  const dx = e.changedTouches[0]!.clientX - touchX
-  const dy = e.changedTouches[0]!.clientY - touchY
-  if (dx < -60 && Math.abs(dx) > Math.abs(dy)) close()
-}
+  const dx = e.changedTouches[0]!.clientX - touchX;
+  const dy = e.changedTouches[0]!.clientY - touchY;
+  if (dx < -60 && Math.abs(dx) > Math.abs(dy)) close();
+};
 </script>
 
 <template>
@@ -123,7 +133,13 @@ const onTouchEnd = (e: TouchEvent) => {
       @touchend.passive="onTouchEnd"
     >
       <div class="drawer-top">
-        <NuxtLink v-if="auth.isAuthed" to="/profile" class="me" :class="{ active: route.path === '/profile' }" @click="close">
+        <NuxtLink
+          v-if="auth.isAuthed"
+          to="/profile"
+          class="me"
+          :class="{ active: route.path === '/profile' }"
+          @click="close"
+        >
           <UserAvatar
             :src="auth.user?.avatarUrl"
             :name="auth.name"
@@ -141,7 +157,13 @@ const onTouchEnd = (e: TouchEvent) => {
           <span class="me-login">Войти</span>
         </NuxtLink>
 
-        <button ref="closeBtn" type="button" class="drawer-close" aria-label="Закрыть меню" @click="close">
+        <button
+          ref="closeBtn"
+          type="button"
+          class="drawer-close"
+          aria-label="Закрыть меню"
+          @click="close"
+        >
           <NavIcon name="close" :size="20" />
         </button>
       </div>
@@ -172,7 +194,13 @@ const onTouchEnd = (e: TouchEvent) => {
           accent
           @click="close"
         />
-        <SideNavLink to="/#ledger" icon="book" label="Главы" :active="route.path === '/'" @click="goToChapters" />
+        <SideNavLink
+          to="/#ledger"
+          icon="book"
+          label="Главы"
+          :active="route.path === '/'"
+          @click="goToChapters"
+        />
         <SideNavLink
           v-if="commentsHref"
           :to="commentsHref"
@@ -180,10 +208,22 @@ const onTouchEnd = (e: TouchEvent) => {
           :label="commentsLabel || 'Обсуждение главы'"
           @click="close"
         />
-        <SideNavLink to="/progress" icon="progress" label="Прогресс" :active="route.path === '/progress'" @click="close" />
+        <SideNavLink
+          to="/progress"
+          icon="progress"
+          label="Прогресс"
+          :active="route.path === '/progress'"
+          @click="close"
+        />
 
         <div class="drawer-section">Игры</div>
-        <SideNavLink to="/game" icon="dice" label="Кто из таверны" :active="route.path === '/game'" @click="close" />
+        <SideNavLink
+          to="/game"
+          icon="dice"
+          label="Кто из таверны"
+          :active="route.path === '/game'"
+          @click="close"
+        />
         <!-- Настольные игры — всем; точка — какой-то стол ищет игроков. Внутри
              выбирают игру: «Дорогу через таверну» или «Карты таверны» (пока
              только админам). -->
@@ -192,22 +232,48 @@ const onTouchEnd = (e: TouchEvent) => {
           icon="map"
           label="Настольные игры"
           :dot="openTables > 0"
-          :active="route.path.startsWith('/board') || route.path.startsWith('/cards')"
+          :active="
+            route.path.startsWith('/board') || route.path.startsWith('/cards')
+          "
           @click="close"
         />
 
         <div class="drawer-section">Таверна</div>
-        <SideNavLink to="/characters" icon="users" label="Персонажи" :active="route.path === '/characters'" @click="close" />
-        <SideNavLink to="/about" icon="info" label="О проекте" :active="route.path === '/about'" @click="close" />
+        <SideNavLink
+          to="/characters"
+          icon="users"
+          label="Персонажи"
+          :active="route.path === '/characters'"
+          @click="close"
+        />
+        <SideNavLink
+          to="/about"
+          icon="info"
+          label="О проекте"
+          :active="route.path === '/about'"
+          @click="close"
+        />
 
         <template v-if="auth.isAdmin && !onAdmin">
           <div class="drawer-section">Для админов</div>
-          <SideNavLink to="/admin" icon="shield" label="Админка" @click="close" />
+          <SideNavLink
+            to="/admin"
+            icon="shield"
+            label="Админка"
+            @click="close"
+          />
         </template>
       </nav>
 
       <div class="drawer-bottom">
-        <a v-if="telegramUrl" :href="telegramUrl" target="_blank" rel="noopener" class="tg" @click="close">
+        <a
+          v-if="telegramUrl"
+          :href="telegramUrl"
+          target="_blank"
+          rel="noopener"
+          class="tg"
+          @click="close"
+        >
           <NavIcon name="send" />
           <span>Telegram</span>
         </a>
@@ -217,7 +283,10 @@ const onTouchEnd = (e: TouchEvent) => {
             <NavIcon name="heart" :size="14" />
             Поддержать перевод
           </div>
-          <div class="support-row" :class="{ single: supportLinks.length === 1 }">
+          <div
+            class="support-row"
+            :class="{ single: supportLinks.length === 1 }"
+          >
             <a
               v-for="s in supportLinks"
               :key="s.label"
@@ -226,11 +295,17 @@ const onTouchEnd = (e: TouchEvent) => {
               rel="noopener"
               class="support-btn"
               @click="close"
-            >{{ supportLinks.length === 1 ? 'Поддержать' : s.label }}</a>
+              >{{ supportLinks.length === 1 ? "Поддержать" : s.label }}</a
+            >
           </div>
         </template>
 
-        <button v-if="auth.isAuthed" type="button" class="logout" @click="logout">
+        <button
+          v-if="auth.isAuthed"
+          type="button"
+          class="logout"
+          @click="logout"
+        >
           <NavIcon name="logout" :size="16" />
           Выйти
         </button>
@@ -250,10 +325,10 @@ const onTouchEnd = (e: TouchEvent) => {
   position: fixed;
   inset: 0;
   z-index: 1;
-  background: rgba(10, 7, 5, .6);
+  background: rgba(10, 7, 5, 0.6);
   opacity: 0;
   pointer-events: none;
-  transition: opacity .25s ease;
+  transition: opacity 0.25s ease;
 }
 
 .drawer {
@@ -272,7 +347,9 @@ const onTouchEnd = (e: TouchEvent) => {
   /* Закрытая шторка невидима и для клавиатуры с читалками, а не только
      уехала за край: visibility переключается, когда выезд уже доиграл. */
   visibility: hidden;
-  transition: transform .3s cubic-bezier(.4, 0, .2, 1), visibility 0s .3s;
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s 0.3s;
 }
 
 .open .drawer-overlay {
@@ -283,7 +360,7 @@ const onTouchEnd = (e: TouchEvent) => {
 .open .drawer {
   transform: none;
   visibility: visible;
-  transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── Верх: кто вошёл ────────────────────────── */
@@ -305,7 +382,7 @@ const onTouchEnd = (e: TouchEvent) => {
   padding: 8px;
   border-radius: var(--radius-md);
   text-decoration: none;
-  transition: background .15s;
+  transition: background 0.15s;
 }
 
 .me:hover {
@@ -313,7 +390,7 @@ const onTouchEnd = (e: TouchEvent) => {
 }
 
 .me.active {
-  background: rgba(214, 136, 62, .14);
+  background: rgba(214, 136, 62, 0.14);
 }
 
 .me :deep(.ua-pic) {
@@ -346,7 +423,7 @@ const onTouchEnd = (e: TouchEvent) => {
   height: 40px;
   box-sizing: border-box;
   border-radius: var(--radius-round);
-  border: 1.5px dashed rgba(241, 230, 210, .3);
+  border: 1.5px dashed rgba(241, 230, 210, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -392,7 +469,7 @@ const onTouchEnd = (e: TouchEvent) => {
 .drawer-section {
   padding: 18px 12px 6px;
   font-size: 11px;
-  letter-spacing: .12em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -417,7 +494,9 @@ const onTouchEnd = (e: TouchEvent) => {
   color: var(--parchment-2);
   font-size: 14px;
   text-decoration: none;
-  transition: background .15s, color .15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .tg:hover {
@@ -454,12 +533,14 @@ const onTouchEnd = (e: TouchEvent) => {
   justify-content: center;
   height: 40px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(201, 160, 46, .6);
+  border: 1px solid rgba(201, 160, 46, 0.6);
   color: var(--gold);
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
-  transition: background .15s, color .15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .support-btn:hover {

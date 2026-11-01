@@ -1,9 +1,15 @@
-import { readdirSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { allCharacters, ruName, ruTerm, useGlossary, type GameCharacter } from './game-data'
-import { fullNameOf } from './game-pack'
-import { translatedVolume } from './game-session'
-import { readServerAssetOrEmpty } from './server-assets'
+import { readdirSync } from "node:fs";
+import { resolve } from "node:path";
+import {
+  allCharacters,
+  ruName,
+  ruTerm,
+  useGlossary,
+  type GameCharacter,
+} from "./game-data";
+import { fullNameOf } from "./game-pack";
+import { translatedVolume } from "./game-session";
+import { readServerAssetOrEmpty } from "./server-assets";
 
 /**
  * Карточки персонажей. Берутся из той же базы, что и игра, но не все: только
@@ -14,22 +20,22 @@ import { readServerAssetOrEmpty } from './server-assets'
  */
 
 export type CharacterCard = {
-  id: string
-  name: string
-  original: string
-  gender: string
-  age: string // как в вики; пусто — на карточке прочерк
-  species: string[]
-  cls: string[]
-  occupation: string[]
-  continent: string[]
-  locations: string[]
-  volume: number
-  image: string | null // /characters/<id>.webp, если файл положили; иначе плейсхолдер
-  full: string | null // та же картинка целиком, если её положили в full/
-  description: string[] // абзацы; пусто — блока в карточке нет
-  glow: string[] // цвета подсветки в открытой карточке, по расе: один или переливом
-}
+  id: string;
+  name: string;
+  original: string;
+  gender: string;
+  age: string; // как в вики; пусто — на карточке прочерк
+  species: string[];
+  cls: string[];
+  occupation: string[];
+  continent: string[];
+  locations: string[];
+  volume: number;
+  image: string | null; // /characters/<id>.webp, если файл положили; иначе плейсхолдер
+  full: string | null; // та же картинка целиком, если её положили в full/
+  description: string[]; // абзацы; пусто — блока в карточке нет
+  glow: string[]; // цвета подсветки в открытой карточке, по расе: один или переливом
+};
 
 /**
  * Подсветка по расе — палитра из «Подсветка.html» (01.10.2026). Ключ — раса в
@@ -37,59 +43,61 @@ export type CharacterCard = {
  * несколько: у Люцифенов и Единорогов свечение переливается, и карточка
  * разносит цвета по краям. Кого в списке нет — греется у очага, цветом угля.
  */
-const GLOW_DEFAULT = ['#d6883e']
+const GLOW_DEFAULT = ["#d6883e"];
 const GLOW_BY_SPECIES: Record<string, string[]> = {
-  'Human': ['#F5C518'],
-  'God': ['#111111'],
-  'Goblin': ['#2E9E44'],
-  'Hobgoblin': ['#2E9E44'],
-  'Drake': ['#A6E22E'],
-  'Fae': ['#30D5C8'],
-  'Gnoll': ['#C9A27E'],
-  'Antinium': ['#5D3A1A'],
-  'Half-Gazer': ['#FF8A1F'],
-  'Dragon': ['#E53935'],
-  'Ashfire Bee': ['#E53935'],
-  'Undead': ['#8E44AD'],
-  'Golem': ['#FFFFFF'],
-  'Troll': ['#FFFFFF'],
-  'Half-Troll': ['#FFFFFF'],
-  'Ogre': ['#FFFFFF'],
-  'Cyclops': ['#FFFFFF'],
-  'Half-Giant': ['#8A7F72'],
-  'Fraerling': ['#F8A5C2'],
-  'Halfling': ['#F8A5C2'],
-  'Sariant Lamb': ['#F8A5C2'],
-  'Demon': ['#D81B60'],
-  'Lucifen': ['#2B2B2B', '#D4A017'],
-  'Minotaur': ['#7B1E2B'],
-  'Dwarf': ['#B0602A'],
-  'Selphid': ['#FF7A6B'],
-  'Djinni': ['#1E63D6'],
-  'Djinn': ['#1E63D6'],
-  'Jinn': ['#1E63D6'],
-  'Garuda': ['#7FD3FF'],
-  'Drowned Person': ['#0B2E6B'],
-  'Dullahan': ['#6E8796'],
-  'Half-Elf': ['#B8A6F0'],
-  'Gnome': ['#B8A6F0'],
-  'Lizardfolk': ['#12A37F'],
-  'Naga': ['#12A37F'],
-  'Beastkin': ['#8C8A3E'],
-  'Centaur': ['#8C8A3E'],
-  'Satyr': ['#8C8A3E'],
-  'String Person': ['#E6D3B3'],
-  'Unicorn': ['#FFFFFF', '#F8C8E8', '#BDE0FE'],
-}
+  Human: ["#F5C518"],
+  God: ["#111111"],
+  Goblin: ["#2E9E44"],
+  Hobgoblin: ["#2E9E44"],
+  Drake: ["#A6E22E"],
+  Fae: ["#30D5C8"],
+  Gnoll: ["#C9A27E"],
+  Antinium: ["#5D3A1A"],
+  "Half-Gazer": ["#FF8A1F"],
+  Dragon: ["#E53935"],
+  "Ashfire Bee": ["#E53935"],
+  Undead: ["#8E44AD"],
+  Golem: ["#FFFFFF"],
+  Troll: ["#FFFFFF"],
+  "Half-Troll": ["#FFFFFF"],
+  Ogre: ["#FFFFFF"],
+  Cyclops: ["#FFFFFF"],
+  "Half-Giant": ["#8A7F72"],
+  Fraerling: ["#F8A5C2"],
+  Halfling: ["#F8A5C2"],
+  "Sariant Lamb": ["#F8A5C2"],
+  Demon: ["#D81B60"],
+  Lucifen: ["#2B2B2B", "#D4A017"],
+  Minotaur: ["#7B1E2B"],
+  Dwarf: ["#B0602A"],
+  Selphid: ["#FF7A6B"],
+  Djinni: ["#1E63D6"],
+  Djinn: ["#1E63D6"],
+  Jinn: ["#1E63D6"],
+  Garuda: ["#7FD3FF"],
+  "Drowned Person": ["#0B2E6B"],
+  Dullahan: ["#6E8796"],
+  "Half-Elf": ["#B8A6F0"],
+  Gnome: ["#B8A6F0"],
+  Lizardfolk: ["#12A37F"],
+  Naga: ["#12A37F"],
+  Beastkin: ["#8C8A3E"],
+  Centaur: ["#8C8A3E"],
+  Satyr: ["#8C8A3E"],
+  "String Person": ["#E6D3B3"],
+  Unicorn: ["#FFFFFF", "#F8C8E8", "#BDE0FE"],
+};
 
-const glowOf = (species: string[]) => GLOW_BY_SPECIES[species[0] ?? ''] ?? GLOW_DEFAULT
+const glowOf = (species: string[]) =>
+  GLOW_BY_SPECIES[species[0] ?? ""] ?? GLOW_DEFAULT;
 
 type Extra = {
-  description: string[]
-  locations: string[] | null
-}
+  description: string[];
+  locations: string[] | null;
+};
 
-const isCardCharacter = (c: GameCharacter, lastVolume: number) => c.difficulty <= 2 && c.volume >= 1 && c.volume <= lastVolume
+const isCardCharacter = (c: GameCharacter, lastVolume: number) =>
+  c.difficulty <= 2 && c.volume >= 1 && c.volume <= lastVolume;
 
 /**
  * Файл описаний — server/assets/characters/descriptions.md. Заголовок «## Имя»
@@ -98,55 +106,61 @@ const isCardCharacter = (c: GameCharacter, lastVolume: number) => c.difficulty <
  * базы целиком — так можно убрать лишнее или переименовать, не трогая базу.
  */
 export function parseDescriptions(text: string): Map<string, Extra> {
-  const out = new Map<string, Extra>()
-  let current: Extra | null = null
-  let paragraph: string[] = []
-  let inComment = false
+  const out = new Map<string, Extra>();
+  let current: Extra | null = null;
+  let paragraph: string[] = [];
+  let inComment = false;
 
   const flush = () => {
-    if (current && paragraph.length) current.description.push(paragraph.join(' '))
-    paragraph = []
-  }
+    if (current && paragraph.length)
+      current.description.push(paragraph.join(" "));
+    paragraph = [];
+  };
 
   for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim()
+    const line = rawLine.trim();
     // HTML-комментарии — пометки для того, кто правит файл, наружу не идут.
-    if (inComment || line.startsWith('<!--')) {
-      inComment = !line.includes('-->')
-      continue
+    if (inComment || line.startsWith("<!--")) {
+      inComment = !line.includes("-->");
+      continue;
     }
-    const heading = /^##\s+(.+)$/.exec(line)
+    const heading = /^##\s+(.+)$/.exec(line);
     if (heading) {
-      flush()
-      current = { description: [], locations: null }
-      out.set(heading[1]!.trim(), current)
-      continue
+      flush();
+      current = { description: [], locations: null };
+      out.set(heading[1]!.trim(), current);
+      continue;
     }
-    if (!current) continue
+    if (!current) continue;
 
-    const locations = /^Локации:\s*(.*)$/i.exec(line)
+    const locations = /^Локации:\s*(.*)$/i.exec(line);
     if (locations) {
-      flush()
-      current.locations = locations[1]!.split(';').map(s => s.trim()).filter(Boolean)
-      continue
+      flush();
+      current.locations = locations[1]!
+        .split(";")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      continue;
     }
     if (!line) {
-      flush()
-      continue
+      flush();
+      continue;
     }
-    paragraph.push(line)
+    paragraph.push(line);
   }
-  flush()
-  return out
+  flush();
+  return out;
 }
 
-let extrasCache: Map<string, Extra> | null = null
+let extrasCache: Map<string, Extra> | null = null;
 
 async function useExtras(): Promise<Map<string, Extra>> {
   // В dev файл перечитывается каждый раз: правку описания видно без перезапуска.
-  if (extrasCache && !import.meta.dev) return extrasCache
-  extrasCache = parseDescriptions(await readServerAssetOrEmpty('characters/descriptions.md'))
-  return extrasCache
+  if (extrasCache && !import.meta.dev) return extrasCache;
+  extrasCache = parseDescriptions(
+    await readServerAssetOrEmpty("characters/descriptions.md"),
+  );
+  return extrasCache;
 }
 
 /**
@@ -158,43 +172,44 @@ async function useExtras(): Promise<Map<string, Extra>> {
  * портрет в карточке квадратный, и высокий рисунок пришлось бы обрезать. Полная
  * есть не у всех — у кого её нет, увеличивается сама карточка.
  */
-const idsCache = new Map<string, Set<string>>()
+const idsCache = new Map<string, Set<string>>();
 
 function webpIds(dir: string): Set<string> {
-  const cached = idsCache.get(dir)
-  if (cached && !import.meta.dev) return cached
-  let ids: Set<string>
+  const cached = idsCache.get(dir);
+  if (cached && !import.meta.dev) return cached;
+  let ids: Set<string>;
   try {
     ids = new Set(
       readdirSync(resolve(dir))
-        .filter(f => f.endsWith('.webp'))
-        .map(f => f.slice(0, -'.webp'.length)),
-    )
+        .filter((f) => f.endsWith(".webp"))
+        .map((f) => f.slice(0, -".webp".length)),
+    );
   } catch {
-    ids = new Set()
+    ids = new Set();
   }
-  idsCache.set(dir, ids)
-  return ids
+  idsCache.set(dir, ids);
+  return ids;
 }
 
-let cardsCache: { volume: number, cards: CharacterCard[] } | null = null
+let cardsCache: { volume: number; cards: CharacterCard[] } | null = null;
 
 export async function characterCards(): Promise<CharacterCard[]> {
   // Потолок спрашиваем каждый раз: вышла 35-я глава нового тома — и его
   // персонажи появляются без перезапуска.
-  const lastVolume = await translatedVolume()
-  if (cardsCache?.volume === lastVolume && !import.meta.dev) return cardsCache.cards
+  const lastVolume = await translatedVolume();
+  if (cardsCache?.volume === lastVolume && !import.meta.dev)
+    return cardsCache.cards;
 
-  const glossary = await useGlossary()
-  const extras = await useExtras()
-  const images = webpIds('public/characters')
-  const fulls = webpIds('public/characters/full')
-  const term = (v: string) => ruTerm(v, glossary)
+  const glossary = await useGlossary();
+  const extras = await useExtras();
+  const images = webpIds("public/characters");
+  const fulls = webpIds("public/characters/full");
+  const term = (v: string) => ruTerm(v, glossary);
 
   const cards = (await allCharacters())
-    .filter(c => isCardCharacter(c, lastVolume))
+    .filter((c) => isCardCharacter(c, lastVolume))
     .map((c) => {
-      const extra = extras.get(c.name)
+      const extra = extras.get(c.name);
       return {
         id: c.id,
         name: ruName(c, glossary),
@@ -212,13 +227,15 @@ export async function characterCards(): Promise<CharacterCard[]> {
         // крупно хочется у каждого, а полная версия есть не у всех.
         full: fulls.has(c.id)
           ? `/characters/full/${c.id}.webp`
-          : images.has(c.id) ? `/characters/${c.id}.webp` : null,
+          : images.has(c.id)
+            ? `/characters/${c.id}.webp`
+            : null,
         description: extra?.description ?? [],
         glow: glowOf(c.species),
-      }
+      };
     })
-    .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 
-  cardsCache = { volume: lastVolume, cards }
-  return cards
+  cardsCache = { volume: lastVolume, cards };
+  return cards;
 }

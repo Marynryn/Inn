@@ -1,124 +1,150 @@
-import { eq } from 'drizzle-orm'
-import { displayNameKey, nameFromEmail, normalizeDisplayName } from '#shared/utils/displayName'
-import { normalizeAbout } from '#shared/utils/readerProfile'
-import { users } from '../database/schema'
-import { saveAvatar } from '../utils/avatar'
-import { useDb } from '../utils/db'
-import { assertNameFree, saveUnique } from '../utils/display-name'
-import { canWearFrame, frameById } from '../utils/frames'
-import { ownsSkin } from '../utils/skins'
-import { ownsFigure } from '../utils/figures'
-import { isFigureId } from '#shared/utils/nameFigures'
-import { toSessionUser } from '../utils/identity'
+import { eq } from "drizzle-orm";
+import {
+  displayNameKey,
+  nameFromEmail,
+  normalizeDisplayName,
+} from "#shared/utils/displayName";
+import { normalizeAbout } from "#shared/utils/readerProfile";
+import { users } from "../database/schema";
+import { saveAvatar } from "../utils/avatar";
+import { useDb } from "../utils/db";
+import { assertNameFree, saveUnique } from "../utils/display-name";
+import { canWearFrame, frameById } from "../utils/frames";
+import { ownsSkin } from "../utils/skins";
+import { ownsFigure } from "../utils/figures";
+import { isFigureId } from "#shared/utils/nameFigures";
+import { toSessionUser } from "../utils/identity";
 
 /**
  * Ник, аватарка и «О себе» читателя. Почта и пароль сюда не входят: у аккаунтов из
  * соцсетей их нет, а у администратора для этого есть своя страница.
  */
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
-  const sessionUser = session.user as { id: number } | undefined
-  if (!sessionUser?.id) throw createError({ statusCode: 401, message: 'Нужно войти' })
+  const session = await getUserSession(event);
+  const sessionUser = session.user as { id: number } | undefined;
+  if (!sessionUser?.id)
+    throw createError({ statusCode: 401, message: "Нужно войти" });
 
-  const form = await readMultipartFormData(event)
-  if (!form) throw createError({ statusCode: 400, message: 'Нет данных' })
+  const form = await readMultipartFormData(event);
+  if (!form) throw createError({ statusCode: 400, message: "Нет данных" });
 
-  const db = useDb()
-  const [me] = await db.select().from(users).where(eq(users.id, sessionUser.id))
-  if (!me) throw createError({ statusCode: 404, message: 'Пользователь не найден' })
+  const db = useDb();
+  const [me] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, sessionUser.id));
+  if (!me)
+    throw createError({ statusCode: 404, message: "Пользователь не найден" });
 
-  const updates: Partial<typeof users.$inferInsert> = {}
+  const updates: Partial<typeof users.$inferInsert> = {};
 
-  const namePart = form.find(f => f.name === 'displayName')
+  const namePart = form.find((f) => f.name === "displayName");
   if (namePart) {
     // Пустое поле — «имени нет»: подписью снова становится почта, и занятой
     // считается уже она. Поэтому свободу проверяем у того имени, которое в
     // итоге увидят под комментариями, а не у введённого.
-    const name = normalizeDisplayName(namePart.data)
-    const shown = name || nameFromEmail(me.email)
-    await assertNameFree(shown, me)
+    const name = normalizeDisplayName(namePart.data);
+    const shown = name || nameFromEmail(me.email);
+    await assertNameFree(shown, me);
 
-    updates.displayName = name || null
-    updates.displayNameKey = displayNameKey(shown) || null
+    updates.displayName = name || null;
+    updates.displayNameKey = displayNameKey(shown) || null;
   }
 
   // «О себе» уходит на публичную страницу. Пустое — «не заполнял»: блока там
   // тогда нет вовсе, а не пустой абзац.
-  const aboutPart = form.find(f => f.name === 'about')
-  if (aboutPart) updates.about = normalizeAbout(aboutPart.data.toString('utf8')) || null
+  const aboutPart = form.find((f) => f.name === "about");
+  if (aboutPart)
+    updates.about = normalizeAbout(aboutPart.data.toString("utf8")) || null;
 
-  const filePart = form.find(f => f.name === 'avatar' && f.data?.length)
+  const filePart = form.find((f) => f.name === "avatar" && f.data?.length);
   if (filePart) {
     // saveAvatar проверяет сигнатуру, вес и размеры сам — имени, присланному
     // клиентом, верить нельзя. Его ошибку не переписываем: она точнее нашей.
-    updates.avatarUrl = await saveAvatar(sessionUser.id, filePart.data)
+    updates.avatarUrl = await saveAvatar(sessionUser.id, filePart.data);
   }
 
-  if (form.find(f => f.name === 'removeAvatar')) updates.avatarUrl = null
+  if (form.find((f) => f.name === "removeAvatar")) updates.avatarUrl = null;
 
   // Рамка. Пустое значение — «снять рамку», и снять её можно всегда. Надеть —
   // только выигранную или выданную, хозяйке сайта тоже: иначе рамку носил бы любой, кто знает её номер, и
   // награда перестала бы что-либо значить.
-  const framePart = form.find(f => f.name === 'avatarFrameId')
+  const framePart = form.find((f) => f.name === "avatarFrameId");
   if (framePart) {
-    const raw = framePart.data.toString('utf8').trim()
-    const frameId = raw ? Number(raw) : 0
+    const raw = framePart.data.toString("utf8").trim();
+    const frameId = raw ? Number(raw) : 0;
 
     if (!Number.isInteger(frameId) || frameId < 0) {
-      throw createError({ statusCode: 400, message: 'Неизвестная рамка' })
+      throw createError({ statusCode: 400, message: "Неизвестная рамка" });
     }
 
     if (frameId && !(await canWearFrame(sessionUser.id, frameId))) {
       throw createError({
         statusCode: 403,
-        message: me.role === 'admin' ? 'Это примерка: чтобы носить рамку, сначала выдай её себе' : 'Эта рамка не твоя',
-      })
+        message:
+          me.role === "admin"
+            ? "Это примерка: чтобы носить рамку, сначала выдай её себе"
+            : "Эта рамка не твоя",
+      });
     }
 
-    updates.avatarFrameId = frameId || null
+    updates.avatarFrameId = frameId || null;
   }
 
   // Скин страницы. Пусто — «без скина». Надеть — только выданный, и хозяйке
   // сайта тоже: надетый скин видят все, кто заходит на страницу.
-  const skinPart = form.find(f => f.name === 'skinId')
+  const skinPart = form.find((f) => f.name === "skinId");
   if (skinPart) {
-    const raw = skinPart.data.toString('utf8').trim()
-    const skinId = raw ? Number(raw) : 0
-    if (!Number.isInteger(skinId) || skinId < 0) throw createError({ statusCode: 400, message: 'Неизвестный скин' })
+    const raw = skinPart.data.toString("utf8").trim();
+    const skinId = raw ? Number(raw) : 0;
+    if (!Number.isInteger(skinId) || skinId < 0)
+      throw createError({ statusCode: 400, message: "Неизвестный скин" });
     if (skinId && !(await ownsSkin(sessionUser.id, skinId))) {
       throw createError({
         statusCode: 403,
-        message: me.role === 'admin' ? 'Это примерка: чтобы носить скин, сначала выдай его себе' : 'Этот скин не твой',
-      })
+        message:
+          me.role === "admin"
+            ? "Это примерка: чтобы носить скин, сначала выдай его себе"
+            : "Этот скин не твой",
+      });
     }
-    updates.skinId = skinId || null
+    updates.skinId = skinId || null;
   }
 
   // Фигурка у имени. Пусто — «без фигурки». Надеть — только выданную, и
   // хозяйке сайта тоже: фигурку видят все, кто читает комментарии.
-  const figurePart = form.find(f => f.name === 'figure')
+  const figurePart = form.find((f) => f.name === "figure");
   if (figurePart) {
-    const figure = figurePart.data.toString('utf8').trim()
-    if (figure && !isFigureId(figure)) throw createError({ statusCode: 400, message: 'Неизвестная фигурка' })
+    const figure = figurePart.data.toString("utf8").trim();
+    if (figure && !isFigureId(figure))
+      throw createError({ statusCode: 400, message: "Неизвестная фигурка" });
     if (figure && !(await ownsFigure(sessionUser.id, figure))) {
       throw createError({
         statusCode: 403,
-        message: me.role === 'admin' ? 'Это примерка: чтобы носить фигурку, сначала выдай её себе' : 'Эта фигурка не твоя',
-      })
+        message:
+          me.role === "admin"
+            ? "Это примерка: чтобы носить фигурку, сначала выдай её себе"
+            : "Эта фигурка не твоя",
+      });
     }
-    updates.figure = figure || null
+    updates.figure = figure || null;
   }
 
   if (!Object.keys(updates).length) {
-    throw createError({ statusCode: 400, message: 'Нечего сохранять' })
+    throw createError({ statusCode: 400, message: "Нечего сохранять" });
   }
 
   const [updated] = await saveUnique(() =>
-    db.update(users).set(updates).where(eq(users.id, sessionUser.id)).returning())
+    db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, sessionUser.id))
+      .returning(),
+  );
 
   // Шапка и комментарии берут имя с аватаркой из сессии — обновляем и её,
   // иначе новый ник появится только после следующего входа.
-  await replaceUserSession(event, { user: await toSessionUser(updated!) })
+  await replaceUserSession(event, { user: await toSessionUser(updated!) });
 
   return {
     ok: true,
@@ -126,5 +152,5 @@ export default defineEventHandler(async (event) => {
     avatarUrl: updated!.avatarUrl,
     avatarFrame: await frameById(updated!.avatarFrameId),
     about: updated!.about,
-  }
-})
+  };
+});

@@ -2,12 +2,12 @@
 // Mark и mergeAttributes берём из @tiptap/vue-3, а не из @tiptap/core: пакет
 // их реэкспортирует, а новая зависимость заставила бы Vite пересобирать
 // предзагруженные модули посреди работы dev-сервера.
-import { useEditor, EditorContent, Mark, mergeAttributes } from '@tiptap/vue-3'
-import StarterKit from '@tiptap/starter-kit'
-import { TextStyle } from '@tiptap/extension-text-style'
-import { FontSize } from '@tiptap/extension-text-style/font-size'
-import Color from '@tiptap/extension-color'
-import { Fragment } from '@tiptap/pm/model'
+import { useEditor, EditorContent, Mark, mergeAttributes } from "@tiptap/vue-3";
+import StarterKit from "@tiptap/starter-kit";
+import { TextStyle } from "@tiptap/extension-text-style";
+import { FontSize } from "@tiptap/extension-text-style/font-size";
+import Color from "@tiptap/extension-color";
+import { Fragment } from "@tiptap/pm/model";
 
 /**
  * «Невидимый» текст — тот, что в epub почти сливается с фоном: в него автор
@@ -18,49 +18,52 @@ import { Fragment } from '@tiptap/pm/model'
  * раскрывало спрятанное. Заодно им можно помечать текст прямо здесь.
  */
 const InvisibleText = Mark.create({
-  name: 'invisibleText',
-  parseHTML: () => [{ tag: 'span.invisible-text' }],
-  renderHTML: ({ HTMLAttributes }) =>
-    ['span', mergeAttributes(HTMLAttributes, { class: 'invisible-text' }), 0],
-})
+  name: "invisibleText",
+  parseHTML: () => [{ tag: "span.invisible-text" }],
+  renderHTML: ({ HTMLAttributes }) => [
+    "span",
+    mergeAttributes(HTMLAttributes, { class: "invisible-text" }),
+    0,
+  ],
+});
 
 const props = defineProps<{
-  chapterId: string
-  chapterTitle: string
-}>()
+  chapterId: string;
+  chapterTitle: string;
+}>();
 
 const emit = defineEmits<{
-  close: []
-  saved: []
-}>()
+  close: [];
+  saved: [];
+}>();
 
-useScrollLock()
+useScrollLock();
 
-const loading = ref(true)
-const saving = ref(false)
-const saveError = ref('')
-const saved = ref(false)
-const isPublished = ref(true)
-const title = ref(props.chapterTitle)
-const publishedAt = ref('')
+const loading = ref(true);
+const saving = ref(false);
+const saveError = ref("");
+const saved = ref(false);
+const isPublished = ref(true);
+const title = ref(props.chapterTitle);
+const publishedAt = ref("");
 
 const today = () => {
   // Локальная дата, а не UTC: у ISO-строки вечером уже завтрашнее число.
-  const d = new Date()
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-  return d.toISOString().slice(0, 10)
-}
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+};
 
 // Черновик, который сейчас публикуют, должен выйти сегодняшним числом: дата у него
 // осталась с момента загрузки, и в списке глава уехала бы в прошлое, а бот сообщил бы
 // о ней задним числом. Дату можно тут же поправить вручную, если нужна другая.
-const wasDraft = ref(false)
+const wasDraft = ref(false);
 watch(isPublished, (nowPublished) => {
-  if (nowPublished && wasDraft.value) publishedAt.value = today()
-})
+  if (nowPublished && wasDraft.value) publishedAt.value = today();
+});
 
 const editor = useEditor({
-  content: '',
+  content: "",
   editable: true,
   extensions: [
     StarterKit.configure({
@@ -85,158 +88,188 @@ const editor = useEditor({
     // вокруг вставленного текста. Вставляем как обычный текст (с текущим
     // форматированием курсора) в обход этой логики — так и артефакта нет.
     handlePaste: (view, event) => {
-      const text = event.clipboardData?.getData('text/plain')
-      if (!text) return false
-      event.preventDefault()
+      const text = event.clipboardData?.getData("text/plain");
+      if (!text) return false;
+      event.preventDefault();
 
-      const { state, dispatch } = view
-      const { schema, selection } = state
-      const marks = state.storedMarks || selection.$to.marks()
-      const lines = text.split(/\r\n|\r|\n/)
+      const { state, dispatch } = view;
+      const { schema, selection } = state;
+      const marks = state.storedMarks || selection.$to.marks();
+      const lines = text.split(/\r\n|\r|\n/);
 
-      const content = lines.length === 1
-        ? schema.text(lines[0], marks)
-        : Fragment.fromArray(lines.map(line =>
-          schema.nodes.paragraph.create(null, line ? schema.text(line, marks) : undefined),
-        ))
+      const content =
+        lines.length === 1
+          ? schema.text(lines[0], marks)
+          : Fragment.fromArray(
+              lines.map((line) =>
+                schema.nodes.paragraph.create(
+                  null,
+                  line ? schema.text(line, marks) : undefined,
+                ),
+              ),
+            );
 
-      dispatch(state.tr.replaceWith(selection.from, selection.to, content).scrollIntoView())
-      return true
+      dispatch(
+        state.tr
+          .replaceWith(selection.from, selection.to, content)
+          .scrollIntoView(),
+      );
+      return true;
     },
   },
-})
+});
 
 // Цвет текста там, где сейчас курсор/выделение — у разных фрагментов он разный,
 // это не единый цвет документа. Нужен для подсветки текущего цвета в тулбаре.
-const currentColor = computed(() => editor.value?.getAttributes('textStyle').color || '#e7d9c2')
+const currentColor = computed(
+  () => editor.value?.getAttributes("textStyle").color || "#e7d9c2",
+);
 
 onMounted(async () => {
   try {
-    const chapter = await $fetch<{ contentHtml: string, isPublished: boolean, publishedAt: string }>(`/api/chapters/${props.chapterId}`)
-    editor.value?.commands.setContent(chapter.contentHtml || '')
-    isPublished.value = chapter.isPublished
-    publishedAt.value = (chapter.publishedAt || '').slice(0, 10)
-    wasDraft.value = !chapter.isPublished
+    const chapter = await $fetch<{
+      contentHtml: string;
+      isPublished: boolean;
+      publishedAt: string;
+    }>(`/api/chapters/${props.chapterId}`);
+    editor.value?.commands.setContent(chapter.contentHtml || "");
+    isPublished.value = chapter.isPublished;
+    publishedAt.value = (chapter.publishedAt || "").slice(0, 10);
+    wasDraft.value = !chapter.isPublished;
   } catch {
-    saveError.value = 'Не удалось загрузить текст главы'
+    saveError.value = "Не удалось загрузить текст главы";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-})
+});
 
 onBeforeUnmount(() => {
-  editor.value?.destroy()
-})
+  editor.value?.destroy();
+});
 
 // --- Поиск и замена ---
-const showSearch = ref(false)
-const searchTerm = ref('')
-const replaceTerm = ref('')
-const matches = ref<{ from: number; to: number }[]>([])
-const currentMatchIndex = ref(0)
+const showSearch = ref(false);
+const searchTerm = ref("");
+const replaceTerm = ref("");
+const matches = ref<{ from: number; to: number }[]>([]);
+const currentMatchIndex = ref(0);
 
-const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const findMatches = () => {
-  matches.value = []
-  currentMatchIndex.value = 0
-  if (!editor.value || !searchTerm.value) return
-  const re = new RegExp(escapeRegex(searchTerm.value), 'gi')
+  matches.value = [];
+  currentMatchIndex.value = 0;
+  if (!editor.value || !searchTerm.value) return;
+  const re = new RegExp(escapeRegex(searchTerm.value), "gi");
   editor.value.state.doc.descendants((node, pos) => {
-    if (!node.isText || !node.text) return
-    re.lastIndex = 0
-    let match
+    if (!node.isText || !node.text) return;
+    re.lastIndex = 0;
+    let match;
     while ((match = re.exec(node.text))) {
-      matches.value.push({ from: pos + match.index, to: pos + match.index + match[0].length })
-      if (match[0].length === 0) re.lastIndex++
+      matches.value.push({
+        from: pos + match.index,
+        to: pos + match.index + match[0].length,
+      });
+      if (match[0].length === 0) re.lastIndex++;
     }
-  })
-}
+  });
+};
 
 const selectMatch = (index: number, focusEditor = false) => {
-  const m = matches.value[index]
-  if (!m || !editor.value) return
-  const chain = editor.value.chain()
-  if (focusEditor) chain.focus()
-  chain.setTextSelection(m).scrollIntoView().run()
-}
+  const m = matches.value[index];
+  if (!m || !editor.value) return;
+  const chain = editor.value.chain();
+  if (focusEditor) chain.focus();
+  chain.setTextSelection(m).scrollIntoView().run();
+};
 
 const runSearch = () => {
   // Не забираем фокус у поля поиска, пока пользователь ещё печатает —
   // иначе курсор перескакивает в текст главы после первой же буквы.
-  findMatches()
-  if (matches.value.length) selectMatch(0, false)
-}
+  findMatches();
+  if (matches.value.length) selectMatch(0, false);
+};
 
 const nextMatch = () => {
-  if (!matches.value.length) { runSearch(); return }
-  currentMatchIndex.value = (currentMatchIndex.value + 1) % matches.value.length
-  selectMatch(currentMatchIndex.value, true)
-}
+  if (!matches.value.length) {
+    runSearch();
+    return;
+  }
+  currentMatchIndex.value =
+    (currentMatchIndex.value + 1) % matches.value.length;
+  selectMatch(currentMatchIndex.value, true);
+};
 
 const prevMatch = () => {
-  if (!matches.value.length) return
-  currentMatchIndex.value = (currentMatchIndex.value - 1 + matches.value.length) % matches.value.length
-  selectMatch(currentMatchIndex.value, true)
-}
+  if (!matches.value.length) return;
+  currentMatchIndex.value =
+    (currentMatchIndex.value - 1 + matches.value.length) % matches.value.length;
+  selectMatch(currentMatchIndex.value, true);
+};
 
-const replacementContent = () => (replaceTerm.value ? [{ type: 'text', text: replaceTerm.value }] : [])
+const replacementContent = () =>
+  replaceTerm.value ? [{ type: "text", text: replaceTerm.value }] : [];
 
 const replaceCurrent = () => {
-  const m = matches.value[currentMatchIndex.value]
-  if (!m || !editor.value) return
-  editor.value.chain().focus().insertContentAt(m, replacementContent()).run()
-  findMatches()
+  const m = matches.value[currentMatchIndex.value];
+  if (!m || !editor.value) return;
+  editor.value.chain().focus().insertContentAt(m, replacementContent()).run();
+  findMatches();
   if (matches.value.length) {
-    currentMatchIndex.value = Math.min(currentMatchIndex.value, matches.value.length - 1)
-    selectMatch(currentMatchIndex.value, true)
+    currentMatchIndex.value = Math.min(
+      currentMatchIndex.value,
+      matches.value.length - 1,
+    );
+    selectMatch(currentMatchIndex.value, true);
   }
-}
+};
 
 const replaceAll = () => {
-  if (!editor.value || !matches.value.length) return
+  if (!editor.value || !matches.value.length) return;
   // Заменяем с конца документа к началу, чтобы уже обработанные позиции не съезжали
-  const sorted = [...matches.value].sort((a, b) => b.from - a.from)
-  let chain = editor.value.chain().focus()
+  const sorted = [...matches.value].sort((a, b) => b.from - a.from);
+  let chain = editor.value.chain().focus();
   for (const m of sorted) {
-    chain = chain.insertContentAt(m, replacementContent())
+    chain = chain.insertContentAt(m, replacementContent());
   }
-  chain.run()
-  findMatches()
-}
+  chain.run();
+  findMatches();
+};
 
 const toggleSearch = () => {
-  showSearch.value = !showSearch.value
+  showSearch.value = !showSearch.value;
   if (!showSearch.value) {
-    matches.value = []
-    searchTerm.value = ''
-    replaceTerm.value = ''
+    matches.value = [];
+    searchTerm.value = "";
+    replaceTerm.value = "";
   }
-}
+};
 
 const save = async () => {
-  if (!editor.value) return
-  saving.value = true
-  saveError.value = ''
+  if (!editor.value) return;
+  saving.value = true;
+  saveError.value = "";
   try {
     await $fetch(`/api/admin/chapters/${props.chapterId}`, {
-      method: 'PUT',
+      method: "PUT",
       body: {
         title: title.value,
         contentHtml: editor.value.getHTML(),
         isPublished: isPublished.value,
         publishedAt: publishedAt.value,
       },
-    })
-    saved.value = true
-    emit('saved')
-    setTimeout(() => { saved.value = false }, 2000)
+    });
+    saved.value = true;
+    emit("saved");
+    setTimeout(() => {
+      saved.value = false;
+    }, 2000);
   } catch (e: any) {
-    saveError.value = e.data?.message || 'Не удалось сохранить'
+    saveError.value = e.data?.message || "Не удалось сохранить";
   } finally {
-    saving.value = false
+    saving.value = false;
   }
-}
+};
 </script>
 
 <template>
@@ -245,19 +278,37 @@ const save = async () => {
       <div class="modal">
         <div class="modal-head">
           <h2 class="modal-title">Редактировать главу {{ chapterId }}</h2>
-          <button class="modal-close" title="Закрыть" @click="emit('close')">✕</button>
+          <button class="modal-close" title="Закрыть" @click="emit('close')">
+            ✕
+          </button>
         </div>
-        <input v-model="title" type="text" class="title-input" placeholder="Название главы">
+        <input
+          v-model="title"
+          type="text"
+          class="title-input"
+          placeholder="Название главы"
+        />
 
         <label v-if="!loading" class="checkbox-row">
-          <input v-model="isPublished" type="checkbox">
+          <input v-model="isPublished" type="checkbox" />
           <span>Опубликовано (видно всем читателям)</span>
         </label>
 
         <div v-if="!loading" class="date-row">
           <label :for="`pub-date-${chapterId}`">Дата публикации</label>
-          <input :id="`pub-date-${chapterId}`" v-model="publishedAt" type="date" class="date-input">
-          <button type="button" class="btn btn--sm btn--ghost" @click="publishedAt = today()">Сегодня</button>
+          <input
+            :id="`pub-date-${chapterId}`"
+            v-model="publishedAt"
+            type="date"
+            class="date-input"
+          />
+          <button
+            type="button"
+            class="btn btn--sm btn--ghost"
+            @click="publishedAt = today()"
+          >
+            Сегодня
+          </button>
         </div>
 
         <div v-if="loading" class="loading-hint">Загрузка текста главы...</div>
@@ -270,34 +321,48 @@ const save = async () => {
               :class="{ active: editor?.isActive('bold') }"
               title="Жирный"
               @click="editor?.chain().focus().toggleBold().run()"
-            ><b>Ж</b></button>
+            >
+              <b>Ж</b>
+            </button>
             <button
               type="button"
               class="tb-btn"
               :class="{ active: editor?.isActive('italic') }"
               title="Курсив"
               @click="editor?.chain().focus().toggleItalic().run()"
-            ><i>К</i></button>
+            >
+              <i>К</i>
+            </button>
             <button
               type="button"
               class="tb-btn"
               title="Разделитель"
               @click="editor?.chain().focus().setHorizontalRule().run()"
-            >—</button>
+            >
+              —
+            </button>
             <span class="tb-sep" />
             <label class="color-picker" title="Цвет текста выделения">
               <input
                 type="color"
                 :value="currentColor"
-                @input="editor?.chain().focus().setColor(($event.target as HTMLInputElement).value).run()"
-              >
+                @input="
+                  editor
+                    ?.chain()
+                    .focus()
+                    .setColor(($event.target as HTMLInputElement).value)
+                    .run()
+                "
+              />
             </label>
             <button
               type="button"
               class="tb-btn"
               title="Убрать цвет"
               @click="editor?.chain().focus().unsetColor().run()"
-            >✕</button>
+            >
+              ✕
+            </button>
             <span class="tb-sep" />
             <button
               type="button"
@@ -305,10 +370,26 @@ const save = async () => {
               :class="{ active: editor?.isActive('invisibleText') }"
               title="Невидимый текст (в главе почти сливается с фоном)"
               @click="editor?.chain().focus().toggleMark('invisibleText').run()"
-            >👁</button>
+            >
+              👁
+            </button>
             <span class="tb-sep" />
-            <button type="button" class="tb-btn" title="Отменить" @click="editor?.chain().focus().undo().run()">↶</button>
-            <button type="button" class="tb-btn" title="Повторить" @click="editor?.chain().focus().redo().run()">↷</button>
+            <button
+              type="button"
+              class="tb-btn"
+              title="Отменить"
+              @click="editor?.chain().focus().undo().run()"
+            >
+              ↶
+            </button>
+            <button
+              type="button"
+              class="tb-btn"
+              title="Повторить"
+              @click="editor?.chain().focus().redo().run()"
+            >
+              ↷
+            </button>
             <span class="tb-sep" />
             <button
               type="button"
@@ -316,7 +397,9 @@ const save = async () => {
               :class="{ active: showSearch }"
               title="Найти и заменить"
               @click="toggleSearch"
-            >🔍</button>
+            >
+              🔍
+            </button>
           </div>
 
           <div v-if="showSearch" class="search-bar">
@@ -327,20 +410,56 @@ const save = async () => {
               class="search-input"
               @input="runSearch"
               @keydown.enter.prevent="nextMatch"
-            >
+            />
             <input
               v-model="replaceTerm"
               type="text"
               placeholder="Заменить на..."
               class="search-input"
-            >
+            />
             <span class="match-count">
-              {{ !searchTerm ? '' : matches.length ? `${currentMatchIndex + 1} из ${matches.length}` : 'не найдено' }}
+              {{
+                !searchTerm
+                  ? ""
+                  : matches.length
+                    ? `${currentMatchIndex + 1} из ${matches.length}`
+                    : "не найдено"
+              }}
             </span>
-            <button type="button" class="tb-btn" title="Предыдущее" :disabled="!matches.length" @click="prevMatch">◀</button>
-            <button type="button" class="tb-btn" title="Следующее" :disabled="!matches.length" @click="nextMatch">▶</button>
-            <button type="button" class="btn btn--sm btn--ghost" :disabled="!matches.length" @click="replaceCurrent">Заменить</button>
-            <button type="button" class="btn btn--sm btn--ghost" :disabled="!matches.length" @click="replaceAll">Заменить всё</button>
+            <button
+              type="button"
+              class="tb-btn"
+              title="Предыдущее"
+              :disabled="!matches.length"
+              @click="prevMatch"
+            >
+              ◀
+            </button>
+            <button
+              type="button"
+              class="tb-btn"
+              title="Следующее"
+              :disabled="!matches.length"
+              @click="nextMatch"
+            >
+              ▶
+            </button>
+            <button
+              type="button"
+              class="btn btn--sm btn--ghost"
+              :disabled="!matches.length"
+              @click="replaceCurrent"
+            >
+              Заменить
+            </button>
+            <button
+              type="button"
+              class="btn btn--sm btn--ghost"
+              :disabled="!matches.length"
+              @click="replaceAll"
+            >
+              Заменить всё
+            </button>
           </div>
 
           <EditorContent :editor="editor" class="editor-body" />
@@ -350,8 +469,12 @@ const save = async () => {
 
         <div class="modal-actions">
           <button class="btn btn--ghost" @click="emit('close')">Отмена</button>
-          <button class="btn btn--primary" :disabled="loading || saving" @click="save">
-            {{ saved ? '✓ Сохранено' : saving ? 'Сохраняем...' : 'Сохранить' }}
+          <button
+            class="btn btn--primary"
+            :disabled="loading || saving"
+            @click="save"
+          >
+            {{ saved ? "✓ Сохранено" : saving ? "Сохраняем..." : "Сохранить" }}
           </button>
         </div>
       </div>
@@ -396,8 +519,6 @@ const save = async () => {
   align-items: center;
   justify-content: space-between;
 }
-
-
 
 .modal-close {
   background: none;
@@ -565,7 +686,7 @@ const save = async () => {
 .match-count {
   font-size: 12px;
   color: var(--parchment-2);
-  opacity: .7;
+  opacity: 0.7;
   white-space: nowrap;
   min-width: 70px;
 }
@@ -594,7 +715,7 @@ const save = async () => {
    вслепую то, чего не видно, нельзя. Читателю он достанется почти прозрачным. */
 .editor-body :deep(.invisible-text) {
   color: var(--text-muted);
-  text-decoration: underline dotted rgba(241, 230, 210, .35);
+  text-decoration: underline dotted rgba(241, 230, 210, 0.35);
   text-underline-offset: 3px;
 }
 
@@ -610,5 +731,4 @@ const save = async () => {
   gap: 10px;
   margin-top: 18px;
 }
-
 </style>

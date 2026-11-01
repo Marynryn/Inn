@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes } from "node:crypto";
 
 /*
   Передача входа с основного домена на зеркало. CDN перед зеркалом отдаёт 403 на
@@ -10,42 +10,48 @@ import { randomBytes } from 'node:crypto'
 
   Хранилище в памяти: сервер один, и билет нужен на секунды.
 */
-const TTL_MS = 60_000
-const TICKET_LENGTH = 12
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+const TTL_MS = 60_000;
+const TICKET_LENGTH = 12;
+const ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
-export type Handoff = { userId: number; created: boolean }
+export type Handoff = { userId: number; created: boolean };
 
-const tickets = new Map<string, Handoff & { expires: number }>()
+const tickets = new Map<string, Handoff & { expires: number }>();
 
 function sweep(now: number) {
-  for (const [key, value] of tickets) if (value.expires <= now) tickets.delete(key)
+  for (const [key, value] of tickets)
+    if (value.expires <= now) tickets.delete(key);
 }
 
 export function issueTicket(handoff: Handoff, now = Date.now()): string {
-  sweep(now)
-  const bytes = randomBytes(TICKET_LENGTH)
-  let ticket = ''
-  for (const b of bytes) ticket += ALPHABET[b % ALPHABET.length]
-  tickets.set(ticket, { ...handoff, expires: now + TTL_MS })
-  return ticket
+  sweep(now);
+  const bytes = randomBytes(TICKET_LENGTH);
+  let ticket = "";
+  for (const b of bytes) ticket += ALPHABET[b % ALPHABET.length];
+  tickets.set(ticket, { ...handoff, expires: now + TTL_MS });
+  return ticket;
 }
 
 /** Забрать билет. Второй раз, просроченный или выдуманный — null. */
 export function takeTicket(ticket: unknown, now = Date.now()): Handoff | null {
-  sweep(now)
-  if (typeof ticket !== 'string') return null
-  const found = tickets.get(ticket)
-  if (!found) return null
-  tickets.delete(ticket)
-  return { userId: found.userId, created: found.created }
+  sweep(now);
+  if (typeof ticket !== "string") return null;
+  const found = tickets.get(ticket);
+  if (!found) return null;
+  tickets.delete(ticket);
+  return { userId: found.userId, created: found.created };
 }
 
 /** Куда Google не должен возвращать — там, где стоит фильтр. Из state узнаём зеркало. */
-export const MIRROR_STATE_PREFIX = 'mirror='
+export const MIRROR_STATE_PREFIX = "mirror=";
 
-export function mirrorFromState(state: unknown, allowed: string[]): string | null {
-  if (typeof state !== 'string' || !state.startsWith(MIRROR_STATE_PREFIX)) return null
-  const host = state.slice(MIRROR_STATE_PREFIX.length).toLowerCase()
-  return allowed.includes(host) ? host : null
+export function mirrorFromState(
+  state: unknown,
+  allowed: string[],
+): string | null {
+  if (typeof state !== "string" || !state.startsWith(MIRROR_STATE_PREFIX))
+    return null;
+  const host = state.slice(MIRROR_STATE_PREFIX.length).toLowerCase();
+  return allowed.includes(host) ? host : null;
 }

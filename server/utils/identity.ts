@@ -1,40 +1,40 @@
-import type { H3Event } from 'h3'
-import { and, eq } from 'drizzle-orm'
-import { displayNameKey, nameFromEmail } from '#shared/utils/displayName'
-import { userIdentities, users } from '../database/schema'
-import type { AvatarFrame } from '#shared/utils/avatarFrames'
-import type { NameFigure } from '#shared/utils/nameFigures'
-import { figureById } from '#shared/utils/nameFigures'
-import { saveRemoteAvatar } from './avatar'
-import { frameById, grantDefaultFrame } from './frames'
-import { useDb } from './db'
-import { freeDisplayName } from './display-name'
+import type { H3Event } from "h3";
+import { and, eq } from "drizzle-orm";
+import { displayNameKey, nameFromEmail } from "#shared/utils/displayName";
+import { userIdentities, users } from "../database/schema";
+import type { AvatarFrame } from "#shared/utils/avatarFrames";
+import type { NameFigure } from "#shared/utils/nameFigures";
+import { figureById } from "#shared/utils/nameFigures";
+import { saveRemoteAvatar } from "./avatar";
+import { frameById, grantDefaultFrame } from "./frames";
+import { useDb } from "./db";
+import { freeDisplayName } from "./display-name";
 
-export type Provider = 'google' | 'telegram'
+export type Provider = "google" | "telegram";
 
 /** Что мы забираем у провайдера. Всё, кроме id, необязательно. */
 export type ProviderProfile = {
-  id: string
-  email?: string | null
-  emailVerified?: boolean
-  displayName?: string | null
-  photoUrl?: string | null
-}
+  id: string;
+  email?: string | null;
+  emailVerified?: boolean;
+  displayName?: string | null;
+  photoUrl?: string | null;
+};
 
 export type SessionUser = {
-  id: number
-  email: string | null
-  role: 'admin' | 'reader'
-  displayName: string | null
-  avatarUrl: string | null
+  id: number;
+  email: string | null;
+  role: "admin" | "reader";
+  displayName: string | null;
+  avatarUrl: string | null;
   // Рамка целиком, а не её id: шапка рисует аватарку из одной сессии и лезть
   // за картинкой отдельным запросом на каждой странице ей незачем.
-  avatarFrame: AvatarFrame | null
+  avatarFrame: AvatarFrame | null;
   // Фигурка у имени — по той же причине целиком.
-  figure: NameFigure | null
-}
+  figure: NameFigure | null;
+};
 
-type UserRow = typeof users.$inferSelect
+type UserRow = typeof users.$inferSelect;
 
 export const toSessionUser = async (u: UserRow): Promise<SessionUser> => ({
   id: u.id,
@@ -44,32 +44,34 @@ export const toSessionUser = async (u: UserRow): Promise<SessionUser> => ({
   avatarUrl: u.avatarUrl,
   avatarFrame: await frameById(u.avatarFrameId),
   figure: figureById(u.figure),
-})
+});
 
 /** Имя для показа: ник, часть почты до собаки или безликое «Читатель». */
-export const readerName = (u: Pick<UserRow, 'displayName' | 'email'>) =>
-  u.displayName || nameFromEmail(u.email) || 'Читатель'
+export const readerName = (u: Pick<UserRow, "displayName" | "email">) =>
+  u.displayName || nameFromEmail(u.email) || "Читатель";
 
-const AUTH_NEXT_COOKIE = 'auth_next'
+const AUTH_NEXT_COOKIE = "auth_next";
 
 /** Адрес внутри сайта — и только он. Чужой адрес превратил бы вход в открытый
  *  редирект: /auth/google?next=https://... уводил бы человека с сайта. */
 const localPath = (value: unknown): string | null =>
-  typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') ? value : null
+  typeof value === "string" && value.startsWith("/") && !value.startsWith("//")
+    ? value
+    : null;
 
 /** Запоминает, куда вернуть человека после входа: у Google возврат приходит
  *  отдельным запросом, и кроме куки этот адрес донести нечем. */
 export function rememberNext(event: H3Event) {
-  const next = localPath(getQuery(event).next)
-  if (!next) return
+  const next = localPath(getQuery(event).next);
+  if (!next) return;
 
   setCookie(event, AUTH_NEXT_COOKIE, next, {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: "lax",
     secure: !import.meta.dev,
-    path: '/',
+    path: "/",
     maxAge: 600,
-  })
+  });
 }
 
 /**
@@ -79,10 +81,10 @@ export function rememberNext(event: H3Event) {
  * поставил первый заход. Куку гасим в любом случае: она нужна на один вход.
  */
 export function takeNext(event: H3Event): string {
-  const fromCookie = getCookie(event, AUTH_NEXT_COOKIE)
-  deleteCookie(event, AUTH_NEXT_COOKIE, { path: '/' })
+  const fromCookie = getCookie(event, AUTH_NEXT_COOKIE);
+  deleteCookie(event, AUTH_NEXT_COOKIE, { path: "/" });
 
-  return localPath(getQuery(event).next) ?? localPath(fromCookie) ?? '/'
+  return localPath(getQuery(event).next) ?? localPath(fromCookie) ?? "/";
 }
 
 /**
@@ -94,8 +96,8 @@ export function takeNext(event: H3Event): string {
  * Куку с адресом возврата гасим в обоих случаях: она нужна на один вход.
  */
 export function afterLogin(event: H3Event, created: boolean): string {
-  const next = takeNext(event)
-  return created ? '/profile' : next
+  const next = takeNext(event);
+  return created ? "/profile" : next;
 }
 
 /**
@@ -112,49 +114,63 @@ export async function loginWithProvider(
   provider: Provider,
   profile: ProviderProfile,
 ): Promise<{ user: UserRow; created: boolean }> {
-  const db = useDb()
-  const byId = async (id: number) => (await db.select().from(users).where(eq(users.id, id)))[0]
+  const db = useDb();
+  const byId = async (id: number) =>
+    (await db.select().from(users).where(eq(users.id, id)))[0];
 
   // Вошедший человек, отправленный сюда со страницы профиля, привязывает второй
   // способ входа — привязка должна сесть на его аккаунт, а не завести двойника.
-  const session = await getUserSession(event)
-  const currentId = (session.user as { id?: number } | undefined)?.id ?? null
+  const session = await getUserSession(event);
+  const currentId = (session.user as { id?: number } | undefined)?.id ?? null;
 
   const [link] = await db
     .select()
     .from(userIdentities)
-    .where(and(eq(userIdentities.provider, provider), eq(userIdentities.providerUserId, profile.id)))
+    .where(
+      and(
+        eq(userIdentities.provider, provider),
+        eq(userIdentities.providerUserId, profile.id),
+      ),
+    );
 
   if (currentId && link && link.userId !== currentId) {
-    throw createError({ statusCode: 409, message: 'Этот аккаунт уже привязан к другому профилю' })
+    throw createError({
+      statusCode: 409,
+      message: "Этот аккаунт уже привязан к другому профилю",
+    });
   }
 
-  let user = link ? await byId(link.userId) : currentId ? await byId(currentId) : undefined
+  let user = link
+    ? await byId(link.userId)
+    : currentId
+      ? await byId(currentId)
+      : undefined;
 
-  const email = profile.email && profile.emailVerified
-    ? profile.email.trim().toLowerCase()
-    : null
+  const email =
+    profile.email && profile.emailVerified
+      ? profile.email.trim().toLowerCase()
+      : null;
 
   // По почте узнаём только незалогиненного: у вошедшего аккаунт уже известен.
   if (!user && email) {
-    user = (await db.select().from(users).where(eq(users.email, email)))[0]
+    user = (await db.select().from(users).where(eq(users.email, email)))[0];
   }
 
   // Заблокированного разворачиваем до всякой записи в базу: не хватало, чтобы
   // попытка входа заводила ему новые привязки.
   if (user?.isBanned) {
-    throw createError({ statusCode: 403, message: 'Аккаунт заблокирован' })
+    throw createError({ statusCode: 403, message: "Аккаунт заблокирован" });
   }
 
   // Первый вход и есть регистрация — отличать её важно: новичка стоит завести на
   // профиль, а всех прочих незачем дёргать туда при каждом входе.
-  let created = false
+  let created = false;
 
   if (!user) {
     // Имя от провайдера может оказаться занятым, а отказать во входе за это
     // нельзя: человек его сейчас не выбирает. Поэтому берём ближайшее свободное
     // — «Вася 2», — а поправить его можно в профиле.
-    const name = await freeDisplayName(profile.displayName ?? '')
+    const name = await freeDisplayName(profile.displayName ?? "");
 
     const [fresh] = await db
       .insert(users)
@@ -162,12 +178,12 @@ export async function loginWithProvider(
         email,
         displayName: name,
         displayNameKey: displayNameKey(name) || null,
-        role: 'reader',
+        role: "reader",
       })
-      .returning()
+      .returning();
 
-    user = fresh!
-    created = true
+    user = fresh!;
+    created = true;
   }
 
   if (!link) {
@@ -175,26 +191,26 @@ export async function loginWithProvider(
       userId: user.id,
       provider,
       providerUserId: profile.id,
-    })
+    });
   }
 
   // Рамка новичка — сразу на аватарке, а не подарком, который надо найти и
   // надеть. Поменять её или снять можно тут же, в профиле.
   if (created) {
-    const frame = await grantDefaultFrame(user.id)
-    if (frame) user = { ...user, avatarFrameId: frame.id }
+    const frame = await grantDefaultFrame(user.id);
+    if (frame) user = { ...user, avatarFrameId: frame.id };
   }
 
   // Аватарку от провайдера берём, только если своей нет: подменять картинку,
   // которую человек загрузил руками, при каждом входе — не то, чего он ждёт.
   if (!user.avatarUrl && profile.photoUrl) {
-    const avatarUrl = await saveRemoteAvatar(user.id, profile.photoUrl)
+    const avatarUrl = await saveRemoteAvatar(user.id, profile.photoUrl);
     if (avatarUrl) {
-      await db.update(users).set({ avatarUrl }).where(eq(users.id, user.id))
-      user = { ...user, avatarUrl }
+      await db.update(users).set({ avatarUrl }).where(eq(users.id, user.id));
+      user = { ...user, avatarUrl };
     }
   }
 
-  await setUserSession(event, { user: await toSessionUser(user) })
-  return { user, created }
+  await setUserSession(event, { user: await toSessionUser(user) });
+  return { user, created };
 }

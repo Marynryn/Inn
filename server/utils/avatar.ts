@@ -1,9 +1,9 @@
-import { mkdir, unlink, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import { eq } from 'drizzle-orm'
-import { users } from '../database/schema'
-import { useDb } from './db'
-import { getStorageDir } from './storage'
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { eq } from "drizzle-orm";
+import { users } from "../database/schema";
+import { useDb } from "./db";
+import { getStorageDir } from "./storage";
 
 /**
  * Аватарки кладутся как есть, без пережатия на сервере. Уменьшает картинку
@@ -19,29 +19,31 @@ import { getStorageDir } from './storage'
  * общий с базой и главами. Потолок здесь не «на всякий случай», а против
  * злоупотребления.
  */
-export const MAX_AVATAR_BYTES = 300 * 1024
+export const MAX_AVATAR_BYTES = 300 * 1024;
 
 /** Сторона аватарки — 256 пикселей. Всё, что заметно больше, аватаркой не
  *  является: правило должно звучать «это аватарка», а не «это мелкий файл». */
-export const MAX_AVATAR_SIDE = 1024
+export const MAX_AVATAR_SIDE = 1024;
 
-export const IMAGE_EXTENSIONS = ['webp', 'png', 'jpg', 'gif'] as const
-export type ImageExtension = typeof IMAGE_EXTENSIONS[number]
+export const IMAGE_EXTENSIONS = ["webp", "png", "jpg", "gif"] as const;
+export type ImageExtension = (typeof IMAGE_EXTENSIONS)[number];
 
 /** Тип картинки — по сигнатуре файла, а не по имени: имя присылает клиент. */
 function imageExtension(data: Uint8Array): ImageExtension | null {
-  const b = data
-  if (b.length < 12) return null
+  const b = data;
+  if (b.length < 12) return null;
 
-  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpg'
-  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'png'
-  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return 'gif'
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpg";
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47)
+    return "png";
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38)
+    return "gif";
 
-  const riff = String.fromCharCode(b[0]!, b[1]!, b[2]!, b[3]!)
-  const webp = String.fromCharCode(b[8]!, b[9]!, b[10]!, b[11]!)
-  if (riff === 'RIFF' && webp === 'WEBP') return 'webp'
+  const riff = String.fromCharCode(b[0]!, b[1]!, b[2]!, b[3]!);
+  const webp = String.fromCharCode(b[8]!, b[9]!, b[10]!, b[11]!);
+  if (riff === "RIFF" && webp === "WEBP") return "webp";
 
-  return null
+  return null;
 }
 
 /**
@@ -49,79 +51,114 @@ function imageExtension(data: Uint8Array): ImageExtension | null {
  * читать их можно без всякой библиотеки. Вернуть null значит «не разобрали»:
  * формат мы уже опознали по сигнатуре, так что это не повод отказывать.
  */
-function imageSize(b: Uint8Array, ext: string): { width: number; height: number } | null {
-  const be16 = (i: number) => (b[i]! << 8) | b[i + 1]!
-  const be32 = (i: number) => ((b[i]! << 24) | (b[i + 1]! << 16) | (b[i + 2]! << 8) | b[i + 3]!) >>> 0
-  const le16 = (i: number) => b[i]! | (b[i + 1]! << 8)
-  const le24 = (i: number) => b[i]! | (b[i + 1]! << 8) | (b[i + 2]! << 16)
+function imageSize(
+  b: Uint8Array,
+  ext: string,
+): { width: number; height: number } | null {
+  const be16 = (i: number) => (b[i]! << 8) | b[i + 1]!;
+  const be32 = (i: number) =>
+    ((b[i]! << 24) | (b[i + 1]! << 16) | (b[i + 2]! << 8) | b[i + 3]!) >>> 0;
+  const le16 = (i: number) => b[i]! | (b[i + 1]! << 8);
+  const le24 = (i: number) => b[i]! | (b[i + 1]! << 8) | (b[i + 2]! << 16);
 
-  if (ext === 'png' && b.length > 24) {
-    return { width: be32(16), height: be32(20) }
+  if (ext === "png" && b.length > 24) {
+    return { width: be32(16), height: be32(20) };
   }
 
-  if (ext === 'gif' && b.length > 10) {
-    return { width: le16(6), height: le16(8) }
+  if (ext === "gif" && b.length > 10) {
+    return { width: le16(6), height: le16(8) };
   }
 
-  if (ext === 'webp' && b.length > 30) {
-    const chunk = String.fromCharCode(b[12]!, b[13]!, b[14]!, b[15]!)
-    if (chunk === 'VP8X') return { width: le24(24) + 1, height: le24(27) + 1 }
-    if (chunk === 'VP8 ') return { width: le16(26) & 0x3fff, height: le16(28) & 0x3fff }
-    if (chunk === 'VP8L') {
-      const bits = b[21]! | (b[22]! << 8) | (b[23]! << 16) | (b[24]! << 24)
-      return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 }
+  if (ext === "webp" && b.length > 30) {
+    const chunk = String.fromCharCode(b[12]!, b[13]!, b[14]!, b[15]!);
+    if (chunk === "VP8X") return { width: le24(24) + 1, height: le24(27) + 1 };
+    if (chunk === "VP8 ")
+      return { width: le16(26) & 0x3fff, height: le16(28) & 0x3fff };
+    if (chunk === "VP8L") {
+      const bits = b[21]! | (b[22]! << 8) | (b[23]! << 16) | (b[24]! << 24);
+      return {
+        width: (bits & 0x3fff) + 1,
+        height: ((bits >> 14) & 0x3fff) + 1,
+      };
     }
-    return null
+    return null;
   }
 
-  if (ext === 'jpg') {
+  if (ext === "jpg") {
     // Размеры лежат в кадровом сегменте, а до него идут произвольные метаданные —
     // приходится идти по сегментам, перешагивая каждый по его длине.
-    let i = 2
+    let i = 2;
     while (i + 9 < b.length) {
-      if (b[i] !== 0xff) { i++; continue }
-
-      const marker = b[i + 1]!
-      // SOF0..SOF3, SOF5..SOF7, SOF9..SOF11, SOF13..SOF15 — всё, кроме
-      // 0xc4 (таблицы Хаффмана), 0xc8 и 0xcc, которые кадром не являются.
-      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
-        return { height: be16(i + 5), width: be16(i + 7) }
+      if (b[i] !== 0xff) {
+        i++;
+        continue;
       }
 
-      i += 2 + be16(i + 2)
+      const marker = b[i + 1]!;
+      // SOF0..SOF3, SOF5..SOF7, SOF9..SOF11, SOF13..SOF15 — всё, кроме
+      // 0xc4 (таблицы Хаффмана), 0xc8 и 0xcc, которые кадром не являются.
+      if (
+        marker >= 0xc0 &&
+        marker <= 0xcf &&
+        marker !== 0xc4 &&
+        marker !== 0xc8 &&
+        marker !== 0xcc
+      ) {
+        return { height: be16(i + 5), width: be16(i + 7) };
+      }
+
+      i += 2 + be16(i + 2);
     }
-    return null
+    return null;
   }
 
-  return null
+  return null;
 }
 
 /**
  * Картинка ли это, не тяжелее ли потолка и не крупнее ли стороны. Возвращает
  * расширение по сигнатуре файла — им и называется файл на диске.
  */
-export function checkImage(data: Buffer | Uint8Array, maxBytes: number, maxSide: number): ImageExtension {
+export function checkImage(
+  data: Buffer | Uint8Array,
+  maxBytes: number,
+  maxSide: number,
+): ImageExtension {
   if (data.byteLength > maxBytes) {
-    throw createError({ statusCode: 413, message: `Картинка больше ${Math.round(maxBytes / 1024)} КБ` })
+    throw createError({
+      statusCode: 413,
+      message: `Картинка больше ${Math.round(maxBytes / 1024)} КБ`,
+    });
   }
 
-  const ext = imageExtension(data)
-  if (!ext) throw createError({ statusCode: 400, message: 'Не похоже на картинку' })
+  const ext = imageExtension(data);
+  if (!ext)
+    throw createError({ statusCode: 400, message: "Не похоже на картинку" });
 
-  const size = imageSize(data, ext)
+  const size = imageSize(data, ext);
   if (size && (size.width > maxSide || size.height > maxSide)) {
-    throw createError({ statusCode: 400, message: `Картинка больше ${maxSide}×${maxSide}` })
+    throw createError({
+      statusCode: 400,
+      message: `Картинка больше ${maxSide}×${maxSide}`,
+    });
   }
 
-  return ext
+  return ext;
 }
 
 /** Имя файла аватарки — по публичному коду, а не по номеру: номер в адресе
  *  картинки выдавал бы, сколько на сайте читателей. */
 export async function avatarFileBase(userId: number): Promise<string> {
-  const [row] = await useDb().select({ publicId: users.publicId }).from(users).where(eq(users.id, userId))
-  if (!row?.publicId) throw createError({ statusCode: 500, message: 'У читателя нет публичного кода' })
-  return `avatar-${row.publicId}`
+  const [row] = await useDb()
+    .select({ publicId: users.publicId })
+    .from(users)
+    .where(eq(users.id, userId));
+  if (!row?.publicId)
+    throw createError({
+      statusCode: 500,
+      message: "У читателя нет публичного кода",
+    });
+  return `avatar-${row.publicId}`;
 }
 
 /**
@@ -129,21 +166,24 @@ export async function avatarFileBase(userId: number): Promise<string> {
  * ссылке дописывается отметка времени: раздача кэшируется на год, и без неё
  * браузер этот год показывал бы старую картинку.
  */
-export async function saveAvatar(userId: number, data: Buffer | Uint8Array): Promise<string> {
-  const ext = checkImage(data, MAX_AVATAR_BYTES, MAX_AVATAR_SIDE)
-  const base = await avatarFileBase(userId)
+export async function saveAvatar(
+  userId: number,
+  data: Buffer | Uint8Array,
+): Promise<string> {
+  const ext = checkImage(data, MAX_AVATAR_BYTES, MAX_AVATAR_SIDE);
+  const base = await avatarFileBase(userId);
 
-  const dir = join(getStorageDir(), 'avatars')
-  await mkdir(dir, { recursive: true })
-  await writeFile(join(dir, `${base}.${ext}`), data)
+  const dir = join(getStorageDir(), "avatars");
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, `${base}.${ext}`), data);
 
   // Прежняя аватарка могла быть другого формата — она больше не нужна и по
   // ссылке недостижима, но место занимала бы до скончания века.
   for (const old of IMAGE_EXTENSIONS) {
-    if (old !== ext) await unlink(join(dir, `${base}.${old}`)).catch(() => {})
+    if (old !== ext) await unlink(join(dir, `${base}.${old}`)).catch(() => {});
   }
 
-  return `/api/avatars/${base}.${ext}?v=${Date.now()}`
+  return `/api/avatars/${base}.${ext}?v=${Date.now()}`;
 }
 
 /**
@@ -151,11 +191,17 @@ export async function saveAvatar(userId: number, data: Buffer | Uint8Array): Pro
  * протухают, да и гонять читателей на чужой домен ради картинки незачем.
  * Не получилось — не беда: без аватарки жить можно, без входа нельзя.
  */
-export async function saveRemoteAvatar(userId: number, url: string): Promise<string | null> {
+export async function saveRemoteAvatar(
+  userId: number,
+  url: string,
+): Promise<string | null> {
   try {
-    const data = await $fetch<ArrayBuffer>(url, { responseType: 'arrayBuffer', timeout: 5000 })
-    return await saveAvatar(userId, new Uint8Array(data))
+    const data = await $fetch<ArrayBuffer>(url, {
+      responseType: "arrayBuffer",
+      timeout: 5000,
+    });
+    return await saveAvatar(userId, new Uint8Array(data));
   } catch {
-    return null
+    return null;
   }
 }

@@ -1,17 +1,28 @@
 <script setup lang="ts">
-import titleLeaf from '~/assets/leaves/maple-lime.svg'
-import titlePumpkin from '~/assets/halloween/jack-o-lantern.svg'
+import titleLeaf from "~/assets/leaves/maple-lime.svg";
+import titlePumpkin from "~/assets/halloween/jack-o-lantern.svg";
 
-const route = useRoute()
-const rawParam = route.params.id as string
+const route = useRoute();
+const rawParam = route.params.id as string;
 
 // Без текста (?meta=1): его рисует серверный компонент ChapterText. С текстом
 // он ехал бы второй раз — в данных страницы, а при переходе стрелкой ещё и
 // вторым запросом рядом с островом.
-const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURIComponent(rawParam)}`, {
-  query: { meta: 1 },
-  pick: ['id', 'volume', 'title', 'publishedAt', 'isPublished', 'commentsCount', 'description'],
-})
+const { data: chapter, error } = await useFetch(
+  `/api/chapters/${encodeURIComponent(rawParam)}`,
+  {
+    query: { meta: 1 },
+    pick: [
+      "id",
+      "volume",
+      "title",
+      "publishedAt",
+      "isPublished",
+      "commentsCount",
+      "description",
+    ],
+  },
+);
 
 // Отдаём настоящую ошибку, а не заглушку внутри страницы: иначе несуществующая
 // глава открывается с кодом 200 (для поисковиков это «мягкий 404» — они считают
@@ -19,18 +30,25 @@ const { data: chapter, error } = await useFetch(`/api/chapters/${encodeURICompon
 if (error.value) {
   throw createError({
     statusCode: error.value.statusCode ?? 404,
-    message: error.value.data?.message || 'Глава не найдена',
+    message: error.value.data?.message || "Глава не найдена",
     fatal: true,
-  })
+  });
 }
 
 // Глава отозвалась на чужой адрес (её перезалили с буквой: «1-35» → «1-35-r»).
 // Постоянный редирект, чтобы поиск сменил ссылку, а не держал два адреса.
-if (chapter.value && slugifyChapterId(chapter.value.id) !== slugifyChapterId(rawParam)) {
+if (
+  chapter.value &&
+  slugifyChapterId(chapter.value.id) !== slugifyChapterId(rawParam)
+) {
   await navigateTo(
-    { path: `/chapter/${encodeURIComponent(slugifyChapterId(chapter.value.id))}`, query: route.query, hash: route.hash },
+    {
+      path: `/chapter/${encodeURIComponent(slugifyChapterId(chapter.value.id))}`,
+      query: route.query,
+      hash: route.hash,
+    },
     { redirectCode: 301, replace: true },
-  )
+  );
 }
 
 // Ключ — свой на каждую главу. С общим ключом Nuxt при переходе между главами
@@ -39,57 +57,72 @@ if (chapter.value && slugifyChapterId(chapter.value.id) !== slugifyChapterId(raw
 // порядке, который был при первом заходе, — перестановки в панели не доезжают.
 // Для стрелок и проверки закладки нужны только номер и место в порядке —
 // остальные поля всех глав незачем везти в браузер вместе со страницей.
-const { data: allChapters } = await useFetch('/api/chapters', {
+const { data: allChapters } = await useFetch("/api/chapters", {
   key: `chapters-nav:${rawParam}`,
-  transform: (list: { id: string, sortOrder: number }[]) => list.map(c => ({ id: c.id, sortOrder: c.sortOrder })),
-})
+  transform: (list: { id: string; sortOrder: number }[]) =>
+    list.map((c) => ({ id: c.id, sortOrder: c.sortOrder })),
+});
 // Только то, что рисуют шапка и плашка телеграма: целиком настройки везут с
 // собой, например, весь текст страницы «О проекте».
-const { data: settings } = useFetch('/api/settings', {
-  key: 'chapter-settings',
-  pick: ['telegram_url', 'boosty_url', 'tribute_url', 'tg_cta_title', 'tg_cta_text'],
-})
-const season = useSeason()
-const seasonBg = useSeasonReaderBg()
+const { data: settings } = useFetch("/api/settings", {
+  key: "chapter-settings",
+  pick: [
+    "telegram_url",
+    "boosty_url",
+    "tribute_url",
+    "tg_cta_title",
+    "tg_cta_text",
+  ],
+});
+const season = useSeason();
+const seasonBg = useSeasonReaderBg();
 
 // Источник истины по id — ответ API (он резолвит слаг в реальный id главы),
 // а не сырой параметр роута, иначе локальный прогресс чтения/пометки
 // прочитанного разъедутся при переходе по нормализованной ссылке.
-const chapterId = chapter.value?.id ?? rawParam.replace('-', '.')
-const slug = computed(() => encodeURIComponent(slugifyChapterId(chapter.value?.id ?? rawParam)))
+const chapterId = chapter.value?.id ?? rawParam.replace("-", ".");
+const slug = computed(() =>
+  encodeURIComponent(slugifyChapterId(chapter.value?.id ?? rawParam)),
+);
 
-const { load, serverScroll, saveScroll: pushScroll } = useReadProgress()
-const { prevChapter, nextChapter } = useChapterNav(chapterId, allChapters)
-const { dlState, download } = useChapterDownload(chapterId)
-const { showReadMarker } = useReadMarker(chapterId)
-const { lastRead, showProgressModal, confirmProgressUpdate, keepProgress } = useProgressGuard(chapter, allChapters)
-const { save: saveScroll, getSaved } = useScrollProgress(chapterId)
+const { load, serverScroll, saveScroll: pushScroll } = useReadProgress();
+const { prevChapter, nextChapter } = useChapterNav(chapterId, allChapters);
+const { dlState, download } = useChapterDownload(chapterId);
+const { showReadMarker } = useReadMarker(chapterId);
+const { lastRead, showProgressModal, confirmProgressUpdate, keepProgress } =
+  useProgressGuard(chapter, allChapters);
+const { save: saveScroll, getSaved } = useScrollProgress(chapterId);
 
 // Вид страницы — тема, кегль, высота строки, ширина. Настройки лежат в
 // переменных на <html>, стили ниже их читают; здесь нужна только тема — от неё
 // зависит плашка телеграма: на светлом фоне у неё другие цвета.
-const { settings: readerSettings, load: loadReaderSettings } = useReaderSettings()
-const lightTheme = computed(() => readerSettings.value.theme === 'sepia' || readerSettings.value.theme === 'light')
+const { settings: readerSettings, load: loadReaderSettings } =
+  useReaderSettings();
+const lightTheme = computed(
+  () =>
+    readerSettings.value.theme === "sepia" ||
+    readerSettings.value.theme === "light",
+);
 
-const scrollRestored = ref(false)
+const scrollRestored = ref(false);
 
 // При переходе на другую страницу роутер сбрасывает scrollY новой страницы в 0 —
 // это может успеть вызвать debounced onScroll ниже ДО того, как слушатель снимется
 // в onUnmounted, и затереть только что сохранённый прогресс нулём. Флаг закрывает
 // эту гонку независимо от порядка отработки onUnmounted.
-let leavingChapter = false
+let leavingChapter = false;
 
 onBeforeRouteLeave(() => {
-  leavingChapter = true
-  saveScroll()
+  leavingChapter = true;
+  saveScroll();
   // На сервер место в главе шлём раз за посещение, а не на каждый тик прокрутки:
   // закладке хватает, а запросов на порядок меньше.
-  pushScroll(chapterId, getSaved() ?? 0)
-})
+  pushScroll(chapterId, getSaved() ?? 0);
+});
 
 onMounted(() => {
-  load()
-  loadReaderSettings()
+  load();
+  loadReaderSettings();
 
   // Просмотр засчитывается отсюда, а не при рендере на сервере: до этой строки
   // доходит только тот, у кого страница действительно открылась в браузере.
@@ -97,62 +130,67 @@ onMounted(() => {
   // сразу по ключу, без перебора всех глав ради сопоставления слагов.
   // Код браузера — для счётчика разных читателей за день, см. utils/visitorId.
   $fetch(`/api/chapters/${encodeURIComponent(chapterId)}/view`, {
-    method: 'POST',
+    method: "POST",
     body: { visitor: visitorId() },
-  }).catch(() => {})
+  }).catch(() => {});
 
   const restoreTo = (value: number) => {
-    claimPageScroll(route.path)
+    claimPageScroll(route.path);
     document.fonts.ready.then(() => {
-      const h = document.documentElement.scrollHeight - window.innerHeight
-      window.scrollTo({ top: value * h, behavior: 'instant' })
-      scrollRestored.value = true
-      setTimeout(() => { scrollRestored.value = false }, 3000)
-    })
-  }
+      const h = document.documentElement.scrollHeight - window.innerHeight;
+      window.scrollTo({ top: value * h, behavior: "instant" });
+      scrollRestored.value = true;
+      setTimeout(() => {
+        scrollRestored.value = false;
+      }, 3000);
+    });
+  };
 
-  const saved = getSaved()
-  if (saved && saved > 0.02) restoreTo(saved)
+  const saved = getSaved();
+  if (saved && saved > 0.02) restoreTo(saved);
 
   // Закладка с сервера приходит позже локальной — этот браузер мог главу и не
   // открывать вовсе, а с другого устройства она была прочитана до середины.
   // Прыгаем только пока страницу не тронули: рывок посреди чтения хуже, чем
   // потерянное место.
-  const stopServerScroll = watch(() => serverScroll.value[chapterId], (fromServer) => {
-    if (!fromServer || fromServer <= 0.02) return
-    if (getSaved() || window.scrollY > 40) return stopServerScroll()
+  const stopServerScroll = watch(
+    () => serverScroll.value[chapterId],
+    (fromServer) => {
+      if (!fromServer || fromServer <= 0.02) return;
+      if (getSaved() || window.scrollY > 40) return stopServerScroll();
 
-    restoreTo(fromServer)
-    stopServerScroll()
-  })
+      restoreTo(fromServer);
+      stopServerScroll();
+    },
+  );
 
-  let timer: ReturnType<typeof setTimeout>
+  let timer: ReturnType<typeof setTimeout>;
   const onScroll = () => {
-    if (leavingChapter) return
-    clearTimeout(timer)
+    if (leavingChapter) return;
+    clearTimeout(timer);
     timer = setTimeout(() => {
-      if (leavingChapter) return
-      saveScroll()
-    }, 500)
-  }
-  window.addEventListener('scroll', onScroll, { passive: true })
+      if (leavingChapter) return;
+      saveScroll();
+    }, 500);
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
   onUnmounted(() => {
-    clearTimeout(timer)
-    window.removeEventListener('scroll', onScroll)
-  })
-})
+    clearTimeout(timer);
+    window.removeEventListener("scroll", onScroll);
+  });
+});
 
-const siteUrl = useRuntimeConfig().public.siteUrl
+const siteUrl = useRuntimeConfig().public.siteUrl;
 // Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
 // позже, вне контекста Nuxt, и useRuntimeConfig там падает.
-const ogImage = ogImageUrl()
+const ogImage = ogImageUrl();
 
 // У обычных глав TWI нет настоящих названий — title в базе это просто
 // «Глава N», так что description строим из текста самой главы, а не из title,
 // иначе на каждой странице номер главы дублируется дважды.
-const description = computed(() => chapter.value
-  ? chapter.value.description
-  : undefined)
+const description = computed(() =>
+  chapter.value ? chapter.value.description : undefined,
+);
 
 /*
   Вид страницы применяется ещё до первой отрисовки: скрипт в шапке читает
@@ -160,23 +198,21 @@ const description = computed(() => chapter.value
   видел бы на каждой главе тёмную вспышку, пока не подхватится клиент. Ключ и
   переменные — те же, что в useReaderSettings.
 */
-const READER_BOOT = `(function(){try{var s=JSON.parse(localStorage.getItem(${JSON.stringify(LS_READER)})||'null');if(!s)return;var d=document.documentElement;if(typeof s.theme==='string')d.setAttribute('data-reader-theme',s.theme);if(s.fontSize)d.style.setProperty('--reader-font',s.fontSize+'pt');if(s.lineHeight)d.style.setProperty('--reader-lh',String(s.lineHeight));if(s.width)d.style.setProperty('--reader-width',String(s.width))}catch(e){}})()`
+const READER_BOOT = `(function(){try{var s=JSON.parse(localStorage.getItem(${JSON.stringify(LS_READER)})||'null');if(!s)return;var d=document.documentElement;if(typeof s.theme==='string')d.setAttribute('data-reader-theme',s.theme);if(s.fontSize)d.style.setProperty('--reader-font',s.fontSize+'pt');if(s.lineHeight)d.style.setProperty('--reader-lh',String(s.lineHeight));if(s.width)d.style.setProperty('--reader-width',String(s.width))}catch(e){}})()`;
 
 // В начале — то, чем главы отличаются друг от друга: в выдаче их бывает
 // несколько подряд, а видно около 60 знаков. «Читать онлайн» — так ищут в Яндексе.
-const pageTitle = computed(() => chapter.value
-  ? `${chapter.value.title} — Странствующая Таверна, читать онлайн | The Wandering Inn`
-  : undefined)
+const pageTitle = computed(() =>
+  chapter.value
+    ? `${chapter.value.title} — Странствующая Таверна, читать онлайн | The Wandering Inn`
+    : undefined,
+);
 
 useHead(() => ({
-  title: pageTitle.value ?? 'Загрузка...',
-  link: [
-    { rel: 'canonical', href: `${siteUrl}/chapter/${slug.value}` },
-  ],
-  script: [
-    { key: 'reader-boot', innerHTML: READER_BOOT, tagPosition: 'head' },
-  ],
-}))
+  title: pageTitle.value ?? "Загрузка...",
+  link: [{ rel: "canonical", href: `${siteUrl}/chapter/${slug.value}` }],
+  script: [{ key: "reader-boot", innerHTML: READER_BOOT, tagPosition: "head" }],
+}));
 
 useSeoMeta({
   description: () => description.value,
@@ -184,48 +220,57 @@ useSeoMeta({
   ogDescription: () => description.value,
   ogImage,
   ogUrl: () => `${siteUrl}/chapter/${slug.value}`,
-  ogType: 'article',
-  ogLocale: 'ru_RU',
-  twitterCard: 'summary_large_image',
-  twitterTitle: () => chapter.value ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна` : undefined,
+  ogType: "article",
+  ogLocale: "ru_RU",
+  twitterCard: "summary_large_image",
+  twitterTitle: () =>
+    chapter.value
+      ? `${chapter.value.title} · The Wandering Inn на русском — Странствующая Таверна`
+      : undefined,
   twitterDescription: () => description.value,
   twitterImage: ogImage,
-})
+});
 
 useHead(() => ({
   script: chapter.value
     ? [
         {
-          type: 'application/ld+json',
+          type: "application/ld+json",
           innerHTML: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'Article',
+            "@context": "https://schema.org",
+            "@type": "Article",
             headline: chapter.value.title,
-            inLanguage: 'ru',
+            inLanguage: "ru",
             url: `${siteUrl}/chapter/${slug.value}`,
             image: ogImage,
             datePublished: chapter.value.publishedAt,
             // Те названия и слова, которыми книгу ищут по-русски: на экране их нет,
             // а поисковику так проще связать главу с запросом.
             isPartOf: {
-              '@type': 'Book',
-              name: 'The Wandering Inn',
-              alternateName: ['Странствующая Таверна', 'Блуждающая таверна', 'Блуждающий трактир', 'TWI'],
-              genre: ['Фэнтези', 'LitRPG', 'Попаданцы'],
-              keywords: 'The Wandering Inn на русском, Странствующая Таверна читать онлайн, перевод The Wandering Inn, Эрин Солстис, LitRPG, фэнтези, попаданка, таверна',
+              "@type": "Book",
+              name: "The Wandering Inn",
+              alternateName: [
+                "Странствующая Таверна",
+                "Блуждающая таверна",
+                "Блуждающий трактир",
+                "TWI",
+              ],
+              genre: ["Фэнтези", "LitRPG", "Попаданцы"],
+              keywords:
+                "The Wandering Inn на русском, Странствующая Таверна читать онлайн, перевод The Wandering Inn, Эрин Солстис, LitRPG, фэнтези, попаданка, таверна",
               url: siteUrl,
-              inLanguage: 'ru',
+              inLanguage: "ru",
             },
             publisher: {
-              '@type': 'Organization',
-              name: 'Странствующая Таверна',
+              "@type": "Organization",
+              name: "Странствующая Таверна",
               url: siteUrl,
             },
           }),
         },
       ]
     : [],
-}))
+}));
 </script>
 
 <template>
@@ -248,7 +293,9 @@ useHead(() => ({
       :boosty-url="settings?.boosty_url"
       :tribute-url="settings?.tribute_url"
       :comments-href="`/chapter/${slug}/comments`"
-      :comments-label="chapter ? `Обсуждение главы ${chapter.id}` : 'Обсуждение главы'"
+      :comments-label="
+        chapter ? `Обсуждение главы ${chapter.id}` : 'Обсуждение главы'
+      "
     />
 
     <FaintLeaves />
@@ -268,8 +315,17 @@ useHead(() => ({
                о чём страница, а «Глава 1.02» сама по себе книгу не называет. -->
           <h1 class="display">
             <span class="reader-eyebrow">
-              <img class="eyebrow-leaf" :src="season === 'halloween' ? titlePumpkin : titleLeaf" alt="" width="18" height="18">
-              <span>Странствующая Таверна · <span class="nowrap">Том {{ chapter.volume }}</span></span>
+              <img
+                class="eyebrow-leaf"
+                :src="season === 'halloween' ? titlePumpkin : titleLeaf"
+                alt=""
+                width="18"
+                height="18"
+              />
+              <span
+                >Странствующая Таверна ·
+                <span class="nowrap">Том {{ chapter.volume }}</span></span
+              >
             </span>
             {{ chapter.title }}
           </h1>
@@ -277,13 +333,37 @@ useHead(() => ({
         <button
           class="icon-btn dl-title-btn"
           title="Скачать epub"
-          :class="{ 'is-loading': dlState === 'loading', 'is-done': dlState === 'done' }"
+          :class="{
+            'is-loading': dlState === 'loading',
+            'is-done': dlState === 'done',
+          }"
           @click="download"
         >
           <span v-if="dlState === 'loading'" class="spin" />
-          <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <path v-if="dlState === 'done'" d="M3 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-            <path v-else d="M9 2v9M5 8l4 4 4-4M2 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <svg
+            v-else
+            width="18"
+            height="18"
+            viewBox="0 0 18 18"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              v-if="dlState === 'done'"
+              d="M3 9l4 4 8-8"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              v-else
+              d="M9 2v9M5 8l4 4 4-4M2 15h14"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
           </svg>
         </button>
       </div>
@@ -303,13 +383,37 @@ useHead(() => ({
         <button
           class="icon-btn"
           title="Скачать epub"
-          :class="{ 'is-loading': dlState === 'loading', 'is-done': dlState === 'done' }"
+          :class="{
+            'is-loading': dlState === 'loading',
+            'is-done': dlState === 'done',
+          }"
           @click="download"
         >
           <span v-if="dlState === 'loading'" class="spin" />
-          <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <path v-if="dlState === 'done'" d="M3 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-            <path v-else d="M9 2v9M5 8l4 4 4-4M2 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <svg
+            v-else
+            width="18"
+            height="18"
+            viewBox="0 0 18 18"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              v-if="dlState === 'done'"
+              d="M3 9l4 4 8-8"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              v-else
+              d="M9 2v9M5 8l4 4 4-4M2 15h14"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
           </svg>
         </button>
 
@@ -324,10 +428,14 @@ useHead(() => ({
     </div>
 
     <Transition name="toast">
-      <div v-if="scrollRestored" class="scroll-toast">↩ Продолжаем с того места</div>
+      <div v-if="scrollRestored" class="scroll-toast">
+        ↩ Продолжаем с того места
+      </div>
     </Transition>
 
-    <div v-if="showReadMarker" class="read-marker">✓ глава отмечена как прочитанная</div>
+    <div v-if="showReadMarker" class="read-marker">
+      ✓ глава отмечена как прочитанная
+    </div>
 
     <!-- <AdSlot id="chapter-bottom" /> -->
 
@@ -343,14 +451,27 @@ useHead(() => ({
         place="chapter"
       />
 
-      <NuxtLink
-        :href="`/chapter/${slug}/comments`"
-        class="comments-cta-btn"
-      >
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-          <path d="M2 3h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6l-4 3V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <NuxtLink :href="`/chapter/${slug}/comments`" class="comments-cta-btn">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 18 18"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M2 3h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6l-4 3V4a1 1 0 0 1 1-1z"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
-        Обсуждение главы<span v-if="chapter?.commentsCount" class="comments-cta-count">({{ chapter.commentsCount }})</span>
+        Обсуждение главы<span
+          v-if="chapter?.commentsCount"
+          class="comments-cta-count"
+          >({{ chapter.commentsCount }})</span
+        >
       </NuxtLink>
     </div>
   </div>
@@ -369,14 +490,14 @@ useHead(() => ({
 .page-wrap {
   --rd-bg: var(--bg-dark-2);
   --rd-text: #e7d9c2;
-  --rd-hidden: rgba(231, 217, 194, .06);
+  --rd-hidden: rgba(231, 217, 194, 0.06);
   --rd-title: var(--parchment);
   --rd-muted: var(--parchment-2);
   /* Как в тёмной теме: moss на этом фоне давал 2.6:1. */
   --rd-faint: #7d9a78;
   --rd-accent: var(--ember-soft);
-  --rd-line: rgba(241, 230, 210, .1);
-  --rd-border: rgba(241, 230, 210, .18);
+  --rd-line: rgba(241, 230, 210, 0.1);
+  --rd-border: rgba(241, 230, 210, 0.18);
   --focus-ring: var(--rd-accent);
 
   /*
@@ -404,35 +525,43 @@ useHead(() => ({
   Два правила вместо одного списка: неизвестный селектор обесценил бы всё
   правило целиком, а :fullscreen и :-webkit-full-screen понимают разные браузеры.
 */
-html:fullscreen .app-header { display: none; }
-html:-webkit-full-screen .app-header { display: none; }
+html:fullscreen .app-header {
+  display: none;
+}
+html:-webkit-full-screen .app-header {
+  display: none;
+}
 
-html:fullscreen .page-wrap { padding-top: 16px; }
-html:-webkit-full-screen .page-wrap { padding-top: 16px; }
+html:fullscreen .page-wrap {
+  padding-top: 16px;
+}
+html:-webkit-full-screen .page-wrap {
+  padding-top: 16px;
+}
 
 html[data-reader-theme="dark"] .page-wrap {
   --rd-bg: #000;
   --rd-text: #f8f8f8;
   /* Ярче, чем в других темах: почти чёрное на чистом чёрном экраны телефонов
      съедают, и при тех же 6 % текст пропадал совсем. */
-  --rd-hidden: rgba(248, 248, 248, .1);
+  --rd-hidden: rgba(248, 248, 248, 0.1);
   --rd-title: #f8f8f8;
   --rd-muted: #d9d9d9;
   --rd-faint: #7d9a78;
-  --rd-line: rgba(248, 248, 248, .12);
-  --rd-border: rgba(248, 248, 248, .22);
+  --rd-line: rgba(248, 248, 248, 0.12);
+  --rd-border: rgba(248, 248, 248, 0.22);
 }
 
 html[data-reader-theme="sepia"] .page-wrap {
   --rd-bg: #f4ecd8;
   --rd-text: #111;
-  --rd-hidden: rgba(17, 17, 17, .06);
+  --rd-hidden: rgba(17, 17, 17, 0.06);
   --rd-title: var(--ink);
   --rd-muted: var(--ink-soft);
   --rd-faint: var(--moss);
   --rd-accent: #b4652a;
-  --rd-line: rgba(42, 30, 22, .14);
-  --rd-border: rgba(42, 30, 22, .26);
+  --rd-line: rgba(42, 30, 22, 0.14);
+  --rd-border: rgba(42, 30, 22, 0.26);
 }
 
 /*
@@ -459,13 +588,13 @@ html[data-reader-theme="light"] .faint-leaves {
 html[data-reader-theme="light"] .page-wrap {
   --rd-bg: #fff;
   --rd-text: #111;
-  --rd-hidden: rgba(17, 17, 17, .06);
+  --rd-hidden: rgba(17, 17, 17, 0.06);
   --rd-title: #111;
   --rd-muted: #444;
   --rd-faint: var(--moss);
   --rd-accent: #b4652a;
-  --rd-line: rgba(0, 0, 0, .12);
-  --rd-border: rgba(0, 0, 0, .22);
+  --rd-line: rgba(0, 0, 0, 0.12);
+  --rd-border: rgba(0, 0, 0, 0.22);
 }
 
 /* Общий .icon-btn из main.css — крупнее и в цветах темы читалки. */
@@ -484,11 +613,13 @@ html[data-reader-theme="light"] .page-wrap {
   border: 1.5px solid currentColor;
   border-top-color: transparent;
   border-radius: var(--radius-round);
-  animation: spin .7s linear infinite;
+  animation: spin 0.7s linear infinite;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .topbar-spacer {
@@ -535,7 +666,7 @@ html[data-reader-theme="light"] .page-wrap {
   align-items: center;
   gap: 9px;
   font-size: 12px;
-  letter-spacing: .18em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--rd-accent);
   margin-bottom: 8px;
@@ -579,7 +710,7 @@ html[data-reader-theme="light"] .page-wrap {
 /* Отступ между абзацами — в долях строки, чтобы рос и с кеглем, и с высотой
    строки: при прежних 17px и 1.85 это те же 22px. */
 .reader-content :deep(p) {
-  margin: 0 0 calc(var(--reader-lh, 1.85) * .7em);
+  margin: 0 0 calc(var(--reader-lh, 1.85) * 0.7em);
   /* Пустая строка из редактора приходит как <p></p>: без высоты её поля
      сливаются с соседними, и отступ пропадал. Теперь она высотой в строку,
      как в редакторе. У абзацев с текстом высота и так не меньше. */
@@ -634,7 +765,7 @@ html[data-reader-theme="light"] .page-wrap {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(30, 20, 10, .92);
+  background: rgba(30, 20, 10, 0.92);
   border: 1px solid var(--line-strong);
   color: var(--parchment-2);
   font-size: 13px;
@@ -647,7 +778,9 @@ html[data-reader-theme="light"] .page-wrap {
 
 .toast-enter-active,
 .toast-leave-active {
-  transition: opacity .3s, transform .3s;
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
 }
 .toast-enter-from,
 .toast-leave-to {
@@ -686,18 +819,21 @@ html[data-reader-theme="light"] .page-wrap {
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
-  transition: border-color .15s, color .15s, background .15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
 }
 
 .comments-cta-btn:hover {
   border-color: var(--rd-accent);
   color: var(--rd-accent);
-  background: rgba(214, 136, 62, .06);
+  background: rgba(214, 136, 62, 0.06);
 }
 
 /* Число комментариев — тем же цветом, но тише: это подсказка, а не надпись. */
 .comments-cta-count {
-  opacity: .7;
+  opacity: 0.7;
   font-variant-numeric: tabular-nums lining-nums;
 }
 

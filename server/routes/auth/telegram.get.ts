@@ -1,7 +1,7 @@
-import { sendBrowserRedirect } from '../../utils/browser-redirect'
-import { rememberNext } from '../../utils/identity'
-import { publicOrigin, viaMirror } from '../../utils/public-origin'
-import { telegramBotId } from '../../utils/telegram'
+import { sendBrowserRedirect } from "../../utils/browser-redirect";
+import { rememberNext } from "../../utils/identity";
+import { publicOrigin, viaMirror } from "../../utils/public-origin";
+import { telegramBotId } from "../../utils/telegram";
 
 /**
  * Отправляет человека на страницу входа телеграма. Сюда же ведёт кнопка со
@@ -17,17 +17,25 @@ import { telegramBotId } from '../../utils/telegram'
  * его на зеркало билетом; зеркало помнит путь возврата.
  */
 export default defineEventHandler((event) => {
-  const botId = telegramBotId()
-  if (!botId) throw createError({ statusCode: 503, message: 'Телеграм-бот не настроен' })
+  const botId = telegramBotId();
+  if (!botId)
+    throw createError({ statusCode: 503, message: "Телеграм-бот не настроен" });
 
-  rememberNext(event)
+  rememberNext(event);
 
-  const mirror = viaMirror(event)
-  const origin = mirror ? useRuntimeConfig(event).public.siteUrl : publicOrigin(event)
-  const returnTo = mirror ? `${origin}/auth/telegram/done/${mirror}` : `${origin}/auth/telegram/done`
+  const mirror = viaMirror(event);
+  const origin = mirror
+    ? useRuntimeConfig(event).public.siteUrl
+    : publicOrigin(event);
+  const returnTo = mirror
+    ? `${origin}/auth/telegram/done/${mirror}`
+    : `${origin}/auth/telegram/done`;
 
-  return sendBrowserRedirect(event, 'https://oauth.telegram.org/auth'
-    + `?bot_id=${botId}`
-    + `&origin=${encodeURIComponent(origin)}`
-    + `&return_to=${encodeURIComponent(returnTo)}`)
-})
+  return sendBrowserRedirect(
+    event,
+    "https://oauth.telegram.org/auth" +
+      `?bot_id=${botId}` +
+      `&origin=${encodeURIComponent(origin)}` +
+      `&return_to=${encodeURIComponent(returnTo)}`,
+  );
+});

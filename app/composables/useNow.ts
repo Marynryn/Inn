@@ -6,15 +6,17 @@
  * время начинает идти и обновляется раз в минуту, чтобы подписи не застывали.
  */
 export const useNow = () => {
-  const now = useState<number>('now', () => Date.now())
+  const now = useState<number>("now", () => Date.now());
 
   if (import.meta.client) {
     onMounted(() => {
-      now.value = Date.now()
-      const timer = setInterval(() => { now.value = Date.now() }, 60_000)
-      onUnmounted(() => clearInterval(timer))
-    })
+      now.value = Date.now();
+      const timer = setInterval(() => {
+        now.value = Date.now();
+      }, 60_000);
+      onUnmounted(() => clearInterval(timer));
+    });
   }
 
-  return now
-}
+  return now;
+};

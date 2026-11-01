@@ -1,4 +1,10 @@
-import type { BoardChatMessage, BoardClientMessage, BoardServerMessage, BoardSkill, BoardState } from '#shared/utils/board'
+import type {
+  BoardChatMessage,
+  BoardClientMessage,
+  BoardServerMessage,
+  BoardSkill,
+  BoardState,
+} from "#shared/utils/board";
 
 /**
  * Связь страницы комнаты с сервером. Состояние партии целиком живёт на
@@ -11,135 +17,157 @@ import type { BoardChatMessage, BoardClientMessage, BoardServerMessage, BoardSki
  * Вошедший садится за стол сразу. Гость — когда назовётся: имя запоминаем в
  * браузере, и в следующий раз он садится без вопросов.
  */
-const LS_GUEST_NAME = 'tavern:boardName'
+const LS_GUEST_NAME = "tavern:boardName";
 
 export function useBoardRoom(code: string) {
-  const state = ref<BoardState | null>(null)
-  const chat = ref<BoardChatMessage[]>([])
-  const you = ref<number | null>(null)
-  const connected = ref(false)
+  const state = ref<BoardState | null>(null);
+  const chat = ref<BoardChatMessage[]>([]);
+  const you = ref<number | null>(null);
+  const connected = ref(false);
   /** Не пустили в комнату — дальше пробовать незачем. */
-  const fatal = ref('')
-  const notice = ref('')
+  const fatal = ref("");
+  const notice = ref("");
   /** Гостю надо назваться, прежде чем сесть за стол. */
-  const needName = ref(false)
+  const needName = ref(false);
   /** Почему имя не подошло — показать у поля. */
-  const nameError = ref('')
-  let guestName: string | null = null
+  const nameError = ref("");
+  let guestName: string | null = null;
 
-  let ws: WebSocket | null = null
-  let stopped = false
-  let retry = 0
-  let retryTimer: ReturnType<typeof setTimeout> | null = null
-  let noticeTimer: ReturnType<typeof setTimeout> | null = null
+  let ws: WebSocket | null = null;
+  let stopped = false;
+  let retry = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
   function flash(text: string) {
-    notice.value = text
-    if (noticeTimer) clearTimeout(noticeTimer)
-    noticeTimer = setTimeout(() => { notice.value = '' }, 4000)
+    notice.value = text;
+    if (noticeTimer) clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => {
+      notice.value = "";
+    }, 4000);
   }
 
   async function connect() {
-    if (stopped || ws) return
+    if (stopped || ws) return;
 
-    let ticket: string
+    let ticket: string;
     try {
-      const auth = useAuthStore()
-      if (!auth.ready) await auth.fetchMe()
+      const auth = useAuthStore();
+      if (!auth.ready) await auth.fetchMe();
       if (!auth.isAuthed && !guestName) {
-        guestName = localStorage.getItem(LS_GUEST_NAME)
-        if (!guestName) { needName.value = true; return }
+        guestName = localStorage.getItem(LS_GUEST_NAME);
+        if (!guestName) {
+          needName.value = true;
+          return;
+        }
       }
-      const res = await $fetch<{ ticket: string }>('/api/board/ticket', {
-        method: 'POST',
-        body: { visitor: visitorId(), name: auth.isAuthed ? undefined : guestName },
-      })
-      ticket = res.ticket
-      needName.value = false
-      if (!auth.isAuthed && guestName) localStorage.setItem(LS_GUEST_NAME, guestName)
+      const res = await $fetch<{ ticket: string }>("/api/board/ticket", {
+        method: "POST",
+        body: {
+          visitor: visitorId(),
+          name: auth.isAuthed ? undefined : guestName,
+        },
+      });
+      ticket = res.ticket;
+      needName.value = false;
+      if (!auth.isAuthed && guestName)
+        localStorage.setItem(LS_GUEST_NAME, guestName);
     } catch (e: any) {
       // Имя не подошло — спрашиваем снова; иное — сеть, пробуем позже.
       if (e?.statusCode === 409 || e?.statusCode === 400) {
-        guestName = null
-        try { localStorage.removeItem(LS_GUEST_NAME) } catch {}
-        nameError.value = e?.data?.message || 'Это имя не подходит'
-        needName.value = true
-        return
+        guestName = null;
+        try {
+          localStorage.removeItem(LS_GUEST_NAME);
+        } catch {}
+        nameError.value = e?.data?.message || "Это имя не подходит";
+        needName.value = true;
+        return;
       }
-      retryTimer = setTimeout(connect, Math.min(1000 * 2 ** retry++, 15000))
-      return
+      retryTimer = setTimeout(connect, Math.min(1000 * 2 ** retry++, 15000));
+      return;
     }
-    if (stopped) return
+    if (stopped) return;
 
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-    const socket = new WebSocket(`${proto}://${location.host}/_board`)
-    ws = socket
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${proto}://${location.host}/_board`);
+    ws = socket;
 
     socket.onopen = () => {
-      socket.send(JSON.stringify({ type: 'join', ticket, code } satisfies BoardClientMessage))
-    }
+      socket.send(
+        JSON.stringify({
+          type: "join",
+          ticket,
+          code,
+        } satisfies BoardClientMessage),
+      );
+    };
 
     socket.onmessage = (e) => {
-      let msg: BoardServerMessage
-      try { msg = JSON.parse(e.data) }
-      catch { return }
+      let msg: BoardServerMessage;
+      try {
+        msg = JSON.parse(e.data);
+      } catch {
+        return;
+      }
 
-      if (msg.type === 'joined') {
-        connected.value = true
-        retry = 0
-        you.value = msg.you
-        state.value = msg.state
-        chat.value = msg.chat
-      } else if (msg.type === 'state') {
-        state.value = msg.state
-      } else if (msg.type === 'event') {
-        flash(msg.text)
-      } else if (msg.type === 'chat') {
-        chat.value = [...chat.value, msg.message].slice(-100)
-      } else if (msg.type === 'error') {
+      if (msg.type === "joined") {
+        connected.value = true;
+        retry = 0;
+        you.value = msg.you;
+        state.value = msg.state;
+        chat.value = msg.chat;
+      } else if (msg.type === "state") {
+        state.value = msg.state;
+      } else if (msg.type === "event") {
+        flash(msg.text);
+      } else if (msg.type === "chat") {
+        chat.value = [...chat.value, msg.message].slice(-100);
+      } else if (msg.type === "error") {
         if (msg.fatal) {
-          fatal.value = msg.message
-          stopped = true
-          socket.close()
+          fatal.value = msg.message;
+          stopped = true;
+          socket.close();
         } else {
-          flash(msg.message)
+          flash(msg.message);
         }
       }
-    }
+    };
 
     socket.onclose = () => {
-      if (ws === socket) ws = null
-      connected.value = false
-      if (stopped) return
+      if (ws === socket) ws = null;
+      connected.value = false;
+      if (stopped) return;
       // Пауза растёт, чтобы упавший сервер не забрасывали попытками.
-      const delay = Math.min(1000 * 2 ** retry, 15000)
-      retry++
-      retryTimer = setTimeout(connect, delay)
-    }
+      const delay = Math.min(1000 * 2 ** retry, 15000);
+      retry++;
+      retryTimer = setTimeout(connect, delay);
+    };
   }
 
   function send(msg: BoardClientMessage) {
-    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg))
-    else flash('Нет связи с таверной, переподключаемся…')
+    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+    else flash("Нет связи с таверной, переподключаемся…");
   }
 
   function stop() {
-    stopped = true
-    if (retryTimer) clearTimeout(retryTimer)
-    if (noticeTimer) clearTimeout(noticeTimer)
-    try { ws?.close() } catch {}
-    ws = null
+    stopped = true;
+    if (retryTimer) clearTimeout(retryTimer);
+    if (noticeTimer) clearTimeout(noticeTimer);
+    try {
+      ws?.close();
+    } catch {}
+    ws = null;
   }
 
   /** Гость назвался — садимся за стол. */
   function joinAs(name: string) {
-    guestName = name.trim()
-    nameError.value = ''
-    if (guestName) connect()
+    guestName = name.trim();
+    nameError.value = "";
+    if (guestName) connect();
   }
 
-  onMounted(connect)
-  onBeforeUnmount(stop)
+  onMounted(connect);
+  onBeforeUnmount(stop);
 
   return {
     state,
@@ -151,12 +179,16 @@ export function useBoardRoom(code: string) {
     needName,
     nameError,
     joinAs,
-    start: () => send({ type: 'start' }),
-    rematch: () => send({ type: 'rematch' }),
-    roll: () => send({ type: 'roll' }),
-    useSkill: (skill: BoardSkill, target?: number) => send({ type: 'skill', skill, target }),
-    choose: (index: number) => send({ type: 'choose', index }),
-    say: (text: string) => send({ type: 'chat', text }),
-    leave: () => { send({ type: 'leave' }); stop() },
-  }
+    start: () => send({ type: "start" }),
+    rematch: () => send({ type: "rematch" }),
+    roll: () => send({ type: "roll" }),
+    useSkill: (skill: BoardSkill, target?: number) =>
+      send({ type: "skill", skill, target }),
+    choose: (index: number) => send({ type: "choose", index }),
+    say: (text: string) => send({ type: "chat", text }),
+    leave: () => {
+      send({ type: "leave" });
+      stop();
+    },
+  };
 }
