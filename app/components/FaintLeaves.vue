@@ -7,9 +7,6 @@ import mapleRed from "~/assets/leaves/maple-red.svg";
 import mapleAmber from "~/assets/leaves/maple-amber.svg";
 import mapleYellow from "~/assets/leaves/maple-yellow.svg";
 import mapleLime from "~/assets/leaves/maple-lime.svg";
-import bat from "~/assets/halloween/bat.svg";
-import pumpkin from "~/assets/halloween/jack-o-lantern.svg";
-import ghost from "~/assets/halloween/ghost.svg";
 
 withDefaults(
   defineProps<{
@@ -35,25 +32,6 @@ const LEAVES = [
   { src: mapleYellow, x: 62, y: 68, size: 88, rot: -22 },
 ];
 
-// На Хеллоуин вместо листьев — мыши, тыквы и призраки (Fluent Emoji, MIT).
-// Раскладка та же, только размеры мельче: у этих фигур силуэт плотнее, чем у
-// кленового листа, и в прежнем размере они темнили бы фон пятнами.
-const HALLOWEEN = [
-  { src: bat, x: 4, y: 8, size: 96, rot: -14 },
-  { src: pumpkin, x: 88, y: 14, size: 80, rot: 12 },
-  { src: ghost, x: 12, y: 46, size: 72, rot: -8 },
-  { src: bat, x: 92, y: 52, size: 84, rot: 18 },
-  { src: pumpkin, x: 2, y: 78, size: 78, rot: -10 },
-  { src: ghost, x: 84, y: 84, size: 70, rot: 10 },
-  { src: bat, x: 46, y: 30, size: 100, rot: 6 },
-  { src: pumpkin, x: 62, y: 68, size: 74, rot: -16 },
-];
-
-const season = useSeason();
-const items = computed(() =>
-  season.value === "halloween" ? HALLOWEEN : LEAVES,
-);
-
 const style = (l: (typeof LEAVES)[number]) => ({
   left: `${l.x}%`,
   top: `${l.y}%`,
@@ -65,15 +43,11 @@ const style = (l: (typeof LEAVES)[number]) => ({
 <template>
   <div
     class="faint-leaves"
-    :class="{
-      'on-light': onLight,
-      'in-flow': inFlow,
-      halloween: season === 'halloween',
-    }"
+    :class="{ 'on-light': onLight, 'in-flow': inFlow }"
     aria-hidden="true"
   >
     <img
-      v-for="(l, i) in items"
+      v-for="(l, i) in LEAVES"
       :key="i"
       :src="l.src"
       alt=""
@@ -115,15 +89,6 @@ const style = (l: (typeof LEAVES)[number]) => ({
   opacity: 0.05;
 }
 
-/* Мыши, тыквы и призраки — фигуры плотные, без прорезей, как у листа, и при
-   той же прозрачности читаются заметнее. Им — на треть тише. */
-.faint-leaves.halloween img {
-  opacity: 0.028;
-}
-.faint-leaves.halloween.on-light img {
-  opacity: 0.035;
-}
-
 /* На телефоне колонка занимает весь экран, и фон уходит прямо под текст.
    Там он должен быть ещё тише. */
 @media (max-width: 700px) {
@@ -132,12 +97,6 @@ const style = (l: (typeof LEAVES)[number]) => ({
   }
   .faint-leaves.on-light img {
     opacity: 0.035;
-  }
-  .faint-leaves.halloween img {
-    opacity: 0.019;
-  }
-  .faint-leaves.halloween.on-light img {
-    opacity: 0.025;
   }
 }
 </style>

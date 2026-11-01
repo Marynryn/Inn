@@ -126,13 +126,11 @@ export default defineNuxtConfig({
 
   // Куски, которые грузятся по требованию, Nuxt по умолчанию ещё и подкачивает
   // заранее (<link rel="prefetch">) на каждой странице, где есть ссылка на них.
-  // Для этих — не надо: проигрыватель Lottie с анимациями Хеллоуина (полмегабайта,
-  // и качались даже вне праздника), выбор смайлов, редактор и zip из админки.
-  // На телефоне они делили канал с картинкой героя и оттягивали первую отрисовку.
+  // Для этих — не надо: выбор смайлов, редактор и zip из админки. На телефоне
+  // они делили канал с картинкой героя и оттягивали первую отрисовку.
   hooks: {
     "build:manifest": (manifest) => {
-      const heavy =
-        /lottie-web|assets\/halloween\/.*\.json|emoji-picker-element|@tiptap|prosemirror|jszip/;
+      const heavy = /emoji-picker-element|@tiptap|prosemirror|jszip/;
       for (const chunk of Object.values(manifest)) {
         if (chunk.src && heavy.test(chunk.src)) chunk.prefetch = false;
       }
@@ -196,15 +194,11 @@ export default defineNuxtConfig({
         "/header.webp",
         "/hearth.webp",
         "/hero.webp",
-        "/hero-halloween.webp",
-        "/pumpkin.webp",
-        "/pumpkin-laugh.mp3",
         "/login.webp",
         "/login-mobile.webp",
         "/orb.webp",
         "/reader-book.webp",
         "/sign-characters.webp",
-        "/toren-smoke.webp",
         "/og.jpg",
         "/fav.png",
         "/favicon.ico",

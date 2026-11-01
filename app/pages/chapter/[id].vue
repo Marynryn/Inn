@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import titleLeaf from "~/assets/leaves/maple-lime.svg";
-import titlePumpkin from "~/assets/halloween/jack-o-lantern.svg";
 
 const route = useRoute();
 const rawParam = route.params.id as string;
@@ -74,8 +73,6 @@ const { data: settings } = useFetch("/api/settings", {
     "tg_cta_text",
   ],
 });
-const season = useSeason();
-const seasonBg = useSeasonReaderBg();
 
 // Источник истины по id — ответ API (он резолвит слаг в реальный id главы),
 // а не сырой параметр роута, иначе локальный прогресс чтения/пометки
@@ -274,12 +271,7 @@ useHead(() => ({
 </script>
 
 <template>
-  <div
-    v-if="chapter"
-    class="page-wrap"
-    :class="{ 'season-bg': seasonBg }"
-    :style="seasonBg ? { '--season-bg': seasonBg } : undefined"
-  >
+  <div v-if="chapter" class="page-wrap">
     <ProgressModal
       v-if="showProgressModal && lastRead"
       :current-id="chapter.id"
@@ -299,8 +291,6 @@ useHead(() => ({
     />
 
     <FaintLeaves />
-    <!-- Ключ по адресу: при переходе из главы в главу страница та же, а заставка должна сыграть заново. -->
-    <BatIntro v-if="season === 'halloween'" :key="route.path" />
 
     <!-- Значки в углах: полный экран сверху, настройки вида снизу над шаром
          уведомлений. Внутри .page-wrap — чтобы наследовать цвета темы. -->
@@ -317,7 +307,7 @@ useHead(() => ({
             <span class="reader-eyebrow">
               <img
                 class="eyebrow-leaf"
-                :src="season === 'halloween' ? titlePumpkin : titleLeaf"
+                :src="titleLeaf"
                 alt=""
                 width="18"
                 height="18"
@@ -572,13 +562,6 @@ html[data-reader-theme="sepia"] .page-wrap {
   Прячем правилом по атрибуту, а не условием в разметке: атрибут стоит на <html>
   ещё до первой отрисовки, поэтому листья не успевают мелькнуть.
 */
-/* Праздничный фон из админки — только в стандартной теме. Цвет приходит
-   переменной, а не прямо в --rd-bg: правила тем ниже сильнее этого класса и
-   перебивают его, а встроенный стиль перебил бы всё, даже выбранную тему. */
-.page-wrap.season-bg {
-  --rd-bg: var(--season-bg);
-}
-
 html[data-reader-theme="dark"] .faint-leaves,
 html[data-reader-theme="sepia"] .faint-leaves,
 html[data-reader-theme="light"] .faint-leaves {
