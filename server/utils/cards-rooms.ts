@@ -132,8 +132,8 @@ const fail = (peer: any, message: string) =>
  *  рядом со столами настольной игры. Пустой стол без людей не зовёт. */
 export function openCardsRooms() {
   return [...rooms.values()]
-    .filter(r => !r.game && r.seats.length === 1 && r.peers.size > 0)
-    .map(r => ({ code: r.code, host: r.seats[0]!.name, players: 1, max: 2 }))
+    .filter((r) => !r.game && r.seats.length === 1 && r.peers.size > 0)
+    .map((r) => ({ code: r.code, host: r.seats[0]!.name, players: 1, max: 2 }));
 }
 
 export function createCardsRoom(): string {
