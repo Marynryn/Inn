@@ -1,7 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { H3Event } from "h3";
-import { sendBrowserRedirect } from "./browser-redirect";
-import { issueTicket } from "./handoff";
+import { issueHandoffTicket } from "./handoff";
 import { afterLogin, loginWithProvider } from "./identity";
 
 /**
@@ -11,8 +10,8 @@ import { afterLogin, loginWithProvider } from "./identity";
  *
  * Два входа — /auth/telegram/done и /auth/telegram/done/<зеркало> — делают
  * одно и то же; второй в конце не ставит сессию здесь, а передаёт вход на
- * зеркало билетом (см. utils/handoff.ts): CDN зеркала не пропустил бы подпись
- * телеграма в адресе, поэтому возвращаться приходится на основной домен.
+ * зеркало билетом (см. utils/handoff.ts): у бота домен один, и телеграм
+ * возвращает только на основной.
  */
 
 /** Поля, которые подписывает телеграм. Ничего постороннего в проверочную строку
@@ -128,14 +127,11 @@ export async function finishTelegramLogin(
     });
 
     if (mirror) {
-      const ticket = issueTicket({ userId: user.id, created });
-      return sendBrowserRedirect(
-        event,
-        `https://${mirror}/auth/handoff?t=${ticket}`,
-      );
+      const ticket = issueHandoffTicket({ userId: user.id, created });
+      return sendRedirect(event, `https://${mirror}/auth/handoff?t=${ticket}`);
     }
 
-    return sendBrowserRedirect(event, afterLogin(event, created));
+    return sendRedirect(event, afterLogin(event, created));
   } catch (error) {
     // Любой сбой — на страницу входа с причиной, как у Google: голая страница
     // ошибки человеку ничего не объяснит, а нам нужен след в логах.
@@ -148,7 +144,7 @@ export async function finishTelegramLogin(
       e.reason ??
       `${e.statusCode ?? ""}:${String(e.message ?? "unknown").slice(0, 60)}`;
     console.error("[auth] telegram:", reason);
-    return sendBrowserRedirect(
+    return sendRedirect(
       event,
       `/login?error=telegram&reason=${encodeURIComponent(reason)}`,
     );

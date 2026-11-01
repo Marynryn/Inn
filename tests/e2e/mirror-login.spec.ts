@@ -1,28 +1,29 @@
+import { createHash, createHmac } from "node:crypto";
 import { test, expect } from "./helpers";
 import {
-  issueTicket,
-  takeTicket,
-  mirrorFromState,
+  issueHandoffTicket,
+  takeHandoffTicket,
 } from "../../server/utils/handoff";
 
 /*
-  Вход через Google с зеркала. CDN перед inn.taverna-book.ru отдаёт 403 на
-  длинные значения в query — код Google туда не доедет. Поэтому с зеркала
-  Google возвращает на основной домен, а тот передаёт вход на зеркало коротким
-  билетом. Основной домен при этом работает ровно как раньше — это здесь
-  проверяется первым.
+  Вход на зеркале taverna-book.ru. Google пускает с обоих доменов, поэтому
+  возвращает прямо туда, откуда пришли. Телеграм-боту выдан один домен —
+  основной, — поэтому с зеркала вход идёт через основной домен, а на зеркало
+  передаётся коротким одноразовым билетом. Стенд изображает зеркало заголовком
+  Host: сервер тот же, домен другой.
 */
-const google = (url: string) => new URL(url);
+const MIRROR = "taverna-book.ru";
+const onMirror = { host: MIRROR };
 
-test.describe("Вход через Google с зеркала", () => {
-  test("на основном домене всё как было: 302 к Google, возврат сюда же, без state", async ({
+test.describe("Вход через Google на основном домене и на зеркале", () => {
+  test("на основном домене — 302 к Google, возврат сюда же", async ({
     page,
   }) => {
     const res = await page.request.get("/auth/google?next=/game", {
       maxRedirects: 0,
     });
     expect(res.status()).toBe(302);
-    const to = google(res.headers()["location"]!);
+    const to = new URL(res.headers()["location"]!);
     expect(to.origin).toBe("https://accounts.google.com");
     expect(to.searchParams.get("redirect_uri")).toBe(
       "http://localhost:3100/auth/google",
@@ -32,75 +33,41 @@ test.describe("Вход через Google с зеркала", () => {
     expect(to.searchParams.get("scope")).toBe("openid email profile");
   });
 
-  test("с зеркала Google отправляют на основной домен и помечают зеркало в state", async ({
-    page,
-  }) => {
+  test("на зеркале Google возвращает на само зеркало", async ({ page }) => {
     const res = await page.request.get("/auth/google?next=/game", {
       maxRedirects: 0,
-      headers: { host: "inn-production.up.railway.app" },
-    });
-    expect(res.status()).toBe(200);
-    const html = await res.text();
-    const target = /location\.replace\("([^"]+)"\)/.exec(html)?.[1];
-    expect(target).toBeTruthy();
-    const to = google(target!);
-    expect(to.origin).toBe("https://accounts.google.com");
-    // Возврат — на основной домен (siteUrl стенда), не на зеркало за CDN.
-    expect(to.searchParams.get("redirect_uri")).toBe(
-      "http://localhost:3100/auth/google",
-    );
-    expect(to.searchParams.get("state")).toBe("mirror=inn.taverna-book.ru");
-  });
-
-  test("билет одноразовый, короткий и живёт минуту", () => {
-    const ticket = issueTicket({ userId: 7, created: true });
-    expect(ticket).toMatch(/^[A-Za-z0-9]{12}$/);
-    expect(takeTicket(ticket)).toEqual({ userId: 7, created: true });
-    expect(takeTicket(ticket)).toBeNull();
-
-    const stale = issueTicket(
-      { userId: 8, created: false },
-      Date.now() - 61_000,
-    );
-    expect(takeTicket(stale)).toBeNull();
-    expect(takeTicket("nonsense")).toBeNull();
-    expect(takeTicket(undefined)).toBeNull();
-  });
-
-  test("зеркало из state принимается только из белого списка", () => {
-    const allowed = ["inn.taverna-book.ru"];
-    expect(mirrorFromState("mirror=inn.taverna-book.ru", allowed)).toBe(
-      "inn.taverna-book.ru",
-    );
-    expect(mirrorFromState("mirror=INN.taverna-book.ru", allowed)).toBe(
-      "inn.taverna-book.ru",
-    );
-    expect(mirrorFromState("mirror=evil.example", allowed)).toBeNull();
-    expect(mirrorFromState("", allowed)).toBeNull();
-    expect(mirrorFromState(undefined, allowed)).toBeNull();
-  });
-
-  test("выдуманный билет не даёт сессии и возвращает на вход", async ({
-    page,
-  }) => {
-    const res = await page.request.get("/auth/handoff?t=abcdefghijkl", {
-      maxRedirects: 0,
+      headers: onMirror,
     });
     expect(res.status()).toBe(302);
-    expect(res.headers()["location"]).toBe(
-      "/login?error=google&reason=handoff",
+    const to = new URL(res.headers()["location"]!);
+    expect(to.origin).toBe("https://accounts.google.com");
+    expect(to.searchParams.get("redirect_uri")).toBe(
+      `http://${MIRROR}/auth/google`,
     );
-    const me = await (await page.request.get("/api/auth/me")).text();
-    expect(["", "null"]).toContain(me);
+  });
+
+  test("негодный код от Google ведёт на страницу входа с причиной, а не на страницу ошибки", async ({
+    page,
+  }) => {
+    // Код негодный, да и Google для сервера недостижим — обработчик спотыкается.
+    // Важно, что не голой страницей ошибки: человек возвращается на вход и
+    // видит, что случилось, а код причины можно прислать разработчику.
+    const res = await page.request.get(
+      "/auth/google?code=stale-code&scope=email",
+      { maxRedirects: 0 },
+    );
+    expect(res.status()).toBe(302);
+    expect(res.headers()["location"]).toMatch(/^\/login\?error=google&reason=/);
+
+    await page.goto(res.headers()["location"]!);
+    await expect(page.locator(".err")).toContainText("Google не завершил вход");
   });
 });
 
 /*
-  Телеграм с зеркала — та же передача билетом. Возврат от телеграма собираем
-  сами: подпись считается по токену бота, который в стенде выдуманный.
+  Возврат от телеграма собираем сами: подпись считается по токену бота, который
+  в стенде выдуманный.
 */
-import { createHash, createHmac } from "node:crypto";
-
 const TOKEN = "123456:e2e-telegram-token";
 
 /** Подпись по правилам телеграма — считаем сами, независимо от сервера. */
@@ -123,8 +90,8 @@ function telegramReturn(id: string, name: string) {
   return new URLSearchParams({ ...fields, hash }).toString();
 }
 
-test.describe("Вход через Telegram с зеркала", () => {
-  test("на основном домене всё как было: возврат на свой /auth/telegram/done", async ({
+test.describe("Вход через Telegram на основном домене и на зеркале", () => {
+  test("на основном домене — возврат на свой /auth/telegram/done", async ({
     page,
   }) => {
     const res = await page.request.get("/auth/telegram?next=/game", {
@@ -145,15 +112,14 @@ test.describe("Вход через Telegram с зеркала", () => {
   }) => {
     const res = await page.request.get("/auth/telegram?next=/game", {
       maxRedirects: 0,
-      headers: { host: "inn-production.up.railway.app" },
+      headers: onMirror,
     });
-    expect(res.status()).toBe(200);
-    const target = /location\.replace\("([^"]+)"\)/.exec(await res.text())?.[1];
-    const to = new URL(target!);
+    expect(res.status()).toBe(302);
+    const to = new URL(res.headers()["location"]!);
     expect(to.origin).toBe("https://oauth.telegram.org");
     expect(to.searchParams.get("origin")).toBe("http://localhost:3100");
     expect(to.searchParams.get("return_to")).toBe(
-      "http://localhost:3100/auth/telegram/done/inn.taverna-book.ru",
+      `http://localhost:3100/auth/telegram/done/${MIRROR}`,
     );
   });
 
@@ -171,27 +137,27 @@ test.describe("Вход через Telegram с зеркала", () => {
     expect(me.displayName).toBe("Прямой");
   });
 
-  test("возврат для зеркала не ставит сессию здесь, а выдаёт билет, по которому зеркало впускает", async ({
+  test("возврат для зеркала выдаёт билет, по которому зеркало впускает", async ({
     page,
   }) => {
     const res = await page.request.get(
-      `/auth/telegram/done/inn.taverna-book.ru?${telegramReturn("900002", "Зеркальный")}`,
+      `/auth/telegram/done/${MIRROR}?${telegramReturn("900002", "Зеркальный")}`,
       { maxRedirects: 0 },
     );
     expect(res.status()).toBe(302);
     const location = res.headers()["location"]!;
     expect(location).toMatch(
-      /^https:\/\/inn\.taverna-book\.ru\/auth\/handoff\?t=[A-Za-z0-9]{12}$/,
+      /^https:\/\/taverna-book\.ru\/auth\/handoff\?t=[A-Za-z0-9]{12}$/,
     );
 
-    // Зеркало (тот же сервер, за CDN) забирает билет и впускает.
+    // Зеркало (тот же сервер под другим Host) забирает билет и впускает.
     const ticket = new URL(location).searchParams.get("t")!;
     const handoff = await page.request.get(`/auth/handoff?t=${ticket}`, {
       maxRedirects: 0,
-      headers: { host: "inn-production.up.railway.app" },
+      headers: onMirror,
     });
-    expect(handoff.status()).toBe(200);
-    expect(await handoff.text()).toContain('location.replace("/profile")');
+    expect(handoff.status()).toBe(302);
+    expect(handoff.headers()["location"]).toBe("/profile");
     const me = await (await page.request.get("/api/auth/me")).json();
     expect(me.displayName).toBe("Зеркальный");
 
@@ -200,7 +166,7 @@ test.describe("Вход через Telegram с зеркала", () => {
       maxRedirects: 0,
     });
     expect(again.headers()["location"]).toBe(
-      "/login?error=google&reason=handoff",
+      "/login?error=telegram&reason=handoff",
     );
   });
 
@@ -226,5 +192,35 @@ test.describe("Вход через Telegram с зеркала", () => {
     await expect(page.locator(".err")).toContainText(
       "Telegram не завершил вход",
     );
+  });
+
+  test("билет одноразовый, короткий и живёт минуту", () => {
+    const ticket = issueHandoffTicket({ userId: 7, created: true });
+    expect(ticket).toMatch(/^[A-Za-z0-9]{12}$/);
+    expect(takeHandoffTicket(ticket)).toEqual({ userId: 7, created: true });
+    expect(takeHandoffTicket(ticket)).toBeNull();
+
+    const stale = issueHandoffTicket(
+      { userId: 8, created: false },
+      Date.now() - 61_000,
+    );
+    expect(takeHandoffTicket(stale)).toBeNull();
+    expect(takeHandoffTicket("nonsense")).toBeNull();
+    expect(takeHandoffTicket(undefined)).toBeNull();
+  });
+
+  test("выдуманный билет не даёт сессии и возвращает на вход", async ({
+    page,
+  }) => {
+    const res = await page.request.get("/auth/handoff?t=abcdefghijkl", {
+      maxRedirects: 0,
+      headers: onMirror,
+    });
+    expect(res.status()).toBe(302);
+    expect(res.headers()["location"]).toBe(
+      "/login?error=telegram&reason=handoff",
+    );
+    const me = await (await page.request.get("/api/auth/me")).text();
+    expect(["", "null"]).toContain(me);
   });
 });

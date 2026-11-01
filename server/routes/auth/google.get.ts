@@ -1,21 +1,11 @@
 import type { H3Event } from "h3";
 import { withQuery } from "ufo";
-import { sendBrowserRedirect } from "../../utils/browser-redirect";
-import {
-  issueTicket,
-  mirrorFromState,
-  MIRROR_STATE_PREFIX,
-} from "../../utils/handoff";
 import {
   afterLogin,
   loginWithProvider,
   rememberNext,
 } from "../../utils/identity";
-import {
-  mirrorHosts,
-  publicOrigin,
-  viaMirror,
-} from "../../utils/public-origin";
+import { publicOrigin } from "../../utils/public-origin";
 
 const SCOPE = ["openid", "email", "profile"];
 
@@ -24,10 +14,9 @@ const SCOPE = ["openid", "email", "profile"];
  * nuxt-auth-utils — нам остаётся сверить, что почта подтверждена, и завести
  * сессию. Этот же адрес прописывается в консоли Google как redirect URI.
  *
- * Адрес возврата — по домену, на котором человек открыл сайт, а не по Host
- * запроса: за CDN зеркала они разные, и Google возвращал бы на служебное имя
- * Railway, где кука сессии никому не нужна. Обработчик собирается на каждый
- * домен свой, один раз.
+ * Адрес возврата — по домену, на котором человек открыл сайт: и .com, и
+ * зеркало .ru прописаны в консоли Google, и кука сессии нужна там, откуда
+ * пришли. Обработчик собирается на каждый домен свой, один раз.
  */
 const handlers = new Map<
   string,
@@ -45,31 +34,15 @@ const handlerFor = (origin: string) => {
     },
 
     async onSuccess(event, { user }) {
-      const { user: account, created } = await loginWithProvider(
-        event,
-        "google",
-        {
-          id: String(user.sub),
-          email: user.email ?? null,
-          emailVerified: user.email_verified === true,
-          displayName: user.name ?? user.given_name ?? null,
-          photoUrl: user.picture ?? null,
-        },
-      );
+      const { created } = await loginWithProvider(event, "google", {
+        id: String(user.sub),
+        email: user.email ?? null,
+        emailVerified: user.email_verified === true,
+        displayName: user.name ?? user.given_name ?? null,
+        photoUrl: user.picture ?? null,
+      });
 
-      // Пришли с зеркала — туда и возвращаем, с билетом вместо кода Google:
-      // его CDN не пропустил бы (см. utils/handoff.ts). Сессия на основном
-      // домене при этом тоже поставлена — не страшно, это тот же человек.
-      const mirror = mirrorFromState(getQuery(event).state, mirrorHosts());
-      if (mirror) {
-        const ticket = issueTicket({ userId: account.id, created });
-        return sendBrowserRedirect(
-          event,
-          `https://${mirror}/auth/handoff?t=${ticket}`,
-        );
-      }
-
-      return sendBrowserRedirect(event, afterLogin(event, created));
+      return sendRedirect(event, afterLogin(event, created));
     },
 
     onError(event, error) {
@@ -99,7 +72,7 @@ function failLogin(event: H3Event, error: unknown) {
   console.error("[auth] google:", status, detail, e?.data ?? "");
 
   const reason = String(status ?? "") + ":" + String(detail).slice(0, 60);
-  return sendBrowserRedirect(
+  return sendRedirect(
     event,
     `/login?error=google&reason=${encodeURIComponent(reason)}`,
   );
@@ -123,9 +96,8 @@ export default defineEventHandler(async (event) => {
   // никакого «откуда пришёл» уже не видно, поэтому запоминаем в куке.
   rememberNext(event);
 
-  // Отправку к Google обработчик делает через 302, а за CDN зеркала это не
-  // работает (см. sendBrowserRedirect) — поэтому адрес собираем сами, теми же
-  // параметрами. Ключи проверяем как он: без них — на страницу входа с ошибкой.
+  // Адрес к Google собираем сами, теми же параметрами, что и обработчик.
+  // Ключи проверяем как он: без них — на страницу входа с ошибкой.
   // Только безобидные поля: имя, почта, аватарка. Просить больше — значит
   // отправить приложение на проверку в Google, а нам этого не нужно.
   const { clientId, clientSecret } = useRuntimeConfig(event).oauth.google;
@@ -138,23 +110,14 @@ export default defineEventHandler(async (event) => {
     );
   }
 
-  // С зеркала Google возвращаем не сюда, а на основной домен: CDN зеркала не
-  // пропускает длинный код из ответа Google. Основной домен завершит вход и
-  // передаст его на зеркало билетом (utils/handoff.ts); какое зеркало —
-  // помнит state, Google вернёт его как есть.
-  const mirror = viaMirror(event);
-  const callbackOrigin = mirror
-    ? useRuntimeConfig(event).public.siteUrl
-    : origin;
-
-  return sendBrowserRedirect(
+  return sendRedirect(
     event,
     withQuery("https://accounts.google.com/o/oauth2/v2/auth", {
       response_type: "code",
       client_id: clientId,
-      redirect_uri: `${callbackOrigin}/auth/google`,
+      redirect_uri: `${origin}/auth/google`,
       scope: SCOPE.join(" "),
-      state: mirror ? `${MIRROR_STATE_PREFIX}${mirror}` : "",
+      state: "",
     }),
   );
 });

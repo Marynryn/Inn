@@ -1,4 +1,4 @@
-import { mirrorHosts } from "../../../../utils/public-origin";
+import { MIRROR_HOSTS } from "../../../../utils/public-origin";
 import { finishTelegramLogin } from "../../../../utils/telegram-login";
 
 /**
@@ -8,7 +8,7 @@ import { finishTelegramLogin } from "../../../../utils/telegram-login";
  */
 export default defineEventHandler((event) => {
   const mirror = String(getRouterParam(event, "mirror") ?? "").toLowerCase();
-  if (!mirrorHosts().includes(mirror))
+  if (!MIRROR_HOSTS.includes(mirror))
     throw createError({ statusCode: 404, message: "Неизвестное зеркало" });
   return finishTelegramLogin(event, mirror);
 });
