@@ -7,20 +7,28 @@ import {
   formatHours,
   formatNumber,
   type Speed,
-} from '~/composables/useReadingStats'
-import { pluralize } from '~/composables/useVolumes'
+} from "~/composables/useReadingStats";
+import { pluralize } from "~/composables/useVolumes";
 
-const { data: settings } = await useFetch('/api/settings')
-const { data: chapters } = await useFetch('/api/chapters')
+const { data: settings } = await useFetch("/api/settings");
+const { data: chapters } = await useChapterList();
 
-const auth = useAuthStore()
-const { load, lastRead } = useReadProgress()
-const { speed, hoursPerDay, loadSettings, saveSettings, sorted, bookmark, statsFor } = useReadingStats(chapters)
+const auth = useAuthStore();
+const { load, lastRead } = useReadProgress();
+const {
+  speed,
+  hoursPerDay,
+  loadSettings,
+  saveSettings,
+  sorted,
+  bookmark,
+  statsFor,
+} = useReadingStats(chapters);
 
 onMounted(() => {
-  load()
-  loadSettings()
-})
+  load();
+  loadSettings();
+});
 
 /*
   Глава, от которой считаем. Пустая — «по закладке»: страница следует за
@@ -28,35 +36,45 @@ onMounted(() => {
   закладку она не трогает, при следующем заходе всё снова считается от
   закладки. Выбранная глава считается прочитанной целиком.
 */
-const picked = ref<string>('')
-const byBookmark = computed(() => !picked.value)
+const picked = ref<string>("");
+const byBookmark = computed(() => !picked.value);
 
-const position = computed(() => picked.value ? { id: picked.value, fraction: 1 } : bookmark.value)
-const stats = computed(() => statsFor(position.value))
+const position = computed(() =>
+  picked.value ? { id: picked.value, fraction: 1 } : bookmark.value,
+);
+const stats = computed(() => statsFor(position.value));
 
-const current = computed(() => sorted.value.find(c => c.id === position.value?.id) ?? null)
+const current = computed(
+  () => sorted.value.find((c) => c.id === position.value?.id) ?? null,
+);
 
 /** Оглавление для селекта — по томам, в порядке чтения. */
 const volumes = computed(() => {
-  const map = new Map<number, typeof sorted.value>()
+  const map = new Map<number, typeof sorted.value>();
   for (const ch of sorted.value) {
-    if (!map.has(ch.volume)) map.set(ch.volume, [])
-    map.get(ch.volume)!.push(ch)
+    if (!map.has(ch.volume)) map.set(ch.volume, []);
+    map.get(ch.volume)!.push(ch);
   }
-  return [...map.entries()]
-})
+  return [...map.entries()];
+});
 
 const optionLabel = (ch: { id: string; title: string }) =>
-  ch.title.includes(ch.id) ? ch.title : `${ch.id} — ${ch.title}`
+  ch.title.includes(ch.id) ? ch.title : `${ch.id} — ${ch.title}`;
 
 const percentLabel = computed(() => {
-  const p = stats.value.percent
-  return p > 0 && p < 1 ? '<1' : p > 99 && p < 100 ? '>99' : String(Math.round(p))
-})
+  const p = stats.value.percent;
+  return p > 0 && p < 1
+    ? "<1"
+    : p > 99 && p < 100
+      ? ">99"
+      : String(Math.round(p));
+});
 
 const chaptersPercent = computed(() =>
-  stats.value.chaptersTotal ? (stats.value.chaptersRead / stats.value.chaptersTotal) * 100 : 0,
-)
+  stats.value.chaptersTotal
+    ? (stats.value.chaptersRead / stats.value.chaptersTotal) * 100
+    : 0,
+);
 
 /*
   Оригинал. Главы — сколько их всего. Слова — объём книги, переведённый в
@@ -68,61 +86,76 @@ const chaptersPercent = computed(() =>
   карточки нет. Меньше переведённого глав быть не может: перевод главы и есть
   её существование.
 */
-const DEFAULT_WORDS_RATIO = 0.824
+const DEFAULT_WORDS_RATIO = 0.824;
 
 const originalTotal = computed(() => {
-  const n = parseInt(settings.value?.original_chapters_effective ?? '')
-  return n > 0 ? Math.max(n, stats.value.chaptersTotal) : 0
-})
+  const n = parseInt(settings.value?.original_chapters_effective ?? "");
+  return n > 0 ? Math.max(n, stats.value.chaptersTotal) : 0;
+});
 
 const wordsRatio = computed(() => {
-  const r = parseFloat(settings.value?.original_words_ratio ?? '')
-  return r > 0 ? r : DEFAULT_WORDS_RATIO
-})
+  const r = parseFloat(settings.value?.original_words_ratio ?? "");
+  return r > 0 ? r : DEFAULT_WORDS_RATIO;
+});
 
 /** Вся книга в наших словах — не меньше того, что уже переведено. */
 const bookWords = computed(() => {
-  const en = parseInt(settings.value?.original_words_auto ?? '')
-  return en > 0 ? Math.max(Math.round(en * wordsRatio.value), stats.value.wordsTotal) : 0
-})
+  const en = parseInt(settings.value?.original_words_auto ?? "");
+  return en > 0
+    ? Math.max(Math.round(en * wordsRatio.value), stats.value.wordsTotal)
+    : 0;
+});
 
-const share = (part: number, whole: number) => (whole ? (part / whole) * 100 : 0)
-const translatedShare = computed(() => share(stats.value.chaptersTotal, originalTotal.value))
-const readShare = computed(() => share(stats.value.chaptersRead, originalTotal.value))
-const translatedWordsShare = computed(() => share(stats.value.wordsTotal, bookWords.value))
-const readWordsShare = computed(() => share(stats.value.wordsRead, bookWords.value))
-const sharePercent = (p: number) => (p > 0 && p < 1 ? '<1' : String(Math.round(p)))
+const share = (part: number, whole: number) =>
+  whole ? (part / whole) * 100 : 0;
+const translatedShare = computed(() =>
+  share(stats.value.chaptersTotal, originalTotal.value),
+);
+const readShare = computed(() =>
+  share(stats.value.chaptersRead, originalTotal.value),
+);
+const translatedWordsShare = computed(() =>
+  share(stats.value.wordsTotal, bookWords.value),
+);
+const readWordsShare = computed(() =>
+  share(stats.value.wordsRead, bookWords.value),
+);
+const sharePercent = (p: number) =>
+  p > 0 && p < 1 ? "<1" : String(Math.round(p));
 
 /** Часов на всю книгу при выбранной скорости. */
-const bookHours = computed(() => bookWords.value / SPEED_WPM[speed.value] / 60)
+const bookHours = computed(() => bookWords.value / SPEED_WPM[speed.value] / 60);
 
 /** «14,2 млн» — для подписи; в таблице число целиком. */
-const formatMillions = (n: number) => `${(n / 1_000_000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} млн`
+const formatMillions = (n: number) =>
+  `${(n / 1_000_000).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} млн`;
 
 /** Ширина заливки: ненулевая доля видна хотя бы полоской — 3 главы из 824 иначе исчезают. */
-const barWidth = (p: number) => (p > 0 ? `max(4px, ${p}%)` : '0')
+const barWidth = (p: number) => (p > 0 ? `max(4px, ${p}%)` : "0");
 
-const speeds = Object.keys(SPEED_WPM) as Speed[]
+const speeds = Object.keys(SPEED_WPM) as Speed[];
 
 const setSpeed = (s: Speed) => {
-  speed.value = s
-  saveSettings()
-}
+  speed.value = s;
+  saveSettings();
+};
 
 const onHours = (e: Event) => {
-  const value = parseFloat((e.target as HTMLInputElement).value)
-  if (!Number.isFinite(value) || value <= 0) return
-  hoursPerDay.value = Math.min(24, value)
-  saveSettings()
-}
+  const value = parseFloat((e.target as HTMLInputElement).value);
+  if (!Number.isFinite(value) || value <= 0) return;
+  hoursPerDay.value = Math.min(24, value);
+  saveSettings();
+};
 
 const hoursLabel = computed(() => {
-  const h = hoursPerDay.value
-  if (h < 1) return `${Math.round(h * 60)} мин в день`
+  const h = hoursPerDay.value;
+  if (h < 1) return `${Math.round(h * 60)} мин в день`;
   // «1,5 часа», а не «1,5 час»: дробное всегда идёт с «часа».
-  const word = Number.isInteger(h) ? pluralize(h, 'час', 'часа', 'часов') : 'часа'
-  return `${h.toLocaleString('ru-RU')} ${word} в день`
-})
+  const word = Number.isInteger(h)
+    ? pluralize(h, "час", "часа", "часов")
+    : "часа";
+  return `${h.toLocaleString("ru-RU")} ${word} в день`;
+});
 
 /** Ленты конфетти на случай, если перевод догнали: лёгкие, чисто на CSS. */
 const confetti = Array.from({ length: 28 }, (_, i) => ({
@@ -130,33 +163,34 @@ const confetti = Array.from({ length: 28 }, (_, i) => ({
   delay: `${(i * 0.37) % 3}s`,
   duration: `${3 + (i % 4) * 0.7}s`,
   hue: (i * 47) % 360,
-}))
+}));
 
-const siteUrl = useRuntimeConfig().public.siteUrl
-const ogImage = ogImageUrl()
-const pageTitle = 'Прогресс чтения · Странствующая Таверна — The Wandering Inn'
+const siteUrl = useRuntimeConfig().public.siteUrl;
+const ogImage = ogImageUrl();
+const pageTitle = "Прогресс чтения · Странствующая Таверна — The Wandering Inn";
 // Гость — а робот тоже гость — видит общие цифры: сколько глав в оригинале,
 // сколько переведено. По ним страницу и ищут.
-const pageDescription = 'Сколько глав The Wandering Inn уже переведено на русский, сколько слов в книге и сколько вам осталось читать.'
+const pageDescription =
+  "Сколько глав The Wandering Inn уже переведено на русский, сколько слов в книге и сколько вам осталось читать.";
 
 useHead({
   title: pageTitle,
-  link: [{ rel: 'canonical', href: `${siteUrl}/progress` }],
-})
+  link: [{ rel: "canonical", href: `${siteUrl}/progress` }],
+});
 
 useSeoMeta({
   description: pageDescription,
   ogTitle: pageTitle,
   ogDescription: pageDescription,
   ogUrl: `${siteUrl}/progress`,
-  ogType: 'website',
-  ogLocale: 'ru_RU',
+  ogType: "website",
+  ogLocale: "ru_RU",
   ogImage,
-  twitterCard: 'summary_large_image',
+  twitterCard: "summary_large_image",
   twitterTitle: pageTitle,
   twitterDescription: pageDescription,
   twitterImage: ogImage,
-})
+});
 </script>
 
 <template>
@@ -169,7 +203,9 @@ useSeoMeta({
 
     <div class="wrap">
       <h1 class="page-title">Прогресс чтения</h1>
-      <p class="page-sub">Сколько перевода позади, сколько впереди — и когда вы его догоните.</p>
+      <p class="page-sub">
+        Сколько перевода позади, сколько впереди — и когда вы его догоните.
+      </p>
 
       <!-- Позиция -->
       <section class="card card--panel">
@@ -177,25 +213,44 @@ useSeoMeta({
         <div class="select-wrap">
           <select id="position" v-model="picked" class="select">
             <option value="">
-              {{ bookmark ? `По закладке — ${bookmark.id}` : 'Ещё не начинали' }}
+              {{
+                bookmark ? `По закладке — ${bookmark.id}` : "Ещё не начинали"
+              }}
             </option>
-            <optgroup v-for="[vol, list] in volumes" :key="vol" :label="`Том ${vol}`">
-              <option v-for="ch in list" :key="ch.id" :value="ch.id">{{ optionLabel(ch) }}</option>
+            <optgroup
+              v-for="[vol, list] in volumes"
+              :key="vol"
+              :label="`Том ${vol}`"
+            >
+              <option v-for="ch in list" :key="ch.id" :value="ch.id">
+                {{ optionLabel(ch) }}
+              </option>
             </optgroup>
           </select>
         </div>
         <p v-if="byBookmark && bookmark && current" class="field-note">
-          <template v-if="bookmark.fraction >= 1">Глава {{ bookmark.id }} дочитана.</template>
-          <template v-else-if="bookmark.fraction > 0">Глава {{ bookmark.id }} прочитана на {{ Math.round(bookmark.fraction * 100) }} %.</template>
-          <template v-else>Глава {{ bookmark.id }} открыта, но ещё не начата.</template>
+          <template v-if="bookmark.fraction >= 1"
+            >Глава {{ bookmark.id }} дочитана.</template
+          >
+          <template v-else-if="bookmark.fraction > 0"
+            >Глава {{ bookmark.id }} прочитана на
+            {{ Math.round(bookmark.fraction * 100) }} %.</template
+          >
+          <template v-else
+            >Глава {{ bookmark.id }} открыта, но ещё не начата.</template
+          >
           Закладка двигается сама по мере чтения.
         </p>
         <p v-else-if="byBookmark && !bookmark" class="field-note">
-          Откройте любую главу — закладка появится сама. Или выберите главу здесь, чтобы прикинуть.
+          Откройте любую главу — закладка появится сама. Или выберите главу
+          здесь, чтобы прикинуть.
         </p>
         <p v-else class="field-note">
-          Это прикидка: закладка{{ lastRead ? ` на главе ${lastRead.id}` : '' }} остаётся на месте.
-          <button class="link-btn" type="button" @click="picked = ''">Вернуться к закладке</button>
+          Это прикидка: закладка{{ lastRead ? ` на главе ${lastRead.id}` : "" }}
+          остаётся на месте.
+          <button class="link-btn" type="button" @click="picked = ''">
+            Вернуться к закладке
+          </button>
         </p>
       </section>
 
@@ -205,15 +260,27 @@ useSeoMeta({
           <span
             v-for="(c, i) in confetti"
             :key="i"
-            :style="{ left: c.left, animationDelay: c.delay, animationDuration: c.duration, background: `hsl(${c.hue} 70% 60%)` }"
+            :style="{
+              left: c.left,
+              animationDelay: c.delay,
+              animationDuration: c.duration,
+              background: `hsl(${c.hue} 70% 60%)`,
+            }"
           />
         </div>
         <div class="percent display">
-          <span class="percent-num">{{ percentLabel }}</span><span class="percent-sign">%</span>
+          <span class="percent-num">{{ percentLabel }}</span
+          ><span class="percent-sign">%</span>
         </div>
         <p class="percent-caption">перевода прочитано</p>
 
-        <div class="bar" role="progressbar" :aria-valuenow="Math.round(stats.percent)" aria-valuemin="0" aria-valuemax="100">
+        <div
+          class="bar"
+          role="progressbar"
+          :aria-valuenow="Math.round(stats.percent)"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
           <div class="bar-fill" :style="{ width: barWidth(stats.percent) }" />
         </div>
 
@@ -225,28 +292,50 @@ useSeoMeta({
         <div class="stat-grid">
           <div class="stat">
             <b class="display">{{ stats.chaptersRead }}</b>
-            <span>{{ pluralize(stats.chaptersRead, 'глава', 'главы', 'глав') }} прочитано</span>
+            <span
+              >{{
+                pluralize(stats.chaptersRead, "глава", "главы", "глав")
+              }}
+              прочитано</span
+            >
           </div>
           <div class="stat">
             <b class="display">{{ stats.chaptersLeft }}</b>
-            <span>{{ pluralize(stats.chaptersLeft, 'глава', 'главы', 'глав') }} осталось</span>
+            <span
+              >{{
+                pluralize(stats.chaptersLeft, "глава", "главы", "глав")
+              }}
+              осталось</span
+            >
           </div>
           <div class="stat">
             <b class="display">{{ formatNumber(stats.wordsRead) }}</b>
-            <span>слов прочитано · ≈{{ formatNumber(stats.pagesRead) }} стр.</span>
+            <span
+              >слов прочитано · ≈{{ formatNumber(stats.pagesRead) }} стр.</span
+            >
           </div>
           <div class="stat">
             <b class="display">{{ formatNumber(stats.wordsLeft) }}</b>
-            <span>слов осталось · ≈{{ formatNumber(stats.pagesLeft) }} стр.</span>
+            <span
+              >слов осталось · ≈{{ formatNumber(stats.pagesLeft) }} стр.</span
+            >
           </div>
         </div>
 
-        <div class="bar bar-thin" :title="`${stats.chaptersRead} из ${stats.chaptersTotal} глав`">
-          <div class="bar-fill bar-fill-moss" :style="{ width: barWidth(chaptersPercent) }" />
+        <div
+          class="bar bar-thin"
+          :title="`${stats.chaptersRead} из ${stats.chaptersTotal} глав`"
+        >
+          <div
+            class="bar-fill bar-fill-moss"
+            :style="{ width: barWidth(chaptersPercent) }"
+          />
         </div>
         <p class="bar-note">
-          {{ stats.chaptersRead }} из {{ stats.chaptersTotal }} {{ pluralize(stats.chaptersTotal, 'главы', 'глав', 'глав') }} ·
-          всего в переводе {{ formatNumber(stats.wordsTotal) }} {{ pluralize(stats.wordsTotal, 'слово', 'слова', 'слов') }}
+          {{ stats.chaptersRead }} из {{ stats.chaptersTotal }}
+          {{ pluralize(stats.chaptersTotal, "главы", "глав", "глав") }} · всего
+          в переводе {{ formatNumber(stats.wordsTotal) }}
+          {{ pluralize(stats.wordsTotal, "слово", "слова", "слов") }}
         </p>
       </section>
 
@@ -254,13 +343,36 @@ useSeoMeta({
       <section v-if="originalTotal" class="card card--panel original">
         <h2 class="section-title">А если считать от всей книги</h2>
         <p class="section-note">
-          В оригинале The Wandering Inn сейчас {{ formatNumber(originalTotal) }} {{ pluralize(originalTotal, 'глава', 'главы', 'глав') }}<template v-if="bookWords"> — по-русски это примерно {{ formatMillions(bookWords) }} слов</template>.
+          В оригинале The Wandering Inn сейчас
+          {{ formatNumber(originalTotal) }}
+          {{ pluralize(originalTotal, "глава", "главы", "глав")
+          }}<template v-if="bookWords">
+            — по-русски это примерно
+            {{ formatMillions(bookWords) }} слов</template
+          >.
         </p>
 
         <!-- Полоса — по словам, когда они есть: главы у книги очень разной длины. -->
-        <div class="bar bar-layered" :title="bookWords ? `Прочитано ${formatNumber(stats.wordsRead)}, переведено ${formatNumber(stats.wordsTotal)} из ${formatNumber(bookWords)} слов` : `Прочитано ${stats.chaptersRead}, переведено ${stats.chaptersTotal} из ${originalTotal} глав`">
-          <div class="bar-fill bar-fill-translated" :style="{ width: barWidth(bookWords ? translatedWordsShare : translatedShare) }" />
-          <div class="bar-fill" :style="{ width: barWidth(bookWords ? readWordsShare : readShare) }" />
+        <div
+          class="bar bar-layered"
+          :title="
+            bookWords
+              ? `Прочитано ${formatNumber(stats.wordsRead)}, переведено ${formatNumber(stats.wordsTotal)} из ${formatNumber(bookWords)} слов`
+              : `Прочитано ${stats.chaptersRead}, переведено ${stats.chaptersTotal} из ${originalTotal} глав`
+          "
+        >
+          <div
+            class="bar-fill bar-fill-translated"
+            :style="{
+              width: barWidth(
+                bookWords ? translatedWordsShare : translatedShare,
+              ),
+            }"
+          />
+          <div
+            class="bar-fill"
+            :style="{ width: barWidth(bookWords ? readWordsShare : readShare) }"
+          />
         </div>
 
         <table class="orig-table">
@@ -274,13 +386,25 @@ useSeoMeta({
           <tbody>
             <tr class="row-read">
               <td><i class="dot dot-read" />вы прочитали</td>
-              <td>{{ stats.chaptersRead }} <small>{{ sharePercent(readShare) }} %</small></td>
-              <td v-if="bookWords">{{ formatNumber(stats.wordsRead) }} <small>{{ sharePercent(readWordsShare) }} %</small></td>
+              <td>
+                {{ stats.chaptersRead }}
+                <small>{{ sharePercent(readShare) }} %</small>
+              </td>
+              <td v-if="bookWords">
+                {{ formatNumber(stats.wordsRead) }}
+                <small>{{ sharePercent(readWordsShare) }} %</small>
+              </td>
             </tr>
             <tr class="row-translated">
               <td><i class="dot dot-translated" />переведено</td>
-              <td>{{ stats.chaptersTotal }} <small>{{ sharePercent(translatedShare) }} %</small></td>
-              <td v-if="bookWords">{{ formatNumber(stats.wordsTotal) }} <small>{{ sharePercent(translatedWordsShare) }} %</small></td>
+              <td>
+                {{ stats.chaptersTotal }}
+                <small>{{ sharePercent(translatedShare) }} %</small>
+              </td>
+              <td v-if="bookWords">
+                {{ formatNumber(stats.wordsTotal) }}
+                <small>{{ sharePercent(translatedWordsShare) }} %</small>
+              </td>
             </tr>
             <tr class="row-total">
               <td>всего в книге</td>
@@ -290,15 +414,18 @@ useSeoMeta({
           </tbody>
         </table>
         <p v-if="bookWords" class="bar-note">
-          Слова оригинала переведены в русские по коэффициенту {{ wordsRatio.toLocaleString('ru-RU') }}:
-          из тысячи английских слов выходит около {{ Math.round(wordsRatio * 1000) }} русских.
+          Слова оригинала переведены в русские по коэффициенту
+          {{ wordsRatio.toLocaleString("ru-RU") }}: из тысячи английских слов
+          выходит около {{ Math.round(wordsRatio * 1000) }} русских.
         </p>
       </section>
 
       <!-- Время -->
       <section class="card card--panel">
         <h2 class="section-title">Сколько это по времени</h2>
-        <p class="section-note">Прикидка по скорости чтения. Настройки запоминаются в этом браузере.</p>
+        <p class="section-note">
+          Прикидка по скорости чтения. Настройки запоминаются в этом браузере.
+        </p>
 
         <div class="controls">
           <div class="segmented" role="group" aria-label="Скорость чтения">
@@ -324,7 +451,7 @@ useSeoMeta({
               step="0.25"
               :value="hoursPerDay"
               @change="onHours"
-            >
+            />
           </label>
         </div>
 
@@ -348,16 +475,22 @@ useSeoMeta({
         </div>
 
         <p v-if="stats.done" class="finish">
-          Вы на самом краю перевода. Новые главы — {{ settings?.update_schedule || '2–3' }} в неделю.
+          Вы на самом краю перевода. Новые главы —
+          {{ settings?.update_schedule || "2–3" }} в неделю.
         </p>
         <p v-else-if="stats.finishAt" class="finish">
-          По {{ hoursLabel }} — догоните перевод <b>{{ formatDate(stats.finishAt) }}</b>.
-          <span class="finish-note">Перевод за это время тоже подрастёт, так что чуть позже.</span>
+          По {{ hoursLabel }} — догоните перевод
+          <b>{{ formatDate(stats.finishAt) }}</b
+          >.
+          <span class="finish-note"
+            >Перевод за это время тоже подрастёт, так что чуть позже.</span
+          >
         </p>
       </section>
 
       <p v-if="!auth.isAuthed" class="guest-note">
-        <NuxtLink to="/login?next=/progress">Войдите</NuxtLink> — и закладка будет одна на всех ваших устройствах.
+        <NuxtLink to="/login?next=/progress">Войдите</NuxtLink> — и закладка
+        будет одна на всех ваших устройствах.
       </p>
     </div>
 
@@ -390,7 +523,7 @@ useSeoMeta({
   margin: 0 0 24px;
   font-size: 14px;
   color: var(--parchment-2);
-  opacity: .7;
+  opacity: 0.7;
 }
 
 .card {
@@ -402,8 +535,8 @@ useSeoMeta({
   display: block;
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: .08em;
-  opacity: .55;
+  letter-spacing: 0.08em;
+  opacity: 0.55;
   margin-bottom: 8px;
 }
 
@@ -412,7 +545,7 @@ useSeoMeta({
 }
 
 .select-wrap::after {
-  content: '';
+  content: "";
   position: absolute;
   right: 14px;
   top: 50%;
@@ -446,7 +579,7 @@ useSeoMeta({
   margin: 10px 0 0;
   font-size: 12px;
   line-height: 1.6;
-  opacity: .6;
+  opacity: 0.6;
 }
 
 .link-btn {
@@ -481,13 +614,13 @@ useSeoMeta({
 .percent-sign {
   font-size: 28px;
   margin-left: 4px;
-  opacity: .7;
+  opacity: 0.7;
 }
 
 .percent-caption {
   margin: 6px 0 18px;
   font-size: 13px;
-  opacity: .6;
+  opacity: 0.6;
 }
 
 .bar {
@@ -506,7 +639,7 @@ useSeoMeta({
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--ember), var(--ember-soft));
-  transition: width .5s ease;
+  transition: width 0.5s ease;
 }
 
 .bar-fill-moss {
@@ -516,7 +649,7 @@ useSeoMeta({
 .bar-note {
   margin: 8px 0 0;
   font-size: 12px;
-  opacity: .5;
+  opacity: 0.5;
 }
 
 /* ── Оригинал ────────────────────────────── */
@@ -533,7 +666,7 @@ useSeoMeta({
 }
 
 .bar-fill-translated {
-  background: rgba(241, 230, 210, .28);
+  background: rgba(241, 230, 210, 0.28);
 }
 
 .orig-table {
@@ -547,8 +680,8 @@ useSeoMeta({
   font-weight: 400;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: .06em;
-  opacity: .45;
+  letter-spacing: 0.06em;
+  opacity: 0.45;
   text-align: right;
   padding: 0 0 6px;
 }
@@ -563,17 +696,17 @@ useSeoMeta({
 .orig-table td:first-child,
 .orig-table th:first-child {
   text-align: left;
-  opacity: .8;
+  opacity: 0.8;
 }
 
 .orig-table small {
   font-size: 11px;
-  opacity: .5;
+  opacity: 0.5;
   margin-left: 4px;
 }
 
 .row-total td {
-  opacity: .55;
+  opacity: 0.55;
 }
 
 .dot {
@@ -590,7 +723,7 @@ useSeoMeta({
 }
 
 .dot-translated {
-  background: rgba(241, 230, 210, .28);
+  background: rgba(241, 230, 210, 0.28);
 }
 
 .cheer {
@@ -598,7 +731,7 @@ useSeoMeta({
   font-size: 14px;
   color: var(--parchment-2);
   font-style: italic;
-  opacity: .85;
+  opacity: 0.85;
 }
 
 .done .percent {
@@ -618,7 +751,7 @@ useSeoMeta({
   width: 6px;
   height: 12px;
   border-radius: 1px;
-  opacity: .8;
+  opacity: 0.8;
   animation: fall linear infinite;
 }
 
@@ -630,7 +763,9 @@ useSeoMeta({
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .confetti { display: none; }
+  .confetti {
+    display: none;
+  }
 }
 
 /* ── Цифры ───────────────────────────────── */
@@ -656,7 +791,7 @@ useSeoMeta({
   display: block;
   margin-top: 4px;
   font-size: 12px;
-  opacity: .6;
+  opacity: 0.6;
   line-height: 1.4;
 }
 
@@ -671,7 +806,7 @@ useSeoMeta({
 .section-note {
   margin: 0 0 16px;
   font-size: 12px;
-  opacity: .45;
+  opacity: 0.45;
 }
 
 .controls {
@@ -704,7 +839,7 @@ useSeoMeta({
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  transition: background .15s;
+  transition: background 0.15s;
 }
 
 .seg:last-child {
@@ -713,11 +848,11 @@ useSeoMeta({
 
 .seg small {
   font-size: 11px;
-  opacity: .55;
+  opacity: 0.55;
 }
 
 .seg.active {
-  background: rgba(214, 136, 62, .18);
+  background: rgba(214, 136, 62, 0.18);
   color: var(--ember-soft);
 }
 
@@ -726,7 +861,7 @@ useSeoMeta({
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
-  opacity: .8;
+  opacity: 0.8;
 }
 
 .hours input {
@@ -760,14 +895,14 @@ useSeoMeta({
 .finish-note {
   display: block;
   font-size: 12px;
-  opacity: .5;
+  opacity: 0.5;
 }
 
 .guest-note {
   margin: 20px 0 0;
   text-align: center;
   font-size: 13px;
-  opacity: .6;
+  opacity: 0.6;
 }
 
 .guest-note a {

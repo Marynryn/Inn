@@ -1,153 +1,174 @@
 <script setup lang="ts">
-import { formatHours } from '~/composables/useReadingStats'
+import { formatHours } from "~/composables/useReadingStats";
 
-const { data: settings } = await useFetch('/api/settings')
-const season = useSeason()
+const { data: settings } = await useFetch("/api/settings");
+const season = useSeason();
 
 // Картинка героя — то, по чему меряют первую отрисовку. Ссылка на неё в <head>:
 // браузер начинает её качать, ещё не дочитав страницу до <img>.
-const heroSrc = computed(() => season.value === 'halloween' ? '/hero-halloween.webp' : '/hero.webp')
+const heroSrc = computed(() =>
+  season.value === "halloween" ? "/hero-halloween.webp" : "/hero.webp",
+);
 useHead(() => ({
-  link: [{ key: 'hero-preload', rel: 'preload', as: 'image', href: heroSrc.value, fetchpriority: 'high' }],
-}))
+  link: [
+    {
+      key: "hero-preload",
+      rel: "preload",
+      as: "image",
+      href: heroSrc.value,
+      fetchpriority: "high",
+    },
+  ],
+}));
 
 // Тыква на Хеллоуин смеётся по клику. Звук качается только при первом клике,
 // повторный клик начинает смех заново, а не накладывает второй поверх. Если
 // файл не скачался, следующий клик пробует снова, а не молчит до перезагрузки.
-let laughAudio: HTMLAudioElement | null = null
-const laughing = ref(false)
-let laughTimer: ReturnType<typeof setTimeout> | undefined
+let laughAudio: HTMLAudioElement | null = null;
+const laughing = ref(false);
+let laughTimer: ReturnType<typeof setTimeout> | undefined;
 const laugh = () => {
-  if (!laughAudio || laughAudio.error) laughAudio = new Audio('/pumpkin-laugh.mp3')
-  laughAudio.currentTime = 0
-  laughAudio.play().catch(() => {})
+  if (!laughAudio || laughAudio.error)
+    laughAudio = new Audio("/pumpkin-laugh.mp3");
+  laughAudio.currentTime = 0;
+  laughAudio.play().catch(() => {});
   // Счётчик для админки; не дошло — не беда, смех от этого не зависит.
-  $fetch('/api/pumpkin/click', { method: 'POST' }).catch(() => {})
-  laughing.value = true
-  clearTimeout(laughTimer)
-  laughTimer = setTimeout(() => { laughing.value = false }, 2400)
-}
+  $fetch("/api/pumpkin/click", { method: "POST" }).catch(() => {});
+  laughing.value = true;
+  clearTimeout(laughTimer);
+  laughTimer = setTimeout(() => {
+    laughing.value = false;
+  }, 2400);
+};
 onBeforeUnmount(() => {
-  clearTimeout(laughTimer)
-  laughAudio?.pause()
-})
-const { data: chapters } = await useFetch('/api/chapters')
+  clearTimeout(laughTimer);
+  laughAudio?.pause();
+});
+const { data: chapters } = await useChapterList();
 // Пока идёт барабан, его баннер стоит вместо плашки игры. Сбой — не беда:
 // останется плашка игры, главная из-за баннера не падает.
-const { data: reelBanner } = await useFetch('/api/reel/banner', { default: () => null })
+const { data: reelBanner } = await useFetch("/api/reel/banner", {
+  default: () => null,
+});
 
-const reelOpen = ref(false)
-const route = useRoute()
+const reelOpen = ref(false);
+const route = useRoute();
 // Гость нажал «Войти и крутить» и вернулся с ?reel=1 — открываем барабан сами,
 // как только станет ясно, что он вошёл. Метку из адреса убираем, чтобы
 // обновление страницы не открывало окно снова.
 onMounted(() => {
-  if (route.query.reel === undefined) return
-  navigateTo({ query: { ...route.query, reel: undefined } }, { replace: true })
-  const stop = watch(() => auth.ready, (ready) => {
-    if (!ready) return
-    queueMicrotask(() => stop())
-    if (auth.isAuthed && reelBanner.value) reelOpen.value = true
-  }, { immediate: true })
-})
+  if (route.query.reel === undefined) return;
+  navigateTo({ query: { ...route.query, reel: undefined } }, { replace: true });
+  const stop = watch(
+    () => auth.ready,
+    (ready) => {
+      if (!ready) return;
+      queueMicrotask(() => stop());
+      if (auth.isAuthed && reelBanner.value) reelOpen.value = true;
+    },
+    { immediate: true },
+  );
+});
 
-
-const { load } = useReadProgress()
-const { volumes, totalChapters, chaptersLabel, chapterRange, getBadge } = useVolumes(chapters)
+const { load } = useReadProgress();
+const { volumes, totalChapters, chaptersLabel, chapterRange, getBadge } =
+  useVolumes(chapters);
 
 // Сервер рисует главную для гостя без закладки. Вход и закладка иногда
 // приходят раньше, чем страница оживёт, — и сборка Vue натягивала гостевую
 // разметку на чужие данные: кнопки вставали криво, пропадала картинка. Всё, что
 // зависит от читателя, меняется только после монтирования.
-const hydrated = ref(false)
-onMounted(() => { hydrated.value = true })
+const hydrated = ref(false);
+onMounted(() => {
+  hydrated.value = true;
+});
 
-const { ctaHref, ctaText } = useHeroCta(chapters, hydrated)
+const { ctaHref, ctaText } = useHeroCta(chapters, hydrated);
 // Строка под кнопкой «Продолжить»: докуда дочитано и сколько осталось. Гостю
 // без закладки показывать нечего — она появляется вместе с закладкой.
-const { bookmark, bookmarkStats, loadSettings } = useReadingStats(chapters)
-const { downloading, downloaded, download } = useChapterDownloadList()
+const { bookmark, bookmarkStats, loadSettings } = useReadingStats(chapters);
+const { downloading, downloaded, download } = useChapterDownloadList();
 
 const scrollToLedger = () => {
-  const el = document.getElementById('ledger')
+  const el = document.getElementById("ledger");
   if (el) {
-    const top = el.getBoundingClientRect().top + window.scrollY - 56
-    smoothScrollTo(top)
+    const top = el.getBoundingClientRect().top + window.scrollY - 56;
+    smoothScrollTo(top);
   }
-}
+};
 
 onMounted(() => {
-  load()
-  loadSettings()
-})
+  load();
+  loadSettings();
+});
 
-const { lastRead } = useReadProgress()
-const openVolume = ref<number | null>(null)
+const { lastRead } = useReadProgress();
+const openVolume = ref<number | null>(null);
 
 onMounted(() => {
-  if (!chapters.value?.length) return
-  const maxVol = Math.max(...chapters.value.map((c: any) => c.volume))
+  if (!chapters.value?.length) return;
+  const maxVol = Math.max(...chapters.value.map((c: any) => c.volume));
   if (lastRead.value) {
-    const ch = chapters.value.find(c => c.id === lastRead.value!.id)
-    openVolume.value = ch?.volume ?? maxVol
+    const ch = chapters.value.find((c) => c.id === lastRead.value!.id);
+    openVolume.value = ch?.volume ?? maxVol;
   } else {
-    openVolume.value = maxVol
+    openVolume.value = maxVol;
   }
-})
+});
 
 const toggleVolume = (vol: number) => {
-  openVolume.value = openVolume.value === vol ? null : vol
-}
+  openVolume.value = openVolume.value === vol ? null : vol;
+};
 
-const siteUrl = useRuntimeConfig().public.siteUrl
+const siteUrl = useRuntimeConfig().public.siteUrl;
 // Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
 // позже, вне контекста Nuxt, и useRuntimeConfig там падает.
-const ogImage = ogImageUrl()
+const ogImage = ogImageUrl();
 
 // Один заголовок на вкладку и на превью ссылки: подпись из настроек героя
 // не называет ни сайта, ни книги, и в превью соцсетей было не понять, что это.
-const pageTitle = 'Странствующая Таверна — русский перевод The Wandering Inn'
+const pageTitle = "Странствующая Таверна — русский перевод The Wandering Inn";
 
 useHead({
   title: pageTitle,
-  link: [{ rel: 'canonical', href: siteUrl }],
+  link: [{ rel: "canonical", href: siteUrl }],
   script: [
     {
-      type: 'application/ld+json',
+      type: "application/ld+json",
       innerHTML: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'WebSite',
-        name: 'Странствующая Таверна',
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: "Странствующая Таверна",
         url: siteUrl,
-        description: 'Фанатский перевод The Wandering Inn на русский язык.',
-        inLanguage: 'ru',
+        description: "Фанатский перевод The Wandering Inn на русский язык.",
+        inLanguage: "ru",
         potentialAction: {
-          '@type': 'ReadAction',
+          "@type": "ReadAction",
           target: `${siteUrl}/chapter/`,
         },
       }),
     },
   ],
-})
+});
 
 /*
   Бегущая строка под hero. Настройка — по фразе на строку; пустая настройка
   означает «строки нет», отдельный выключатель для этого не нужен.
 */
 const tickerItems = computed<string[]>(() =>
-  String(settings.value?.hero_ticker ?? '')
+  String(settings.value?.hero_ticker ?? "")
     // Регулярка, а не '\n': из textarea в админке приходит и CRLF.
     .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(Boolean)
-)
+    .map((line) => line.trim())
+    .filter(Boolean),
+);
 
 /*
   Список печатаем дважды: лента едет ровно на свою половину и в этот миг вторая
   копия стоит там, где начиналась первая, — стык не виден. Одной копии хватило бы
   только на рывок в конце.
 */
-const tickerLoop = computed(() => [...tickerItems.value, ...tickerItems.value])
+const tickerLoop = computed(() => [...tickerItems.value, ...tickerItems.value]);
 
 /*
   Строку видят только гости: это зазыв завести аккаунт, и тому, кто его уже
@@ -158,17 +179,18 @@ const tickerLoop = computed(() => [...tickerItems.value, ...tickerItems.value])
   написанное. Пустая настройка флажка считается включённой — иначе строка,
   написанная до появления галочки, вдруг перестала бы показываться.
 */
-const auth = useAuthStore()
+const auth = useAuthStore();
 
 // Гостю, и только когда это точно известно: иначе вошедший видел бы, как
 // строка мелькает и пропадает.
-const showTicker = computed(() =>
-  hydrated.value
-  && auth.ready
-  && !auth.isAuthed
-  && tickerItems.value.length > 0
-  && settings.value?.hero_ticker_on !== '0'
-)
+const showTicker = computed(
+  () =>
+    hydrated.value &&
+    auth.ready &&
+    !auth.isAuthed &&
+    tickerItems.value.length > 0 &&
+    settings.value?.hero_ticker_on !== "0",
+);
 
 /*
   Время круга считаем от длины текста, а не берём одно на все случаи: короткая
@@ -180,11 +202,12 @@ const showTicker = computed(() =>
   Не меньше 18 секунд, иначе строка из двух слов мелькает.
 */
 const tickerSeconds = computed(() => {
-  const chars = tickerItems.value.join(' · ').length
-  return Math.max(18, Math.round(chars / 6))
-})
+  const chars = tickerItems.value.join(" · ").length;
+  return Math.max(18, Math.round(chars / 6));
+});
 
-const seoDescription = 'Бесплатный фанатский перевод The Wandering Inn (Блуждающий трактир) на русский. Обновляется каждую неделю. Читай онлайн или скачивай epub.'
+const seoDescription =
+  "Бесплатный фанатский перевод The Wandering Inn (Блуждающий трактир) на русский. Обновляется каждую неделю. Читай онлайн или скачивай epub.";
 
 useSeoMeta({
   description: seoDescription,
@@ -192,13 +215,13 @@ useSeoMeta({
   ogDescription: seoDescription,
   ogImage,
   ogUrl: siteUrl,
-  ogType: 'website',
-  ogLocale: 'ru_RU',
-  twitterCard: 'summary_large_image',
+  ogType: "website",
+  ogLocale: "ru_RU",
+  twitterCard: "summary_large_image",
   twitterTitle: pageTitle,
   twitterDescription: seoDescription,
   twitterImage: ogImage,
-})
+});
 </script>
 
 <template>
@@ -221,7 +244,7 @@ useSeoMeta({
              Файл напрямую, не через NuxtImg: тот пережимал его заново и отдавал
              тяжелее исходника. Ссылка в <head> (heroSrc ниже) и высокий
              приоритет — браузер берёт картинку раньше скриптов. -->
-        <img :src="heroSrc" alt="" fetchpriority="high">
+        <img :src="heroSrc" alt="" fetchpriority="high" />
       </div>
       <!-- Кнопка поверх вклеенной тыквы. Рамка повторяет .hero-art, но лежит выше
            текста героя — иначе клик перехватил бы его блок. -->
@@ -234,7 +257,7 @@ useSeoMeta({
           title="Тыква"
           @click="laugh"
         >
-          <img src="/pumpkin.webp" alt="">
+          <img src="/pumpkin.webp" alt="" />
         </button>
       </div>
 
@@ -242,23 +265,53 @@ useSeoMeta({
         <div class="eyebrow">Фанатский перевод · The Wandering Inn</div>
         <h1
           class="hero-title display"
-          v-html="(settings?.hero_title || 'Истории трактира,\nрассказанные заново').replace(/\n/g, '<br>')"
+          v-html="
+            (
+              settings?.hero_title || 'Истории трактира,\nрассказанные заново'
+            ).replace(/\n/g, '<br>')
+          "
         />
-        <p class="hero-sub" v-html="(settings?.hero_subtitle || '').replace(/\n/g, '<br>')" />
+        <p
+          class="hero-sub"
+          v-html="(settings?.hero_subtitle || '').replace(/\n/g, '<br>')"
+        />
         <div class="hero-actions">
-          <NuxtLink class="btn btn--lg btn--primary" :href="ctaHref">{{ ctaText }}</NuxtLink>
-          <button class="btn btn--lg btn--ghost" @click="scrollToLedger">К главам</button>
+          <NuxtLink class="btn btn--lg btn--primary" :href="ctaHref">{{
+            ctaText
+          }}</NuxtLink>
+          <button class="btn btn--lg btn--ghost" @click="scrollToLedger">
+            К главам
+          </button>
         </div>
-        <NuxtLink v-if="hydrated && bookmark" to="/progress" class="hero-progress">
+        <NuxtLink
+          v-if="hydrated && bookmark"
+          to="/progress"
+          class="hero-progress"
+        >
           Прочитано {{ Math.round(bookmarkStats.percent) }} %
           <template v-if="bookmarkStats.done"> · вы догнали перевод</template>
-          <template v-else> · ещё {{ formatHours(bookmarkStats.hoursLeft) }} до последней переведённой главы</template>
+          <template v-else>
+            · ещё {{ formatHours(bookmarkStats.hoursLeft) }} до последней
+            переведённой главы</template
+          >
           <span class="hero-progress-arrow">→</span>
         </NuxtLink>
-        <div class="hero-meta" :class="{ 'with-pumpkin': season === 'halloween' }">
-          <div><b class="display">{{ chaptersLabel }}</b>переведено</div>
-          <div><b class="display">{{ chapterRange }}</b>текущий диапазон</div>
-          <div><b class="display">{{ settings?.update_schedule || '2–3' }}</b>главы в неделю</div>
+        <div
+          class="hero-meta"
+          :class="{ 'with-pumpkin': season === 'halloween' }"
+        >
+          <div>
+            <b class="display">{{ chaptersLabel }}</b
+            >переведено
+          </div>
+          <div>
+            <b class="display">{{ chapterRange }}</b
+            >текущий диапазон
+          </div>
+          <div>
+            <b class="display">{{ settings?.update_schedule || "2–3" }}</b
+            >главы в неделю
+          </div>
         </div>
         <!-- На телефоне луны в кадре героя не видно — тыква садится в правый нижний
              угол, рядом с цифрами. -->
@@ -271,7 +324,7 @@ useSeoMeta({
           title="Тыква"
           @click="laugh"
         >
-          <img src="/pumpkin.webp" alt="">
+          <img src="/pumpkin.webp" alt="" />
         </button>
       </div>
 
@@ -289,7 +342,9 @@ useSeoMeta({
         @click="useClarity().event('ticker_click')"
       >
         <div class="ticker-track" aria-hidden="true">
-          <span v-for="(line, i) in tickerLoop" :key="i" class="ticker-item">{{ line }}</span>
+          <span v-for="(line, i) in tickerLoop" :key="i" class="ticker-item">{{
+            line
+          }}</span>
         </div>
       </NuxtLink>
     </div>
@@ -304,7 +359,11 @@ useSeoMeta({
       <SignCharacters />
 
       <div class="game-wrap">
-        <ReelBanner v-if="reelBanner" :banner="reelBanner" @open="reelOpen = true" />
+        <ReelBanner
+          v-if="reelBanner"
+          :banner="reelBanner"
+          @open="reelOpen = true"
+        />
         <GameCta
           v-else
           :title="settings?.game_cta_title"
@@ -314,36 +373,38 @@ useSeoMeta({
       </div>
       <ReelModal v-if="reelOpen" @close="reelOpen = false" />
 
-    <!-- ОГЛАВЛЕНИЕ -->
-    <div class="ledger" id="ledger">
-      <div class="ledger-head">
-        <h2 class="display">Оглавление</h2>
-        <span>{{ settings?.ledger_note }}</span>
-      </div>
-      <div class="ledger-rule-row">
-        <div class="ledger-rule" />
-        <div v-if="season === 'halloween'" class="ledger-toren"><TorenDance /></div>
-        <div v-else class="ledger-bee"><BeeApista /></div>
-      </div>
+      <!-- ОГЛАВЛЕНИЕ -->
+      <div class="ledger" id="ledger">
+        <div class="ledger-head">
+          <h2 class="display">Оглавление</h2>
+          <span>{{ settings?.ledger_note }}</span>
+        </div>
+        <div class="ledger-rule-row">
+          <div class="ledger-rule" />
+          <div v-if="season === 'halloween'" class="ledger-toren">
+            <TorenDance />
+          </div>
+          <div v-else class="ledger-bee"><BeeApista /></div>
+        </div>
 
-      <!-- Тома оживают, когда до них долистали: оглавление — почти весь HTML
+        <!-- Тома оживают, когда до них долистали: оглавление — почти весь HTML
            главной (2 000+ элементов), и оживлять его разом значило занять
            процессор телефона на секунду, пока человек смотрит на первый экран.
            Разметка с сервера та же, ссылки на главы работают и до оживления. -->
-      <LazyVolumeAccordion
-        v-for="[vol, chs] in volumes"
-        hydrate-on-visible
-        :key="vol"
-        :volume="vol"
-        :chapters="chs"
-        :is-open="openVolume === vol"
-        :downloading="downloading"
-        :downloaded="downloaded"
-        :get-badge="getBadge"
-        @toggle="toggleVolume(vol)"
-        @download="download"
-      />
-    </div>
+        <LazyVolumeAccordion
+          v-for="[vol, chs] in volumes"
+          hydrate-on-visible
+          :key="vol"
+          :volume="vol"
+          :chapters="chs"
+          :is-open="openVolume === vol"
+          :downloading="downloading"
+          :downloaded="downloaded"
+          :get-badge="getBadge"
+          @toggle="toggleVolume(vol)"
+          @download="download"
+        />
+      </div>
 
       <div class="tg-wrap">
         <TelegramCta
@@ -361,8 +422,11 @@ useSeoMeta({
     <!-- id нужен уведомлениям: у отзыва о проекте главы нет, и ссылка ведёт сюда. -->
     <div id="reviews" class="comments-wrap">
       <div class="comments-inner">
-        <h2 class="display" style="margin: 0 0 6px;">Отзывы о проекте</h2>
-        <p class="comments-sub">Не привязаны к конкретной главе — впечатления о переводе и сайте в целом.</p>
+        <h2 class="display" style="margin: 0 0 6px">Отзывы о проекте</h2>
+        <p class="comments-sub">
+          Не привязаны к конкретной главе — впечатления о переводе и сайте в
+          целом.
+        </p>
         <CommentSection
           title="Отзывы"
           placeholder="Что думаешь о проекте?"
@@ -378,7 +442,12 @@ useSeoMeta({
 <style>
 .hero {
   position: relative;
-  background: radial-gradient(120% 90% at 20% -10%, #3a2c22 0%, var(--bg-dark) 55%, var(--bg-dark-2) 100%);
+  background: radial-gradient(
+    120% 90% at 20% -10%,
+    #3a2c22 0%,
+    var(--bg-dark) 55%,
+    var(--bg-dark-2) 100%
+  );
   color: var(--parchment);
   overflow: hidden;
   padding: 56px 0 64px;
@@ -394,8 +463,26 @@ useSeoMeta({
   width: 64%;
   pointer-events: none;
   /* Много промежуточных шагов: на двух-трёх граница фона и картинки даёт излом. */
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.1) 8%, rgba(0,0,0,.3) 16%, rgba(0,0,0,.55) 25%, rgba(0,0,0,.78) 34%, rgba(0,0,0,.93) 43%, black 52%);
-  mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.1) 8%, rgba(0,0,0,.3) 16%, rgba(0,0,0,.55) 25%, rgba(0,0,0,.78) 34%, rgba(0,0,0,.93) 43%, black 52%);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(0, 0, 0, 0.1) 8%,
+    rgba(0, 0, 0, 0.3) 16%,
+    rgba(0, 0, 0, 0.55) 25%,
+    rgba(0, 0, 0, 0.78) 34%,
+    rgba(0, 0, 0, 0.93) 43%,
+    black 52%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(0, 0, 0, 0.1) 8%,
+    rgba(0, 0, 0, 0.3) 16%,
+    rgba(0, 0, 0, 0.55) 25%,
+    rgba(0, 0, 0, 0.78) 34%,
+    rgba(0, 0, 0, 0.93) 43%,
+    black 52%
+  );
 }
 
 .hero-art img,
@@ -406,7 +493,7 @@ useSeoMeta({
   object-fit: cover;
   /* Правый край — таверна и табличка, его не режем: лишнее уходит слева, под маской. */
   object-position: right center;
-  opacity: .5;
+  opacity: 0.5;
 }
 
 .lantern {
@@ -416,11 +503,15 @@ useSeoMeta({
   border-radius: var(--radius-round);
   top: -180px;
   right: -140px;
-  background: radial-gradient(circle, rgba(214,136,62,.35) 0%, rgba(214,136,62,.10) 45%, rgba(214,136,62,0) 75%);
+  background: radial-gradient(
+    circle,
+    rgba(214, 136, 62, 0.35) 0%,
+    rgba(214, 136, 62, 0.1) 45%,
+    rgba(214, 136, 62, 0) 75%
+  );
   filter: blur(2px);
   pointer-events: none;
 }
-
 
 .hero-content {
   position: relative;
@@ -443,16 +534,30 @@ useSeoMeta({
   /* Акцент отдан полосе, а не тексту: цветная бегущая фраза на герое читается
      как реклама, а тонкая золотая черта — как объявление на доске. Золото уже
      работает на сайте акцентом, поэтому нового цвета в палитре не появляется. */
-  border-top: 1px solid rgba(201, 160, 46, .35);
-  background: rgba(20, 14, 10, .5);
+  border-top: 1px solid rgba(201, 160, 46, 0.35);
+  background: rgba(20, 14, 10, 0.5);
   backdrop-filter: blur(2px);
   display: block;
   text-decoration: none;
   cursor: pointer;
-  transition: background .2s ease, border-color .2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
   /* Края растворяются, иначе фразы обрубаются ровной вертикалью. */
-  -webkit-mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent);
-  mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 7%,
+    black 93%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 7%,
+    black 93%,
+    transparent
+  );
 }
 
 .ticker-track {
@@ -470,8 +575,8 @@ useSeoMeta({
 }
 
 .ticker:hover {
-  background: rgba(20, 14, 10, .68);
-  border-top-color: rgba(201, 160, 46, .6);
+  background: rgba(20, 14, 10, 0.68);
+  border-top-color: rgba(201, 160, 46, 0.6);
 }
 
 .ticker:focus-visible {
@@ -487,9 +592,9 @@ useSeoMeta({
 .ticker-item {
   white-space: nowrap;
   font-size: 13px;
-  letter-spacing: .01em;
+  letter-spacing: 0.01em;
   color: var(--parchment-2);
-  opacity: .9;
+  opacity: 0.9;
 }
 
 /*
@@ -502,26 +607,34 @@ useSeoMeta({
   посередине между предложениями.
 */
 .ticker-item::after {
-  content: '·';
+  content: "·";
   margin: 0 13px;
   color: var(--gold);
-  opacity: .75;
+  opacity: 0.75;
 }
 
 @keyframes ticker-run {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 /* Кому движение мешает — фразы стоят на месте, а прочитать их можно пальцем. */
 @media (prefers-reduced-motion: reduce) {
-  .ticker { overflow-x: auto; }
-  .ticker-track { animation: none; }
+  .ticker {
+    overflow-x: auto;
+  }
+  .ticker-track {
+    animation: none;
+  }
 }
 
 .eyebrow {
   font-size: 12px;
-  letter-spacing: .18em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ember-soft);
   margin-bottom: 14px;
@@ -536,7 +649,7 @@ useSeoMeta({
   font-size: 15px;
   line-height: 1.65;
   color: var(--parchment-2);
-  opacity: .82;
+  opacity: 0.82;
   max-width: 480px;
   margin: 0 0 26px;
 }
@@ -556,9 +669,9 @@ useSeoMeta({
   margin-top: 16px;
   font-size: 13px;
   color: var(--ember-soft);
-  opacity: .85;
+  opacity: 0.85;
   text-decoration: none;
-  transition: opacity .15s;
+  transition: opacity 0.15s;
 }
 
 .hero-progress:hover {
@@ -566,7 +679,7 @@ useSeoMeta({
 }
 
 .hero-progress-arrow {
-  transition: transform .15s;
+  transition: transform 0.15s;
 }
 
 .hero-progress:hover .hero-progress-arrow {
@@ -579,7 +692,7 @@ useSeoMeta({
   margin-top: 40px;
   font-size: 12px;
   color: var(--parchment-2);
-  opacity: .7;
+  opacity: 0.7;
   flex-wrap: wrap;
 }
 
@@ -618,7 +731,7 @@ useSeoMeta({
   margin-top: 4px;
   font-size: 12px;
   color: var(--ink-soft);
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
 }
 
 /* Аписта валяется на линейке, поэтому под заголовком оставлен зазор
@@ -663,7 +776,7 @@ useSeoMeta({
   в тёплый серый: на нём кремовые кости видны и без пергамента под ними.
 */
 .ledger-toren::before {
-  content: '';
+  content: "";
   position: absolute;
   z-index: -1;
   /* Крупнее самого Торена: клуб охватывает фигуру целиком, с головой. */
@@ -672,7 +785,7 @@ useSeoMeta({
   bottom: -16%;
   width: 150%;
   transform: translateX(-50%);
-  background: url('/toren-smoke.webp') center / contain no-repeat;
+  background: url("/toren-smoke.webp") center / contain no-repeat;
 }
 
 /* Тыква в углу героя — только на телефоне, на широком экране она висит в небе. */
@@ -703,22 +816,34 @@ useSeoMeta({
 }
 
 .hero-pumpkin-small.laughing {
-  animation: pumpkin-shake .3s ease-in-out 8;
+  animation: pumpkin-shake 0.3s ease-in-out 8;
 }
 
 .hero-pumpkin-small.laughing img {
-  animation: pumpkin-flare-small .6s ease-in-out 4;
+  animation: pumpkin-flare-small 0.6s ease-in-out 4;
 }
 
 @keyframes pumpkin-flare-small {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.6) drop-shadow(0 0 14px rgba(255, 150, 50, .95)); }
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.6) drop-shadow(0 0 14px rgba(255, 150, 50, 0.95));
+  }
 }
 
 @keyframes pumpkin-shake {
-  0%, 100% { transform: rotate(0); }
-  25% { transform: rotate(-9deg) translateY(-2px); }
-  75% { transform: rotate(9deg) translateY(-2px); }
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-9deg) translateY(-2px);
+  }
+  75% {
+    transform: rotate(9deg) translateY(-2px);
+  }
 }
 
 /*
@@ -763,17 +888,22 @@ useSeoMeta({
   width: calc(141 * var(--s));
   height: calc(141 * var(--s));
   pointer-events: none;
-  filter: drop-shadow(0 0 10px rgba(255, 138, 42, .45));
+  filter: drop-shadow(0 0 10px rgba(255, 138, 42, 0.45));
 }
 
 .hero-pumpkin.laughing img {
-  animation: pumpkin-flare .6s ease-in-out 4;
+  animation: pumpkin-flare 0.6s ease-in-out 4;
 }
 
 /* Яркость поднимает свет в глазах и пасти, тень даёт отсвет вокруг. */
 @keyframes pumpkin-flare {
-  0%, 100% { filter: brightness(1) drop-shadow(0 0 10px rgba(255, 138, 42, .45)); }
-  50% { filter: brightness(1.6) drop-shadow(0 0 20px rgba(255, 150, 50, .95)); }
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 0 10px rgba(255, 138, 42, 0.45));
+  }
+  50% {
+    filter: brightness(1.6) drop-shadow(0 0 20px rgba(255, 150, 50, 0.95));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -818,7 +948,7 @@ useSeoMeta({
 .comments-sub {
   font-size: 13px;
   color: var(--parchment-2);
-  opacity: .6;
+  opacity: 0.6;
   margin: 4px 0 28px;
 }
 
@@ -827,9 +957,7 @@ useSeoMeta({
     width: 70%;
     left: auto;
     right: 0;
-    opacity:0.7;
-   
-
+    opacity: 0.7;
   }
 
   .hero-art img,
@@ -871,7 +999,7 @@ useSeoMeta({
     right: 20px;
     bottom: -30px;
     width: 124px;
-    filter: drop-shadow(0 0 10px rgba(255, 138, 42, .45));
+    filter: drop-shadow(0 0 10px rgba(255, 138, 42, 0.45));
   }
   /* На узком телефоне большая тыква закрыла бы и «текущий диапазон» — он тоже
      уходит на свою строку, цифры встают столбиком слева от неё. */
