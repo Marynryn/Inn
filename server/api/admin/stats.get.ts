@@ -8,7 +8,6 @@ import {
   chapterViewDays,
   comments,
   gameStats,
-  pumpkinClickDays,
   readerDays,
   userIdentities,
   users,
@@ -134,11 +133,6 @@ export default defineEventHandler(async (event) => {
     return { day, count: readerByDay.get(day) ?? 0 };
   });
 
-  // Тыква на Хеллоуин: строк по одной на день, их за сезон — десяток-другой.
-  // Вне Хеллоуина счётчик не нужен — панель его не показывает.
-  const halloween = await isHalloween();
-  const pumpkinRows = halloween ? await db.select().from(pumpkinClickDays) : [];
-
   // Настольная игра: разные люди на её страницах по дням и доигранные партии.
   // Заходы хранятся месяц — «за 30 дней» это сумма по дням, а не число разных
   // людей за месяц: дни между собой не связаны, см. boardVisitDays.
@@ -194,12 +188,6 @@ export default defineEventHandler(async (event) => {
       telegram: providerRows.find((r) => r.provider === "telegram")?.total ?? 0,
       active: activeRows.length,
     },
-    pumpkin: halloween
-      ? {
-          today: pumpkinRows.find((r) => r.day === mskDay())?.count ?? 0,
-          total: pumpkinRows.reduce((sum, r) => sum + r.count, 0),
-        }
-      : null,
     topChapters,
   };
 });

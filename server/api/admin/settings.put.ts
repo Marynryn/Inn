@@ -24,8 +24,6 @@ const ALLOWED_KEYS = [
   "tg_cta_text",
   "characters_title",
   "characters_subtitle",
-  "season_theme",
-  "halloween_reader_bg",
 ];
 
 export default defineEventHandler(async (event) => {
