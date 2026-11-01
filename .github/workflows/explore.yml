@@ -7,11 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       steps:
-        description: 'Потолок ходов агента'
-        default: '60'
+        description: "Потолок ходов агента"
+        default: "60"
       focus:
-        description: 'На чём сосредоточиться (необязательно)'
-        default: ''
+        description: "На чём сосредоточиться (необязательно)"
+        default: ""
 
 jobs:
   explore:

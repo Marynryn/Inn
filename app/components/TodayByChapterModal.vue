@@ -6,56 +6,72 @@
  * различаются только словами, поэтому окно одно на оба.
  */
 const props = defineProps<{
-  kind: 'views' | 'downloads'
-  rows: { id: string; title: string | null; count: number }[]
-  total: number
-}>()
+  kind: "views" | "downloads";
+  rows: { id: string; title: string | null; count: number }[];
+  total: number;
+}>();
 
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: [] }>();
 
 const WORDS = {
   views: {
-    title: 'Просмотры сегодня',
-    unit: ['просмотр', 'просмотра', 'просмотров'] as [string, string, string],
-    empty: 'Сегодня глав ещё не открывали',
+    title: "Просмотры сегодня",
+    unit: ["просмотр", "просмотра", "просмотров"] as [string, string, string],
+    empty: "Сегодня глав ещё не открывали",
   },
   downloads: {
-    title: 'Скачивания сегодня',
-    unit: ['скачивание', 'скачивания', 'скачиваний'] as [string, string, string],
-    empty: 'Сегодня epub ещё не скачивали',
+    title: "Скачивания сегодня",
+    unit: ["скачивание", "скачивания", "скачиваний"] as [
+      string,
+      string,
+      string,
+    ],
+    empty: "Сегодня epub ещё не скачивали",
   },
-}
-const words = computed(() => WORDS[props.kind])
+};
+const words = computed(() => WORDS[props.kind]);
 
 const plural = (n: number, forms: [string, string, string]) => {
-  const ten = n % 10
-  const hundred = n % 100
-  if (ten === 1 && hundred !== 11) return forms[0]
-  if (ten >= 2 && ten <= 4 && (hundred < 12 || hundred > 14)) return forms[1]
-  return forms[2]
-}
+  const ten = n % 10;
+  const hundred = n % 100;
+  if (ten === 1 && hundred !== 11) return forms[0];
+  if (ten >= 2 && ten <= 4 && (hundred < 12 || hundred > 14)) return forms[1];
+  return forms[2];
+};
 
 const summary = computed(() => {
-  const total = `${props.total.toLocaleString('ru')} ${plural(props.total, words.value.unit)}`
-  const chapters = `${props.rows.length} ${plural(props.rows.length, ['главе', 'главах', 'главах'])}`
-  return `${total} в ${chapters}`
-})
+  const total = `${props.total.toLocaleString("ru")} ${plural(props.total, words.value.unit)}`;
+  const chapters = `${props.rows.length} ${plural(props.rows.length, ["главе", "главах", "главах"])}`;
+  return `${total} в ${chapters}`;
+});
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') emit('close')
-}
+  if (e.key === "Escape") emit("close");
+};
 
-onMounted(() => document.addEventListener('keydown', onKeydown))
-onUnmounted(() => document.removeEventListener('keydown', onKeydown))
+onMounted(() => document.addEventListener("keydown", onKeydown));
+onUnmounted(() => document.removeEventListener("keydown", onKeydown));
 
-useScrollLock()
+useScrollLock();
 </script>
 
 <template>
   <Teleport to="body">
     <div class="modal-backdrop" @click.self="emit('close')">
-      <div class="modal" role="dialog" aria-modal="true" :aria-label="words.title">
-        <button class="close" type="button" aria-label="Закрыть" @click="emit('close')">×</button>
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="words.title"
+      >
+        <button
+          class="close"
+          type="button"
+          aria-label="Закрыть"
+          @click="emit('close')"
+        >
+          ×
+        </button>
 
         <p class="modal-title">{{ words.title }}</p>
         <p class="modal-note">{{ summary }}</p>
@@ -63,8 +79,10 @@ useScrollLock()
         <div class="rows thin-scroll">
           <div v-for="r in rows" :key="r.id" class="row">
             <span class="row-id">{{ r.id }}</span>
-            <span class="row-title" :class="{ gone: !r.title }">{{ r.title ?? 'глава снята с сайта' }}</span>
-            <span class="row-num">{{ r.count.toLocaleString('ru') }}</span>
+            <span class="row-title" :class="{ gone: !r.title }">{{
+              r.title ?? "глава снята с сайта"
+            }}</span>
+            <span class="row-num">{{ r.count.toLocaleString("ru") }}</span>
           </div>
           <p v-if="!rows.length" class="empty">{{ words.empty }}</p>
         </div>
@@ -77,7 +95,7 @@ useScrollLock()
 .modal-backdrop {
   z-index: var(--z-modal);
   padding: 20px;
-  animation: fade-in .15s ease;
+  animation: fade-in 0.15s ease;
 }
 
 .modal {
@@ -88,7 +106,7 @@ useScrollLock()
   max-height: calc(100vh - 40px);
   max-height: calc(100dvh - 40px);
   padding: var(--space-24);
-  animation: slide-up .2s ease;
+  animation: slide-up 0.2s ease;
 }
 
 .close {
@@ -172,13 +190,23 @@ useScrollLock()
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-up {
-  from { transform: translateY(16px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @media (max-width: 560px) {

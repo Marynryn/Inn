@@ -1,23 +1,23 @@
 <script setup lang="ts">
-import type { ReelBanner } from '#shared/utils/reel'
+import type { ReelBanner } from "#shared/utils/reel";
 
 /**
  * Баннер барабана на главной — стоит вместо плашки игры, пока идёт ивент.
  * Кнопка открывает окно барабана; гость в нём увидит приглашение войти, так
  * что на самом баннере условие не пишем — он зовёт, а не объясняет правила.
  */
-const props = defineProps<{ banner: ReelBanner }>()
-const emit = defineEmits<{ open: [] }>()
+const props = defineProps<{ banner: ReelBanner }>();
+const emit = defineEmits<{ open: [] }>();
 
 // Картинки — переменными: какую показать, решает ширина экрана в CSS.
 // Без телефонной на телефоне та же широкая.
 const style = computed(() => {
-  const { desk, mob } = props.banner.images
-  const out: Record<string, string> = {}
-  if (desk) out['--banner-desk'] = `url("${desk}")`
-  if (mob || desk) out['--banner-mob'] = `url("${mob || desk}")`
-  return out
-})
+  const { desk, mob } = props.banner.images;
+  const out: Record<string, string> = {};
+  if (desk) out["--banner-desk"] = `url("${desk}")`;
+  if (mob || desk) out["--banner-mob"] = `url("${mob || desk}")`;
+  return out;
+});
 </script>
 
 <template>
@@ -27,7 +27,13 @@ const style = computed(() => {
         <p class="banner-title display">{{ banner.title }}</p>
         <p class="banner-text">{{ banner.text }}</p>
       </div>
-      <button class="banner-btn btn btn--primary btn--lg" type="button" @click="emit('open')">{{ banner.button }}</button>
+      <button
+        class="banner-btn btn btn--primary btn--lg"
+        type="button"
+        @click="emit('open')"
+      >
+        {{ banner.button }}
+      </button>
     </div>
   </aside>
 </template>
@@ -67,15 +73,15 @@ const style = computed(() => {
   font-size: 20px;
   font-weight: 600;
   color: var(--parchment);
-  text-shadow: 0 1px 8px rgba(0, 0, 0, .8);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
 }
 
 .banner-text {
   margin: 0;
   font-size: 13px;
   line-height: 1.45;
-  color: rgba(241, 230, 210, .82);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, .8);
+  color: rgba(241, 230, 210, 0.82);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
 }
 
 .banner-btn {

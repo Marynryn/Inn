@@ -1,6 +1,6 @@
-import { inArray, sql } from 'drizzle-orm'
-import { chapters, readingProgress } from '../../database/schema'
-import { useDb } from '../../utils/db'
+import { inArray, sql } from "drizzle-orm";
+import { chapters, readingProgress } from "../../database/schema";
+import { useDb } from "../../utils/db";
 
 /**
  * Переносит закладку из браузера на сервер — один раз, при первом входе. До
@@ -10,39 +10,50 @@ import { useDb } from '../../utils/db'
  * большая из двух. Человек мог читать и там, и там.
  */
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
-  const userId = (session.user as { id?: number } | undefined)?.id
-  if (!userId) return { ok: false }
+  const session = await getUserSession(event);
+  const userId = (session.user as { id?: number } | undefined)?.id;
+  if (!userId) return { ok: false };
 
-  const body = await readBody(event)
-  const read: string[] = Array.isArray(body?.read) ? body.read.map(String) : []
-  const scroll: Record<string, number> = body?.scroll && typeof body.scroll === 'object' ? body.scroll : {}
-  const lastReadId = body?.lastReadId ? String(body.lastReadId) : null
+  const body = await readBody(event);
+  const read: string[] = Array.isArray(body?.read) ? body.read.map(String) : [];
+  const scroll: Record<string, number> =
+    body?.scroll && typeof body.scroll === "object" ? body.scroll : {};
+  const lastReadId = body?.lastReadId ? String(body.lastReadId) : null;
 
-  const wanted = [...new Set([...read, ...Object.keys(scroll)])].slice(0, 500)
-  if (!wanted.length) return { ok: true, merged: 0 }
+  const wanted = [...new Set([...read, ...Object.keys(scroll)])].slice(0, 500);
+  if (!wanted.length) return { ok: true, merged: 0 };
 
-  const db = useDb()
+  const db = useDb();
 
   // Из браузера может приехать что угодно — в том числе главы, которых уже (или
   // ещё) нет. Их молча пропускаем: это перенос закладки, а не проверка ввода.
-  const known = await db.select({ id: chapters.id }).from(chapters).where(inArray(chapters.id, wanted))
-  const ids = wanted.filter(id => known.some(c => c.id === id))
+  const known = await db
+    .select({ id: chapters.id })
+    .from(chapters)
+    .where(inArray(chapters.id, wanted));
+  const ids = wanted.filter((id) => known.some((c) => c.id === id));
 
   for (const chapterId of ids) {
-    const value = Number(scroll[chapterId])
-    const safeScroll = Number.isFinite(value) ? Math.min(Math.max(value, 0), 1) : 0
+    const value = Number(scroll[chapterId]);
+    const safeScroll = Number.isFinite(value)
+      ? Math.min(Math.max(value, 0), 1)
+      : 0;
 
     await db
       .insert(readingProgress)
-      .values({ userId, chapterId, isRead: read.includes(chapterId), scroll: safeScroll })
+      .values({
+        userId,
+        chapterId,
+        isRead: read.includes(chapterId),
+        scroll: safeScroll,
+      })
       .onConflictDoUpdate({
         target: [readingProgress.userId, readingProgress.chapterId],
         set: {
           isRead: sql`is_read OR ${read.includes(chapterId) ? 1 : 0}`,
           scroll: sql`max(scroll, ${safeScroll})`,
         },
-      })
+      });
   }
 
   // Закладку двигаем последней: последняя глава определяется по времени
@@ -54,8 +65,8 @@ export default defineEventHandler(async (event) => {
       .onConflictDoUpdate({
         target: [readingProgress.userId, readingProgress.chapterId],
         set: { updatedAt: sql`(datetime('now'))` },
-      })
+      });
   }
 
-  return { ok: true, merged: ids.length }
-})
+  return { ok: true, merged: ids.length };
+});

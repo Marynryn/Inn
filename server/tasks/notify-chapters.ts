@@ -1,4 +1,4 @@
-import { notifyChapters } from '../utils/notify-chapters'
+import { notifyChapters } from "../utils/notify-chapters";
 
 /**
  * Будильник рассылки живёт внутри приложения, а не в GitHub Actions:
@@ -11,14 +11,14 @@ import { notifyChapters } from '../utils/notify-chapters'
  */
 export default defineTask({
   meta: {
-    name: 'notify-chapters',
-    description: 'Рассылает в телеграм главы, про которые ещё не писали',
+    name: "notify-chapters",
+    description: "Рассылает в телеграм главы, про которые ещё не писали",
   },
   async run() {
     // В деве расписание тоже поднимается, а .env держит боевого бота —
     // без этой проверки локальный сервер разослал бы уведомления по-настоящему.
-    if (import.meta.dev) return { result: { skipped: 'dev' } }
+    if (import.meta.dev) return { result: { skipped: "dev" } };
 
-    return { result: await notifyChapters({ touchLastNotify: true }) }
+    return { result: await notifyChapters({ touchLastNotify: true }) };
   },
-})
+});

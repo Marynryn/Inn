@@ -1,4 +1,4 @@
-import type { H3Event } from 'h3'
+import type { H3Event } from "h3";
 
 /**
  * Адрес, по которому сайт открыт у человека. Обычно это Host запроса, но
@@ -16,13 +16,13 @@ import type { H3Event } from 'h3'
  *
  * Список зеркал — MIRROR_HOSTS через запятую; по умолчанию одно .ru-зеркало.
  */
-const DEFAULT_MIRRORS = 'inn.taverna-book.ru'
+const DEFAULT_MIRRORS = "inn.taverna-book.ru";
 
 export function mirrorHosts(): string[] {
   return (process.env.MIRROR_HOSTS ?? DEFAULT_MIRRORS)
-    .split(',')
-    .map(h => h.trim().toLowerCase())
-    .filter(Boolean)
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
 }
 
 /**
@@ -31,23 +31,29 @@ export function mirrorHosts(): string[] {
  * домене Railway кладёт туда его, и основной сайт принимался бы за зеркало.
  */
 export function isInternalHost(hostname: string): boolean {
-  return /\.up\.railway\.app$/i.test(hostname)
+  return /\.up\.railway\.app$/i.test(hostname);
 }
 
 export function publicOrigin(event: H3Event): string {
-  const seen = getRequestURL(event)
-  const forwarded = getRequestURL(event, { xForwardedHost: true, xForwardedProto: true })
-  const mirrors = mirrorHosts()
+  const seen = getRequestURL(event);
+  const forwarded = getRequestURL(event, {
+    xForwardedHost: true,
+    xForwardedProto: true,
+  });
+  const mirrors = mirrorHosts();
 
-  if (forwarded.hostname !== seen.hostname && mirrors.includes(forwarded.hostname)) {
-    return forwarded.origin
+  if (
+    forwarded.hostname !== seen.hostname &&
+    mirrors.includes(forwarded.hostname)
+  ) {
+    return forwarded.origin;
   }
 
   if (isInternalHost(seen.hostname) && mirrors.length === 1) {
-    return `https://${mirrors[0]}`
+    return `https://${mirrors[0]}`;
   }
 
-  return seen.origin
+  return seen.origin;
 }
 
 /**
@@ -57,6 +63,8 @@ export function publicOrigin(event: H3Event): string {
  * вернуть человека.
  */
 export function viaMirror(event: H3Event): string | null {
-  const host = new URL(publicOrigin(event)).hostname
-  return host !== getRequestURL(event).hostname && mirrorHosts().includes(host) ? host : null
+  const host = new URL(publicOrigin(event)).hostname;
+  return host !== getRequestURL(event).hostname && mirrorHosts().includes(host)
+    ? host
+    : null;
 }

@@ -1,32 +1,51 @@
-import { useDb } from '../../utils/db'
-import { siteSettings } from '../../database/schema'
+import { useDb } from "../../utils/db";
+import { siteSettings } from "../../database/schema";
 
 const ALLOWED_KEYS = [
-  'hero_title', 'hero_subtitle', 'hero_ticker', 'hero_ticker_on', 'ledger_note', 'footer_text',
-  'telegram_url', 'boosty_url', 'tribute_url',
-  'about_title', 'about_text',
-  'error_404_sub', 'update_schedule', 'original_chapters_total', 'original_words_ratio',
-  'game_max_volume', 'game_cta_title', 'game_cta_text',
-  'tg_cta_title', 'tg_cta_text',
-  'characters_title', 'characters_subtitle',
-  'season_theme', 'halloween_reader_bg',
-]
+  "hero_title",
+  "hero_subtitle",
+  "hero_ticker",
+  "hero_ticker_on",
+  "ledger_note",
+  "footer_text",
+  "telegram_url",
+  "boosty_url",
+  "tribute_url",
+  "about_title",
+  "about_text",
+  "error_404_sub",
+  "update_schedule",
+  "original_chapters_total",
+  "original_words_ratio",
+  "game_max_volume",
+  "game_cta_title",
+  "game_cta_text",
+  "tg_cta_title",
+  "tg_cta_text",
+  "characters_title",
+  "characters_subtitle",
+  "season_theme",
+  "halloween_reader_bg",
+];
 
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
-  if (session.user?.role !== 'admin') throw createError({ statusCode: 403 })
+  const session = await getUserSession(event);
+  if (session.user?.role !== "admin") throw createError({ statusCode: 403 });
 
-  const body = await readBody(event) as Record<string, string>
-  const db = useDb()
+  const body = (await readBody(event)) as Record<string, string>;
+  const db = useDb();
 
   for (const key of ALLOWED_KEYS) {
     if (key in body) {
       await db
         .insert(siteSettings)
         .values({ key, value: String(body[key]) })
-        .onConflictDoUpdate({ target: siteSettings.key, set: { value: String(body[key]) } })
+        .onConflictDoUpdate({
+          target: siteSettings.key,
+          set: { value: String(body[key]) },
+        });
     }
   }
 
-  return { ok: true }
-})
+  return { ok: true };
+});

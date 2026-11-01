@@ -1,12 +1,31 @@
-import { randomUUID } from 'node:crypto'
-import type { H3Event } from 'h3'
-import { and, count, desc, eq, or, sql } from 'drizzle-orm'
-import { GAME_LAST_VOLUME, type GameMode, type GameStatus } from '#shared/utils/gameColumns'
-import { chapters, gameResults, gameSessions, gameStats, siteSettings } from '../database/schema'
-import { useDb } from './db'
-import { MSK_OFFSET_MS, mskDay } from './msk'
-import { DAILY_POOL, clampVolume, dailyCharacter, findAnyCharacter, findCharacter, poolCharacters, randomCharacter, type Pool } from './game-data'
-import { buildAnswerCard, buildGuessRow, visibleColumns } from './game-round'
+import { randomUUID } from "node:crypto";
+import type { H3Event } from "h3";
+import { and, count, desc, eq, or, sql } from "drizzle-orm";
+import {
+  GAME_LAST_VOLUME,
+  type GameMode,
+  type GameStatus,
+} from "#shared/utils/gameColumns";
+import {
+  chapters,
+  gameResults,
+  gameSessions,
+  gameStats,
+  siteSettings,
+} from "../database/schema";
+import { useDb } from "./db";
+import { MSK_OFFSET_MS, mskDay } from "./msk";
+import {
+  DAILY_POOL,
+  clampVolume,
+  dailyCharacter,
+  findAnyCharacter,
+  findCharacter,
+  poolCharacters,
+  randomCharacter,
+  type Pool,
+} from "./game-data";
+import { buildAnswerCard, buildGuessRow, visibleColumns } from "./game-round";
 
 /**
  * Партии игры. Ответ, список попыток и статус лежат в базе; браузер держит
@@ -14,26 +33,26 @@ import { buildAnswerCard, buildGuessRow, visibleColumns } from './game-round'
  * ничего, кроме идентификатора игрока.
  */
 
-const PLAYER_COOKIE = 'wi_player'
+const PLAYER_COOKIE = "wi_player";
 
 /** Потолок попыток на партию: и от бесконечной таблицы, и от перебора базы ботом. */
-export const MAX_GUESSES = 100
+export const MAX_GUESSES = 100;
 
-type SessionRow = typeof gameSessions.$inferSelect
+type SessionRow = typeof gameSessions.$inferSelect;
 
 export function playerKey(event: H3Event): string {
-  const existing = getCookie(event, PLAYER_COOKIE)
-  if (existing && /^[0-9a-f-]{36}$/i.test(existing)) return existing
+  const existing = getCookie(event, PLAYER_COOKIE);
+  if (existing && /^[0-9a-f-]{36}$/i.test(existing)) return existing;
 
-  const key = randomUUID()
+  const key = randomUUID();
   setCookie(event, PLAYER_COOKIE, key, {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: "lax",
     secure: !import.meta.dev,
-    path: '/',
+    path: "/",
     maxAge: 60 * 60 * 24 * 365,
-  })
-  return key
+  });
+  return key;
 }
 
 /**
@@ -42,14 +61,14 @@ export function playerKey(event: H3Event): string {
  * устройства; аккаунт же нужен и для достижений — без входа ранжировать некого.
  */
 export async function playerIdentity(event: H3Event) {
-  const session = await getUserSession(event)
-  const user = session.user as { id?: number; role?: string } | undefined
+  const session = await getUserSession(event);
+  const user = session.user as { id?: number; role?: string } | undefined;
 
   return {
     player: playerKey(event),
     userId: user?.id ?? null,
-    isAdmin: user?.role === 'admin',
-  }
+    isAdmin: user?.role === "admin",
+  };
 }
 
 /**
@@ -58,34 +77,42 @@ export async function playerIdentity(event: H3Event) {
  * отклоняет сама, и это ровно то поведение, которое нужно.
  */
 async function recordResult(row: SessionRow, won: boolean, guesses: number) {
-  if (!row.userId) return
+  if (!row.userId) return;
 
-  const db = useDb()
+  const db = useDb();
   await db
     .insert(gameResults)
-    .values({ userId: row.userId, day: row.day, mode: row.mode as GameMode, guesses, won })
-    .onConflictDoNothing()
+    .values({
+      userId: row.userId,
+      day: row.day,
+      mode: row.mode as GameMode,
+      guesses,
+      won,
+    })
+    .onConflictDoNothing();
 }
 
 const parseGuesses = (row: SessionRow): string[] => {
   try {
-    const parsed = JSON.parse(row.guesses)
-    return Array.isArray(parsed) ? parsed : []
+    const parsed = JSON.parse(row.guesses);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return []
+    return [];
   }
-}
+};
 
 /** Момент смены персонажа дня — ближайшая полночь по Москве. */
 export const nextDailyAt = (day: string) =>
-  new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000 - MSK_OFFSET_MS).toISOString()
+  new Date(
+    Date.parse(`${day}T00:00:00Z`) + 86_400_000 - MSK_OFFSET_MS,
+  ).toISOString();
 
 /**
  * Сколько глав тома должно выйти, чтобы его персонажи попали в игру. Пока
  * перевод только начал том, большинство его героев читателю ещё не встретились,
  * а их имена не переведены (реш. 24.10.2026).
  */
-export const VOLUME_OPENS_AFTER = 35
+export const VOLUME_OPENS_AFTER = 35;
 
 /**
  * Граница перевода: самый поздний том, в котором вышло хотя бы
@@ -95,18 +122,19 @@ export const VOLUME_OPENS_AFTER = 35
  * отдаём весь диапазон.
  */
 export async function translatedVolume(): Promise<number> {
-  const db = useDb()
+  const db = useDb();
   const rows = await db
     .select({ volume: chapters.volume, count: count() })
     .from(chapters)
     .where(eq(chapters.isPublished, true))
-    .groupBy(chapters.volume)
+    .groupBy(chapters.volume);
 
-  if (!rows.length) return GAME_LAST_VOLUME
+  if (!rows.length) return GAME_LAST_VOLUME;
   // Смотрим только на последний том: все тома до него перевод уже прошёл.
-  const latest = rows.reduce((a, b) => (b.volume > a.volume ? b : a))
-  const ready = latest.count >= VOLUME_OPENS_AFTER ? latest.volume : latest.volume - 1
-  return clampVolume(Math.max(ready, 1))
+  const latest = rows.reduce((a, b) => (b.volume > a.volume ? b : a));
+  const ready =
+    latest.count >= VOLUME_OPENS_AFTER ? latest.volume : latest.volume - 1;
+  return clampVolume(Math.max(ready, 1));
 }
 
 /**
@@ -117,27 +145,28 @@ export async function translatedVolume(): Promise<number> {
  * оттуда. Иначе публикация главы нового тома посреди дня выдала бы опоздавшим
  * игрокам другого персонажа, чем тем, кто сыграл утром.
  */
-const DAY_CAP_KEY = 'game_day_cap' // значение вида '2026-09-01:4'
+const DAY_CAP_KEY = "game_day_cap"; // значение вида '2026-09-01:4'
 
 const setting = async (key: string) => {
-  const db = useDb()
+  const db = useDb();
   const [row] = await db
     .select({ value: siteSettings.value })
     .from(siteSettings)
-    .where(eq(siteSettings.key, key))
+    .where(eq(siteSettings.key, key));
 
-  return row?.value ?? ''
-}
+  return row?.value ?? "";
+};
 
 export async function dailyMaxVolume(day = mskDay()): Promise<number> {
   // Потолок дня, если он уже зафиксирован. Держим его отдельной записью, а не
   // вычитываем из начатых партий: у старых партий столбца потолка не было вовсе,
   // и одна такая строка задавала бы всему дню неверное значение.
-  const [frozenDay, frozenCap] = (await setting(DAY_CAP_KEY)).split(':')
-  if (frozenDay === day && Number(frozenCap) >= 1) return clampVolume(frozenCap)
+  const [frozenDay, frozenCap] = (await setting(DAY_CAP_KEY)).split(":");
+  if (frozenDay === day && Number(frozenCap) >= 1)
+    return clampVolume(frozenCap);
 
-  const manual = Number(await setting('game_max_volume'))
-  return manual >= 1 ? clampVolume(manual) : translatedVolume()
+  const manual = Number(await setting("game_max_volume"));
+  return manual >= 1 ? clampVolume(manual) : translatedVolume();
 }
 
 /**
@@ -146,11 +175,14 @@ export async function dailyMaxVolume(day = mskDay()): Promise<number> {
  * опоздавшие получили бы другого персонажа, чем те, кто сыграл утром.
  */
 async function freezeDailyCap(day: string, cap: number) {
-  const db = useDb()
+  const db = useDb();
   await db
     .insert(siteSettings)
     .values({ key: DAY_CAP_KEY, value: `${day}:${cap}` })
-    .onConflictDoUpdate({ target: siteSettings.key, set: { value: `${day}:${cap}` } })
+    .onConflictDoUpdate({
+      target: siteSettings.key,
+      set: { value: `${day}:${cap}` },
+    });
 }
 
 /**
@@ -161,12 +193,12 @@ async function bumpStats(
   day: string,
   mode: GameMode,
   isAdmin: boolean,
-  add: Partial<Record<'played' | 'won' | 'guesses' | 'winGuesses', number>>,
+  add: Partial<Record<"played" | "won" | "guesses" | "winGuesses", number>>,
 ) {
-  if (isAdmin) return
+  if (isAdmin) return;
 
-  const db = useDb()
-  const { played = 0, won = 0, guesses = 0, winGuesses = 0 } = add
+  const db = useDb();
+  const { played = 0, won = 0, guesses = 0, winGuesses = 0 } = add;
 
   await db
     .insert(gameStats)
@@ -179,29 +211,48 @@ async function bumpStats(
         guesses: sql`guesses + ${guesses}`,
         winGuesses: sql`win_guesses + ${winGuesses}`,
       },
-    })
+    });
 }
 
-async function createDaily(player: string, day: string, isAdmin: boolean, userId: number | null): Promise<SessionRow> {
-  const db = useDb()
-  const maxVolume = await dailyMaxVolume(day)
-  await freezeDailyCap(day, maxVolume)
+async function createDaily(
+  player: string,
+  day: string,
+  isAdmin: boolean,
+  userId: number | null,
+): Promise<SessionRow> {
+  const db = useDb();
+  const maxVolume = await dailyMaxVolume(day);
+  await freezeDailyCap(day, maxVolume);
 
-  const answer = await dailyCharacter(day, maxVolume)
+  const answer = await dailyCharacter(day, maxVolume);
 
   await db
     .insert(gameSessions)
-    .values({ player, userId, mode: 'daily', pool: DAILY_POOL, maxVolume, day, answerId: answer.id })
-    .onConflictDoNothing()
+    .values({
+      player,
+      userId,
+      mode: "daily",
+      pool: DAILY_POOL,
+      maxVolume,
+      day,
+      answerId: answer.id,
+    })
+    .onConflictDoNothing();
 
-  await bumpStats(day, 'daily', isAdmin, { played: 1 })
+  await bumpStats(day, "daily", isAdmin, { played: 1 });
 
   const [row] = await db
     .select()
     .from(gameSessions)
-    .where(and(eq(gameSessions.player, player), eq(gameSessions.mode, 'daily'), eq(gameSessions.day, day)))
+    .where(
+      and(
+        eq(gameSessions.player, player),
+        eq(gameSessions.mode, "daily"),
+        eq(gameSessions.day, day),
+      ),
+    );
 
-  return row!
+  return row!;
 }
 
 async function createEndless(
@@ -211,28 +262,41 @@ async function createEndless(
   isAdmin = false,
   userId: number | null = null,
 ): Promise<SessionRow> {
-  const db = useDb()
-  const cap = clampVolume(maxVolume)
-  const answer = await randomCharacter(pool, cap)
-  const day = mskDay()
+  const db = useDb();
+  const cap = clampVolume(maxVolume);
+  const answer = await randomCharacter(pool, cap);
+  const day = mskDay();
 
-  await bumpStats(day, 'endless', isAdmin, { played: 1 })
+  await bumpStats(day, "endless", isAdmin, { played: 1 });
 
   // Прошлые свободные партии не храним: их незачем показывать и незачем
   // возвращать. У вошедшего сносим и партии с других его устройств — свободная
   // партия у человека одна.
   await db
     .delete(gameSessions)
-    .where(and(eq(gameSessions.mode, 'endless'), userId
-      ? or(eq(gameSessions.player, player), eq(gameSessions.userId, userId))
-      : eq(gameSessions.player, player)))
+    .where(
+      and(
+        eq(gameSessions.mode, "endless"),
+        userId
+          ? or(eq(gameSessions.player, player), eq(gameSessions.userId, userId))
+          : eq(gameSessions.player, player),
+      ),
+    );
 
   const [row] = await db
     .insert(gameSessions)
-    .values({ player, userId, mode: 'endless', pool, maxVolume: cap, day, answerId: answer.id })
-    .returning()
+    .values({
+      player,
+      userId,
+      mode: "endless",
+      pool,
+      maxVolume: cap,
+      day,
+      answerId: answer.id,
+    })
+    .returning();
 
-  return row!
+  return row!;
 }
 
 /**
@@ -240,13 +304,19 @@ async function createEndless(
  * в игру — приписываем ей его: иначе сегодняшняя партия не попала бы в
  * достижения только из-за того, что войти догадались в середине дня.
  */
-async function claimSession(row: SessionRow, userId: number | null): Promise<SessionRow> {
-  if (!userId || row.userId) return row
+async function claimSession(
+  row: SessionRow,
+  userId: number | null,
+): Promise<SessionRow> {
+  if (!userId || row.userId) return row;
 
-  const db = useDb()
-  await db.update(gameSessions).set({ userId }).where(eq(gameSessions.id, row.id))
+  const db = useDb();
+  await db
+    .update(gameSessions)
+    .set({ userId })
+    .where(eq(gameSessions.id, row.id));
 
-  return { ...row, userId }
+  return { ...row, userId };
 }
 
 /**
@@ -254,22 +324,28 @@ async function claimSession(row: SessionRow, userId: number | null): Promise<Ses
  * начал на телефоне, продолжил на ноутбуке. У дня ищем именно сегодняшнюю,
  * у свободной — последнюю.
  */
-async function userSession(userId: number | null, mode: GameMode, day: string): Promise<SessionRow | undefined> {
-  if (!userId) return undefined
+async function userSession(
+  userId: number | null,
+  mode: GameMode,
+  day: string,
+): Promise<SessionRow | undefined> {
+  if (!userId) return undefined;
 
-  const db = useDb()
+  const db = useDb();
   const [row] = await db
     .select()
     .from(gameSessions)
-    .where(and(
-      eq(gameSessions.userId, userId),
-      eq(gameSessions.mode, mode),
-      ...(mode === 'daily' ? [eq(gameSessions.day, day)] : []),
-    ))
+    .where(
+      and(
+        eq(gameSessions.userId, userId),
+        eq(gameSessions.mode, mode),
+        ...(mode === "daily" ? [eq(gameSessions.day, day)] : []),
+      ),
+    )
     .orderBy(desc(gameSessions.id))
-    .limit(1)
+    .limit(1);
 
-  return row
+  return row;
 }
 
 /**
@@ -285,65 +361,83 @@ export async function currentSession(
   isAdmin = false,
   userId: number | null = null,
 ): Promise<SessionRow> {
-  const db = useDb()
+  const db = useDb();
 
-  const day = mskDay()
-  const own = await userSession(userId, mode, day)
-  if (own) return own
+  const day = mskDay();
+  const own = await userSession(userId, mode, day);
+  if (own) return own;
 
-  if (mode === 'daily') {
+  if (mode === "daily") {
     const [row] = await db
       .select()
       .from(gameSessions)
-      .where(and(eq(gameSessions.player, player), eq(gameSessions.mode, 'daily'), eq(gameSessions.day, day)))
+      .where(
+        and(
+          eq(gameSessions.player, player),
+          eq(gameSessions.mode, "daily"),
+          eq(gameSessions.day, day),
+        ),
+      );
 
-    return row ? claimSession(row, userId) : createDaily(player, day, isAdmin, userId)
+    return row
+      ? claimSession(row, userId)
+      : createDaily(player, day, isAdmin, userId);
   }
 
   const [row] = await db
     .select()
     .from(gameSessions)
-    .where(and(eq(gameSessions.player, player), eq(gameSessions.mode, 'endless')))
+    .where(
+      and(eq(gameSessions.player, player), eq(gameSessions.mode, "endless")),
+    )
     .orderBy(desc(gameSessions.id))
-    .limit(1)
+    .limit(1);
 
-  return row ? claimSession(row, userId) : createEndless(player, pool, maxVolume, isAdmin, userId)
+  return row
+    ? claimSession(row, userId)
+    : createEndless(player, pool, maxVolume, isAdmin, userId);
 }
 
-export const startEndless = createEndless
+export const startEndless = createEndless;
 
 /** Строчка «сегодня угадали N игроков» — только про персонажа дня. */
 async function dailySummary(day: string) {
-  const db = useDb()
+  const db = useDb();
   const [row] = await db
     .select()
     .from(gameStats)
-    .where(and(eq(gameStats.day, day), eq(gameStats.mode, 'daily')))
+    .where(and(eq(gameStats.day, day), eq(gameStats.mode, "daily")));
 
   return {
     played: row?.played ?? 0,
     won: row?.won ?? 0,
     // Среднее считаем по победителям: попытки проигравших сюда мешать нельзя.
-    averageGuesses: row?.won ? Math.round((row.winGuesses / row.won) * 10) / 10 : 0,
-  }
+    averageGuesses: row?.won
+      ? Math.round((row.winGuesses / row.won) * 10) / 10
+      : 0,
+  };
 }
 
 async function sessionAnswer(row: SessionRow) {
-  const answer = await findAnyCharacter(row.answerId)
-  if (!answer) throw createError({ statusCode: 500, message: 'Загаданный персонаж пропал из базы' })
-  return answer
+  const answer = await findAnyCharacter(row.answerId);
+  if (!answer)
+    throw createError({
+      statusCode: 500,
+      message: "Загаданный персонаж пропал из базы",
+    });
+  return answer;
 }
 
 /** Полное состояние партии для страницы. Ответ подмешивается только доигранным. */
 export async function sessionState(row: SessionRow) {
-  const guessIds = parseGuesses(row)
-  const answer = await sessionAnswer(row)
-  const finished = row.status !== 'playing'
+  const guessIds = parseGuesses(row);
+  const answer = await sessionAnswer(row);
+  const finished = row.status !== "playing";
 
-  const rows = []
+  const rows = [];
   for (const id of guessIds) {
-    const guess = await findAnyCharacter(id)
-    if (guess) rows.push(await buildGuessRow(guess, answer, row.maxVolume))
+    const guess = await findAnyCharacter(id);
+    if (guess) rows.push(await buildGuessRow(guess, answer, row.maxVolume));
   }
 
   return {
@@ -356,74 +450,88 @@ export async function sessionState(row: SessionRow) {
     guesses: rows.reverse(), // свежая попытка сверху
     poolSize: (await poolCharacters(row.pool, row.maxVolume)).length,
     answer: finished ? await buildAnswerCard(answer, row.maxVolume) : null,
-    nextDailyAt: row.mode === 'daily' ? nextDailyAt(row.day) : null,
-    daily: row.mode === 'daily' ? await dailySummary(row.day) : null,
-  }
+    nextDailyAt: row.mode === "daily" ? nextDailyAt(row.day) : null,
+    daily: row.mode === "daily" ? await dailySummary(row.day) : null,
+  };
 }
 
 /** Записывает попытку и, если угадали, закрывает партию. */
-export async function applyGuess(row: SessionRow, guessId: string, isAdmin = false) {
-  const db = useDb()
+export async function applyGuess(
+  row: SessionRow,
+  guessId: string,
+  isAdmin = false,
+) {
+  const db = useDb();
 
-  if (row.status !== 'playing') {
-    throw createError({ statusCode: 409, message: 'Партия уже закончена' })
+  if (row.status !== "playing") {
+    throw createError({ statusCode: 409, message: "Партия уже закончена" });
   }
 
-  const guessed = parseGuesses(row)
+  const guessed = parseGuesses(row);
   if (guessed.includes(guessId)) {
-    throw createError({ statusCode: 409, message: 'Этого персонажа уже называли' })
+    throw createError({
+      statusCode: 409,
+      message: "Этого персонажа уже называли",
+    });
   }
   if (guessed.length >= MAX_GUESSES) {
-    throw createError({ statusCode: 429, message: 'Слишком много попыток в одной партии' })
+    throw createError({
+      statusCode: 429,
+      message: "Слишком много попыток в одной партии",
+    });
   }
 
   // Потолок тома проверяем и здесь: подсказки его учитывают, но запрос можно
   // послать и мимо страницы, а через ответ по чужому персонажу утекли бы признаки.
-  const guess = await findCharacter(guessId, row.pool, row.maxVolume)
-  if (!guess) throw createError({ statusCode: 404, message: 'Такого персонажа нет в наборе' })
+  const guess = await findCharacter(guessId, row.pool, row.maxVolume);
+  if (!guess)
+    throw createError({
+      statusCode: 404,
+      message: "Такого персонажа нет в наборе",
+    });
 
-  const answer = await sessionAnswer(row)
-  const won = guess.id === answer.id
-  const guesses = [...guessed, guess.id]
+  const answer = await sessionAnswer(row);
+  const won = guess.id === answer.id;
+  const guesses = [...guessed, guess.id];
 
   await db
     .update(gameSessions)
     .set({
       guesses: JSON.stringify(guesses),
-      status: won ? 'won' : 'playing',
+      status: won ? "won" : "playing",
       finishedAt: won ? new Date().toISOString() : null,
     })
-    .where(eq(gameSessions.id, row.id))
+    .where(eq(gameSessions.id, row.id));
 
   await bumpStats(row.day, row.mode as GameMode, isAdmin, {
     guesses: 1,
     ...(won ? { won: 1, winGuesses: guesses.length } : {}),
-  })
+  });
 
-  if (won) await recordResult(row, true, guesses.length)
+  if (won) await recordResult(row, true, guesses.length);
 
   return {
     row: await buildGuessRow(guess, answer, row.maxVolume),
-    status: (won ? 'won' : 'playing') as GameStatus,
+    status: (won ? "won" : "playing") as GameStatus,
     answer: won ? await buildAnswerCard(answer, row.maxVolume) : null,
-    daily: row.mode === 'daily' ? await dailySummary(row.day) : null,
-  }
+    daily: row.mode === "daily" ? await dailySummary(row.day) : null,
+  };
 }
 
 /** Сдаться: партия закрывается, ответ показывается. */
 export async function revealAnswer(row: SessionRow) {
-  const db = useDb()
+  const db = useDb();
 
-  if (row.status === 'playing') {
+  if (row.status === "playing") {
     await db
       .update(gameSessions)
-      .set({ status: 'revealed', finishedAt: new Date().toISOString() })
-      .where(eq(gameSessions.id, row.id))
+      .set({ status: "revealed", finishedAt: new Date().toISOString() })
+      .where(eq(gameSessions.id, row.id));
 
     // Сдача — тоже сыгранная партия: в рейтинге она считается попыткой без
     // победы, иначе процент угадываний считался бы только по удачным дням.
-    await recordResult(row, false, parseGuesses(row).length)
+    await recordResult(row, false, parseGuesses(row).length);
   }
 
-  return { ...row, status: 'revealed' as const }
+  return { ...row, status: "revealed" as const };
 }

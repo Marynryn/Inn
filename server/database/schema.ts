@@ -1,305 +1,395 @@
-import { sql } from 'drizzle-orm'
-import { integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { sql } from "drizzle-orm";
+import {
+  integer,
+  primaryKey,
+  real,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
 
-export const chapters = sqliteTable('chapters', {
-  id: text('id').primaryKey(), // '4.20'
-  volume: integer('volume').notNull(),
-  title: text('title').notNull(),
-  contentHtml: text('content_html').notNull().default(''),
-  epubPath: text('epub_path'), // storage/epubs/4-20.epub
-  publishedAt: text('published_at').notNull(), // ISO date string
-  sortOrder: integer('sort_order').notNull().default(0),
-  isPublished: integer('is_published', { mode: 'boolean' }).notNull().default(true),
-  notifiedAt: text('notified_at'), // когда про главу отправили уведомление в телеграм; NULL = ещё не отправляли
-  wordCount: integer('word_count').notNull().default(0), // слов в тексте; считается при сохранении, см. countWords
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+export const chapters = sqliteTable("chapters", {
+  id: text("id").primaryKey(), // '4.20'
+  volume: integer("volume").notNull(),
+  title: text("title").notNull(),
+  contentHtml: text("content_html").notNull().default(""),
+  epubPath: text("epub_path"), // storage/epubs/4-20.epub
+  publishedAt: text("published_at").notNull(), // ISO date string
+  sortOrder: integer("sort_order").notNull().default(0),
+  isPublished: integer("is_published", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  notifiedAt: text("notified_at"), // когда про главу отправили уведомление в телеграм; NULL = ещё не отправляли
+  wordCount: integer("word_count").notNull().default(0), // слов в тексте; считается при сохранении, см. countWords
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 // Почта и пароль необязательны: у входа через Google почта есть, у телеграма её
 // нет вовсе, а пароль заводится только у тех, кого создаёт админ.
-export const users = sqliteTable('users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  email: text('email').unique(),
-  passwordHash: text('password_hash'),
-  role: text('role', { enum: ['admin', 'reader'] }).notNull().default('reader'),
-  avatarUrl: text('avatar_url'),
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").unique(),
+  passwordHash: text("password_hash"),
+  role: text("role", { enum: ["admin", "reader"] })
+    .notNull()
+    .default("reader"),
+  avatarUrl: text("avatar_url"),
   // Выбранная рамка вокруг аватарки. NULL = без рамки. Выбрать можно только из
   // выигранных — что выиграно, лежит в user_frames.
-  avatarFrameId: integer('avatar_frame_id'),
-  displayName: text('display_name'),
-  displayNameKey: text('display_name_key'), // имя в одном написании: по нему имена и считаются занятыми
-  isBanned: integer('is_banned', { mode: 'boolean' }).notNull().default(false),
+  avatarFrameId: integer("avatar_frame_id"),
+  displayName: text("display_name"),
+  displayNameKey: text("display_name_key"), // имя в одном написании: по нему имена и считаются занятыми
+  isBanned: integer("is_banned", { mode: "boolean" }).notNull().default(false),
   // Вид страницы главы (тема, кегль, высота строки, ширина) — JSON. NULL = ещё
   // не настраивал; у гостя то же самое живёт в браузере.
-  readerSettings: text('reader_settings'),
+  readerSettings: text("reader_settings"),
   // «О себе» на публичной странице читателя. NULL = не заполнял, и блока там нет.
-  about: text('about'),
+  about: text("about"),
   // Публичный код — в адресе страницы читателя и в имени файла аватарки.
   // Номер туда не идёт: по нему видно, сколько на сайте читателей. Ставит его
   // триггер базы при вставке, см. migrate.
-  publicId: text('public_id'),
+  publicId: text("public_id"),
   // Надетый скин публичной страницы. NULL = без скина.
-  skinId: integer('skin_id'),
+  skinId: integer("skin_id"),
   // Надетая фигурка у имени — id из каталога в коде. NULL = без фигурки.
-  figure: text('figure'),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+  figure: text("figure"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 // Привязка аккаунта к способу входа. Один пользователь может держать и Google, и
 // телеграм — вход любым из них приводит в тот же профиль.
-export const userIdentities = sqliteTable('user_identities', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: integer('user_id').notNull(),
-  provider: text('provider', { enum: ['google', 'telegram'] }).notNull(),
-  providerUserId: text('provider_user_id').notNull(),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+export const userIdentities = sqliteTable("user_identities", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
+  provider: text("provider", { enum: ["google", "telegram"] }).notNull(),
+  providerUserId: text("provider_user_id").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 // Каталог рамок для аватарок. Картинки лежат на диске рядом с аватарками, в
 // базе — только имя файла: рамка заводится из админки, и выкатки сайта ради
 // новой картинки быть не должно.
-export const avatarFrames = sqliteTable('avatar_frames', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull(),
-  file: text('file').notNull(), // frame-3.webp
-  fit: real('fit').notNull().default(0.72), // доля картинки под аватарку
+export const avatarFrames = sqliteTable("avatar_frames", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  file: text("file").notNull(), // frame-3.webp
+  fit: real("fit").notNull().default(0.72), // доля картинки под аватарку
   // Участвует ли рамка в случайной раздаче на ивентах. Снятая с раздачи рамка
   // остаётся у тех, кто её уже выиграл: редкость — это и есть смысл рамки.
-  inPool: integer('in_pool', { mode: 'boolean' }).notNull().default(true),
+  inPool: integer("in_pool", { mode: "boolean" }).notNull().default(true),
   // Рамка новичка: достаётся при регистрации и сразу надевается. Такая рамка
   // одна на весь сайт — вторая отметка снимает первую.
-  isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+  isDefault: integer("is_default", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 // Что человек выиграл. Рамкой можно выбрать только строку отсюда — без этой
 // таблицы рамка была бы не наградой, а просто настройкой.
-export const userFrames = sqliteTable('user_frames', {
-  userId: integer('user_id').notNull(),
-  frameId: integer('frame_id').notNull(),
-  grantedAt: text('granted_at').notNull().default(sql`(datetime('now'))`),
-}, t => [primaryKey({ columns: [t.userId, t.frameId] })])
+export const userFrames = sqliteTable(
+  "user_frames",
+  {
+    userId: integer("user_id").notNull(),
+    frameId: integer("frame_id").notNull(),
+    grantedAt: text("granted_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.frameId] })],
+);
 
 // Скины публичной страницы читателя — как рамки, только для страницы, а не для
 // аватарки. Каталог в базе, картинка на диске: новый скин не требует выкатки.
 // Эффекты (паучок на нити, пылинки) рисует код, скин лишь отмечает, какие нужны.
-export const profileSkins = sqliteTable('profile_skins', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull(),
-  file: text('file').notNull(), // картинка для углов: skin-1-….png
-  accent: text('accent').notNull().default('#c9b8e6'), // цвет цифр и мелочей
-  tint: text('tint').notNull().default('#24212a'), // фон карточки
-  effects: text('effects').notNull().default(''), // через запятую: spider,dust
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+export const profileSkins = sqliteTable("profile_skins", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  file: text("file").notNull(), // картинка для углов: skin-1-….png
+  accent: text("accent").notNull().default("#c9b8e6"), // цвет цифр и мелочей
+  tint: text("tint").notNull().default("#24212a"), // фон карточки
+  effects: text("effects").notNull().default(""), // через запятую: spider,dust
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 // Выданные скины. Надеть можно только отсюда — как и с рамками.
-export const userSkins = sqliteTable('user_skins', {
-  userId: integer('user_id').notNull(),
-  skinId: integer('skin_id').notNull(),
-  grantedAt: text('granted_at').notNull().default(sql`(datetime('now'))`),
-}, t => [primaryKey({ columns: [t.userId, t.skinId] })])
+export const userSkins = sqliteTable(
+  "user_skins",
+  {
+    userId: integer("user_id").notNull(),
+    skinId: integer("skin_id").notNull(),
+    grantedAt: text("granted_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.skinId] })],
+);
 
 // Выданные фигурки у имени. Каталог — в коде (shared/utils/nameFigures), здесь
 // только у кого какая есть. Надеть можно только отсюда.
-export const userFigures = sqliteTable('user_figures', {
-  userId: integer('user_id').notNull(),
-  figure: text('figure').notNull(),
-  grantedAt: text('granted_at').notNull().default(sql`(datetime('now'))`),
-}, t => [primaryKey({ columns: [t.userId, t.figure] })])
+export const userFigures = sqliteTable(
+  "user_figures",
+  {
+    userId: integer("user_id").notNull(),
+    figure: text("figure").notNull(),
+    grantedAt: text("granted_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.figure] })],
+);
 // Барабан — розыгрыш рамок на ивенте. Идёт один за раз; пока идёт, каждый
 // читатель крутит раз в день (по Москве).
-export const reels = sqliteTable('reels', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  title: text('title').notNull(),
-  status: text('status', { enum: ['draft', 'running', 'finished'] }).notNull().default('draft'),
-  startedAt: text('started_at'),
-  finishedAt: text('finished_at'),
+export const reels = sqliteTable("reels", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  status: text("status", { enum: ["draft", "running", "finished"] })
+    .notNull()
+    .default("draft"),
+  startedAt: text("started_at"),
+  finishedAt: text("finished_at"),
   // Проба на проде: барабан видят и крутят только админы, читателям его нет.
-  adminsOnly: integer('admins_only', { mode: 'boolean' }).notNull().default(false),
-  spinsPerDay: integer('spins_per_day').notNull().default(1), // попыток в день у читателя
+  adminsOnly: integer("admins_only", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  spinsPerDay: integer("spins_per_day").notNull().default(1), // попыток в день у читателя
   // Изменённые тексты окна — JSON; чего нет, то по умолчанию (shared/utils/reel).
-  texts: text('texts', { mode: 'json' }).$type<Record<string, string>>(),
+  texts: text("texts", { mode: "json" }).$type<Record<string, string>>(),
   // Фон окна: файл в storage/reel, затемнение (%) и размытие под линией (px).
-  background: text('background'),
-  bgDim: integer('bg_dim').notNull().default(35),
-  bgBlur: integer('bg_blur').notNull().default(6),
+  background: text("background"),
+  bgDim: integer("bg_dim").notNull().default(35),
+  bgBlur: integer("bg_blur").notNull().default(6),
   // Баннер барабана на главной вместо плашки игры: картинки для широкого
   // экрана и для телефона, файлы в storage/reel. Нет картинки — тёмный фон.
-  bannerDesk: text('banner_desk'),
-  bannerMob: text('banner_mob'),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+  bannerDesk: text("banner_desk"),
+  bannerMob: text("banner_mob"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 // Сегмент барабана — один символ в окошке. С рамкой, фигуркой или скином —
 // приз, без них — сценка из таверны: картинка и пара строк вместо пустоты.
-export const reelSegments = sqliteTable('reel_segments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  reelId: integer('reel_id').notNull(),
-  sortOrder: integer('sort_order').notNull().default(0),
-  label: text('label').notNull(),
-  frameId: integer('frame_id'), // приз-рамка
-  figure: text('figure'), // приз-фигурка у имени
-  skinId: integer('skin_id'), // приз-скин страницы; ни рамки, ни фигурки, ни скина — сценка
-  image: text('image'), // картинка сценки, файл в storage/reel
-  text: text('text'), // что сказать тому, кому выпала сценка
-  weight: integer('weight').notNull().default(0), // шанс в десятых долях процента: 1000 = 100%
-  stock: integer('stock'), // сколько раз приз можно выдать всего; NULL = без ограничений
-})
+export const reelSegments = sqliteTable("reel_segments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  reelId: integer("reel_id").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  label: text("label").notNull(),
+  frameId: integer("frame_id"), // приз-рамка
+  figure: text("figure"), // приз-фигурка у имени
+  skinId: integer("skin_id"), // приз-скин страницы; ни рамки, ни фигурки, ни скина — сценка
+  image: text("image"), // картинка сценки, файл в storage/reel
+  text: text("text"), // что сказать тому, кому выпала сценка
+  weight: integer("weight").notNull().default(0), // шанс в десятых долях процента: 1000 = 100%
+  stock: integer("stock"), // сколько раз приз можно выдать всего; NULL = без ограничений
+});
 
 // Попытка читателя. N-я попытка за день пишется один раз — это держит
 // уникальный индекс (барабан, человек, день, номер), а не проверка в коде:
 // двойной клик иначе проскочил бы между чтением и записью.
-export const reelSpins = sqliteTable('reel_spins', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  reelId: integer('reel_id').notNull(),
-  userId: integer('user_id').notNull(),
-  day: text('day').notNull(), // '2026-09-30' по Москве
-  attempt: integer('attempt').notNull().default(1), // какая это попытка за день
-  segmentId: integer('segment_id').notNull(),
+export const reelSpins = sqliteTable("reel_spins", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  reelId: integer("reel_id").notNull(),
+  userId: integer("user_id").notNull(),
+  day: text("day").notNull(), // '2026-09-30' по Москве
+  attempt: integer("attempt").notNull().default(1), // какая это попытка за день
+  segmentId: integer("segment_id").notNull(),
   // won — приз выдан; duplicate — выпал тот, что уже есть; scene — сценка.
-  outcome: text('outcome', { enum: ['won', 'duplicate', 'scene'] }).notNull(),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+  outcome: text("outcome", { enum: ["won", "duplicate", "scene"] }).notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 // Гости, которые открыли барабан, но крутить без входа не могли. Строка — один
 // браузер на барабан; вместо кода браузера — его отпечаток (utils/visitor).
-export const reelGuestTries = sqliteTable('reel_guest_tries', {
-  reelId: integer('reel_id').notNull(),
-  visitor: text('visitor').notNull(),
-}, t => [primaryKey({ columns: [t.reelId, t.visitor] })])
+export const reelGuestTries = sqliteTable(
+  "reel_guest_tries",
+  {
+    reelId: integer("reel_id").notNull(),
+    visitor: text("visitor").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.reelId, t.visitor] })],
+);
 
-export const comments = sqliteTable('comments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  chapterId: text('chapter_id'), // NULL = отзыв о сайте
-  authorName: text('author_name').notNull(),
-  body: text('body').notNull(),
-  isSpoiler: integer('is_spoiler', { mode: 'boolean' }).notNull().default(false),
-  userId: integer('user_id'), // NULL = гость, иначе — залогиненный пользователь
+export const comments = sqliteTable("comments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  chapterId: text("chapter_id"), // NULL = отзыв о сайте
+  authorName: text("author_name").notNull(),
+  body: text("body").notNull(),
+  isSpoiler: integer("is_spoiler", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  userId: integer("user_id"), // NULL = гость, иначе — залогиненный пользователь
   // Ответ на другой комментарий. Ветка одноуровневая: parent_id всегда указывает
   // на корневой комментарий, и ответ на ответ ложится в ту же ветку — иначе на
   // телефоне к четвёртому уровню от текста остаётся столбик в пару слов.
-  parentId: integer('parent_id'),
+  parentId: integer("parent_id"),
   // Кому именно отвечали. parent_id держит корень ветки — по нему ответ встаёт
   // на место, но из него не узнать, к чьей реплике обращались. Для корневого
   // ответа совпадает с parent_id.
-  replyToId: integer('reply_to_id'),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+  replyToId: integer("reply_to_id"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 // Закладка вошедшего читателя. Строка на главу: дочитал ли и где остановился.
 // Последняя глава — та, чья строка обновлялась позже всех.
-export const readingProgress = sqliteTable('reading_progress', {
-  userId: integer('user_id').notNull(),
-  chapterId: text('chapter_id').notNull(),
-  scroll: real('scroll').notNull().default(0), // доля прокрутки, 0..1
-  isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
-  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
-}, t => [primaryKey({ columns: [t.userId, t.chapterId] })])
+export const readingProgress = sqliteTable(
+  "reading_progress",
+  {
+    userId: integer("user_id").notNull(),
+    chapterId: text("chapter_id").notNull(),
+    scroll: real("scroll").notNull().default(0), // доля прокрутки, 0..1
+    isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.chapterId] })],
+);
 
-export const chapterStats = sqliteTable('chapter_stats', {
-  chapterId: text('chapter_id').primaryKey(),
-  viewsCount: integer('views_count').notNull().default(0),
-  downloadsCount: integer('downloads_count').notNull().default(0),
-})
+export const chapterStats = sqliteTable("chapter_stats", {
+  chapterId: text("chapter_id").primaryKey(),
+  viewsCount: integer("views_count").notNull().default(0),
+  downloadsCount: integer("downloads_count").notNull().default(0),
+});
 
-export const commentReactions = sqliteTable('comment_reactions', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  commentId: integer('comment_id').notNull(),
-  type: text('type', { enum: ['like', 'dislike'] }).notNull(),
-  userId: integer('user_id'),
-  ip: text('ip'),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+export const commentReactions = sqliteTable("comment_reactions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  commentId: integer("comment_id").notNull(),
+  type: text("type", { enum: ["like", "dislike"] }).notNull(),
+  userId: integer("user_id"),
+  ip: text("ip"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 // Просмотры по дням: строка на главу за день, а не на каждого читателя.
 // Нужна только для счётчика «за сегодня»; общий итог живёт в chapter_stats.
-export const chapterViewDays = sqliteTable('chapter_view_days', {
-  chapterId: text('chapter_id').notNull(),
-  day: text('day').notNull(), // '2026-08-29', по Москве
-  count: integer('count').notNull().default(0),
-}, t => [primaryKey({ columns: [t.chapterId, t.day] })])
+export const chapterViewDays = sqliteTable(
+  "chapter_view_days",
+  {
+    chapterId: text("chapter_id").notNull(),
+    day: text("day").notNull(), // '2026-08-29', по Москве
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.chapterId, t.day] })],
+);
 
 // Скачивания epub по дням — устроено так же, как просмотры: строка на главу
 // за день, без людей. Общая сумма живёт в chapter_stats.
-export const chapterDownloadDays = sqliteTable('chapter_download_days', {
-  chapterId: text('chapter_id').notNull(),
-  day: text('day').notNull(),
-  count: integer('count').notNull().default(0),
-}, t => [primaryKey({ columns: [t.chapterId, t.day] })])
+export const chapterDownloadDays = sqliteTable(
+  "chapter_download_days",
+  {
+    chapterId: text("chapter_id").notNull(),
+    day: text("day").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.chapterId, t.day] })],
+);
 
 // Сколько разных людей открывало главы за день. Строка — один браузер за день.
 // visitor — не сам код браузера, а отпечаток кода вместе с датой и секретом:
 // по нему нельзя ни узнать человека, ни связать его вчерашний и сегодняшний
 // день. Хватает ровно на одно — посчитать, сколько их было.
-export const readerDays = sqliteTable('reader_days', {
-  day: text('day').notNull(), // '2026-10-18', по Москве
-  visitor: text('visitor').notNull(),
-}, t => [primaryKey({ columns: [t.day, t.visitor] })])
+export const readerDays = sqliteTable(
+  "reader_days",
+  {
+    day: text("day").notNull(), // '2026-10-18', по Москве
+    visitor: text("visitor").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.visitor] })],
+);
 
 // Настольная игра: сколько разных людей заходило на её страницы за день. Как
 // reader_days — вместо кода браузера отпечаток с датой, человека по нему не
 // узнать и дни между собой не связать.
-export const boardVisitDays = sqliteTable('board_visit_days', {
-  day: text('day').notNull(), // '2026-10-26', по Москве
-  visitor: text('visitor').notNull(),
-}, t => [primaryKey({ columns: [t.day, t.visitor] })])
+export const boardVisitDays = sqliteTable(
+  "board_visit_days",
+  {
+    day: text("day").notNull(), // '2026-10-26', по Москве
+    visitor: text("visitor").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.visitor] })],
+);
 
 // Настольная игра: сколько партий доиграно до финиша за день. Партии, где
 // играли одни админы, сюда не попадают.
-export const boardGameDays = sqliteTable('board_game_days', {
-  day: text('day').primaryKey(),
-  finished: integer('finished').notNull().default(0),
-})
+export const boardGameDays = sqliteTable("board_game_days", {
+  day: text("day").primaryKey(),
+  finished: integer("finished").notNull().default(0),
+});
 
 // Клики по тыкве на Хеллоуин — строка на день, без людей. Клики
 // администраторов сюда не попадают.
-export const pumpkinClickDays = sqliteTable('pumpkin_click_days', {
-  day: text('day').primaryKey(), // '2026-10-17', по Москве
-  count: integer('count').notNull().default(0),
-})
+export const pumpkinClickDays = sqliteTable("pumpkin_click_days", {
+  day: text("day").primaryKey(), // '2026-10-17', по Москве
+  count: integer("count").notNull().default(0),
+});
 
 // Партия в игре «Кто из таверны». Ответ и список попыток живут здесь, а не у
 // игрока: браузер знает только разбор своих догадок.
-export const gameSessions = sqliteTable('game_sessions', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  player: text('player').notNull(), // анонимный ключ из куки
-  userId: integer('user_id'), // NULL = играет не входя; проставляется при первом запросе после входа
-  mode: text('mode', { enum: ['daily', 'endless'] }).notNull(),
-  pool: text('pool', { enum: ['known', 'all'] }).notNull(),
-  maxVolume: integer('max_volume').notNull().default(10), // потолок тома: защита от спойлеров
-  day: text('day').notNull(), // '2026-08-31', по Москве
-  answerId: text('answer_id').notNull(),
-  guesses: text('guesses').notNull().default('[]'), // JSON-массив id персонажей
-  status: text('status', { enum: ['playing', 'won', 'revealed'] }).notNull().default('playing'),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-  finishedAt: text('finished_at'),
-})
+export const gameSessions = sqliteTable("game_sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  player: text("player").notNull(), // анонимный ключ из куки
+  userId: integer("user_id"), // NULL = играет не входя; проставляется при первом запросе после входа
+  mode: text("mode", { enum: ["daily", "endless"] }).notNull(),
+  pool: text("pool", { enum: ["known", "all"] }).notNull(),
+  maxVolume: integer("max_volume").notNull().default(10), // потолок тома: защита от спойлеров
+  day: text("day").notNull(), // '2026-08-31', по Москве
+  answerId: text("answer_id").notNull(),
+  guesses: text("guesses").notNull().default("[]"), // JSON-массив id персонажей
+  status: text("status", { enum: ["playing", "won", "revealed"] })
+    .notNull()
+    .default("playing"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  finishedAt: text("finished_at"),
+});
 
 // Счётчики игры по дням и режимам. Партии администраторов сюда не попадают:
 // мы сами гоняем игру чаще всех, и в статистике это только мешает.
-export const gameStats = sqliteTable('game_stats', {
-  day: text('day').notNull(), // '2026-09-01', по Москве
-  mode: text('mode', { enum: ['daily', 'endless'] }).notNull(),
-  played: integer('played').notNull().default(0),
-  won: integer('won').notNull().default(0),
-  guesses: integer('guesses').notNull().default(0), // все попытки, включая проигранные партии
-  winGuesses: integer('win_guesses').notNull().default(0), // попытки только победителей
-}, t => [primaryKey({ columns: [t.day, t.mode] })])
+export const gameStats = sqliteTable(
+  "game_stats",
+  {
+    day: text("day").notNull(), // '2026-09-01', по Москве
+    mode: text("mode", { enum: ["daily", "endless"] }).notNull(),
+    played: integer("played").notNull().default(0),
+    won: integer("won").notNull().default(0),
+    guesses: integer("guesses").notNull().default(0), // все попытки, включая проигранные партии
+    winGuesses: integer("win_guesses").notNull().default(0), // попытки только победителей
+  },
+  (t) => [primaryKey({ columns: [t.day, t.mode] })],
+);
 
 // Завершённая партия вошедшего игрока — то, из чего считается рейтинг. Живёт
 // отдельно от game_sessions: те удаляются и чистятся, а достижения должны
 // остаться. Партий дня у человека не больше одной в сутки — иначе рейтинг
 // накручивался бы перезаходом.
-export const gameResults = sqliteTable('game_results', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: integer('user_id').notNull(),
-  day: text('day').notNull(), // '2026-09-04', по Москве
-  mode: text('mode', { enum: ['daily', 'endless'] }).notNull(),
-  guesses: integer('guesses').notNull().default(0),
-  won: integer('won', { mode: 'boolean' }).notNull().default(false),
-  finishedAt: text('finished_at').notNull().default(sql`(datetime('now'))`),
-})
+export const gameResults = sqliteTable("game_results", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
+  day: text("day").notNull(), // '2026-09-04', по Москве
+  mode: text("mode", { enum: ["daily", "endless"] }).notNull(),
+  guesses: integer("guesses").notNull().default(0),
+  won: integer("won", { mode: "boolean" }).notNull().default(false),
+  finishedAt: text("finished_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 // Уведомление читателю: на его комментарий ответили. Храним только кому и о
 // каком ответе — имя отвечающего, текст и глава берутся из самого комментария
@@ -310,42 +400,50 @@ export const gameResults = sqliteTable('game_results', {
 // списка сама.
 // Третье — лайки на комментарий: одна строка на комментарий, а не на лайк, иначе
 // популярная реплика забила бы весь ящик. Кто и сколько — считается при чтении.
-export const notifications = sqliteTable('notifications', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: integer('user_id').notNull(), // получатель
-  type: text('type', { enum: ['reply', 'frame', 'like'] }).notNull().default('reply'),
-  commentId: integer('comment_id'), // ответ (type = reply) или свой лайкнутый комментарий (type = like)
-  frameId: integer('frame_id'), // выданная рамка (type = frame)
+export const notifications = sqliteTable("notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(), // получатель
+  type: text("type", { enum: ["reply", "frame", "like"] })
+    .notNull()
+    .default("reply"),
+  commentId: integer("comment_id"), // ответ (type = reply) или свой лайкнутый комментарий (type = like)
+  frameId: integer("frame_id"), // выданная рамка (type = frame)
   // Сколько лайков было, когда о них уведомили (type = like). Снова зажигаем
   // уведомление, только если лайков стало больше: сняли и поставили — не новость.
-  likes: integer('likes'),
-  isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+  likes: integer("likes"),
+  isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
-export const siteSettings = sqliteTable('site_settings', {
-  key: text('key').primaryKey(),
-  value: text('value').notNull().default(''),
-})
+export const siteSettings = sqliteTable("site_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull().default(""),
+});
 
 // Огонёк на карточке персонажа. Один от человека: вошедший — по аккаунту,
 // гость — по IP, как реакции на комментарии. Повторный клик снимает.
-export const characterFlames = sqliteTable('character_flames', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  characterId: text('character_id').notNull(),
-  userId: integer('user_id'),
-  ip: text('ip'), // только у гостя; у вошедшего NULL
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+export const characterFlames = sqliteTable("character_flames", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  characterId: text("character_id").notNull(),
+  userId: integer("user_id"),
+  ip: text("ip"), // только у гостя; у вошедшего NULL
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 // Личная переписка админов. Один разговор — пара людей, отдельной строки
 // «разговор» нет: его собирают по паре отправитель — получатель.
-export const adminMessages = sqliteTable('admin_messages', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  fromUserId: integer('from_user_id').notNull(),
-  toUserId: integer('to_user_id').notNull(),
-  body: text('body').notNull(),
+export const adminMessages = sqliteTable("admin_messages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  fromUserId: integer("from_user_id").notNull(),
+  toUserId: integer("to_user_id").notNull(),
+  body: text("body").notNull(),
   // Прочитал ли получатель. Своё отправленное прочитанным не помечается.
-  isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-})
+  isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});

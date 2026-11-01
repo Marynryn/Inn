@@ -2,33 +2,39 @@
 // Один форматтер на все строки. toLocaleDateString собирает его заново на
 // каждый вызов, а строк в оглавлении сотни — на сервере это была заметная
 // доля времени отрисовки главной.
-const dateFormat = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+const dateFormat = new Intl.DateTimeFormat("ru-RU", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 </script>
 
 <script setup lang="ts">
 const props = defineProps<{
   chapter: {
-    id: string
-    title: string
-    publishedAt: string
-    volume: number
-  }
-  badge: 'new' | 'read' | null
-  downloading: boolean
-  downloaded: boolean
-}>()
+    id: string;
+    title: string;
+    publishedAt: string;
+    volume: number;
+  };
+  badge: "new" | "read" | null;
+  downloading: boolean;
+  downloaded: boolean;
+}>();
 
 const emit = defineEmits<{
-  download: [event: MouseEvent, id: string]
-}>()
+  download: [event: MouseEvent, id: string];
+}>();
 
-const href = computed(() => `/chapter/${encodeURIComponent(slugifyChapterId(props.chapter.id))}`)
+const href = computed(
+  () => `/chapter/${encodeURIComponent(slugifyChapterId(props.chapter.id))}`,
+);
 // format() на негодной дате бросает RangeError — одна битая published_at
 // уронила бы всё оглавление, поэтому такую дату просто не показываем.
 const published = computed(() => {
-  const date = new Date(props.chapter.publishedAt)
-  return Number.isNaN(date.getTime()) ? '' : dateFormat.format(date)
-})
+  const date = new Date(props.chapter.publishedAt);
+  return Number.isNaN(date.getTime()) ? "" : dateFormat.format(date);
+});
 </script>
 
 <template>
@@ -49,7 +55,9 @@ const published = computed(() => {
         <p class="row-title">{{ chapter.title }}</p>
         <div class="row-meta">
           <span v-if="badge === 'new'" class="tag tag-new">новая</span>
-          <span v-else-if="badge === 'read'" class="tag tag-read">прочитано</span>
+          <span v-else-if="badge === 'read'" class="tag tag-read"
+            >прочитано</span
+          >
           <span>{{ published }}</span>
         </div>
       </div>
@@ -63,9 +71,30 @@ const published = computed(() => {
         @click="emit('download', $event, chapter.id)"
       >
         <span v-if="downloading" class="spin" />
-        <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-          <path v-if="downloaded" d="M3 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          <path v-else d="M9 2v9M5 8l4 4 4-4M2 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          v-else
+          width="18"
+          height="18"
+          viewBox="0 0 18 18"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            v-if="downloaded"
+            d="M3 9l4 4 8-8"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            v-else
+            d="M9 2v9M5 8l4 4 4-4M2 15h14"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
       </button>
     </div>
@@ -79,7 +108,7 @@ const published = computed(() => {
   gap: 8px;
   padding: 14px 0;
   border-bottom: 1px solid var(--line-on-parchment);
-  transition: background .15s;
+  transition: background 0.15s;
 }
 
 .row:last-child {
@@ -87,7 +116,7 @@ const published = computed(() => {
 }
 
 .row:has(.row-link:hover) {
-  background: rgba(214, 136, 62, .04);
+  background: rgba(214, 136, 62, 0.04);
 }
 
 .row-link {
@@ -130,7 +159,7 @@ const published = computed(() => {
 .seal.is-read {
   border-color: var(--moss);
   color: var(--moss);
-  background: rgba(81, 105, 79, .08);
+  background: rgba(81, 105, 79, 0.08);
 }
 
 .row-body {
@@ -164,12 +193,12 @@ const published = computed(() => {
 }
 
 .tag-new {
-  background: rgba(214, 136, 62, .15);
+  background: rgba(214, 136, 62, 0.15);
   color: var(--ember);
 }
 
 .tag-read {
-  background: rgba(81, 105, 79, .12);
+  background: rgba(81, 105, 79, 0.12);
   color: var(--moss);
 }
 
@@ -186,6 +215,6 @@ const published = computed(() => {
   border: 1.5px solid currentColor;
   border-top-color: transparent;
   border-radius: var(--radius-round);
-  animation: spin .7s linear infinite;
+  animation: spin 0.7s linear infinite;
 }
 </style>

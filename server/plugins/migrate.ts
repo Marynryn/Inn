@@ -1,5 +1,5 @@
-import { runMigrations } from '../utils/migrate'
+import { runMigrations } from "../utils/migrate";
 
 export default defineNitroPlugin(async () => {
-  await runMigrations()
-})
+  await runMigrations();
+});

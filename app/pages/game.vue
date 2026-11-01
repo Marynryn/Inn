@@ -10,334 +10,387 @@ import {
   type GameGuessRow,
   type GameMode,
   type GameStatus,
-} from '#shared/utils/gameColumns'
-import type { Character, Origin } from '#shared/utils/characters'
+} from "#shared/utils/gameColumns";
+import type { Character, Origin } from "#shared/utils/characters";
 
-type Pool = 'known' | 'all'
+type Pool = "known" | "all";
 
 type AnswerCard = {
-  id: string
-  name: string
-  original: string
-  image: string
-  row: GameGuessRow
-}
+  id: string;
+  name: string;
+  original: string;
+  image: string;
+  row: GameGuessRow;
+};
 
 type State = {
-  mode: GameMode
-  pool: Pool
-  maxVolume: number
-  columns: GameColumnKey[]
-  status: GameStatus
-  day: string
-  guesses: GameGuessRow[]
-  poolSize: number
-  answer: AnswerCard | null
-  nextDailyAt: string | null
-  daily: { played: number; won: number; averageGuesses: number } | null
-}
+  mode: GameMode;
+  pool: Pool;
+  maxVolume: number;
+  columns: GameColumnKey[];
+  status: GameStatus;
+  day: string;
+  guesses: GameGuessRow[];
+  poolSize: number;
+  answer: AnswerCard | null;
+  nextDailyAt: string | null;
+  daily: { played: number; won: number; averageGuesses: number } | null;
+};
 
-type NameEntry = { id: string; name: string; original: string }
+type NameEntry = { id: string; name: string; original: string };
 
-const { data: settings } = await useFetch('/api/settings')
+const { data: settings } = await useFetch("/api/settings");
 
-const mode = ref<GameMode>('daily')
-const state = ref<State | null>(null)
-const names = ref<NameEntry[]>([])
-const loading = ref(true)
-const sending = ref(false)
-const error = ref('')
-const showBoard = ref(false)
+const mode = ref<GameMode>("daily");
+const state = ref<State | null>(null);
+const names = ref<NameEntry[]>([]);
+const loading = ref(true);
+const sending = ref(false);
+const error = ref("");
+const showBoard = ref(false);
 
-const query = ref('')
-const highlighted = ref(0)
-const open = ref(false)
-const inputEl = ref<HTMLInputElement | null>(null)
-const listEl = ref<HTMLElement | null>(null)
+const query = ref("");
+const highlighted = ref(0);
+const open = ref(false);
+const inputEl = ref<HTMLInputElement | null>(null);
+const listEl = ref<HTMLElement | null>(null);
 
-const pool = computed<Pool>(() => state.value?.pool ?? 'known')
-const maxVolume = computed(() => state.value?.maxVolume ?? GAME_LAST_VOLUME)
+const pool = computed<Pool>(() => state.value?.pool ?? "known");
+const maxVolume = computed(() => state.value?.maxVolume ?? GAME_LAST_VOLUME);
 
 /**
  * Колонки приходят с сервера: при ограничении по тому спойлерных среди них
  * просто нет — ни в таблице, ни в ответе.
  */
 const columns = computed(() =>
-  GAME_COLUMNS.filter(c => state.value?.columns.includes(c.key) ?? true),
-)
+  GAME_COLUMNS.filter((c) => state.value?.columns.includes(c.key) ?? true),
+);
 
 /** Сдавшемуся дописываем сверху строку загаданного — чтобы видеть, где промахнулся. */
 const boardRows = computed(() => {
-  if (!state.value) return []
-  const rows = state.value.guesses
-  return state.value.status === 'revealed' && state.value.answer
+  if (!state.value) return [];
+  const rows = state.value.guesses;
+  return state.value.status === "revealed" && state.value.answer
     ? [state.value.answer.row, ...rows]
-    : rows
-})
-const finished = computed(() => state.value ? state.value.status !== 'playing' : false)
+    : rows;
+});
+const finished = computed(() =>
+  state.value ? state.value.status !== "playing" : false,
+);
 
 // ── Карточки персонажей ────────────────────────────────────
 // Имя в таблице и в итоге открывает ту же карточку, что на странице
 // персонажей. Только у тех, у кого карточка есть: открывать любого из базы
 // игры значило бы выложить наружу все признаки, а база нарочно спрятана —
 // иначе загадку можно было бы вычислить, не играя.
-const cards = ref<Character[]>([])
-const cardIds = computed(() => new Set(cards.value.map(c => c.id)))
-const openedId = ref<string | null>(null)
-const opened = computed(() => cards.value.find(c => c.id === openedId.value) ?? null)
-const origin = ref<Origin | null>(null)
-const toggleFlame = useCharacterFlame()
+const cards = ref<Character[]>([]);
+const cardIds = computed(() => new Set(cards.value.map((c) => c.id)));
+const openedId = ref<string | null>(null);
+const opened = computed(
+  () => cards.value.find((c) => c.id === openedId.value) ?? null,
+);
+const origin = ref<Origin | null>(null);
+const toggleFlame = useCharacterFlame();
 
 const openCard = (id: string, e: Event) => {
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  origin.value = { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
-  openedId.value = id
-}
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  origin.value = {
+    x: rect.x,
+    y: rect.y,
+    width: rect.width,
+    height: rect.height,
+  };
+  openedId.value = id;
+};
 
 // Тянем после загрузки страницы: карточки нужны, только когда по имени щёлкнут,
 // и задерживать ими саму игру незачем.
 onMounted(async () => {
   try {
-    cards.value = (await $fetch<{ characters: Character[] }>('/api/characters')).characters
+    cards.value = (
+      await $fetch<{ characters: Character[] }>("/api/characters")
+    ).characters;
   } catch {
     // Не загрузились — имена останутся простым текстом, игра от этого не страдает.
   }
-})
-const guessedIds = computed(() => new Set(state.value?.guesses.map(g => g.id) ?? []))
+});
+const guessedIds = computed(
+  () => new Set(state.value?.guesses.map((g) => g.id) ?? []),
+);
 
 // ── Загрузка ───────────────────────────────────────────────
 // Набор имён зависит и от сложности, и от потолка тома — перезагружаем, только
 // когда меняется одно из двух.
-let namesKey = ''
+let namesKey = "";
 
 const loadNames = async (forPool: Pool, cap: number) => {
-  const key = `${forPool}:${cap}`
-  if (key === namesKey && names.value.length) return
+  const key = `${forPool}:${cap}`;
+  if (key === namesKey && names.value.length) return;
 
-  const res = await $fetch<{ characters: NameEntry[] }>('/api/game/names', {
+  const res = await $fetch<{ characters: NameEntry[] }>("/api/game/names", {
     query: { pool: forPool, maxVolume: cap },
-  })
-  names.value = res.characters
-  namesKey = key
-}
+  });
+  names.value = res.characters;
+  namesKey = key;
+};
 
 const applyState = async (next: State) => {
-  state.value = next
-  await loadNames(next.pool, next.maxVolume)
-}
+  state.value = next;
+  await loadNames(next.pool, next.maxVolume);
+};
 
 const loadState = async (nextMode: GameMode) => {
-  loading.value = true
-  error.value = ''
+  loading.value = true;
+  error.value = "";
   try {
-    await applyState(await $fetch<State>('/api/game/state', {
-      query: { mode: nextMode, pool: pool.value, maxVolume: maxVolume.value },
-    }))
+    await applyState(
+      await $fetch<State>("/api/game/state", {
+        query: { mode: nextMode, pool: pool.value, maxVolume: maxVolume.value },
+      }),
+    );
   } catch {
-    error.value = 'Не получилось открыть игру. Обнови страницу.'
+    error.value = "Не получилось открыть игру. Обнови страницу.";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
-onMounted(() => loadState(mode.value))
+onMounted(() => loadState(mode.value));
 
 const switchMode = async (next: GameMode) => {
-  if (mode.value === next) return
-  mode.value = next
-  query.value = ''
-  await loadState(next)
-}
+  if (mode.value === next) return;
+  mode.value = next;
+  query.value = "";
+  await loadState(next);
+};
 
 // ── Подсказки ──────────────────────────────────────────────
-const normalize = (v: string) => v.toLowerCase().replace(/ё/g, 'е').trim()
+const normalize = (v: string) => v.toLowerCase().replace(/ё/g, "е").trim();
 
 const suggestions = computed(() => {
-  const q = normalize(query.value)
-  if (!q) return []
+  const q = normalize(query.value);
+  if (!q) return [];
 
   // Список не обрезаем: показываем всех подходящих, а сам список прокручивается.
   // Сначала те, у кого совпало начало имени или фамилии, потом совпадения внутри.
-  const found: NameEntry[] = []
-  const loose: NameEntry[] = []
+  const found: NameEntry[] = [];
+  const loose: NameEntry[] = [];
 
   for (const entry of names.value) {
-    if (guessedIds.value.has(entry.id)) continue
+    if (guessedIds.value.has(entry.id)) continue;
 
-    const name = normalize(entry.name)
-    const original = normalize(entry.original)
+    const name = normalize(entry.name);
+    const original = normalize(entry.original);
 
-    if (name.startsWith(q) || original.startsWith(q)) found.push(entry)
-    else if (name.includes(q) || original.includes(q)) loose.push(entry)
+    if (name.startsWith(q) || original.startsWith(q)) found.push(entry);
+    else if (name.includes(q) || original.includes(q)) loose.push(entry);
   }
 
-  return [...found, ...loose]
-})
+  return [...found, ...loose];
+});
 
-watch(suggestions, () => { highlighted.value = 0 })
+watch(suggestions, () => {
+  highlighted.value = 0;
+});
 
 // Список прокручиваемый: стрелками можно уйти за его край, тянем строку в видимую часть.
 watch(highlighted, (i) => {
-  nextTick(() => (listEl.value?.children[i] as HTMLElement | undefined)?.scrollIntoView({ block: 'nearest' }))
-})
+  nextTick(() =>
+    (listEl.value?.children[i] as HTMLElement | undefined)?.scrollIntoView({
+      block: "nearest",
+    }),
+  );
+});
 
 const onInput = () => {
-  open.value = true
-}
+  open.value = true;
+};
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (!suggestions.value.length) return
+  if (!suggestions.value.length) return;
 
-  if (e.key === 'ArrowDown') {
-    e.preventDefault()
-    highlighted.value = (highlighted.value + 1) % suggestions.value.length
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault()
-    highlighted.value = (highlighted.value - 1 + suggestions.value.length) % suggestions.value.length
-  } else if (e.key === 'Enter') {
-    e.preventDefault()
-    const picked = suggestions.value[highlighted.value]
-    if (picked) guess(picked)
-  } else if (e.key === 'Escape') {
-    open.value = false
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    highlighted.value = (highlighted.value + 1) % suggestions.value.length;
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    highlighted.value =
+      (highlighted.value - 1 + suggestions.value.length) %
+      suggestions.value.length;
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    const picked = suggestions.value[highlighted.value];
+    if (picked) guess(picked);
+  } else if (e.key === "Escape") {
+    open.value = false;
   }
-}
+};
 
 // ── Ход игры ───────────────────────────────────────────────
 const guess = async (entry: NameEntry) => {
-  if (sending.value || finished.value) return
+  if (sending.value || finished.value) return;
 
-  sending.value = true
-  error.value = ''
+  sending.value = true;
+  error.value = "";
   try {
     const res = await $fetch<{
-      row: GameGuessRow
-      status: GameStatus
-      answer: AnswerCard | null
-      daily: State['daily']
-    }>('/api/game/guess', {
-      method: 'POST',
+      row: GameGuessRow;
+      status: GameStatus;
+      answer: AnswerCard | null;
+      daily: State["daily"];
+    }>("/api/game/guess", {
+      method: "POST",
       body: { mode: mode.value, id: entry.id },
-    })
+    });
 
     if (state.value) {
-      state.value.guesses = [res.row, ...state.value.guesses]
-      state.value.status = res.status
-      state.value.answer = res.answer
-      state.value.daily = res.daily
+      state.value.guesses = [res.row, ...state.value.guesses];
+      state.value.status = res.status;
+      state.value.answer = res.answer;
+      state.value.daily = res.daily;
     }
 
-    query.value = ''
-    open.value = false
-    if (res.status === 'playing') nextTick(() => inputEl.value?.focus())
+    query.value = "";
+    open.value = false;
+    if (res.status === "playing") nextTick(() => inputEl.value?.focus());
   } catch (e: any) {
-    error.value = e?.data?.message || 'Попытка не засчиталась. Попробуй ещё раз.'
+    error.value =
+      e?.data?.message || "Попытка не засчиталась. Попробуй ещё раз.";
   } finally {
-    sending.value = false
+    sending.value = false;
   }
-}
+};
 
-const newGame = async (nextPool: Pool = pool.value, nextVolume: number = maxVolume.value) => {
-  sending.value = true
-  error.value = ''
+const newGame = async (
+  nextPool: Pool = pool.value,
+  nextVolume: number = maxVolume.value,
+) => {
+  sending.value = true;
+  error.value = "";
   try {
-    await applyState(await $fetch<State>('/api/game/new', {
-      method: 'POST',
-      body: { pool: nextPool, maxVolume: nextVolume },
-    }))
-    query.value = ''
+    await applyState(
+      await $fetch<State>("/api/game/new", {
+        method: "POST",
+        body: { pool: nextPool, maxVolume: nextVolume },
+      }),
+    );
+    query.value = "";
   } catch {
-    error.value = 'Не получилось начать новую партию.'
+    error.value = "Не получилось начать новую партию.";
   } finally {
-    sending.value = false
+    sending.value = false;
   }
-}
+};
 
 const giveUp = async () => {
-  sending.value = true
+  sending.value = true;
   try {
-    await applyState(await $fetch<State>('/api/game/giveup', { method: 'POST', body: { mode: mode.value } }))
+    await applyState(
+      await $fetch<State>("/api/game/giveup", {
+        method: "POST",
+        body: { mode: mode.value },
+      }),
+    );
   } catch {
-    error.value = 'Не получилось открыть ответ.'
+    error.value = "Не получилось открыть ответ.";
   } finally {
-    sending.value = false
+    sending.value = false;
   }
-}
+};
 
 const switchPool = (next: Pool) => {
-  if (next === pool.value) return
-  newGame(next)
-}
+  if (next === pool.value) return;
+  newGame(next);
+};
 
 /** Смена потолка тома меняет набор персонажей, поэтому начинаем партию заново. */
 const switchVolume = (e: Event) => {
-  const next = Number((e.target as HTMLSelectElement).value)
-  if (next === maxVolume.value) return
-  newGame(pool.value, next)
-}
+  const next = Number((e.target as HTMLSelectElement).value);
+  if (next === maxVolume.value) return;
+  newGame(pool.value, next);
+};
 
 // ── Часы до нового персонажа дня ───────────────────────────
-const now = ref(Date.now())
-let ticker: ReturnType<typeof setInterval> | null = null
+const now = ref(Date.now());
+let ticker: ReturnType<typeof setInterval> | null = null;
 
-onMounted(() => { ticker = setInterval(() => { now.value = Date.now() }, 1000) })
-onUnmounted(() => { if (ticker) clearInterval(ticker) })
+onMounted(() => {
+  ticker = setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
+});
+onUnmounted(() => {
+  if (ticker) clearInterval(ticker);
+});
 
 const msLeft = computed(() =>
-  state.value?.nextDailyAt ? Date.parse(state.value.nextDailyAt) - now.value : null,
-)
+  state.value?.nextDailyAt
+    ? Date.parse(state.value.nextDailyAt) - now.value
+    : null,
+);
 
 // Полночь наступила прямо на открытой странице — забираем нового персонажа.
-let rollingOver = false
+let rollingOver = false;
 watch(msLeft, (left) => {
-  if (left === null || left > 0 || rollingOver || mode.value !== 'daily') return
-  rollingOver = true
-  loadState('daily').finally(() => { rollingOver = false })
-})
+  if (left === null || left > 0 || rollingOver || mode.value !== "daily")
+    return;
+  rollingOver = true;
+  loadState("daily").finally(() => {
+    rollingOver = false;
+  });
+});
 
 const countdown = computed(() => {
-  const left = msLeft.value
-  if (left === null) return ''
-  if (left <= 0) return 'вот-вот'
+  const left = msLeft.value;
+  if (left === null) return "";
+  if (left <= 0) return "вот-вот";
 
-  const h = Math.floor(left / 3_600_000)
-  const m = Math.floor((left % 3_600_000) / 60_000)
-  const s = Math.floor((left % 60_000) / 1000)
-  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-})
+  const h = Math.floor(left / 3_600_000);
+  const m = Math.floor((left % 3_600_000) / 60_000);
+  const s = Math.floor((left % 60_000) / 1000);
+  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+});
 
 // ── Поделиться результатом ─────────────────────────────────
-const siteUrl = useRuntimeConfig().public.siteUrl
+const siteUrl = useRuntimeConfig().public.siteUrl;
 // Адрес считаем здесь, в настройке страницы: колбэки меты пересчитываются
 // позже, вне контекста Nuxt, и useRuntimeConfig там падает.
-const ogImage = ogImageUrl()
-const MARKS = { hit: '🟩', partial: '🟨', miss: '⬜' } as const
-const copied = ref(false)
+const ogImage = ogImageUrl();
+const MARKS = { hit: "🟩", partial: "🟨", miss: "⬜" } as const;
+const copied = ref(false);
 
 const shareText = computed(() => {
-  if (!state.value?.guesses.length) return ''
+  if (!state.value?.guesses.length) return "";
 
   const grid = [...state.value.guesses]
     .reverse()
-    .map(row => columns.value.map(c => MARKS[row.cells[c.key]?.verdict ?? 'miss']).join(''))
-    .join('\n')
+    .map((row) =>
+      columns.value
+        .map((c) => MARKS[row.cells[c.key]?.verdict ?? "miss"])
+        .join(""),
+    )
+    .join("\n");
 
-  const head = state.value.mode === 'daily'
-    ? `Кто из таверны — персонаж дня ${state.value.day.split('-').reverse().join('.')}`
-    : 'Кто из таверны — свободная игра'
+  const head =
+    state.value.mode === "daily"
+      ? `Кто из таверны — персонаж дня ${state.value.day.split("-").reverse().join(".")}`
+      : "Кто из таверны — свободная игра";
 
-  const result = state.value.status === 'won'
-    ? `Угадал(а) за ${state.value.guesses.length} ${plural(state.value.guesses.length)}`
-    : 'Сдался(лась)'
+  const result =
+    state.value.status === "won"
+      ? `Угадал(а) за ${state.value.guesses.length} ${plural(state.value.guesses.length)}`
+      : "Сдался(лась)";
 
-  return `${head}\n${result}\n\n${grid}\n\n${siteUrl}/game`
-})
+  return `${head}\n${result}\n\n${grid}\n\n${siteUrl}/game`;
+});
 
 const toClipboard = async (text: string) => {
-  await navigator.clipboard.writeText(text)
-  copied.value = true
-  setTimeout(() => { copied.value = false }, 2000)
-}
+  await navigator.clipboard.writeText(text);
+  copied.value = true;
+  setTimeout(() => {
+    copied.value = false;
+  }, 2000);
+};
 
 /**
  * На телефоне — системное окно «Поделиться»: оттуда результат уходит прямо в
@@ -348,85 +401,87 @@ const toClipboard = async (text: string) => {
  * Оба способа работают только на https или localhost.
  */
 const share = async () => {
-  const text = shareText.value
-  const touch = window.matchMedia?.('(pointer: coarse)').matches ?? false
+  const text = shareText.value;
+  const touch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
 
   try {
     if (touch && navigator.share) {
-      await navigator.share({ text })
-      return
+      await navigator.share({ text });
+      return;
     }
 
     if (navigator.clipboard) {
-      await toClipboard(text)
-      return
+      await toClipboard(text);
+      return;
     }
 
     if (navigator.share) {
-      await navigator.share({ text })
-      return
+      await navigator.share({ text });
+      return;
     }
 
-    error.value = 'Не получилось поделиться.'
+    error.value = "Не получилось поделиться.";
   } catch (e: any) {
     // Закрыл системное окно сам — это не ошибка, молчим.
-    if (e?.name === 'AbortError') return
-    error.value = 'Не получилось поделиться.'
+    if (e?.name === "AbortError") return;
+    error.value = "Не получилось поделиться.";
   }
-}
+};
 
 function plural(n: number) {
-  const mod10 = n % 10
-  const mod100 = n % 100
-  if (mod10 === 1 && mod100 !== 11) return 'попытку'
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'попытки'
-  return 'попыток'
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "попытку";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14))
+    return "попытки";
+  return "попыток";
 }
 
+const gameDescription =
+  "Угадай персонажа The Wandering Inn по признакам: вид, занятие, том появления. " +
+  "Новый персонаж каждый день, без спойлеров дальше переведённых томов.";
 
-const gameDescription = 'Угадай персонажа The Wandering Inn по признакам: вид, занятие, том появления. '
-  + 'Новый персонаж каждый день, без спойлеров дальше переведённых томов.'
-
-const gameTitle = 'Кто из таверны · Странствующая Таверна — игра по The Wandering Inn'
+const gameTitle =
+  "Кто из таверны · Странствующая Таверна — игра по The Wandering Inn";
 
 useHead({
   title: gameTitle,
-  link: [{ rel: 'canonical', href: `${siteUrl}/game` }],
+  link: [{ rel: "canonical", href: `${siteUrl}/game` }],
   script: [
     {
-      type: 'application/ld+json',
+      type: "application/ld+json",
       innerHTML: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'Game',
-        name: 'Кто из таверны',
+        "@context": "https://schema.org",
+        "@type": "Game",
+        name: "Кто из таверны",
         url: `${siteUrl}/game`,
         description: gameDescription,
-        inLanguage: 'ru',
-        genre: 'Викторина',
-        gamePlatform: 'Веб-браузер',
+        inLanguage: "ru",
+        genre: "Викторина",
+        gamePlatform: "Веб-браузер",
         isPartOf: {
-          '@type': 'WebSite',
-          name: 'Странствующая Таверна',
+          "@type": "WebSite",
+          name: "Странствующая Таверна",
           url: siteUrl,
         },
       }),
     },
   ],
-})
+});
 
 useSeoMeta({
   description: gameDescription,
   ogTitle: gameTitle,
   ogDescription: gameDescription,
   ogUrl: `${siteUrl}/game`,
-  ogType: 'website',
-  ogLocale: 'ru_RU',
+  ogType: "website",
+  ogLocale: "ru_RU",
   ogImage,
-  twitterCard: 'summary_large_image',
+  twitterCard: "summary_large_image",
   twitterTitle: gameTitle,
   twitterDescription: gameDescription,
   twitterImage: ogImage,
-})
+});
 </script>
 
 <template>
@@ -442,16 +497,25 @@ useSeoMeta({
         <div class="eyebrow">Игра · The Wandering Inn</div>
         <h1 class="page-title title">Кто из таверны?</h1>
         <p class="lead">
-          Называй персонажей — таверна подскажет, что совпало. Зелёное совпало целиком,
-          жёлтое частично, стрелка у тома говорит, в какую сторону искать.
+          Называй персонажей — таверна подскажет, что совпало. Зелёное совпало
+          целиком, жёлтое частично, стрелка у тома говорит, в какую сторону
+          искать.
         </p>
       </header>
 
       <div class="modes">
-        <button class="mode" :class="{ active: mode === 'daily' }" @click="switchMode('daily')">
+        <button
+          class="mode"
+          :class="{ active: mode === 'daily' }"
+          @click="switchMode('daily')"
+        >
           Персонаж дня
         </button>
-        <button class="mode" :class="{ active: mode === 'endless' }" @click="switchMode('endless')">
+        <button
+          class="mode"
+          :class="{ active: mode === 'endless' }"
+          @click="switchMode('endless')"
+        >
           Свободная игра
         </button>
         <button class="mode mode-board" @click="showBoard = true">
@@ -469,7 +533,9 @@ useSeoMeta({
             <span class="chip">Попыток: {{ state.guesses.length }}</span>
             <span class="chip">Персонажей в наборе: {{ state.poolSize }}</span>
             <span class="chip">
-              До {{ state.maxVolume }} тома<template v-if="mode === 'daily'"> · как в переводе</template>
+              До {{ state.maxVolume }} тома<template v-if="mode === 'daily'">
+                · как в переводе</template
+              >
             </span>
             <span v-if="mode === 'daily' && state.daily?.won" class="chip">
               Сегодня угадали: {{ state.daily.won }}
@@ -477,22 +543,48 @@ useSeoMeta({
                 · в среднем за {{ state.daily.averageGuesses }}
               </template>
             </span>
-            <span v-if="mode === 'daily' && countdown" class="chip">Новый персонаж через {{ countdown }}</span>
+            <span v-if="mode === 'daily' && countdown" class="chip"
+              >Новый персонаж через {{ countdown }}</span
+            >
           </div>
 
           <div v-if="mode === 'endless'" class="bar-right">
             <div class="pools">
-              <button class="pool" :class="{ active: pool === 'known' }" @click="switchPool('known')">Известные</button>
-              <button class="pool" :class="{ active: pool === 'all' }" @click="switchPool('all')">Все</button>
+              <button
+                class="pool"
+                :class="{ active: pool === 'known' }"
+                @click="switchPool('known')"
+              >
+                Известные
+              </button>
+              <button
+                class="pool"
+                :class="{ active: pool === 'all' }"
+                @click="switchPool('all')"
+              >
+                Все
+              </button>
             </div>
             <label class="volume">
               <span>Читаю до</span>
-              <select :value="state.maxVolume" :disabled="sending" @change="switchVolume">
-                <option v-for="v in GAME_VOLUMES" :key="v" :value="v">{{ v }}</option>
+              <select
+                :value="state.maxVolume"
+                :disabled="sending"
+                @change="switchVolume"
+              >
+                <option v-for="v in GAME_VOLUMES" :key="v" :value="v">
+                  {{ v }}
+                </option>
               </select>
               <span>тома</span>
             </label>
-            <button class="btn btn--ghost" :disabled="sending" @click="newGame()">Другой персонаж</button>
+            <button
+              class="btn btn--ghost"
+              :disabled="sending"
+              @click="newGame()"
+            >
+              Другой персонаж
+            </button>
           </div>
         </div>
 
@@ -510,8 +602,12 @@ useSeoMeta({
             @input="onInput"
             @focus="open = true"
             @blur="open = false"
+          />
+          <ul
+            v-if="open && suggestions.length"
+            ref="listEl"
+            class="suggest thin-scroll"
           >
-          <ul v-if="open && suggestions.length" ref="listEl" class="suggest thin-scroll">
             <li
               v-for="(entry, i) in suggestions"
               :key="entry.id"
@@ -521,7 +617,9 @@ useSeoMeta({
               @mousedown.prevent="guess(entry)"
             >
               <span>{{ entry.name }}</span>
-              <span v-if="entry.original !== entry.name" class="suggest-orig">{{ entry.original }}</span>
+              <span v-if="entry.original !== entry.name" class="suggest-orig">{{
+                entry.original
+              }}</span>
             </li>
           </ul>
         </div>
@@ -529,10 +627,14 @@ useSeoMeta({
         <p v-if="error" class="error">{{ error }}</p>
 
         <!-- Итог -->
-        <div v-if="finished && state.answer" class="result" :class="{ won: state.status === 'won' }">
+        <div
+          v-if="finished && state.answer"
+          class="result"
+          :class="{ won: state.status === 'won' }"
+        >
           <div class="result-text">
             <div class="result-head display">
-              {{ state.status === 'won' ? 'Угадано!' : 'Это был' }}
+              {{ state.status === "won" ? "Угадано!" : "Это был" }}
               <button
                 v-if="cardIds.has(state.answer.id)"
                 type="button"
@@ -543,19 +645,31 @@ useSeoMeta({
               </button>
               <template v-else>{{ state.answer.name }}</template>
             </div>
-            <div v-if="state.answer.original !== state.answer.name" class="result-orig">{{ state.answer.original }}</div>
+            <div
+              v-if="state.answer.original !== state.answer.name"
+              class="result-orig"
+            >
+              {{ state.answer.original }}
+            </div>
             <div class="result-sub">
               <template v-if="state.status === 'won'">
                 {{ state.guesses.length }} {{ plural(state.guesses.length) }}.
               </template>
-              <template v-if="mode === 'daily'">Следующий персонаж через {{ countdown }}.</template>
+              <template v-if="mode === 'daily'"
+                >Следующий персонаж через {{ countdown }}.</template
+              >
               <template v-else>Можно взять другого — кнопка выше.</template>
             </div>
             <div class="result-actions">
               <button class="btn btn--primary" @click="share">
-                {{ copied ? 'Скопировано' : 'Поделиться результатом' }}
+                {{ copied ? "Скопировано" : "Поделиться результатом" }}
               </button>
-              <button v-if="mode === 'endless'" class="btn btn--ghost" :disabled="sending" @click="newGame()">
+              <button
+                v-if="mode === 'endless'"
+                class="btn btn--ghost"
+                :disabled="sending"
+                @click="newGame()"
+              >
                 Ещё раз
               </button>
             </div>
@@ -567,7 +681,9 @@ useSeoMeta({
           <div class="board" :style="{ '--cols': columns.length }">
             <div class="row head">
               <div class="cell name">Персонаж</div>
-              <div v-for="col in columns" :key="col.key" class="cell">{{ col.label }}</div>
+              <div v-for="col in columns" :key="col.key" class="cell">
+                {{ col.label }}
+              </div>
             </div>
 
             <div
@@ -591,16 +707,25 @@ useSeoMeta({
                 v-for="col in columns"
                 :key="col.key"
                 class="cell mark"
-                :class="[row.cells[col.key]!.verdict, { 'cell--inline': GAME_NUMBER_COLUMNS.includes(col.key) }]"
+                :class="[
+                  row.cells[col.key]!.verdict,
+                  { 'cell--inline': GAME_NUMBER_COLUMNS.includes(col.key) },
+                ]"
                 :data-label="col.label"
               >
                 <span v-if="!row.cells[col.key]!.values.length">—</span>
-                <span v-for="v in row.cells[col.key]!.values" :key="v">{{ v }}</span>
+                <span v-for="v in row.cells[col.key]!.values" :key="v">{{
+                  v
+                }}</span>
                 <span
                   v-if="row.cells[col.key]!.hint"
                   class="arrow"
                   :class="row.cells[col.key]!.hint"
-                  :aria-label="row.cells[col.key]!.hint === 'up' ? 'у загаданного больше' : 'у загаданного меньше'"
+                  :aria-label="
+                    row.cells[col.key]!.hint === 'up'
+                      ? 'у загаданного больше'
+                      : 'у загаданного меньше'
+                  "
                 />
               </div>
             </div>
@@ -615,7 +740,10 @@ useSeoMeta({
           <span><i class="sw hit" /> совпало полностью</span>
           <span><i class="sw partial" /> совпало частично</span>
           <span><i class="sw miss" /> мимо</span>
-          <span><i class="sw miss"><span class="arrow up" /></i> у загаданного больше</span>
+          <span
+            ><i class="sw miss"><span class="arrow up" /></i> у загаданного
+            больше</span
+          >
         </div>
 
         <!-- Отдельной строкой, а не в ряду легенды: там кнопка терялась среди
@@ -628,13 +756,18 @@ useSeoMeta({
         >
           Сдаться и посмотреть ответ
         </button>
-
       </template>
     </main>
 
     <AppFooter on-dark :settings="settings as any" />
 
-    <CharacterModal v-if="opened" :character="opened" :origin="origin" @close="openedId = null" @flame="toggleFlame" />
+    <CharacterModal
+      v-if="opened"
+      :character="opened"
+      :origin="origin"
+      @close="openedId = null"
+      @flame="toggleFlame"
+    />
   </div>
 </template>
 
@@ -666,7 +799,7 @@ useSeoMeta({
 
 .eyebrow {
   font-size: 12px;
-  letter-spacing: .18em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ember-soft);
   margin-bottom: 12px;
@@ -700,7 +833,10 @@ useSeoMeta({
   background: transparent;
   color: var(--parchment-2);
   cursor: pointer;
-  transition: border-color .15s, color .15s, background .15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
 }
 
 .mode:hover {
@@ -766,7 +902,7 @@ useSeoMeta({
 }
 
 .pool.active {
-  background: rgba(214, 136, 62, .18);
+  background: rgba(214, 136, 62, 0.18);
   color: var(--ember-soft);
 }
 
@@ -802,7 +938,7 @@ useSeoMeta({
 }
 
 .volume select:disabled {
-  opacity: .5;
+  opacity: 0.5;
   cursor: default;
 }
 
@@ -830,7 +966,7 @@ useSeoMeta({
 }
 
 .search-input::placeholder {
-  color: rgba(241, 230, 210, .4);
+  color: rgba(241, 230, 210, 0.4);
 }
 
 .suggest {
@@ -845,7 +981,7 @@ useSeoMeta({
   background: var(--bg-dark-2);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .9);
+  box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.9);
   /* Совпадений может быть много — список прокручивается сам, а не растёт на весь экран. */
   max-height: 320px;
   overflow-y: auto;
@@ -870,7 +1006,7 @@ useSeoMeta({
 }
 
 .suggest-item.on {
-  background: rgba(214, 136, 62, .18);
+  background: rgba(214, 136, 62, 0.18);
   color: var(--ember-soft);
 }
 
@@ -892,8 +1028,8 @@ useSeoMeta({
 }
 
 .result.won {
-  border-color: rgba(214, 136, 62, .5);
-  box-shadow: 0 0 40px -18px rgba(214, 136, 62, .8);
+  border-color: rgba(214, 136, 62, 0.5);
+  box-shadow: 0 0 40px -18px rgba(214, 136, 62, 0.8);
 }
 
 .result-head {
@@ -940,7 +1076,7 @@ useSeoMeta({
   background: transparent;
   border: none;
   font-size: 11px;
-  letter-spacing: .1em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
   min-height: 0;
@@ -995,7 +1131,7 @@ useSeoMeta({
 }
 
 .row.hit .cell.name {
-  border-color: rgba(214, 136, 62, .6);
+  border-color: rgba(214, 136, 62, 0.6);
   color: var(--ember);
   font-weight: 600;
 }
@@ -1084,9 +1220,16 @@ useSeoMeta({
   font-size: 11px;
 }
 
-.sw.hit { background: var(--success-fill); }
-.sw.partial { background: #a9821f; }
-.sw.miss { background: #3a2f27; color: var(--text-muted); }
+.sw.hit {
+  background: var(--success-fill);
+}
+.sw.partial {
+  background: #a9821f;
+}
+.sw.miss {
+  background: #3a2f27;
+  color: var(--text-muted);
+}
 
 .giveup {
   display: block;
@@ -1145,8 +1288,8 @@ useSeoMeta({
   }
 
   .row.hit {
-    border-color: rgba(214, 136, 62, .5);
-    background: rgba(214, 136, 62, .07);
+    border-color: rgba(214, 136, 62, 0.5);
+    background: rgba(214, 136, 62, 0.07);
   }
 
   .cell {
@@ -1187,15 +1330,15 @@ useSeoMeta({
   .cell.mark::before {
     content: attr(data-label);
     font-size: 8px;
-    letter-spacing: .08em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    opacity: .55;
+    opacity: 0.55;
     margin-bottom: 1px;
   }
 
   .cell.mark.hit::before,
   .cell.mark.partial::before {
-    opacity: .75;
+    opacity: 0.75;
   }
 
   /* Числам столько места не нужно: том и упоминания делят один ряд пополам,

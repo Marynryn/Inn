@@ -1,79 +1,105 @@
 <script setup lang="ts">
-import { pluralize } from '~/composables/useVolumes'
+import { pluralize } from "~/composables/useVolumes";
 const props = defineProps<{
-  volume: number
-  chapters: any[]
-  isOpen: boolean
-  downloading: Set<string>
-  downloaded: Set<string>
-  getBadge: (ch: any) => 'new' | 'read' | null
-}>()
+  volume: number;
+  chapters: any[];
+  isOpen: boolean;
+  downloading: Set<string>;
+  downloaded: Set<string>;
+  getBadge: (ch: any) => "new" | "read" | null;
+}>();
 
 const emit = defineEmits<{
-  toggle: []
-  download: [event: MouseEvent, id: string]
-}>()
+  toggle: [];
+  download: [event: MouseEvent, id: string];
+}>();
 
 // Переплёты томов. Цвет берётся из номера тома, а не из его позиции в списке:
 // тома идут не подряд (в базе есть первый и четвёртый без второго и третьего),
 // поэтому по позиции цвета перетасовались бы, стоит появиться пропущенному тому.
 const SPINE_COLORS = [
-  '#5d3230', '#3f5a52', '#6b4a2f', '#3f4560',
-  '#5d6034', '#7a3b34', '#51694f', '#4a3a5c',
-]
+  "#5d3230",
+  "#3f5a52",
+  "#6b4a2f",
+  "#3f4560",
+  "#5d6034",
+  "#7a3b34",
+  "#51694f",
+  "#4a3a5c",
+];
 
 // Римская нумерация на корешке. До L с запасом: томов в переводе десяток,
 // но правило не должно ломаться, если их станет заметно больше.
 const ROMAN: [number, string][] = [
-  [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
-]
+  [50, "L"],
+  [40, "XL"],
+  [10, "X"],
+  [9, "IX"],
+  [5, "V"],
+  [4, "IV"],
+  [1, "I"],
+];
 
 const roman = computed(() => {
-  let left = Math.trunc(props.volume)
-  if (!Number.isFinite(left) || left < 1) return ''
-  let out = ''
+  let left = Math.trunc(props.volume);
+  if (!Number.isFinite(left) || left < 1) return "";
+  let out = "";
   for (const [value, sign] of ROMAN) {
-    while (left >= value) { out += sign; left -= value }
+    while (left >= value) {
+      out += sign;
+      left -= value;
+    }
   }
-  return out
-})
+  return out;
+});
 
 // Кегль зависит от длины номера: «II» и «VIII» поперёк корешка занимают
 // вдвое разную ширину, и на одном размере длинный вылез бы за края.
 const numSize = computed(() => {
-  const n = roman.value.length
-  if (n <= 2) return 10
-  if (n === 3) return 8.5
-  return 7
-})
+  const n = roman.value.length;
+  if (n <= 2) return 10;
+  if (n === 3) return 8.5;
+  return 7;
+});
 
 // Свёрнутый до конца том браузер не раскладывает и не рисует (стиль
 // .settled ниже). Пока том сворачивается, строки нужны — иначе вместо них
 // уезжала бы пустая полоса, — поэтому прячем по окончании анимации.
-const settled = ref(!props.isOpen)
-let settleTimer: ReturnType<typeof setTimeout> | undefined
-watch(() => props.isOpen, (open) => {
-  clearTimeout(settleTimer)
-  if (open) settled.value = false
-  else settleTimer = setTimeout(() => { settled.value = true }, 400)
-})
-onBeforeUnmount(() => clearTimeout(settleTimer))
+const settled = ref(!props.isOpen);
+let settleTimer: ReturnType<typeof setTimeout> | undefined;
+watch(
+  () => props.isOpen,
+  (open) => {
+    clearTimeout(settleTimer);
+    if (open) settled.value = false;
+    else
+      settleTimer = setTimeout(() => {
+        settled.value = true;
+      }, 400);
+  },
+);
+onBeforeUnmount(() => clearTimeout(settleTimer));
 
 const spineColor = computed(() => {
-  const i = Math.trunc(props.volume) % SPINE_COLORS.length
-  return SPINE_COLORS[(i + SPINE_COLORS.length) % SPINE_COLORS.length]
-})
+  const i = Math.trunc(props.volume) % SPINE_COLORS.length;
+  return SPINE_COLORS[(i + SPINE_COLORS.length) % SPINE_COLORS.length];
+});
 </script>
 
 <template>
   <div class="volume" :class="{ open: isOpen, settled }">
     <button class="volume-head" @click="emit('toggle')">
       <span class="spine" :style="{ '--spine': spineColor }" aria-hidden="true">
-        <span class="spine-num" :style="{ fontSize: `${numSize}px` }">{{ roman }}</span>
+        <span class="spine-num" :style="{ fontSize: `${numSize}px` }">{{
+          roman
+        }}</span>
       </span>
       <span class="vol-name">
         Том {{ volume }}
-        <span class="vol-sub">· {{ chapters.length }} {{ pluralize(chapters.length, 'глава', 'главы', 'глав') }}</span>
+        <span class="vol-sub"
+          >· {{ chapters.length }}
+          {{ pluralize(chapters.length, "глава", "главы", "глав") }}</span
+        >
       </span>
       <span class="chev">❯</span>
     </button>
@@ -96,7 +122,7 @@ const spineColor = computed(() => {
 
 <style scoped>
 .volume {
-  border-bottom: 1px solid rgba(43, 30, 22, .1);
+  border-bottom: 1px solid rgba(43, 30, 22, 0.1);
 }
 
 .volume:last-child {
@@ -132,26 +158,30 @@ const spineColor = computed(() => {
   border-radius: 2px 2px 1px 1px;
   position: relative;
   background:
-    linear-gradient(90deg,
-      rgba(0, 0, 0, .36) 0%,
-      rgba(255, 255, 255, .13) 26%,
-      rgba(255, 255, 255, .02) 62%,
-      rgba(0, 0, 0, .30) 100%),
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.36) 0%,
+      rgba(255, 255, 255, 0.13) 26%,
+      rgba(255, 255, 255, 0.02) 62%,
+      rgba(0, 0, 0, 0.3) 100%
+    ),
     var(--spine);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .26);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.26);
   /* Ось вращения — по нижней кромке: книга поворачивается на том углу,
      которым стоит на полке, а не вокруг своей середины. */
   transform-origin: 50% 100%;
-  transition: transform .32s cubic-bezier(.2, .7, .3, 1), box-shadow .32s ease;
+  transition:
+    transform 0.32s cubic-bezier(0.2, 0.7, 0.3, 1),
+    box-shadow 0.32s ease;
 }
 
 /* Открытый том вынимают с полки: корешок кренится в зал и ловит уголь по канту */
 .volume.open .spine {
   transform: rotate(-9deg) translateY(-2px);
   box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, .26),
-    0 0 0 1px rgba(214, 136, 62, .5),
-    3px 5px 8px -4px rgba(31, 24, 19, .55);
+    inset 0 0 0 1px rgba(0, 0, 0, 0.26),
+    0 0 0 1px rgba(214, 136, 62, 0.5),
+    3px 5px 8px -4px rgba(31, 24, 19, 0.55);
 }
 
 /* Золотые накатки, как на переплёте */
@@ -162,8 +192,8 @@ const spineColor = computed(() => {
   left: 4px;
   right: 4px;
   height: 3px;
-  border-top: 1px solid rgba(201, 160, 46, .62);
-  border-bottom: 1px solid rgba(201, 160, 46, .32);
+  border-top: 1px solid rgba(201, 160, 46, 0.62);
+  border-bottom: 1px solid rgba(201, 160, 46, 0.32);
 }
 
 .spine::before {
@@ -184,12 +214,12 @@ const spineColor = computed(() => {
   justify-content: center;
   font-family: var(--font-body);
   font-weight: 600;
-  letter-spacing: .2px;
+  letter-spacing: 0.2px;
   line-height: 1;
   white-space: nowrap;
   overflow: hidden;
   color: var(--gold);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, .6);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
 }
 
 .vol-name {
@@ -207,7 +237,9 @@ const spineColor = computed(() => {
 .chev {
   font-size: 26px;
   color: var(--ink-soft);
-  transition: transform .35s ease, color .15s;
+  transition:
+    transform 0.35s ease,
+    color 0.15s;
 }
 
 .volume.open .chev {
@@ -217,7 +249,7 @@ const spineColor = computed(() => {
 .volume-body-grid {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows .35s ease;
+  transition: grid-template-rows 0.35s ease;
 }
 
 .volume.open .volume-body-grid {

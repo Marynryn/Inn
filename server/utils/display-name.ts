@@ -1,13 +1,13 @@
-import { and, eq, ne } from 'drizzle-orm'
+import { and, eq, ne } from "drizzle-orm";
 import {
   DISPLAY_NAME_MAX,
   displayNameKey,
   isGenericName,
   isStaffName,
   normalizeDisplayName,
-} from '#shared/utils/displayName'
-import { users } from '../database/schema'
-import { useDb } from './db'
+} from "#shared/utils/displayName";
+import { users } from "../database/schema";
+import { useDb } from "./db";
 
 /**
  * Хранитель имён. В базе рядом с самим именем лежит его ключ — приведённое к
@@ -17,18 +17,23 @@ import { useDb } from './db'
  */
 
 /** Кто уже подписывается этим именем. exceptUserId — сам владелец, он не помеха. */
-export async function nameOwnerId(key: string, exceptUserId?: number): Promise<number | null> {
-  if (!key) return null
+export async function nameOwnerId(
+  key: string,
+  exceptUserId?: number,
+): Promise<number | null> {
+  if (!key) return null;
 
-  const db = useDb()
+  const db = useDb();
   const [row] = await db
     .select({ id: users.id })
     .from(users)
-    .where(exceptUserId
-      ? and(eq(users.displayNameKey, key), ne(users.id, exceptUserId))
-      : eq(users.displayNameKey, key))
+    .where(
+      exceptUserId
+        ? and(eq(users.displayNameKey, key), ne(users.id, exceptUserId))
+        : eq(users.displayNameKey, key),
+    );
 
-  return row?.id ?? null
+  return row?.id ?? null;
 }
 
 /**
@@ -36,26 +41,34 @@ export async function nameOwnerId(key: string, exceptUserId?: number): Promise<n
  * нельзя; безликие «Гость» и «Читатель» общие, их занимать некому.
  */
 export async function isNameFreeForGuest(name: string): Promise<boolean> {
-  const key = displayNameKey(name)
-  if (!key || isGenericName(key)) return true
-  if (isStaffName(key)) return false
+  const key = displayNameKey(name);
+  if (!key || isGenericName(key)) return true;
+  if (isStaffName(key)) return false;
 
-  return !await nameOwnerId(key)
+  return !(await nameOwnerId(key));
 }
 
 /**
  * Пропускает дальше только свободное имя. Безликие занимать нельзя вовсе, а
  * служебные — никому, кроме хозяйки сайта: под ними на сайте говорит она.
  */
-export async function assertNameFree(name: string, owner?: { id: number, role: 'admin' | 'reader' }) {
-  const key = displayNameKey(name)
-  if (!key) return
+export async function assertNameFree(
+  name: string,
+  owner?: { id: number; role: "admin" | "reader" },
+) {
+  const key = displayNameKey(name);
+  if (!key) return;
 
-  const busy = isGenericName(key)
-    || (isStaffName(key) && owner?.role !== 'admin')
-    || Boolean(await nameOwnerId(key, owner?.id))
+  const busy =
+    isGenericName(key) ||
+    (isStaffName(key) && owner?.role !== "admin") ||
+    Boolean(await nameOwnerId(key, owner?.id));
 
-  if (busy) throw createError({ statusCode: 409, message: 'Имя занято, выбери другое' })
+  if (busy)
+    throw createError({
+      statusCode: 409,
+      message: "Имя занято, выбери другое",
+    });
 }
 
 /**
@@ -65,17 +78,19 @@ export async function assertNameFree(name: string, owner?: { id: number, role: '
  * не берём вовсе: новичок останется без имени и назовётся сам.
  */
 export async function freeDisplayName(base: string): Promise<string | null> {
-  const name = normalizeDisplayName(base)
-  if (!name || isGenericName(name) || isStaffName(name)) return null
+  const name = normalizeDisplayName(base);
+  if (!name || isGenericName(name) || isStaffName(name)) return null;
 
   for (let n = 1; n <= 50; n++) {
     // Хвост может не влезть в сорок символов — тогда режем само имя, а не хвост.
-    const suffix = n === 1 ? '' : ` ${n}`
-    const variant = normalizeDisplayName(name.slice(0, DISPLAY_NAME_MAX - suffix.length) + suffix)
-    if (!await nameOwnerId(displayNameKey(variant))) return variant
+    const suffix = n === 1 ? "" : ` ${n}`;
+    const variant = normalizeDisplayName(
+      name.slice(0, DISPLAY_NAME_MAX - suffix.length) + suffix,
+    );
+    if (!(await nameOwnerId(displayNameKey(variant)))) return variant;
   }
 
-  return null
+  return null;
 }
 
 /**
@@ -85,11 +100,14 @@ export async function freeDisplayName(base: string): Promise<string | null> {
  */
 export async function saveUnique<T>(write: () => Promise<T>): Promise<T> {
   try {
-    return await write()
+    return await write();
   } catch (e: any) {
-    if (String(e?.message ?? '').includes('display_name_key')) {
-      throw createError({ statusCode: 409, message: 'Имя занято, выбери другое' })
+    if (String(e?.message ?? "").includes("display_name_key")) {
+      throw createError({
+        statusCode: 409,
+        message: "Имя занято, выбери другое",
+      });
     }
-    throw e
+    throw e;
   }
 }

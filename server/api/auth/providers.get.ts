@@ -1,5 +1,5 @@
-import { publicOrigin, viaMirror } from '../../utils/public-origin'
-import { telegramLoginAvailable } from '../../utils/telegram'
+import { publicOrigin, viaMirror } from "../../utils/public-origin";
+import { telegramLoginAvailable } from "../../utils/telegram";
 
 /**
  * Какие способы входа доступны с этого адреса. Страница рисует только рабочие
@@ -7,12 +7,14 @@ import { telegramLoginAvailable } from '../../utils/telegram'
  * выданного боту.
  */
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig(event)
+  const config = useRuntimeConfig(event);
   // С зеркала телеграм работает через основной домен — его и спрашиваем.
-  const origin = viaMirror(event) ? config.public.siteUrl : publicOrigin(event)
+  const origin = viaMirror(event) ? config.public.siteUrl : publicOrigin(event);
 
   return {
-    google: Boolean(config.oauth?.google?.clientId && config.oauth?.google?.clientSecret),
+    google: Boolean(
+      config.oauth?.google?.clientId && config.oauth?.google?.clientSecret,
+    ),
     telegram: await telegramLoginAvailable(origin),
-  }
-})
+  };
+});

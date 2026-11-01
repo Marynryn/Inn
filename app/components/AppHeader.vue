@@ -3,65 +3,79 @@
 // и аватарка. Вся навигация уехала в шторку (AppDrawer) — ряд ссылок в шапке
 // на планшете переставал помещаться, а на телефоне его всё равно прятали.
 defineProps<{
-  telegramUrl?: string
-  boostyUrl?: string
-  tributeUrl?: string
-  commentsHref?: string
-  commentsLabel?: string
-  backToChapterHref?: string
-  backToChapterLabel?: string
-  transparentTop?: boolean
-}>()
+  telegramUrl?: string;
+  boostyUrl?: string;
+  tributeUrl?: string;
+  commentsHref?: string;
+  commentsLabel?: string;
+  backToChapterHref?: string;
+  backToChapterLabel?: string;
+  transparentTop?: boolean;
+}>();
 
-const menuOpen = ref(false)
-const route = useRoute()
-const auth = useAuthStore()
+const menuOpen = ref(false);
+const route = useRoute();
+const auth = useAuthStore();
 
 // Вход и профиль стоят в шапке на каждой странице: решение войти приходит там,
 // где человека застала мысль, а не там, где мы положили ссылку.
 //
 // Вход возвращает туда, откуда позвали: читателю незачем терять место в главе
 // ради того, чтобы подписать комментарий своим именем.
-const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
-const scrolled = ref(false)
+const loginHref = computed(
+  () => `/login?next=${encodeURIComponent(route.fullPath)}`,
+);
+const scrolled = ref(false);
 
 // Сервер не знает, кто вошёл (auth.client.ts), и рисует шапку для гостя. В
 // админке middleware дожидается пользователя ещё до гидрации — и браузер
 // оживлял бы гостевую разметку данными вошедшего: в сборке Vue такое
 // расхождение не чинит, и аватарка получала классы заглушки. Поэтому всё, что
 // зависит от входа, показываем только после монтирования.
-const hydrated = ref(false)
-const authed = computed(() => hydrated.value && auth.isAuthed)
+const hydrated = ref(false);
+const authed = computed(() => hydrated.value && auth.isAuthed);
 
-defineExpose({ close: () => { menuOpen.value = false } })
+defineExpose({
+  close: () => {
+    menuOpen.value = false;
+  },
+});
 
-watch(() => route.fullPath, () => { menuOpen.value = false })
+watch(
+  () => route.fullPath,
+  () => {
+    menuOpen.value = false;
+  },
+);
 
 const scrollTop = () => {
   // На других страницах переход и сброс скролла уже делает router.options.ts —
   // не дёргаем анимацию до навигации, иначе прогресс главы сохранится как «в начале».
-  if (route.path === '/') {
-    smoothScrollTo(0)
+  if (route.path === "/") {
+    smoothScrollTo(0);
   }
-}
+};
 
 const onScroll = () => {
-  scrolled.value = window.scrollY > 10
-}
+  scrolled.value = window.scrollY > 10;
+};
 
 onMounted(() => {
-  hydrated.value = true
-  onScroll()
-  window.addEventListener('scroll', onScroll, { passive: true })
-})
+  hydrated.value = true;
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive: true });
+});
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', onScroll)
-})
+  window.removeEventListener("scroll", onScroll);
+});
 </script>
 
 <template>
-  <header class="app-header" :class="{ 'is-transparent': transparentTop && !scrolled && !menuOpen }">
+  <header
+    class="app-header"
+    :class="{ 'is-transparent': transparentTop && !scrolled && !menuOpen }"
+  >
     <div class="h-left">
       <button
         type="button"
@@ -73,14 +87,29 @@ onUnmounted(() => {
         <NavIcon name="burger" :size="22" />
       </button>
       <NuxtLink href="/" class="brand" @click="scrollTop">
-        <NuxtImg src="/hearth.webp" class="brand-logo" width="32" height="32" alt="" />
+        <NuxtImg
+          src="/hearth.webp"
+          class="brand-logo"
+          width="32"
+          height="32"
+          alt=""
+        />
         <span class="brand-name">Странствующая Таверна</span>
       </NuxtLink>
     </div>
 
     <div class="h-right">
-      <SupportLinks :boosty-url="boostyUrl" :tribute-url="tributeUrl" link-class="nav-support" />
-      <NuxtLink v-if="authed" to="/profile" class="user-chip" :title="auth.name">
+      <SupportLinks
+        :boosty-url="boostyUrl"
+        :tribute-url="tributeUrl"
+        link-class="nav-support"
+      />
+      <NuxtLink
+        v-if="authed"
+        to="/profile"
+        class="user-chip"
+        :title="auth.name"
+      >
         <UserAvatar
           class="user-pic"
           :src="auth.user?.avatarUrl"
@@ -131,7 +160,9 @@ onUnmounted(() => {
   padding: 0 24px 0 12px;
   background: var(--bg-dark);
   border-bottom: 1px solid var(--line-faint);
-  transition: background .25s ease, border-color .25s ease;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease;
 }
 
 .app-header.is-transparent {
@@ -174,7 +205,7 @@ onUnmounted(() => {
   border-radius: var(--radius-md);
   color: var(--parchment-2);
   cursor: pointer;
-  transition: color .15s;
+  transition: color 0.15s;
 }
 
 .burger:hover {
@@ -204,7 +235,7 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   color: var(--parchment);
-  letter-spacing: .02em;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -216,8 +247,10 @@ onUnmounted(() => {
 .nav-link {
   font-size: 14px;
   color: var(--parchment-2);
-  opacity: .85;
-  transition: color .15s, opacity .15s;
+  opacity: 0.85;
+  transition:
+    color 0.15s,
+    opacity 0.15s;
   white-space: nowrap;
   text-decoration: none;
 }
@@ -233,11 +266,13 @@ onUnmounted(() => {
   font-size: 14px;
   white-space: nowrap;
   text-decoration: none;
-  border: 1px solid rgba(201, 160, 46, .5);
+  border: 1px solid rgba(201, 160, 46, 0.5);
   color: var(--gold);
   padding: 6px 14px;
   border-radius: var(--radius-sm);
-  transition: background .15s, color .15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 :deep(.nav-support:hover) {

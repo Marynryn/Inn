@@ -1,42 +1,50 @@
-import { test as base, expect, type APIRequestContext, type Page } from '@playwright/test'
+import {
+  test as base,
+  expect,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 
-type Account = { email: string; password: string }
+type Account = { email: string; password: string };
 
 /**
  * Каждому тесту — свой «адрес»: лимиты на комментарии и попытки в игре
  * считаются по IP, а из одной машины все тесты выглядели бы одним человеком.
  */
-const fakeIp = () => `10.${rnd(255)}.${rnd(255)}.${rnd(254) + 1}`
-const rnd = (n: number) => Math.floor(Math.random() * n)
+const fakeIp = () => `10.${rnd(255)}.${rnd(255)}.${rnd(254) + 1}`;
+const rnd = (n: number) => Math.floor(Math.random() * n);
 
 export const test = base.extend({
   extraHTTPHeaders: async ({}, use) => {
-    await use({ 'x-forwarded-for': fakeIp() })
+    await use({ "x-forwarded-for": fakeIp() });
   },
   // Браузер тестов в интернет не ходит: внешнее (шрифты Google) получает пустой
   // ответ. Так прогон не зависит от сети, а служебный заголовок с адресом не
   // утекает на чужие домены — иначе CORS сыпал бы ошибками в консоль.
   context: async ({ context }, use) => {
-    await context.route(url => !['localhost', '127.0.0.1'].includes(url.hostname), route => route.fulfill({ status: 204 }))
-    await use(context)
+    await context.route(
+      (url) => !["localhost", "127.0.0.1"].includes(url.hostname),
+      (route) => route.fulfill({ status: 204 }),
+    );
+    await use(context);
   },
-})
+});
 
-export { expect }
+export { expect };
 
 /** Вход через API: кука сессии ложится в контекст, дальше страницы открываются уже авторизованными. */
 export async function login(page: Page, account: Account) {
-  const res = await page.request.post('/api/auth/login', { data: account })
-  expect(res.ok(), `login ${account.email}: ${res.status()}`).toBeTruthy()
+  const res = await page.request.post("/api/auth/login", { data: account });
+  expect(res.ok(), `login ${account.email}: ${res.status()}`).toBeTruthy();
 }
 
 export async function logout(page: Page) {
-  await page.request.post('/api/auth/logout')
+  await page.request.post("/api/auth/logout");
 }
 
 export async function apiLogin(request: APIRequestContext, account: Account) {
-  const res = await request.post('/api/auth/login', { data: account })
-  expect(res.ok(), `login ${account.email}: ${res.status()}`).toBeTruthy()
+  const res = await request.post("/api/auth/login", { data: account });
+  expect(res.ok(), `login ${account.email}: ${res.status()}`).toBeTruthy();
 }
 
 /**
@@ -45,7 +53,7 @@ export async function apiLogin(request: APIRequestContext, account: Account) {
  * клики не уйдут в пустоту.
  */
 export async function open(page: Page, url: string) {
-  const me = page.waitForResponse(r => r.url().includes('/api/auth/me'))
-  await page.goto(url)
-  await me
+  const me = page.waitForResponse((r) => r.url().includes("/api/auth/me"));
+  await page.goto(url);
+  await me;
 }

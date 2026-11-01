@@ -1,14 +1,19 @@
-import { createClient } from '@libsql/client'
-import bcrypt from 'bcryptjs'
-import { DISPLAY_NAME_MAX, displayNameKey, nameFromEmail, normalizeDisplayName } from '#shared/utils/displayName'
-import { countWords } from '#shared/utils/wordCount'
+import { createClient } from "@libsql/client";
+import bcrypt from "bcryptjs";
+import {
+  DISPLAY_NAME_MAX,
+  displayNameKey,
+  nameFromEmail,
+  normalizeDisplayName,
+} from "#shared/utils/displayName";
+import { countWords } from "#shared/utils/wordCount";
 
 export async function runMigrations() {
-  const storageDir = process.env.STORAGE_DIR || 'storage'
-  const client = createClient({ url: `file:${storageDir}/db.sqlite` })
+  const storageDir = process.env.STORAGE_DIR || "storage";
+  const client = createClient({ url: `file:${storageDir}/db.sqlite` });
   // Nitro не ждёт плагин миграций: сайт уже отвечает, пока они идут, и запросы
   // держат базу. Без ожидания соседнее чтение роняло бы миграцию с SQLITE_BUSY.
-  await client.execute('PRAGMA busy_timeout = 5000')
+  await client.execute("PRAGMA busy_timeout = 5000");
 
   await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS chapters (
@@ -48,7 +53,7 @@ export async function runMigrations() {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL DEFAULT ''
     );
-  `)
+  `);
 
   // Таблица реакций на комментарии
   await client.execute(`
@@ -60,29 +65,31 @@ export async function runMigrations() {
       ip TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
-  `)
+  `);
 
   // Новые столбцы для аватарки и привязки комментария к пользователю
   const newCols = [
-    'ALTER TABLE users ADD COLUMN avatar_url TEXT',
-    'ALTER TABLE users ADD COLUMN display_name TEXT',
-    'ALTER TABLE comments ADD COLUMN user_id INTEGER',
-    'ALTER TABLE comments ADD COLUMN is_spoiler INTEGER NOT NULL DEFAULT 0',
+    "ALTER TABLE users ADD COLUMN avatar_url TEXT",
+    "ALTER TABLE users ADD COLUMN display_name TEXT",
+    "ALTER TABLE comments ADD COLUMN user_id INTEGER",
+    "ALTER TABLE comments ADD COLUMN is_spoiler INTEGER NOT NULL DEFAULT 0",
     // Ответ на комментарий. Ветка одноуровневая: здесь всегда id корневого.
-    'ALTER TABLE comments ADD COLUMN parent_id INTEGER',
+    "ALTER TABLE comments ADD COLUMN parent_id INTEGER",
     // Кому отвечали. У ответов, написанных до этого столбца, останется NULL —
     // тогда подпись «в ответ» просто не показывается, а ветка цела.
-    'ALTER TABLE comments ADD COLUMN reply_to_id INTEGER',
-  ]
+    "ALTER TABLE comments ADD COLUMN reply_to_id INTEGER",
+  ];
   for (const sql of newCols) {
-    try { await client.execute(sql) } catch {}
+    try {
+      await client.execute(sql);
+    } catch {}
   }
 
   // Ответы читаются веткой: без индекса каждый показ главы сканировал бы
   // всю таблицу комментариев ради нескольких строк.
   await client.execute(
-    'CREATE INDEX IF NOT EXISTS comments_parent ON comments (parent_id)'
-  )
+    "CREATE INDEX IF NOT EXISTS comments_parent ON comments (parent_id)",
+  );
 
   // Уведомления: «на твой комментарий ответили». Держим только получателя и id
   // ответа — остальное достаётся из самого комментария при чтении.
@@ -103,17 +110,21 @@ export async function runMigrations() {
 
     CREATE INDEX IF NOT EXISTS notifications_unread
       ON notifications (user_id, is_read);
-  `)
+  `);
 
   // Добавить sort_order если столбца ещё нет (для уже существующих БД)
   try {
-    await client.execute('ALTER TABLE chapters ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0')
+    await client.execute(
+      "ALTER TABLE chapters ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+    );
   } catch {
     // Столбец уже существует — это нормально
   }
 
   try {
-    await client.execute('ALTER TABLE chapters ADD COLUMN is_published INTEGER NOT NULL DEFAULT 1')
+    await client.execute(
+      "ALTER TABLE chapters ADD COLUMN is_published INTEGER NOT NULL DEFAULT 1",
+    );
   } catch {
     // Столбец уже существует — это нормально
   }
@@ -123,8 +134,10 @@ export async function runMigrations() {
   // не разослал разом уведомления про весь архив. У черновиков она остаётся
   // пустой — про них уведомим тогда, когда их опубликуют.
   try {
-    await client.execute('ALTER TABLE chapters ADD COLUMN notified_at TEXT')
-    await client.execute('UPDATE chapters SET notified_at = created_at WHERE is_published = 1')
+    await client.execute("ALTER TABLE chapters ADD COLUMN notified_at TEXT");
+    await client.execute(
+      "UPDATE chapters SET notified_at = created_at WHERE is_published = 1",
+    );
   } catch {
     // Столбец уже существует — это нормально
   }
@@ -134,18 +147,29 @@ export async function runMigrations() {
   // поднимать в память весь перевод разом. Глава с нулём слов при пустом
   // тексте пересчитается на каждом старте — это один дешёвый запрос.
   try {
-    await client.execute('ALTER TABLE chapters ADD COLUMN word_count INTEGER NOT NULL DEFAULT 0')
+    await client.execute(
+      "ALTER TABLE chapters ADD COLUMN word_count INTEGER NOT NULL DEFAULT 0",
+    );
   } catch {
     // Столбец уже существует — это нормально
   }
-  const uncounted = await client.execute("SELECT id FROM chapters WHERE word_count = 0 AND content_html != ''")
+  const uncounted = await client.execute(
+    "SELECT id FROM chapters WHERE word_count = 0 AND content_html != ''",
+  );
   for (const row of uncounted.rows) {
-    const id = (row as any).id as string
-    const chapter = await client.execute({ sql: 'SELECT content_html FROM chapters WHERE id = ?', args: [id] })
-    const html = ((chapter.rows[0] as any)?.content_html ?? '') as string
-    await client.execute({ sql: 'UPDATE chapters SET word_count = ? WHERE id = ?', args: [countWords(html), id] })
+    const id = (row as any).id as string;
+    const chapter = await client.execute({
+      sql: "SELECT content_html FROM chapters WHERE id = ?",
+      args: [id],
+    });
+    const html = ((chapter.rows[0] as any)?.content_html ?? "") as string;
+    await client.execute({
+      sql: "UPDATE chapters SET word_count = ? WHERE id = ?",
+      args: [countWords(html), id],
+    });
   }
-  if (uncounted.rows.length) console.log(`[migrate] Посчитаны слова в главах: ${uncounted.rows.length}`)
+  if (uncounted.rows.length)
+    console.log(`[migrate] Посчитаны слова в главах: ${uncounted.rows.length}`);
 
   // Просмотры по дням — одна строка на главу за день, для счётчика «за сегодня».
   await client.executeMultiple(`
@@ -155,11 +179,13 @@ export async function runMigrations() {
       count INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (chapter_id, day)
     );
-  `)
+  `);
 
   // Прежний журнал хранил строку на каждый адрес ради дедупликации — от неё
   // отказались, адреса больше не пишем.
-  try { await client.execute('DROP TABLE chapter_views') } catch {}
+  try {
+    await client.execute("DROP TABLE chapter_views");
+  } catch {}
 
   // Скачивания по дням — та же форма, для плитки «Скачиваний epub».
   await client.executeMultiple(`
@@ -169,7 +195,7 @@ export async function runMigrations() {
       count INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (chapter_id, day)
     );
-  `)
+  `);
 
   // Клики по хеллоуинской тыкве по дням.
   await client.execute(`
@@ -177,7 +203,7 @@ export async function runMigrations() {
       day TEXT PRIMARY KEY,
       count INTEGER NOT NULL DEFAULT 0
     )
-  `)
+  `);
 
   // Разные читатели за день. Строка на браузер за день, вместо кода браузера —
   // отпечаток с датой, см. readerDays в schema.ts.
@@ -187,9 +213,11 @@ export async function runMigrations() {
       visitor TEXT NOT NULL,
       PRIMARY KEY (day, visitor)
     )
-  `)
+  `);
   // В админке — сегодня и две недели назад; месяц с запасом.
-  await client.execute("DELETE FROM reader_days WHERE day < date('now', '-30 day')")
+  await client.execute(
+    "DELETE FROM reader_days WHERE day < date('now', '-30 day')",
+  );
 
   // Настольная игра: разные люди на её страницах по дням и доигранные партии.
   // Заходы держим месяц, как reader_days; партии — строка на день, их мало.
@@ -199,18 +227,24 @@ export async function runMigrations() {
       visitor TEXT NOT NULL,
       PRIMARY KEY (day, visitor)
     )
-  `)
-  await client.execute("DELETE FROM board_visit_days WHERE day < date('now', '-30 day')")
+  `);
+  await client.execute(
+    "DELETE FROM board_visit_days WHERE day < date('now', '-30 day')",
+  );
   await client.execute(`
     CREATE TABLE IF NOT EXISTS board_game_days (
       day TEXT PRIMARY KEY,
       finished INTEGER NOT NULL DEFAULT 0
     )
-  `)
+  `);
 
   // Хранить историю по дням незачем: показывается только сегодняшний день.
-  await client.execute("DELETE FROM chapter_view_days WHERE day < date('now', '-7 day')")
-  await client.execute("DELETE FROM chapter_download_days WHERE day < date('now', '-7 day')")
+  await client.execute(
+    "DELETE FROM chapter_view_days WHERE day < date('now', '-7 day')",
+  );
+  await client.execute(
+    "DELETE FROM chapter_download_days WHERE day < date('now', '-7 day')",
+  );
 
   // Игра «Кто из таверны»: партии игроков и сводка по персонажу дня.
   // Уникальный индекс частичный — партия дня одна на игрока, свободных сколько угодно.
@@ -244,15 +278,19 @@ export async function runMigrations() {
       win_guesses INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (day, mode)
     );
-  `)
+  `);
 
   // Прежние счётчики знали только про персонажа дня и считали заодно нас самих.
   // Игра ещё скрыта, терять нечего — просто выбрасываем старую таблицу.
-  try { await client.execute('DROP TABLE game_daily_stats') } catch {}
+  try {
+    await client.execute("DROP TABLE game_daily_stats");
+  } catch {}
 
   // Потолок тома появился позже самой игры — дописываем столбец в уже созданные базы.
   try {
-    await client.execute('ALTER TABLE game_sessions ADD COLUMN max_volume INTEGER NOT NULL DEFAULT 10')
+    await client.execute(
+      "ALTER TABLE game_sessions ADD COLUMN max_volume INTEGER NOT NULL DEFAULT 10",
+    );
   } catch {
     // Столбец уже существует — это нормально
   }
@@ -262,34 +300,43 @@ export async function runMigrations() {
   // персонажей из непереведённых томов, поэтому разово их выбрасываем. Метка в
   // настройках следит, чтобы уборка случилась один раз и не сносила потом
   // партии живых игроков.
-  const reset = await client.execute("SELECT value FROM site_settings WHERE key = 'game_sessions_reset'")
+  const reset = await client.execute(
+    "SELECT value FROM site_settings WHERE key = 'game_sessions_reset'",
+  );
   if (reset.rows.length === 0) {
-    await client.execute('DELETE FROM game_sessions')
-    await client.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('game_sessions_reset', '1')")
+    await client.execute("DELETE FROM game_sessions");
+    await client.execute(
+      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('game_sessions_reset', '1')",
+    );
   }
 
   // Старые партии не нужны: страница показывает только сегодняшнюю и текущую свободную.
-  await client.execute("DELETE FROM game_sessions WHERE day < date('now', '-30 day')")
+  await client.execute(
+    "DELETE FROM game_sessions WHERE day < date('now', '-30 day')",
+  );
 
   // Всегда исправлять главы с sort_order = 0 по published_at
   await client.execute(`
     UPDATE chapters SET sort_order = (
       SELECT COUNT(*) FROM chapters c2 WHERE c2.published_at <= chapters.published_at
     ) WHERE sort_order = 0
-  `)
+  `);
 
   // Вход через Google и телеграм. У таких аккаунтов нет ни почты, ни пароля, а
   // прежняя таблица объявляла оба столбца NOT NULL — снять это ALTER'ом SQLite
   // не умеет, поэтому таблицу разово пересобираем. Метка в настройках следит,
   // чтобы пересборка случилась один раз и не тронула живые строки повторно.
-  const usersRebuilt = await client.execute("SELECT value FROM site_settings WHERE key = 'users_nullable_rebuild'")
+  const usersRebuilt = await client.execute(
+    "SELECT value FROM site_settings WHERE key = 'users_nullable_rebuild'",
+  );
   if (usersRebuilt.rows.length === 0) {
     // Одной транзакцией вместе с меткой: оборвись процесс между DROP и
     // переименованием — база осталась бы без таблицы пользователей, а метка
     // непоставленной, и следующий запуск падал бы на том же месте. Либо всё,
     // либо ничего.
-    await client.batch([
-      `CREATE TABLE users_new (
+    await client.batch(
+      [
+        `CREATE TABLE users_new (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE,
         password_hash TEXT,
@@ -299,12 +346,14 @@ export async function runMigrations() {
         is_banned INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
-      `INSERT INTO users_new (id, email, password_hash, role, avatar_url, display_name)
+        `INSERT INTO users_new (id, email, password_hash, role, avatar_url, display_name)
         SELECT id, email, password_hash, role, avatar_url, display_name FROM users`,
-      'DROP TABLE users',
-      'ALTER TABLE users_new RENAME TO users',
-      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('users_nullable_rebuild', '1')",
-    ], 'write')
+        "DROP TABLE users",
+        "ALTER TABLE users_new RENAME TO users",
+        "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('users_nullable_rebuild', '1')",
+      ],
+      "write",
+    );
   }
 
   // Способы входа: один аккаунт — сколько угодно провайдеров. Отдельная таблица,
@@ -324,7 +373,7 @@ export async function runMigrations() {
 
     CREATE INDEX IF NOT EXISTS user_identities_user
       ON user_identities (user_id);
-  `)
+  `);
 
   // Достижения в игре. Отдельная таблица, а не выборка по партиям: свободные
   // партии удаляются при старте следующей, а всё старше месяца вычищается —
@@ -349,7 +398,7 @@ export async function runMigrations() {
 
     CREATE INDEX IF NOT EXISTS game_results_user
       ON game_results (user_id, finished_at);
-  `)
+  `);
 
   // Огоньки на карточках персонажей. Один от человека: у вошедшего — по
   // аккаунту, у гостя — по IP; частичные индексы не дают поставить второй.
@@ -367,17 +416,21 @@ export async function runMigrations() {
 
     CREATE UNIQUE INDEX IF NOT EXISTS character_flames_ip
       ON character_flames (character_id, ip) WHERE user_id IS NULL;
-  `)
+  `);
 
   // Партия, начатая до входа, должна засчитаться тому, кто потом вошёл.
   try {
-    await client.execute('ALTER TABLE game_sessions ADD COLUMN user_id INTEGER')
+    await client.execute(
+      "ALTER TABLE game_sessions ADD COLUMN user_id INTEGER",
+    );
   } catch {
     // Столбец уже существует — это нормально
   }
 
   // Партия вошедшего ищется по аккаунту, а не по куке: одна на все устройства.
-  await client.execute('CREATE INDEX IF NOT EXISTS game_sessions_user ON game_sessions (user_id, mode, day)')
+  await client.execute(
+    "CREATE INDEX IF NOT EXISTS game_sessions_user ON game_sessions (user_id, mode, day)",
+  );
 
   // Закладка вошедшего читателя: прочитанные главы и место в каждой. У гостей
   // всё это лежит в localStorage и там же остаётся — таблица только для тех,
@@ -394,48 +447,67 @@ export async function runMigrations() {
 
     CREATE INDEX IF NOT EXISTS reading_progress_recent
       ON reading_progress (user_id, updated_at);
-  `)
+  `);
 
   // Имя под комментариями — одно на всех. Рядом с самим именем теперь лежит его
   // ключ (написание, приведённое к одному виду), а уникальный индекс по ключу и
   // держит правило. Тем, кто подписывался почтой, имя проставляем явно: пока оно
   // только выводилось из почты, занятым оно не считалось и его мог взять кто-то
   // ещё. Совпавшие имена разводим номером — прежнее остаётся тому, кто раньше.
-  const nameKeys = await client.execute("SELECT value FROM site_settings WHERE key = 'display_name_keys'")
+  const nameKeys = await client.execute(
+    "SELECT value FROM site_settings WHERE key = 'display_name_keys'",
+  );
   if (nameKeys.rows.length === 0) {
-    try { await client.execute('ALTER TABLE users ADD COLUMN display_name_key TEXT') } catch {}
+    try {
+      await client.execute(
+        "ALTER TABLE users ADD COLUMN display_name_key TEXT",
+      );
+    } catch {}
 
     // Имя, выбранное руками, старше выведенного из почты: раздаём сперва тем,
     // кто называл себя сам, и только потом остальным. Иначе служебный
     // admin@tavern.local — он заводится сам при пустой базе и имени никогда не
     // выбирал — отобрал бы «admin» у живого человека.
-    const rows = await client.execute('SELECT id, display_name, email FROM users ORDER BY id')
-    const ordered = [...rows.rows].sort((a, b) =>
-      Number(Boolean(b.display_name)) - Number(Boolean(a.display_name)))
-    const taken = new Set<string>()
+    const rows = await client.execute(
+      "SELECT id, display_name, email FROM users ORDER BY id",
+    );
+    const ordered = [...rows.rows].sort(
+      (a, b) =>
+        Number(Boolean(b.display_name)) - Number(Boolean(a.display_name)),
+    );
+    const taken = new Set<string>();
 
-    for (const row of ordered as unknown as { id: number, display_name: string | null, email: string | null }[]) {
-      const base = normalizeDisplayName(row.display_name) || nameFromEmail(row.email)
-      if (!base) continue
+    for (const row of ordered as unknown as {
+      id: number;
+      display_name: string | null;
+      email: string | null;
+    }[]) {
+      const base =
+        normalizeDisplayName(row.display_name) || nameFromEmail(row.email);
+      if (!base) continue;
 
-      let name = base
+      let name = base;
       for (let n = 2; taken.has(displayNameKey(name)); n++) {
-        const suffix = ` ${n}`
-        name = normalizeDisplayName(base.slice(0, DISPLAY_NAME_MAX - suffix.length) + suffix)
+        const suffix = ` ${n}`;
+        name = normalizeDisplayName(
+          base.slice(0, DISPLAY_NAME_MAX - suffix.length) + suffix,
+        );
       }
-      taken.add(displayNameKey(name))
+      taken.add(displayNameKey(name));
 
       await client.execute({
-        sql: 'UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?',
+        sql: "UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?",
         args: [name, displayNameKey(name), row.id],
-      })
+      });
     }
 
     await client.executeMultiple(`
       CREATE UNIQUE INDEX IF NOT EXISTS users_display_name_key
         ON users (display_name_key) WHERE display_name_key IS NOT NULL;
-    `)
-    await client.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('display_name_keys', '1')")
+    `);
+    await client.execute(
+      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('display_name_keys', '1')",
+    );
   }
 
   // Разбор выше уже прошёл по боевой базе в прежнем порядке — по одному
@@ -443,48 +515,77 @@ export async function runMigrations() {
   // хозяйки сайта: ей осталось «admin 2». Возвращаем имя тому, кто его
   // выбирал: у кого имя лишь выведено из почты, тот уступает его владельцу
   // номерного двойника, а сам получает двойника взамен.
-  const nameOwners = await client.execute("SELECT value FROM site_settings WHERE key = 'display_name_owner_fix'")
+  const nameOwners = await client.execute(
+    "SELECT value FROM site_settings WHERE key = 'display_name_owner_fix'",
+  );
   if (nameOwners.rows.length === 0) {
-    type NameRow = { id: number, email: string | null, role: string, display_name: string | null, display_name_key: string | null }
-    const all = await client.execute('SELECT id, email, role, display_name, display_name_key FROM users ORDER BY id')
-    const rows = all.rows as unknown as NameRow[]
+    type NameRow = {
+      id: number;
+      email: string | null;
+      role: string;
+      display_name: string | null;
+      display_name_key: string | null;
+    };
+    const all = await client.execute(
+      "SELECT id, email, role, display_name, display_name_key FROM users ORDER BY id",
+    );
+    const rows = all.rows as unknown as NameRow[];
 
     for (const holder of rows) {
-      const key = holder.display_name_key
-      if (!key) continue
+      const key = holder.display_name_key;
+      if (!key) continue;
 
       // Имя выбрано руками — оно и так у своего человека.
-      const fromMail = nameFromEmail(holder.email)
-      if (!fromMail || displayNameKey(fromMail) !== key) continue
+      const fromMail = nameFromEmail(holder.email);
+      if (!fromMail || displayNameKey(fromMail) !== key) continue;
 
       // Тот, кому это же имя досталось с номером, и есть тот, кто его выбирал.
       // Только хозяйка сайта: чужие профили разово не переставляем, а если
       // номерное имя досталось постороннему — имя тем более остаётся здесь.
-      const claimant = rows.find(r => r.id !== holder.id
-        && r.role === 'admin'
-        && /^ \d+$/.test((r.display_name_key ?? '').slice(key.length))
-        && (r.display_name_key ?? '').startsWith(`${key} `))
-      if (!claimant) continue
+      const claimant = rows.find(
+        (r) =>
+          r.id !== holder.id &&
+          r.role === "admin" &&
+          /^ \d+$/.test((r.display_name_key ?? "").slice(key.length)) &&
+          (r.display_name_key ?? "").startsWith(`${key} `),
+      );
+      if (!claimant) continue;
 
-      const wanted = normalizeDisplayName((claimant.display_name ?? '').replace(/ \d+$/, ''))
-      const given = claimant.display_name!
-      if (!wanted) continue
+      const wanted = normalizeDisplayName(
+        (claimant.display_name ?? "").replace(/ \d+$/, ""),
+      );
+      const given = claimant.display_name!;
+      if (!wanted) continue;
 
       // По одному шагу: уникальный индекс не даст двум строкам сойтись на одном
       // ключе даже на миг, поэтому сначала освобождаем имя, а потом раздаём.
-      await client.batch([
-        { sql: 'UPDATE users SET display_name = NULL, display_name_key = NULL WHERE id = ?', args: [holder.id] },
-        { sql: 'UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?', args: [wanted, displayNameKey(wanted), claimant.id] },
-        { sql: 'UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?', args: [given, displayNameKey(given), holder.id] },
-      ], 'write')
+      await client.batch(
+        [
+          {
+            sql: "UPDATE users SET display_name = NULL, display_name_key = NULL WHERE id = ?",
+            args: [holder.id],
+          },
+          {
+            sql: "UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?",
+            args: [wanted, displayNameKey(wanted), claimant.id],
+          },
+          {
+            sql: "UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?",
+            args: [given, displayNameKey(given), holder.id],
+          },
+        ],
+        "write",
+      );
 
-      holder.display_name = given
-      holder.display_name_key = displayNameKey(given)
-      claimant.display_name = wanted
-      claimant.display_name_key = displayNameKey(wanted)
+      holder.display_name = given;
+      holder.display_name_key = displayNameKey(given);
+      claimant.display_name = wanted;
+      claimant.display_name_key = displayNameKey(wanted);
     }
 
-    await client.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('display_name_owner_fix', '1')")
+    await client.execute(
+      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('display_name_owner_fix', '1')",
+    );
   }
 
   // Рамки для аватарок. Каталог в базе, картинки на диске: рамки раздаются на
@@ -510,17 +611,21 @@ export async function runMigrations() {
     );
 
     CREATE INDEX IF NOT EXISTS user_frames_frame ON user_frames (frame_id);
-  `)
+  `);
 
   try {
-    await client.execute('ALTER TABLE users ADD COLUMN avatar_frame_id INTEGER')
+    await client.execute(
+      "ALTER TABLE users ADD COLUMN avatar_frame_id INTEGER",
+    );
   } catch {
     // Столбец уже существует — это нормально
   }
 
   // Рамка новичка: её выдают при регистрации и сразу надевают.
   try {
-    await client.execute('ALTER TABLE avatar_frames ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0')
+    await client.execute(
+      "ALTER TABLE avatar_frames ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0",
+    );
   } catch {
     // Столбец уже существует — это нормально
   }
@@ -535,10 +640,13 @@ export async function runMigrations() {
   // об одной рамке тоже. Индексы частичные: у ответа пуст frame_id, у рамки —
   // comment_id, и в общем индексе они бы друг другу не мешали, но частичный
   // говорит это прямо.
-  const notifRebuilt = await client.execute("SELECT value FROM site_settings WHERE key = 'notifications_frame_rebuild'")
+  const notifRebuilt = await client.execute(
+    "SELECT value FROM site_settings WHERE key = 'notifications_frame_rebuild'",
+  );
   if (notifRebuilt.rows.length === 0) {
-    await client.batch([
-      `CREATE TABLE notifications_new (
+    await client.batch(
+      [
+        `CREATE TABLE notifications_new (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         type TEXT NOT NULL DEFAULT 'reply' CHECK(type IN ('reply','frame')),
@@ -547,27 +655,32 @@ export async function runMigrations() {
         is_read INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
-      `INSERT INTO notifications_new (id, user_id, type, comment_id, is_read, created_at)
+        `INSERT INTO notifications_new (id, user_id, type, comment_id, is_read, created_at)
         SELECT id, user_id, 'reply', comment_id, is_read, created_at FROM notifications`,
-      'DROP TABLE notifications',
-      'ALTER TABLE notifications_new RENAME TO notifications',
-      `CREATE UNIQUE INDEX IF NOT EXISTS notifications_once
+        "DROP TABLE notifications",
+        "ALTER TABLE notifications_new RENAME TO notifications",
+        `CREATE UNIQUE INDEX IF NOT EXISTS notifications_once
         ON notifications (user_id, comment_id) WHERE comment_id IS NOT NULL`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS notifications_frame_once
+        `CREATE UNIQUE INDEX IF NOT EXISTS notifications_frame_once
         ON notifications (user_id, frame_id) WHERE frame_id IS NOT NULL`,
-      'CREATE INDEX IF NOT EXISTS notifications_unread ON notifications (user_id, is_read)',
-      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('notifications_frame_rebuild', '1')",
-    ], 'write')
+        "CREATE INDEX IF NOT EXISTS notifications_unread ON notifications (user_id, is_read)",
+        "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('notifications_frame_rebuild', '1')",
+      ],
+      "write",
+    );
   }
 
   // Третий тип — лайки. CHECK в SQLite на месте не поправить, поэтому таблицу
   // перекладываем ещё раз, как с рамками, и заодно добавляем счётчик лайков.
   // Ответ и лайк делят индекс notifications_once и не сталкиваются: у ответа
   // comment_id — чужая реплика, у лайка — своя.
-  const likeRebuilt = await client.execute("SELECT value FROM site_settings WHERE key = 'notifications_like_rebuild'")
+  const likeRebuilt = await client.execute(
+    "SELECT value FROM site_settings WHERE key = 'notifications_like_rebuild'",
+  );
   if (likeRebuilt.rows.length === 0) {
-    await client.batch([
-      `CREATE TABLE notifications_new (
+    await client.batch(
+      [
+        `CREATE TABLE notifications_new (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         type TEXT NOT NULL DEFAULT 'reply' CHECK(type IN ('reply','frame','like')),
@@ -577,66 +690,76 @@ export async function runMigrations() {
         is_read INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
-      `INSERT INTO notifications_new (id, user_id, type, comment_id, frame_id, is_read, created_at)
+        `INSERT INTO notifications_new (id, user_id, type, comment_id, frame_id, is_read, created_at)
         SELECT id, user_id, type, comment_id, frame_id, is_read, created_at FROM notifications`,
-      'DROP TABLE notifications',
-      'ALTER TABLE notifications_new RENAME TO notifications',
-      `CREATE UNIQUE INDEX IF NOT EXISTS notifications_once
+        "DROP TABLE notifications",
+        "ALTER TABLE notifications_new RENAME TO notifications",
+        `CREATE UNIQUE INDEX IF NOT EXISTS notifications_once
         ON notifications (user_id, comment_id) WHERE comment_id IS NOT NULL`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS notifications_frame_once
+        `CREATE UNIQUE INDEX IF NOT EXISTS notifications_frame_once
         ON notifications (user_id, frame_id) WHERE frame_id IS NOT NULL`,
-      'CREATE INDEX IF NOT EXISTS notifications_unread ON notifications (user_id, is_read)',
-      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('notifications_like_rebuild', '1')",
-    ], 'write')
+        "CREATE INDEX IF NOT EXISTS notifications_unread ON notifications (user_id, is_read)",
+        "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('notifications_like_rebuild', '1')",
+      ],
+      "write",
+    );
   }
 
   // Лайки считают по комментарию — и счётчики под репликами, и уведомление о
   // них. Без индекса каждый подсчёт проходил бы всю таблицу реакций.
-  await client.execute('CREATE INDEX IF NOT EXISTS comment_reactions_comment ON comment_reactions (comment_id)')
+  await client.execute(
+    "CREATE INDEX IF NOT EXISTS comment_reactions_comment ON comment_reactions (comment_id)",
+  );
 
   // Дефолтные настройки сайта
   const defaults: Record<string, string> = {
-    hero_title: 'Истории трактира,\nрассказанные заново',
-    hero_subtitle: 'Продолжение перевода с главы 4.12. Цветное оформление речи персонажей, регулярные обновления, epub для скачивания — глава за главой.',
+    hero_title: "Истории трактира,\nрассказанные заново",
+    hero_subtitle:
+      "Продолжение перевода с главы 4.12. Цветное оформление речи персонажей, регулярные обновления, epub для скачивания — глава за главой.",
     // Бегущая строка под hero, по фразе на строку. Зазыв завести аккаунт —
     // видят её только незарегистрированные.
-    hero_ticker: 'В таверне завели книгу постояльцев\nЗаведи аккаунт — закладка будет на всех устройствах\nОтветят на комментарий — придёт уведомление\nВход через Google или Telegram, за полминуты',
-    hero_ticker_on: '1',
-    ledger_note: 'том.глава — нумерация как в оригинале',
-    footer_text: 'Фанатский перевод. Оригинал — wanderinginn.com, автор Pirateaba.\nНекоммерческий проект. Все права на оригинальное произведение принадлежат автору.',
-    telegram_url: 'https://t.me/',
-    boosty_url: 'https://boosty.to/',
-    tribute_url: '',
-    error_404_sub: 'Козёл добрался до этой страницы раньше тебя.',
-    tg_cta_title: 'Не пропусти новую главу',
-    tg_cta_text: 'Бот в телеграм-канале присылает уведомление о каждой новой главе сразу после публикации.',
-    update_schedule: '2–3',
+    hero_ticker:
+      "В таверне завели книгу постояльцев\nЗаведи аккаунт — закладка будет на всех устройствах\nОтветят на комментарий — придёт уведомление\nВход через Google или Telegram, за полминуты",
+    hero_ticker_on: "1",
+    ledger_note: "том.глава — нумерация как в оригинале",
+    footer_text:
+      "Фанатский перевод. Оригинал — wanderinginn.com, автор Pirateaba.\nНекоммерческий проект. Все права на оригинальное произведение принадлежат автору.",
+    telegram_url: "https://t.me/",
+    boosty_url: "https://boosty.to/",
+    tribute_url: "",
+    error_404_sub: "Козёл добрался до этой страницы раньше тебя.",
+    tg_cta_title: "Не пропусти новую главу",
+    tg_cta_text:
+      "Бот в телеграм-канале присылает уведомление о каждой новой главе сразу после публикации.",
+    update_schedule: "2–3",
     // Пусто — потолок тома для персонажа дня считается по границе перевода.
     // Число здесь означает ручной потолок и границу перевода перебивает.
-    game_max_volume: '',
-    game_cta_title: 'Кто из таверны?',
-    game_cta_text: 'Угадай персонажа по признакам: вид, занятие, том появления. Новый — каждый день, и только те, кто встречался до {том} тома.',
-    characters_title: 'Кто живёт в таверне',
-    characters_subtitle: 'Те, кого читатель встречал не раз в первых томах. Нажми на карточку — откроется подробнее, огонёк — чтобы отметить любимых.',
-  }
+    game_max_volume: "",
+    game_cta_title: "Кто из таверны?",
+    game_cta_text:
+      "Угадай персонажа по признакам: вид, занятие, том появления. Новый — каждый день, и только те, кто встречался до {том} тома.",
+    characters_title: "Кто живёт в таверне",
+    characters_subtitle:
+      "Те, кого читатель встречал не раз в первых томах. Нажми на карточку — откроется подробнее, огонёк — чтобы отметить любимых.",
+  };
 
   for (const [key, value] of Object.entries(defaults)) {
     await client.execute({
-      sql: 'INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)',
+      sql: "INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)",
       args: [key, value],
-    })
+    });
   }
 
   // Вид страницы главы у вошедшего — чтобы совпадал на телефоне и ноутбуке.
   try {
-    await client.execute('ALTER TABLE users ADD COLUMN reader_settings TEXT')
+    await client.execute("ALTER TABLE users ADD COLUMN reader_settings TEXT");
   } catch {
     // Столбец уже существует — это нормально
   }
 
   // «О себе» — абзац на публичной странице читателя.
   try {
-    await client.execute('ALTER TABLE users ADD COLUMN about TEXT')
+    await client.execute("ALTER TABLE users ADD COLUMN about TEXT");
   } catch {
     // Столбец уже существует — это нормально
   }
@@ -644,20 +767,27 @@ export async function runMigrations() {
   // Хозяйка сайта раньше могла носить любую рамку каталога, теперь — только
   // свою. Ту, что на ней сейчас, выдаём ей один раз, молча: рамка не должна
   // слететь с аватарки из-за того, что поменялось правило.
-  const wornGranted = await client.execute("SELECT value FROM site_settings WHERE key = 'admin_worn_frames_granted'")
+  const wornGranted = await client.execute(
+    "SELECT value FROM site_settings WHERE key = 'admin_worn_frames_granted'",
+  );
   if (wornGranted.rows.length === 0) {
-    await client.batch([
-      `INSERT OR IGNORE INTO user_frames (user_id, frame_id)
+    await client.batch(
+      [
+        `INSERT OR IGNORE INTO user_frames (user_id, frame_id)
         SELECT u.id, u.avatar_frame_id FROM users u
         JOIN avatar_frames f ON f.id = u.avatar_frame_id
         WHERE u.role = 'admin'`,
-      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('admin_worn_frames_granted', '1')",
-    ], 'write')
+        "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('admin_worn_frames_granted', '1')",
+      ],
+      "write",
+    );
   }
 
   // Публичная страница считает комментарии читателя — без индекса это проход
   // по всей таблице на каждое открытие профиля.
-  await client.execute('CREATE INDEX IF NOT EXISTS comments_user ON comments (user_id)')
+  await client.execute(
+    "CREATE INDEX IF NOT EXISTS comments_user ON comments (user_id)",
+  );
 
   // Публичный код читателя — вместо номера в адресах. Номер выдаёт, сколько у
   // сайта читателей: /reader/42 значит «их около сорока». Код случайный и
@@ -667,7 +797,7 @@ export async function runMigrations() {
   // местах, и забыть его в одном из них было бы легко. Триггер срабатывает
   // на любую вставку.
   try {
-    await client.execute('ALTER TABLE users ADD COLUMN public_id TEXT')
+    await client.execute("ALTER TABLE users ADD COLUMN public_id TEXT");
   } catch {
     // Столбец уже существует — это нормально
   }
@@ -679,35 +809,51 @@ export async function runMigrations() {
       BEGIN
         UPDATE users SET public_id = lower(hex(randomblob(6))) WHERE id = NEW.id;
       END;
-  `)
+  `);
 
   // Аватарки лежали под номером читателя — avatar-42.webp, и адрес картинки
   // выдавал тот же номер. Переносим под публичный код, один раз.
-  const avatarsMoved = await client.execute("SELECT value FROM site_settings WHERE key = 'avatars_by_public_id'")
+  const avatarsMoved = await client.execute(
+    "SELECT value FROM site_settings WHERE key = 'avatars_by_public_id'",
+  );
   if (avatarsMoved.rows.length === 0) {
-    const { rename } = await import('node:fs/promises')
-    const { join } = await import('node:path')
-    const dir = join(storageDir, 'avatars')
+    const { rename } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    const dir = join(storageDir, "avatars");
 
-    const rows = await client.execute("SELECT id, public_id, avatar_url FROM users WHERE avatar_url LIKE '/api/avatars/avatar-%'")
+    const rows = await client.execute(
+      "SELECT id, public_id, avatar_url FROM users WHERE avatar_url LIKE '/api/avatars/avatar-%'",
+    );
     for (const row of rows.rows as any[]) {
-      const match = /^\/api\/avatars\/avatar-(\d+)\.(\w+)/.exec(String(row.avatar_url))
-      if (!match || Number(match[1]) !== Number(row.id)) continue
+      const match = /^\/api\/avatars\/avatar-(\d+)\.(\w+)/.exec(
+        String(row.avatar_url),
+      );
+      if (!match || Number(match[1]) !== Number(row.id)) continue;
 
-      const ext = match[2]
-      const moved = await rename(join(dir, `avatar-${row.id}.${ext}`), join(dir, `avatar-${row.public_id}.${ext}`))
-        .then(() => true, () => false)
+      const ext = match[2];
+      const moved = await rename(
+        join(dir, `avatar-${row.id}.${ext}`),
+        join(dir, `avatar-${row.public_id}.${ext}`),
+      ).then(
+        () => true,
+        () => false,
+      );
       // Файла нет — ссылка и так вела в пустоту; адрес не трогаем, чтобы не
       // выдумывать картинку, которой не было.
-      if (!moved) continue
+      if (!moved) continue;
 
       await client.execute({
-        sql: 'UPDATE users SET avatar_url = ? WHERE id = ?',
-        args: [`/api/avatars/avatar-${row.public_id}.${ext}?v=${Date.now()}`, row.id],
-      })
+        sql: "UPDATE users SET avatar_url = ? WHERE id = ?",
+        args: [
+          `/api/avatars/avatar-${row.public_id}.${ext}?v=${Date.now()}`,
+          row.id,
+        ],
+      });
     }
 
-    await client.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('avatars_by_public_id', '1')")
+    await client.execute(
+      "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('avatars_by_public_id', '1')",
+    );
   }
 
   // Скины публичной страницы — устроены как рамки: каталог, выданное и надетое.
@@ -730,10 +876,10 @@ export async function runMigrations() {
     );
 
     CREATE INDEX IF NOT EXISTS user_skins_skin ON user_skins (skin_id);
-  `)
+  `);
 
   try {
-    await client.execute('ALTER TABLE users ADD COLUMN skin_id INTEGER')
+    await client.execute("ALTER TABLE users ADD COLUMN skin_id INTEGER");
   } catch {
     // Столбец уже существует — это нормально
   }
@@ -782,7 +928,7 @@ export async function runMigrations() {
       visitor TEXT NOT NULL,
       PRIMARY KEY (reel_id, visitor)
     );
-  `)
+  `);
 
   // Фигурка у имени — второй вид приза барабана. Каталог в коде, в базе только
   // выданное, надетое и сегмент, который её разыгрывает.
@@ -793,7 +939,7 @@ export async function runMigrations() {
       granted_at TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (user_id, figure)
     );
-  `)
+  `);
 
   // Личная переписка админов. Индексы — под два вопроса: разговор пары по
   // порядку и «что у меня непрочитанного» для колокольчика.
@@ -809,52 +955,56 @@ export async function runMigrations() {
 
     CREATE INDEX IF NOT EXISTS admin_messages_pair ON admin_messages (from_user_id, to_user_id, id);
     CREATE INDEX IF NOT EXISTS admin_messages_unread ON admin_messages (to_user_id, is_read);
-  `)
+  `);
 
   for (const sql of [
-    'ALTER TABLE users ADD COLUMN figure TEXT',
-    'ALTER TABLE reel_segments ADD COLUMN figure TEXT',
-    'ALTER TABLE reels ADD COLUMN admins_only INTEGER NOT NULL DEFAULT 0',
-    'ALTER TABLE reels ADD COLUMN texts TEXT',
-    'ALTER TABLE reel_segments ADD COLUMN skin_id INTEGER',
-    'ALTER TABLE reels ADD COLUMN spins_per_day INTEGER NOT NULL DEFAULT 1',
-    'ALTER TABLE reel_spins ADD COLUMN attempt INTEGER NOT NULL DEFAULT 1',
-    'ALTER TABLE reels ADD COLUMN background TEXT',
-    'ALTER TABLE reels ADD COLUMN bg_dim INTEGER NOT NULL DEFAULT 35',
-    'ALTER TABLE reels ADD COLUMN bg_blur INTEGER NOT NULL DEFAULT 6',
-    'ALTER TABLE reels ADD COLUMN banner_desk TEXT',
-    'ALTER TABLE reels ADD COLUMN banner_mob TEXT',
+    "ALTER TABLE users ADD COLUMN figure TEXT",
+    "ALTER TABLE reel_segments ADD COLUMN figure TEXT",
+    "ALTER TABLE reels ADD COLUMN admins_only INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE reels ADD COLUMN texts TEXT",
+    "ALTER TABLE reel_segments ADD COLUMN skin_id INTEGER",
+    "ALTER TABLE reels ADD COLUMN spins_per_day INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE reel_spins ADD COLUMN attempt INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE reels ADD COLUMN background TEXT",
+    "ALTER TABLE reels ADD COLUMN bg_dim INTEGER NOT NULL DEFAULT 35",
+    "ALTER TABLE reels ADD COLUMN bg_blur INTEGER NOT NULL DEFAULT 6",
+    "ALTER TABLE reels ADD COLUMN banner_desk TEXT",
+    "ALTER TABLE reels ADD COLUMN banner_mob TEXT",
   ]) {
     try {
-      await client.execute(sql)
+      await client.execute(sql);
     } catch {
       // Столбец уже существует — это нормально
     }
   }
 
   // Создать admin-аккаунт если нет ни одного пользователя
-  const existing = await client.execute('SELECT COUNT(*) as cnt FROM users')
-  const count = (existing.rows[0] as any).cnt as number
+  const existing = await client.execute("SELECT COUNT(*) as cnt FROM users");
+  const count = (existing.rows[0] as any).cnt as number;
   if (count === 0) {
-    const hash = await bcrypt.hash('admin123', 12)
+    const hash = await bcrypt.hash("admin123", 12);
     await client.execute({
       sql: "INSERT INTO users (email, password_hash, role, display_name, display_name_key) VALUES (?, ?, 'admin', ?, ?)",
-      args: ['admin@tavern.local', hash, 'admin', 'admin'],
-    })
-    console.log('[migrate] Admin created: admin@tavern.local / admin123 — смени пароль!')
+      args: ["admin@tavern.local", hash, "admin", "admin"],
+    });
+    console.log(
+      "[migrate] Admin created: admin@tavern.local / admin123 — смени пароль!",
+    );
   }
 
   // Попыток в день может быть несколько: уникален номер попытки за день, а не сам день.
   await client.executeMultiple(`
     DROP INDEX IF EXISTS reel_spins_daily;
     CREATE UNIQUE INDEX IF NOT EXISTS reel_spins_attempt ON reel_spins (reel_id, user_id, day, attempt);
-  `)
+  `);
 
   // Обсуждение главы и счётчик на её странице ищут комментарии по главе. Без
   // индекса каждый показ главы перебирал всю таблицу комментариев целиком, и
   // чем больше обсуждали, тем дольше открывалась любая глава. Порядок — тот же,
   // что в выдаче: новые сверху, так что сортировать уже ничего не нужно.
-  await client.execute('CREATE INDEX IF NOT EXISTS comments_chapter ON comments (chapter_id, created_at)')
+  await client.execute(
+    "CREATE INDEX IF NOT EXISTS comments_chapter ON comments (chapter_id, created_at)",
+  );
 
   // Оглавление без чтения текстов. Текст главы лежит в строке раньше столбцов,
   // добавленных позже (порядок, опубликована ли, число слов), и чтобы добраться
@@ -865,7 +1015,7 @@ export async function runMigrations() {
   await client.execute(`
     CREATE INDEX IF NOT EXISTS chapters_list
     ON chapters (is_published, sort_order, id, volume, title, published_at, word_count)
-  `)
+  `);
 
   // Журнал WAL: чтение не ждёт записи, а запись не ждёт сброса на диск двух
   // файлов. Просмотры глав пишутся на каждом открытии, и в прежнем режиме каждая
@@ -874,10 +1024,13 @@ export async function runMigrations() {
   // Переключение режима ждёт, пока базу не отпустят все читатели. Не дождались —
   // сайт работает и в прежнем режиме, а WAL включится при следующем запуске.
   try {
-    await client.execute('PRAGMA journal_mode = WAL')
+    await client.execute("PRAGMA journal_mode = WAL");
   } catch (e) {
-    console.warn('[migrate] WAL не включился, попробуем при следующем запуске:', e)
+    console.warn(
+      "[migrate] WAL не включился, попробуем при следующем запуске:",
+      e,
+    );
   }
 
-  client.close()
+  client.close();
 }

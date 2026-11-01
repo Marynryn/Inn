@@ -1,8 +1,8 @@
 <script setup lang="ts">
 const props = defineProps<{
   /** Вариант для тёмной подложки — как у TelegramCta рядом. */
-  onDark?: boolean
-}>()
+  onDark?: boolean;
+}>();
 
 /**
  * Приглашение войти под главой — только гостю, и не с первой главы: кто
@@ -13,66 +13,100 @@ const props = defineProps<{
  * Крестик прячет плашку, пока не прочитано ещё HIDE_FOR глав: навсегда
  * убирать незачем, но и возвращать в следующей же главе — значит надоедать.
  */
-const MIN_READ = 2
-const HIDE_FOR = 10
-const LS_HIDDEN = 'tavern:signupNudgeHiddenAt'
+const MIN_READ = 2;
+const HIDE_FOR = 10;
+const LS_HIDDEN = "tavern:signupNudgeHiddenAt";
 
-const auth = useAuthStore()
-const route = useRoute()
-const { readChapters } = useReadProgress()
+const auth = useAuthStore();
+const route = useRoute();
+const { readChapters } = useReadProgress();
 
-const hiddenAt = ref<number | null>(null)
+const hiddenAt = ref<number | null>(null);
 onMounted(() => {
   try {
-    const raw = localStorage.getItem(LS_HIDDEN)
-    hiddenAt.value = raw ? Number(raw) : null
+    const raw = localStorage.getItem(LS_HIDDEN);
+    hiddenAt.value = raw ? Number(raw) : null;
   } catch {}
-})
+});
 
-const readCount = computed(() => readChapters.value.length)
+const readCount = computed(() => readChapters.value.length);
 
 // До ответа /api/auth/me «не вошёл» значит «ещё не знаем» — вошедшему плашка
 // не должна мелькнуть.
-const visible = computed(() =>
-  auth.ready && !auth.isAuthed
-  && readCount.value >= MIN_READ
-  && (hiddenAt.value == null || readCount.value >= hiddenAt.value + HIDE_FOR)
-)
+const visible = computed(
+  () =>
+    auth.ready &&
+    !auth.isAuthed &&
+    readCount.value >= MIN_READ &&
+    (hiddenAt.value == null || readCount.value >= hiddenAt.value + HIDE_FOR),
+);
 
-const loginHref = computed(() => `/login?next=${encodeURIComponent(route.fullPath)}`)
+const loginHref = computed(
+  () => `/login?next=${encodeURIComponent(route.fullPath)}`,
+);
 
 // События для Clarity: показали плашку, нажали «Войти», закрыли крестиком.
 // Без показа не понять, мало кликов оттого, что не зовёт, или оттого, что
 // её почти никто не видит.
-const clarity = useClarity()
-watch(visible, (v) => { if (v) clarity.event('signup_nudge_shown') }, { immediate: true })
+const clarity = useClarity();
+watch(
+  visible,
+  (v) => {
+    if (v) clarity.event("signup_nudge_shown");
+  },
+  { immediate: true },
+);
 
 const hide = () => {
-  clarity.event('signup_nudge_hide')
-  hiddenAt.value = readCount.value
-  try { localStorage.setItem(LS_HIDDEN, String(readCount.value)) } catch {}
-}
+  clarity.event("signup_nudge_hide");
+  hiddenAt.value = readCount.value;
+  try {
+    localStorage.setItem(LS_HIDDEN, String(readCount.value));
+  } catch {}
+};
 </script>
 
 <template>
-  <aside v-if="visible" class="signup-nudge" :class="{ 'on-dark': props.onDark }">
+  <aside
+    v-if="visible"
+    class="signup-nudge"
+    :class="{ 'on-dark': props.onDark }"
+  >
     <span class="sn-icon" aria-hidden="true">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+        <path
+          d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linejoin="round"
+        />
       </svg>
     </span>
 
     <div class="sn-body">
       <p class="sn-title">Не потеряй закладку</p>
       <p class="sn-sub">
-        Закладка пока живёт только в этом браузере.
-        Войди через Google или Телеграм — прогресс сохранится и откроется на любом устройстве.
+        Закладка пока живёт только в этом браузере. Войди через Google или
+        Телеграм — прогресс сохранится и откроется на любом устройстве.
       </p>
     </div>
 
-    <NuxtLink :to="loginHref" class="sn-btn btn btn--primary btn--lg" @click="clarity.event('signup_nudge_click')">Войти</NuxtLink>
+    <NuxtLink
+      :to="loginHref"
+      class="sn-btn btn btn--primary btn--lg"
+      @click="clarity.event('signup_nudge_click')"
+      >Войти</NuxtLink
+    >
 
-    <button type="button" class="sn-close" title="Скрыть" aria-label="Скрыть" @click="hide">✕</button>
+    <button
+      type="button"
+      class="sn-close"
+      title="Скрыть"
+      aria-label="Скрыть"
+      @click="hide"
+    >
+      ✕
+    </button>
   </aside>
 </template>
 
@@ -83,10 +117,10 @@ const hide = () => {
   align-items: center;
   gap: 16px;
   padding: 18px 44px 18px 22px;
-  border: 1px solid rgba(43, 30, 22, .14);
+  border: 1px solid rgba(43, 30, 22, 0.14);
   border-left: 3px solid var(--ember);
   border-radius: var(--radius-md);
-  background: rgba(214, 136, 62, .06);
+  background: rgba(214, 136, 62, 0.06);
 }
 
 .sn-icon {
@@ -131,12 +165,12 @@ const hide = () => {
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
-  opacity: .6;
+  opacity: 0.6;
 }
 
 .sn-close:hover {
   opacity: 1;
-  background: rgba(43, 30, 22, .08);
+  background: rgba(43, 30, 22, 0.08);
 }
 
 .signup-nudge.on-dark {

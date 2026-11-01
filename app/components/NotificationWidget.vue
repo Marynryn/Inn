@@ -5,84 +5,95 @@
  * только у вошедших — гостю уведомления класть некуда.
  */
 
-import type { AvatarFrame } from '#shared/utils/avatarFrames'
+import type { AvatarFrame } from "#shared/utils/avatarFrames";
 
 /** Три события: ответили на комментарий, лайкнули его или выдали рамку. У
  *  ответа заполнены поля комментария, у рамки — сама рамка; у лайка тело —
  *  свой комментарий, а имя и лицо — последнего лайкнувшего (у гостей их нет). */
 type Item = {
-  id: number
-  type: 'reply' | 'frame' | 'like'
-  isRead: boolean
-  createdAt: string
-  commentId: number | null
-  chapterId: string | null
-  authorName: string | null
-  body: string | null
-  avatarUrl: string | null
-  avatarFrame: AvatarFrame | null
-  answeredBody: string | null
-  frame: AvatarFrame | null
-  likes: number | null
-}
+  id: number;
+  type: "reply" | "frame" | "like";
+  isRead: boolean;
+  createdAt: string;
+  commentId: number | null;
+  chapterId: string | null;
+  authorName: string | null;
+  body: string | null;
+  avatarUrl: string | null;
+  avatarFrame: AvatarFrame | null;
+  answeredBody: string | null;
+  frame: AvatarFrame | null;
+  likes: number | null;
+};
 
 /** Непрочитанное от другого админа — одна строка на человека. */
 type MessageItem = {
-  fromUserId: number
-  name: string
-  avatarUrl: string | null
-  avatarFrame: AvatarFrame | null
-  count: number
-  body: string
-  createdAt: string
-}
+  fromUserId: number;
+  name: string;
+  avatarUrl: string | null;
+  avatarFrame: AvatarFrame | null;
+  count: number;
+  body: string;
+  createdAt: string;
+};
 
-const auth = useAuthStore()
-const route = useRoute()
-const now = useNow()
+const auth = useAuthStore();
+const route = useRoute();
+const now = useNow();
 
-const open = ref(false)
-const items = ref<Item[]>([])
-const messages = ref<MessageItem[]>([])
-const unread = ref(0)
+const open = ref(false);
+const items = ref<Item[]>([]);
+const messages = ref<MessageItem[]>([]);
+const unread = ref(0);
 
 // Приглашение покрутить барабан — строкой над уведомлениями, пока сегодня не
 // крутил. В счёт на значке тоже входит: иначе о нём не узнать, не открыв шар.
-const reel = ref<{ id: number, title: string, invite: string } | null>(null)
-const reelOpen = ref(false)
+const reel = ref<{ id: number; title: string; invite: string } | null>(null);
+const reelOpen = ref(false);
 // Стол, который ищет игроков, — тоже строкой над уведомлениями и тоже в
 // счёт, пока он открыт.
-type BoardInvite = { code: string, host: string | null, players: number, max: number }
-const board = ref<BoardInvite | null>(null)
-const badge = computed(() => unread.value + (reel.value ? 1 : 0) + (board.value ? 1 : 0))
-const loading = ref(false)
+type BoardInvite = {
+  code: string;
+  host: string | null;
+  players: number;
+  max: number;
+};
+const board = ref<BoardInvite | null>(null);
+const badge = computed(
+  () => unread.value + (reel.value ? 1 : 0) + (board.value ? 1 : 0),
+);
+const loading = ref(false);
 
 const load = async () => {
   if (!auth.isAuthed) {
-    items.value = []
-    messages.value = []
-    unread.value = 0
-    reel.value = null
-    board.value = null
-    return
+    items.value = [];
+    messages.value = [];
+    unread.value = 0;
+    reel.value = null;
+    board.value = null;
+    return;
   }
 
-  loading.value = true
+  loading.value = true;
   try {
-    const data = await $fetch<{ unread: number, items: Item[], reel: { id: number, title: string, invite: string } | null, board?: BoardInvite | null, messages?: MessageItem[] }>('/api/notifications')
-    items.value = data.items
-    messages.value = data.messages ?? []
-    unread.value = data.unread
-    reel.value = data.reel ?? null
-    board.value = data.board ?? null
-  }
-  catch {
+    const data = await $fetch<{
+      unread: number;
+      items: Item[];
+      reel: { id: number; title: string; invite: string } | null;
+      board?: BoardInvite | null;
+      messages?: MessageItem[];
+    }>("/api/notifications");
+    items.value = data.items;
+    messages.value = data.messages ?? [];
+    unread.value = data.unread;
+    reel.value = data.reel ?? null;
+    board.value = data.board ?? null;
+  } catch {
     // Молча: не загрузились — значок просто не покажет числа, а страница цела.
+  } finally {
+    loading.value = false;
   }
-  finally {
-    loading.value = false
-  }
-}
+};
 
 /*
   Уезжает шар только на странице главы — там он висит прямо над текстом. На
@@ -93,92 +104,99 @@ const load = async () => {
   что именно сравнивается, и не надо escape-ить слэши.
 */
 const isChapterPage = computed(() => {
-  const parts = route.path.split('/').filter(Boolean)
-  return parts.length === 2 && parts[0] === 'chapter'
-})
+  const parts = route.path.split("/").filter(Boolean);
+  return parts.length === 2 && parts[0] === "chapter";
+});
 
 /** В админке шару делать нечего: там работают, а не читают, и на телефоне он
  *  закрывал бы кнопки панели. Приглашение крутить барабан ждёт на сайте. */
-const isAdminPage = computed(() => route.path === '/admin' || route.path.startsWith('/admin/'))
+const isAdminPage = computed(
+  () => route.path === "/admin" || route.path.startsWith("/admin/"),
+);
 
 /** Куда ведёт уведомление: рамка — в профиль, где её надевают; ответ — к
  *  комментариям главы или к отзывам на главной. */
 /** «Гриша и ещё 3 ставят лайк…»; лайкали одни гости — «…поставили 2 лайка».
  *  Настоящее время — чтобы не гадать с родом: «поставил» или «поставила». */
 const likeLine = (n: Item) => {
-  const total = n.likes ?? 0
+  const total = n.likes ?? 0;
   if (!n.authorName) {
     return total > 1
-      ? `Твоему комментарию поставили ${total} ${plural(total, 'лайк', 'лайка', 'лайков')}`
-      : 'Твоему комментарию поставили лайк'
+      ? `Твоему комментарию поставили ${total} ${plural(total, "лайк", "лайка", "лайков")}`
+      : "Твоему комментарию поставили лайк";
   }
   return total > 1
     ? `${n.authorName} и ещё ${total - 1} ставят лайк твоему комментарию`
-    : `${n.authorName} ставит лайк твоему комментарию`
-}
+    : `${n.authorName} ставит лайк твоему комментарию`;
+};
 
 const plural = (n: number, one: string, few: string, many: string) => {
-  const m10 = n % 10
-  const m100 = n % 100
-  if (m10 === 1 && m100 !== 11) return one
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
-  return many
-}
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+};
 
 const hrefOf = (n: Item) => {
-  if (n.type === 'frame') return '/profile'
+  if (n.type === "frame") return "/profile";
   // Якорь ведёт к самому ответу: страница обсуждения прокрутит к нему и
   // подсветит. Адрес главы — чистым slug, как всюду: клиентский переход
   // серверный редирект не проходит, и сырой id остался бы в строке адреса.
-  const anchor = `#comment-${n.commentId}`
+  const anchor = `#comment-${n.commentId}`;
   return n.chapterId
     ? `/chapter/${encodeURIComponent(slugifyChapterId(n.chapterId))}/comments${anchor}`
-    : `/${anchor}`
-}
+    : `/${anchor}`;
+};
 
 const openItem = async (n: Item) => {
-  open.value = false
+  open.value = false;
 
   // Убираем из списка сразу, не дожидаясь сервера: человек уже открыл, и ящик
   // должен опустеть в тот же миг. Не дошло до сервера — строка вернётся при
   // следующей загрузке, это не потеря.
   if (!n.isRead) {
-    items.value = items.value.filter(x => x.id !== n.id)
-    unread.value = Math.max(0, unread.value - 1)
-    try { await $fetch('/api/notifications/read', { method: 'POST', body: { id: n.id } }) }
-    catch {}
+    items.value = items.value.filter((x) => x.id !== n.id);
+    unread.value = Math.max(0, unread.value - 1);
+    try {
+      await $fetch("/api/notifications/read", {
+        method: "POST",
+        body: { id: n.id },
+      });
+    } catch {}
   }
 
-  await navigateTo(hrefOf(n))
-}
+  await navigateTo(hrefOf(n));
+};
 
 // Сообщение прочитанным помечает сам разговор, когда его откроют, — здесь
 // только убираем строку и ведём туда.
 const openMessage = async (m: MessageItem) => {
-  open.value = false
-  messages.value = messages.value.filter(x => x.fromUserId !== m.fromUserId)
-  unread.value = Math.max(0, unread.value - 1)
-  await navigateTo(`/admin?tab=messages&with=${m.fromUserId}`)
-}
+  open.value = false;
+  messages.value = messages.value.filter((x) => x.fromUserId !== m.fromUserId);
+  unread.value = Math.max(0, unread.value - 1);
+  await navigateTo(`/admin?tab=messages&with=${m.fromUserId}`);
+};
 
 const openReel = () => {
-  open.value = false
-  reelOpen.value = true
-}
+  open.value = false;
+  reelOpen.value = true;
+};
 
 // Покрутил — строка приглашения должна уйти, а с ней и единица на значке.
 const onReelClose = () => {
-  reelOpen.value = false
-  load()
-}
+  reelOpen.value = false;
+  load();
+};
 
 const readAll = async () => {
-  unread.value = 0
-  items.value = []
-  messages.value = []
-  try { await $fetch('/api/notifications/read', { method: 'POST' }) }
-  catch {}
-}
+  unread.value = 0;
+  items.value = [];
+  messages.value = [];
+  try {
+    await $fetch("/api/notifications/read", { method: "POST" });
+  } catch {}
+};
 
 /*
   Шар уезжает за край, пока читают вниз, и возвращается, когда ведут вверх, —
@@ -189,15 +207,17 @@ const readAll = async () => {
   Объявлено после isChapterPage и open: наблюдатель с immediate ниже дёргает
   tucked, а до этой строки его ещё нет.
 */
-const { tucked, reset: resetTuck } = useScrollTuck(() => isChapterPage.value && !open.value)
+const { tucked, reset: resetTuck } = useScrollTuck(
+  () => isChapterPage.value && !open.value,
+);
 
 const toggle = () => {
-  open.value = !open.value
+  open.value = !open.value;
   if (open.value) {
-    tucked.value = false
-    load()
+    tucked.value = false;
+    load();
   }
-}
+};
 
 /*
   Живой пуш. Свой сокет, а не тот, что открывают комментарии: значок висит на
@@ -209,84 +229,96 @@ const toggle = () => {
   перечитываем обычным обработчиком, чтобы выдержка и спойлер собирались в одном
   месте.
 */
-let ws: WebSocket | null = null
-let retry = 0
-let retryTimer: ReturnType<typeof setTimeout> | null = null
-let closedByUs = false
+let ws: WebSocket | null = null;
+let retry = 0;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let closedByUs = false;
 
 const connect = async () => {
-  if (!import.meta.client || typeof WebSocket === 'undefined') return
-  if (!auth.isAuthed || ws) return
+  if (!import.meta.client || typeof WebSocket === "undefined") return;
+  if (!auth.isAuthed || ws) return;
 
-  let ticket: string
+  let ticket: string;
   try {
-    ticket = (await $fetch<{ ticket: string }>('/api/notifications/ws-ticket')).ticket
-  }
-  catch {
+    ticket = (await $fetch<{ ticket: string }>("/api/notifications/ws-ticket"))
+      .ticket;
+  } catch {
     // Не дали билет — живём на обновлении по переходам и возврату во вкладку.
-    return
+    return;
   }
 
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  const socket = new WebSocket(`${proto}://${location.host}/_ws?notify=1`)
-  ws = socket
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const socket = new WebSocket(`${proto}://${location.host}/_ws?notify=1`);
+  ws = socket;
 
   socket.onopen = () => {
-    retry = 0
-    socket.send(JSON.stringify({ subscribe: ticket }))
-  }
+    retry = 0;
+    socket.send(JSON.stringify({ subscribe: ticket }));
+  };
 
   socket.onmessage = (e) => {
     try {
-      const msg = JSON.parse(e.data)
-      if (msg?.type === 'notification') load()
-      notifyBus.emit(msg)
-    }
-    catch {}
-  }
+      const msg = JSON.parse(e.data);
+      if (msg?.type === "notification") load();
+      notifyBus.emit(msg);
+    } catch {}
+  };
 
   socket.onclose = () => {
-    ws = null
-    if (closedByUs || !auth.isAuthed) return
+    ws = null;
+    if (closedByUs || !auth.isAuthed) return;
 
     // Отвалилось — пробуем снова, всё реже: 2, 4, 8… но не дольше минуты.
     // Билет одноразовый, поэтому каждый раз берём новый.
-    const delay = Math.min(2000 * 2 ** retry, 60_000)
-    retry++
-    retryTimer = setTimeout(connect, delay)
-  }
+    const delay = Math.min(2000 * 2 ** retry, 60_000);
+    retry++;
+    retryTimer = setTimeout(connect, delay);
+  };
 
   socket.onerror = () => {
-    try { socket.close() } catch {}
-  }
-}
+    try {
+      socket.close();
+    } catch {}
+  };
+};
 
 const disconnect = () => {
-  closedByUs = true
-  if (retryTimer) clearTimeout(retryTimer)
-  retryTimer = null
-  try { ws?.close() } catch {}
-  ws = null
-}
+  closedByUs = true;
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = null;
+  try {
+    ws?.close();
+  } catch {}
+  ws = null;
+};
 
 // Вернулись во вкладку — перечитываем. Страховка на случай, когда сокет отвалился
 // незаметно: телефон засыпает и рвёт соединения, о которых браузер не сообщает.
 const onVisible = () => {
-  if (document.visibilityState === 'visible' && auth.isAuthed) load()
-}
+  if (document.visibilityState === "visible" && auth.isAuthed) load();
+};
 
 // Обновляем при входе и на переходах между страницами: таймера нет — читатель и
 // так ходит по главам, а лишние запросы в фоне телефону ни к чему.
-watch(() => auth.isAuthed, (authed) => {
-  load()
-  if (authed) { closedByUs = false; connect() }
-  else disconnect()
-}, { immediate: true })
-watch(() => route.fullPath, () => {
-  // Ушли со главы спрятанным — на новой странице шар должен быть виден.
-  resetTuck()
-  if (auth.isAuthed) load()
-})
+watch(
+  () => auth.isAuthed,
+  (authed) => {
+    load();
+    if (authed) {
+      closedByUs = false;
+      connect();
+    } else disconnect();
+  },
+  { immediate: true },
+);
+watch(
+  () => route.fullPath,
+  () => {
+    // Ушли со главы спрятанным — на новой странице шар должен быть виден.
+    resetTuck();
+    if (auth.isAuthed) load();
+  },
+);
 
 /*
   На узком экране панель раскрывается на весь экран. Тогда страница под ней не
@@ -296,64 +328,107 @@ watch(() => route.fullPath, () => {
   useScrollLock тут не годится: он вешается на монтирование, а значок висит на
   странице всегда и открывается лишь иногда.
 */
-const FULLSCREEN_MAX = 560
+const FULLSCREEN_MAX = 560;
 
 watch(open, (isOpen) => {
-  if (!import.meta.client) return
+  if (!import.meta.client) return;
 
-  const full = window.matchMedia(`(max-width: ${FULLSCREEN_MAX}px)`).matches
-  document.body.style.overflow = isOpen && full ? 'hidden' : ''
-})
+  const full = window.matchMedia(`(max-width: ${FULLSCREEN_MAX}px)`).matches;
+  document.body.style.overflow = isOpen && full ? "hidden" : "";
+});
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') open.value = false
-}
+  if (e.key === "Escape") open.value = false;
+};
 
 const onOutside = (e: MouseEvent) => {
-  const el = document.querySelector('.notif-widget')
-  if (el && !el.contains(e.target as Node)) open.value = false
-}
+  const el = document.querySelector(".notif-widget");
+  if (el && !el.contains(e.target as Node)) open.value = false;
+};
 
 onMounted(() => {
-  document.addEventListener('keydown', onKeydown)
-  document.addEventListener('click', onOutside)
-  document.addEventListener('visibilitychange', onVisible)
-})
+  document.addEventListener("keydown", onKeydown);
+  document.addEventListener("click", onOutside);
+  document.addEventListener("visibilitychange", onVisible);
+});
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', onKeydown)
-  document.removeEventListener('click', onOutside)
-  document.removeEventListener('visibilitychange', onVisible)
+  document.removeEventListener("keydown", onKeydown);
+  document.removeEventListener("click", onOutside);
+  document.removeEventListener("visibilitychange", onVisible);
   // Уходим со страницы с открытой панелью — прокрутку надо вернуть.
-  if (import.meta.client) document.body.style.overflow = ''
-  disconnect()
-})
+  if (import.meta.client) document.body.style.overflow = "";
+  disconnect();
+});
 </script>
 
 <template>
-  <div v-if="auth.isAuthed && !isAdminPage" class="notif-widget" :class="{ tucked, 'is-open': open }">
+  <div
+    v-if="auth.isAuthed && !isAdminPage"
+    class="notif-widget"
+    :class="{ tucked, 'is-open': open }"
+  >
     <Transition name="notif-panel">
-      <div v-if="open" class="panel thin-scroll" role="dialog" aria-label="Уведомления">
+      <div
+        v-if="open"
+        class="panel thin-scroll"
+        role="dialog"
+        aria-label="Уведомления"
+      >
         <div class="panel-head">
           <span class="panel-title">Уведомления</span>
-          <button v-if="unread > 0" class="read-all" type="button" @click="readAll">
+          <button
+            v-if="unread > 0"
+            class="read-all"
+            type="button"
+            @click="readAll"
+          >
             прочитать все
           </button>
           <!-- На весь экран «снаружи» нет, и закрыть панель больше нечем. -->
-          <button class="panel-close" type="button" aria-label="Закрыть" @click="open = false">×</button>
+          <button
+            class="panel-close"
+            type="button"
+            aria-label="Закрыть"
+            @click="open = false"
+          >
+            ×
+          </button>
         </div>
 
-        <p v-if="loading && !items.length && !messages.length && !reel && !board" class="panel-note">Смотрим…</p>
-        <p v-else-if="!items.length && !messages.length && !reel && !board" class="panel-note">
-          Пока тихо. Здесь появятся ответы и лайки на твои комментарии и новые рамки.
+        <p
+          v-if="loading && !items.length && !messages.length && !reel && !board"
+          class="panel-note"
+        >
+          Смотрим…
+        </p>
+        <p
+          v-else-if="!items.length && !messages.length && !reel && !board"
+          class="panel-note"
+        >
+          Пока тихо. Здесь появятся ответы и лайки на твои комментарии и новые
+          рамки.
         </p>
 
         <!-- Чужие реплики в записях Clarity не показываем. -->
         <ul v-else class="list" data-clarity-mask="true">
           <li v-if="board">
-            <NuxtLink class="item item--reel" :to="`/board/${board.code}`" @click="open = false">
+            <NuxtLink
+              class="item item--reel"
+              :to="`/board/${board.code}`"
+              @click="open = false"
+            >
               <svg class="reel-icon" viewBox="0 0 28 28" aria-hidden="true">
-                <rect x="5" y="5" width="18" height="18" rx="4" fill="#1f1813" stroke="#e8b07a" stroke-width="1.5" />
+                <rect
+                  x="5"
+                  y="5"
+                  width="18"
+                  height="18"
+                  rx="4"
+                  fill="#1f1813"
+                  stroke="#e8b07a"
+                  stroke-width="1.5"
+                />
                 <circle cx="10" cy="10" r="1.8" fill="#d6883e" />
                 <circle cx="18" cy="18" r="1.8" fill="#d6883e" />
                 <circle cx="14" cy="14" r="1.8" fill="#d6883e" />
@@ -361,7 +436,9 @@ onUnmounted(() => {
               <span class="item-text">
                 <span class="item-top"><b>Ищут игрока за стол</b></span>
                 <span class="item-body">
-                  Настольная игра по первому тому<template v-if="board.host">, накрывает {{ board.host }}</template>. За столом {{ board.players }} из {{ board.max }}.
+                  Настольная игра по первому тому<template v-if="board.host"
+                    >, накрывает {{ board.host }}</template
+                  >. За столом {{ board.players }} из {{ board.max }}.
                 </span>
                 <span class="item-go">Сесть за стол →</span>
               </span>
@@ -370,12 +447,27 @@ onUnmounted(() => {
           <li v-if="reel">
             <button class="item item--reel" type="button" @click="openReel">
               <svg class="reel-icon" viewBox="0 0 28 28" aria-hidden="true">
-                <rect x="6" y="2" width="16" height="24" rx="4" fill="#1f1813" stroke="#e8b07a" stroke-width="1.5" />
-                <path d="M4 11h20M4 17h20" stroke="#e8b07a" stroke-width="1.5" />
+                <rect
+                  x="6"
+                  y="2"
+                  width="16"
+                  height="24"
+                  rx="4"
+                  fill="#1f1813"
+                  stroke="#e8b07a"
+                  stroke-width="1.5"
+                />
+                <path
+                  d="M4 11h20M4 17h20"
+                  stroke="#e8b07a"
+                  stroke-width="1.5"
+                />
                 <circle cx="14" cy="14" r="2.6" fill="#d6883e" />
               </svg>
               <span class="item-text">
-                <span class="item-top"><b>Барабан «{{ reel.title }}»</b></span>
+                <span class="item-top"
+                  ><b>Барабан «{{ reel.title }}»</b></span
+                >
                 <span class="item-body">{{ reel.invite }}</span>
                 <span class="item-go">Крутить →</span>
               </span>
@@ -393,7 +485,9 @@ onUnmounted(() => {
               />
               <span class="item-text">
                 <span class="item-top">
-                  <b>{{ m.name }}</b> пишет<template v-if="m.count > 1"> ({{ m.count }})</template>
+                  <b>{{ m.name }}</b> пишет<template v-if="m.count > 1">
+                    ({{ m.count }})</template
+                  >
                   <span class="item-time">{{ timeAgo(m.createdAt, now) }}</span>
                 </span>
                 <span class="item-body">{{ m.body }}</span>
@@ -404,7 +498,12 @@ onUnmounted(() => {
           <li v-for="n in items" :key="n.id">
             <!-- Рамка — на своём же лице читателя: так сразу видно, что именно
                  досталось, а не «какая-то рамка». -->
-            <button v-if="n.type === 'frame' && n.frame" class="item" type="button" @click="openItem(n)">
+            <button
+              v-if="n.type === 'frame' && n.frame"
+              class="item"
+              type="button"
+              @click="openItem(n)"
+            >
               <UserAvatar
                 class="item-pic item-pic--mine"
                 :src="auth.user?.avatarUrl"
@@ -418,12 +517,19 @@ onUnmounted(() => {
                   <b>Новая рамка</b>
                   <span class="item-time">{{ timeAgo(n.createdAt, now) }}</span>
                 </span>
-                <span class="item-body">Тебе досталась «{{ n.frame.name }}»</span>
+                <span class="item-body"
+                  >Тебе досталась «{{ n.frame.name }}»</span
+                >
                 <span class="item-answered">надеть можно в профиле</span>
               </span>
             </button>
 
-            <button v-else-if="n.type === 'like'" class="item" type="button" @click="openItem(n)">
+            <button
+              v-else-if="n.type === 'like'"
+              class="item"
+              type="button"
+              @click="openItem(n)"
+            >
               <UserAvatar
                 v-if="n.authorName"
                 class="item-pic"
@@ -474,12 +580,14 @@ onUnmounted(() => {
       class="orb-btn"
       :class="{ 'has-unread': badge > 0 }"
       type="button"
-      :aria-label="badge ? `Уведомления, непрочитанных: ${badge}` : 'Уведомления'"
+      :aria-label="
+        badge ? `Уведомления, непрочитанных: ${badge}` : 'Уведомления'
+      "
       @click.stop="toggle"
     >
       <NuxtImg src="/orb.webp" class="orb" width="56" height="64" alt="" />
       <span class="glow" aria-hidden="true" />
-      <span v-if="badge > 0" class="badge">{{ badge > 9 ? '9+' : badge }}</span>
+      <span v-if="badge > 0" class="badge">{{ badge > 9 ? "9+" : badge }}</span>
     </button>
 
     <ReelModal v-if="reelOpen" @close="onReelClose" />
@@ -497,12 +605,16 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: flex-end;
   gap: 10px;
-  transition: transform .25s ease, opacity .25s ease;
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease;
 }
 
 /* Пока панель открыта, виджет поднимается над шапкой сайта (у неё z-index 100):
    иначе раскрытая на весь экран панель уходила бы под неё верхним краем. */
-.notif-widget.is-open { z-index: var(--z-overlay); }
+.notif-widget.is-open {
+  z-index: var(--z-overlay);
+}
 
 /* Уезжает за правый край вместе со своим отступом, чтобы не осталось края. */
 .notif-widget.tucked {
@@ -513,7 +625,9 @@ onUnmounted(() => {
 
 /* Кому анимация мешает — шар просто исчезает и появляется. */
 @media (prefers-reduced-motion: reduce) {
-  .notif-widget { transition: none; }
+  .notif-widget {
+    transition: none;
+  }
 }
 
 /* ── Шар ────────────────────────────────────── */
@@ -528,10 +642,12 @@ onUnmounted(() => {
   background: none;
   line-height: 0;
   cursor: pointer;
-  transition: transform .15s;
+  transition: transform 0.15s;
 }
 
-.orb-btn:hover { transform: translateY(-2px); }
+.orb-btn:hover {
+  transform: translateY(-2px);
+}
 
 .orb {
   display: block;
@@ -539,7 +655,7 @@ onUnmounted(() => {
   height: auto;
   /* Тень под шаром, чтобы он стоял, а не висел. Фильтр висит на картинке, а не
      на кнопке: на кнопке он накрыл бы группой и слой свечения. */
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .45));
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
 }
 
 /*
@@ -563,11 +679,13 @@ onUnmounted(() => {
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   border-radius: var(--radius-round);
-  background: radial-gradient(circle at 50% 50%,
-    rgba(226, 176, 255, .97) 0%,
-    rgba(176, 82, 255, .92) 20%,
-    rgba(138, 28, 250, .72) 46%,
-    rgba(104, 0, 235, 0) 76%);
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(226, 176, 255, 0.97) 0%,
+    rgba(176, 82, 255, 0.92) 20%,
+    rgba(138, 28, 250, 0.72) 46%,
+    rgba(104, 0, 235, 0) 76%
+  );
   opacity: 0;
   pointer-events: none;
 }
@@ -577,8 +695,13 @@ onUnmounted(() => {
 }
 
 @keyframes orb-glow {
-  0%, 100% { opacity: .45; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* Наружу фиолетовый не выходит: под шаром остаётся только своя тёмная тень,
@@ -588,7 +711,7 @@ onUnmounted(() => {
 @media (prefers-reduced-motion: reduce) {
   .orb-btn.has-unread .glow {
     animation: none;
-    opacity: .8;
+    opacity: 0.8;
   }
 }
 
@@ -617,7 +740,7 @@ onUnmounted(() => {
   background: var(--bg-dark-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
 
 .panel-head {
@@ -648,7 +771,9 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
-.read-all:hover { color: var(--ember-soft); }
+.read-all:hover {
+  color: var(--ember-soft);
+}
 
 /* Крестик нужен только раскрытой на весь экран панели: в маленькой закрывает
    клик мимо неё. */
@@ -663,7 +788,9 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
-.panel-close:hover { color: var(--parchment); }
+.panel-close:hover {
+  color: var(--parchment);
+}
 
 .panel-note {
   margin: 0;
@@ -689,18 +816,28 @@ onUnmounted(() => {
   border: none;
   border-bottom: 1px solid var(--line-faint);
   cursor: pointer;
-  transition: background .15s;
+  transition: background 0.15s;
 }
 
-.item:hover { background: rgba(241, 230, 210, .04); }
+.item:hover {
+  background: rgba(241, 230, 210, 0.04);
+}
 
 /* Барабан — не новость, а приглашение: тёплая полоса выделяет его над списком. */
 .item--reel {
-  background: linear-gradient(90deg, rgba(214, 136, 62, .16), rgba(214, 136, 62, .04));
+  background: linear-gradient(
+    90deg,
+    rgba(214, 136, 62, 0.16),
+    rgba(214, 136, 62, 0.04)
+  );
 }
 
 .item--reel:hover {
-  background: linear-gradient(90deg, rgba(214, 136, 62, .24), rgba(214, 136, 62, .08));
+  background: linear-gradient(
+    90deg,
+    rgba(214, 136, 62, 0.24),
+    rgba(214, 136, 62, 0.08)
+  );
 }
 
 .reel-icon {
@@ -723,7 +860,7 @@ onUnmounted(() => {
   border-radius: var(--radius-round);
   display: grid;
   place-items: center;
-  background: rgba(214, 136, 62, .16);
+  background: rgba(214, 136, 62, 0.16);
   color: var(--ember-soft);
   font-size: 14px;
 }
@@ -779,7 +916,7 @@ onUnmounted(() => {
   font-size: 11px;
   line-height: 1.4;
   color: var(--text-muted);
-  opacity: .7;
+  opacity: 0.7;
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -814,24 +951,34 @@ onUnmounted(() => {
     padding: 16px 16px 14px;
   }
 
-  .panel-title { font-size: 16px; }
+  .panel-title {
+    font-size: 16px;
+  }
 
-  .panel-close { display: block; }
+  .panel-close {
+    display: block;
+  }
 
   .list {
     flex: 1;
     overflow-y: auto;
   }
 
-  .item { padding: 14px 16px; }
+  .item {
+    padding: 14px 16px;
+  }
 
   /* На весь экран места хватает: выдержку из ответа не режем до двух строк. */
-  .item-body { -webkit-line-clamp: 3; }
+  .item-body {
+    -webkit-line-clamp: 3;
+  }
 }
 
 .notif-panel-enter-active,
 .notif-panel-leave-active {
-  transition: opacity .18s ease, transform .18s ease;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
 }
 
 .notif-panel-enter-from,

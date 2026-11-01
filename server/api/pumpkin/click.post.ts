@@ -1,6 +1,6 @@
-import { useDb } from '../../utils/db'
-import { pumpkinClickDays } from '../../database/schema'
-import { sql } from 'drizzle-orm'
+import { useDb } from "../../utils/db";
+import { pumpkinClickDays } from "../../database/schema";
+import { sql } from "drizzle-orm";
 
 /**
  * Клик по хеллоуинской тыкве. Администраторов не считаем — сами мы кликаем
@@ -9,9 +9,10 @@ import { sql } from 'drizzle-orm'
  * просмотров глав.
  */
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
-  if (session.user?.role === 'admin' || isBotRequest(event)) return { ok: true, counted: false }
-  if (!(await isHalloween())) return { ok: true, counted: false }
+  const session = await getUserSession(event);
+  if (session.user?.role === "admin" || isBotRequest(event))
+    return { ok: true, counted: false };
+  if (!(await isHalloween())) return { ok: true, counted: false };
 
   await useDb()
     .insert(pumpkinClickDays)
@@ -19,7 +20,7 @@ export default defineEventHandler(async (event) => {
     .onConflictDoUpdate({
       target: pumpkinClickDays.day,
       set: { count: sql`count + 1` },
-    })
+    });
 
-  return { ok: true, counted: true }
-})
+  return { ok: true, counted: true };
+});

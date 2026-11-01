@@ -1,4 +1,4 @@
-import { mirrorHosts, publicOrigin } from '../../utils/public-origin'
+import { mirrorHosts, publicOrigin } from "../../utils/public-origin";
 
 /**
  * Что сервер думает о своём адресе. Нужно, когда вход через Google или
@@ -6,12 +6,12 @@ import { mirrorHosts, publicOrigin } from '../../utils/public-origin'
  * X-Forwarded-Host и какой origin в итоге уйдёт провайдеру.
  */
 export default defineEventHandler((event) => {
-  const url = getRequestURL(event)
+  const url = getRequestURL(event);
   return {
     host: url.host,
-    forwardedHost: getRequestHeader(event, 'x-forwarded-host') ?? null,
-    forwardedProto: getRequestHeader(event, 'x-forwarded-proto') ?? null,
+    forwardedHost: getRequestHeader(event, "x-forwarded-host") ?? null,
+    forwardedProto: getRequestHeader(event, "x-forwarded-proto") ?? null,
     origin: publicOrigin(event),
     mirrors: mirrorHosts(),
-  }
-})
+  };
+});

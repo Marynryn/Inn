@@ -13,16 +13,21 @@
  * которые реально встречаются в базе персонажей. Чего нет в глоссарии — то и
  * остаётся по-английски, как договаривались.
  */
-import JSZip from 'jszip'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, resolve } from 'node:path'
-import { fullNameOf, unpackCharacters } from '../server/utils/game-pack.ts'
+import JSZip from "jszip";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
+import { fullNameOf, unpackCharacters } from "../server/utils/game-pack.ts";
 
-const DEFAULT_SRCS = ['.data/game/glossary.xlsx', '.data/game/glossary-cards.xlsx']
-const given = process.argv.slice(2)
-const SRCS = (given.length ? given : DEFAULT_SRCS.filter(existsSync)).map(p => resolve(p))
-const PACK = resolve('server/assets/game/characters.pack')
-const OUT = resolve('server/assets/game/glossary.json')
+const DEFAULT_SRCS = [
+  ".data/game/glossary.xlsx",
+  ".data/game/glossary-cards.xlsx",
+];
+const given = process.argv.slice(2);
+const SRCS = (given.length ? given : DEFAULT_SRCS.filter(existsSync)).map((p) =>
+  resolve(p),
+);
+const PACK = resolve("server/assets/game/characters.pack");
+const OUT = resolve("server/assets/game/glossary.json");
 
 /**
  * Запасной перевод — только для служебных категорий самой вики (пол, статус,
@@ -32,123 +37,127 @@ const OUT = resolve('server/assets/game/glossary.json')
  */
 const FALLBACK = {
   // пол
-  Male: 'Мужской',
-  Female: 'Женский',
-  Nonbinary: 'Небинарный',
+  Male: "Мужской",
+  Female: "Женский",
+  Nonbinary: "Небинарный",
   // статус
-  Alive: 'Жив',
-  Deceased: 'Мёртв',
-  Active: 'Действует',
-  Unknown: 'Неизвестно',
+  Alive: "Жив",
+  Deceased: "Мёртв",
+  Active: "Действует",
+  Unknown: "Неизвестно",
   // класс
-  Warrior: 'Воин',
-  Mage: 'Маг',
-  Archer: 'Лучник',
-  Rogue: 'Плут',
-  Priest: 'Жрец',
-  Leader: 'Лидер',
-  God: 'Бог',
-  'Non-combat': 'Небоевой',
+  Warrior: "Воин",
+  Mage: "Маг",
+  Archer: "Лучник",
+  Rogue: "Плут",
+  Priest: "Жрец",
+  Leader: "Лидер",
+  God: "Бог",
+  "Non-combat": "Небоевой",
   // занятие
-  Adventurer: 'Авантюрист',
-  Alchemist: 'Алхимик',
-  Ambassador: 'Посол',
-  Archmage: 'Архимаг',
-  Artisan: 'Ремесленник',
-  Assassin: 'Убийца',
-  Bard: 'Бард',
-  Centenium: 'Центениум',
-  Chef: 'Повар',
-  Chieftain: 'Вождь',
-  Child: 'Ребёнок',
-  Courier: 'Курьер',
-  Crime: 'Криминал',
-  Death: 'Смерть',
-  Doctor: 'Врач',
-  Druid: 'Друид',
-  Enchanter: 'Зачарователь',
-  Farmer: 'Фермер',
-  General: 'Генерал',
-  Guard: 'Стражник',
-  Hero: 'Герой',
-  Innkeeper: 'Хозяин таверны',
-  Intellect: 'Учёный',
-  Knight: 'Рыцарь',
-  Layabout: 'Бездельник',
-  Maid: 'Горничная',
-  Mayor: 'Управитель',
-  Merchant: 'Торговец',
-  Monarch: 'Правитель',
-  News: 'Новости',
-  Noble: 'Аристократ',
-  Performer: 'Артист',
-  Pirate: 'Пират',
-  Prognugator: 'Прогнугатор',
-  Royal: 'Королевская особа',
-  Runner: 'Бегун',
-  Sailor: 'Моряк',
-  Secretary: 'Секретарь',
-  Shaman: 'Шаман',
-  Slave: 'Раб',
-  Smith: 'Кузнец',
-  Soldier: 'Солдат',
-  Spy: 'Шпион',
-  Strategist: 'Стратег',
-  Stategist: 'Стратег', // опечатка в исходных данных вики
-  Vassal: 'Вассал',
-  Witch: 'Ведьма',
+  Adventurer: "Авантюрист",
+  Alchemist: "Алхимик",
+  Ambassador: "Посол",
+  Archmage: "Архимаг",
+  Artisan: "Ремесленник",
+  Assassin: "Убийца",
+  Bard: "Бард",
+  Centenium: "Центениум",
+  Chef: "Повар",
+  Chieftain: "Вождь",
+  Child: "Ребёнок",
+  Courier: "Курьер",
+  Crime: "Криминал",
+  Death: "Смерть",
+  Doctor: "Врач",
+  Druid: "Друид",
+  Enchanter: "Зачарователь",
+  Farmer: "Фермер",
+  General: "Генерал",
+  Guard: "Стражник",
+  Hero: "Герой",
+  Innkeeper: "Хозяин таверны",
+  Intellect: "Учёный",
+  Knight: "Рыцарь",
+  Layabout: "Бездельник",
+  Maid: "Горничная",
+  Mayor: "Управитель",
+  Merchant: "Торговец",
+  Monarch: "Правитель",
+  News: "Новости",
+  Noble: "Аристократ",
+  Performer: "Артист",
+  Pirate: "Пират",
+  Prognugator: "Прогнугатор",
+  Royal: "Королевская особа",
+  Runner: "Бегун",
+  Sailor: "Моряк",
+  Secretary: "Секретарь",
+  Shaman: "Шаман",
+  Slave: "Раб",
+  Smith: "Кузнец",
+  Soldier: "Солдат",
+  Spy: "Шпион",
+  Strategist: "Стратег",
+  Stategist: "Стратег", // опечатка в исходных данных вики
+  Vassal: "Вассал",
+  Witch: "Ведьма",
   // связи: служебное значение вики, не название организации
-  Unaffiliated: 'Без связей',
+  Unaffiliated: "Без связей",
   // виды: звери и общефэнтезийные слова, названий книги здесь нет
-  Cat: 'Кошка',
-  Rodent: 'Грызун',
-  Eagle: 'Орёл',
-  Wolf: 'Волк',
-  Horse: 'Лошадь',
-  Camel: 'Верблюд',
-  Orangutan: 'Орангутан',
-  Pegasus: 'Пегас',
-  Gorgon: 'Горгона',
-  Mimic: 'Мимик',
-  Djinn: 'Джинн',
-  Merman: 'Тритон',
-  Halfling: 'Полурослик',
-  Lamia: 'Ламия',
-  'Star Lamia': 'Звёздная ламия',
-  Mind: 'Разум',
-  'The Minds': 'Разумы',
+  Cat: "Кошка",
+  Rodent: "Грызун",
+  Eagle: "Орёл",
+  Wolf: "Волк",
+  Horse: "Лошадь",
+  Camel: "Верблюд",
+  Orangutan: "Орангутан",
+  Pegasus: "Пегас",
+  Gorgon: "Горгона",
+  Mimic: "Мимик",
+  Djinn: "Джинн",
+  Merman: "Тритон",
+  Halfling: "Полурослик",
+  Lamia: "Ламия",
+  "Star Lamia": "Звёздная ламия",
+  Mind: "Разум",
+  "The Minds": "Разумы",
   // континенты и края: обычные слова, а не имена собственные
-  Sea: 'Море',
-  Isles: 'Острова',
-  'North America': 'Северная Америка',
+  Sea: "Море",
+  Isles: "Острова",
+  "North America": "Северная Америка",
   // те, кого вики зовёт общим словом
-  Earthers: 'Земляне',
-  Immortals: 'Бессмертные',
-  Witches: 'Ведьмы',
-  'United Nations': 'ООН',
+  Earthers: "Земляне",
+  Immortals: "Бессмертные",
+  Witches: "Ведьмы",
+  "United Nations": "ООН",
   // описательные названия вики: гильдии, стража, школа — не имена собственные
-  "Liscor's City Watch": 'Городская стража Лискора',
-  "Liscor's Dungeon": 'Подземелье Лискора',
-  "Liscor's Adventurer Guild": 'Гильдия авантюристов Лискора',
-  "Liscor's Adventurer's Guild": 'Гильдия авантюристов Лискора',
-  "Liscor's Second Army": 'Вторая армия Лискора',
-  "Alchemist's Guild": 'Гильдия алхимиков',
-  "Blacksmith's Guild": 'Гильдия кузнецов',
-  'Guild of Smiths': 'Гильдия кузнецов',
-  "Runner Guild's": 'Гильдия бегунов',
-  'Wistram News Network': 'Новостная сеть Вистрама',
-  'Wistram Earthers': 'Земляне Вистрама',
-  "Titan's School": 'Школа Титана',
-  'Demon Kingdom': 'Королевство Демонов',
-  'Isle of Goblins': 'Остров гоблинов',
-  'House Welfar': 'Дом Веллфар', // опечатка в исходных данных вики
-}
+  "Liscor's City Watch": "Городская стража Лискора",
+  "Liscor's Dungeon": "Подземелье Лискора",
+  "Liscor's Adventurer Guild": "Гильдия авантюристов Лискора",
+  "Liscor's Adventurer's Guild": "Гильдия авантюристов Лискора",
+  "Liscor's Second Army": "Вторая армия Лискора",
+  "Alchemist's Guild": "Гильдия алхимиков",
+  "Blacksmith's Guild": "Гильдия кузнецов",
+  "Guild of Smiths": "Гильдия кузнецов",
+  "Runner Guild's": "Гильдия бегунов",
+  "Wistram News Network": "Новостная сеть Вистрама",
+  "Wistram Earthers": "Земляне Вистрама",
+  "Titan's School": "Школа Титана",
+  "Demon Kingdom": "Королевство Демонов",
+  "Isle of Goblins": "Остров гоблинов",
+  "House Welfar": "Дом Веллфар", // опечатка в исходных данных вики
+};
 
 // ── Чтение xlsx ────────────────────────────────────────────
-const unescapeXml = s => s
-  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
-  .replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, d) => String.fromCharCode(+d))
-  .replace(/&amp;/g, '&')
+const unescapeXml = (s) =>
+  s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(+d))
+    .replace(/&amp;/g, "&");
 
 /**
  * Текст ячейки xlsx хранится двумя способами, и оба нам попадались: прямо в
@@ -156,28 +165,35 @@ const unescapeXml = s => s
  * (t="s" — так выгружает Google Sheets). Разбираем и то, и другое.
  */
 function sharedStrings(xml) {
-  if (!xml) return []
-  return [...xml.matchAll(/<si>([\s\S]*?)<\/si>/g)].map(m =>
-    [...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(t => unescapeXml(t[1])).join(''),
-  )
+  if (!xml) return [];
+  return [...xml.matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) =>
+    [...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)]
+      .map((t) => unescapeXml(t[1]))
+      .join(""),
+  );
 }
 
 function sheetRows(xml, strings = []) {
-  const rows = []
+  const rows = [];
   for (const rowXml of xml.match(/<row[\s\S]*?<\/row>/g) ?? []) {
-    const cells = []
+    const cells = [];
     for (const cell of rowXml.match(/<c [\s\S]*?(?:\/>|<\/c>)/g) ?? []) {
-      const ref = cell.match(/r="([A-Z]+)\d+"/)?.[1] ?? ''
-      const col = [...ref].reduce((acc, ch) => acc * 26 + (ch.charCodeAt(0) - 64), 0) - 1
+      const ref = cell.match(/r="([A-Z]+)\d+"/)?.[1] ?? "";
+      const col =
+        [...ref].reduce((acc, ch) => acc * 26 + (ch.charCodeAt(0) - 64), 0) - 1;
 
-      const inline = [...cell.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(m => unescapeXml(m[1])).join('')
-      const shared = cell.includes('t="s"') ? strings[Number(cell.match(/<v>(\d+)<\/v>/)?.[1])] : null
+      const inline = [...cell.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)]
+        .map((m) => unescapeXml(m[1]))
+        .join("");
+      const shared = cell.includes('t="s"')
+        ? strings[Number(cell.match(/<v>(\d+)<\/v>/)?.[1])]
+        : null;
 
-      cells[col] = inline || shared || ''
+      cells[col] = inline || shared || "";
     }
-    rows.push(Array.from(cells, v => (v ?? '').trim()))
+    rows.push(Array.from(cells, (v) => (v ?? "").trim()));
   }
-  return rows
+  return rows;
 }
 
 // ── Словарь ────────────────────────────────────────────────
@@ -186,13 +202,14 @@ function sheetRows(xml, strings = []) {
  * диакритику снимаем: вики пишет «Walchais», глоссарий — «Walchaís», и это одна
  * и та же фамилия.
  */
-const key = s => s
-  .normalize('NFD')
-  .replace(/[̀-ͯ]/g, '')
-  .replace(/[’‘`]/g, "'")
-  .replace(/\s+/g, ' ')
-  .trim()
-  .toLowerCase()
+const key = (s) =>
+  s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[’‘`]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 
 /**
  * Берём только словарные листы. В рабочей книге рядом со словарём лежат
@@ -200,41 +217,51 @@ const key = s => s
  * попади они сюда, переводы бы поехали. Словарь узнаём по заголовку —
  * «Английский | Русский» или «Локация (EN) | Перевод (RU)».
  */
-const isDictionarySheet = header =>
-  /англ|english|\(en\)/i.test(header[0] ?? '') && /рус|\(ru\)|перевод/i.test(header[1] ?? '')
+const isDictionarySheet = (header) =>
+  /англ|english|\(en\)/i.test(header[0] ?? "") &&
+  /рус|\(ru\)|перевод/i.test(header[1] ?? "");
 
-const rows = []
+const rows = [];
 for (const src of SRCS) {
-  const zip = await JSZip.loadAsync(readFileSync(src))
-  const strings = sharedStrings(await zip.file('xl/sharedStrings.xml')?.async('string'))
+  const zip = await JSZip.loadAsync(readFileSync(src));
+  const strings = sharedStrings(
+    await zip.file("xl/sharedStrings.xml")?.async("string"),
+  );
   const sheets = Object.keys(zip.files)
-    .filter(name => /^xl\/worksheets\/sheet\d+\.xml$/.test(name))
-    .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
+    .filter((name) => /^xl\/worksheets\/sheet\d+\.xml$/.test(name))
+    .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));
 
-  let taken = 0
-  const skipped = []
+  let taken = 0;
+  const skipped = [];
   for (const name of sheets) {
-    const sheet = sheetRows(await zip.file(name).async('string'), strings).filter(r => r.some(Boolean))
-    if (sheet.length < 2) continue
+    const sheet = sheetRows(
+      await zip.file(name).async("string"),
+      strings,
+    ).filter((r) => r.some(Boolean));
+    if (sheet.length < 2) continue;
     if (!isDictionarySheet(sheet[0])) {
-      skipped.push(`${sheet[0][0] || '?'} | ${sheet[0][1] || '?'}`)
-      continue
+      skipped.push(`${sheet[0][0] || "?"} | ${sheet[0][1] || "?"}`);
+      continue;
     }
-    rows.push(...sheet.slice(1))
-    taken += sheet.length - 1
+    rows.push(...sheet.slice(1));
+    taken += sheet.length - 1;
   }
-  console.log(`${basename(src)}: строк ${taken}${skipped.length ? `, мимо словаря: ${skipped.join('; ')}` : ''}`)
+  console.log(
+    `${basename(src)}: строк ${taken}${skipped.length ? `, мимо словаря: ${skipped.join("; ")}` : ""}`,
+  );
 }
 
 if (!rows.length) {
-  console.error(`Словарных листов не нашлось. Проверь, что ${SRCS.map(basename).join(', ')} — это глоссарий, а не другой файл.`)
-  process.exit(1)
+  console.error(
+    `Словарных листов не нашлось. Проверь, что ${SRCS.map(basename).join(", ")} — это глоссарий, а не другой файл.`,
+  );
+  process.exit(1);
 }
 
-const dictionary = new Map()
+const dictionary = new Map();
 for (const [en, ru] of rows) {
-  if (!en || !ru) continue
-  if (!dictionary.has(key(en))) dictionary.set(key(en), ru.trim())
+  if (!en || !ru) continue;
+  if (!dictionary.has(key(en))) dictionary.set(key(en), ru.trim());
 }
 
 /**
@@ -243,30 +270,30 @@ for (const [en, ru] of rows) {
  * числе, ничего нового не выдумываем.
  */
 const SINGULAR = {
-  'Антиниумы': 'Антиниум',
-  'Минотавры': 'Минотавр',
-  'Драконы': 'Дракон',
-  'Гноллы': 'Гнолл',
-  'Вампиры': 'Вампир',
-  'Кентавры': 'Кентавр',
-  'Сариантские ягнята': 'Сариантский ягнёнок',
-  'Големы': 'Голем',
-  'Наги': 'Нага',
-  'Единороги': 'Единорог',
-  'Слизни': 'Слизень',
-  'Демоны': 'Демон',
-  'Дриады': 'Дриада',
-  'Элементали': 'Элементаль',
-  'Сатиры': 'Сатир',
-  'Тренты': 'Трент',
-  'Огры': 'Огр',
-  'Грифоны': 'Грифон',
-  'Гранепреступники': 'Гранепреступник',
-  'Гномы': 'Гном',
-  'Великаны': 'Великан',
-  'Фраерлинги': 'Фраерлинг',
-  'Горгоны': 'Горгона',
-}
+  Антиниумы: "Антиниум",
+  Минотавры: "Минотавр",
+  Драконы: "Дракон",
+  Гноллы: "Гнолл",
+  Вампиры: "Вампир",
+  Кентавры: "Кентавр",
+  "Сариантские ягнята": "Сариантский ягнёнок",
+  Големы: "Голем",
+  Наги: "Нага",
+  Единороги: "Единорог",
+  Слизни: "Слизень",
+  Демоны: "Демон",
+  Дриады: "Дриада",
+  Элементали: "Элементаль",
+  Сатиры: "Сатир",
+  Тренты: "Трент",
+  Огры: "Огр",
+  Грифоны: "Грифон",
+  Гранепреступники: "Гранепреступник",
+  Гномы: "Гном",
+  Великаны: "Великан",
+  Фраерлинги: "Фраерлинг",
+  Горгоны: "Горгона",
+};
 
 /**
  * Ищем перевод по нескольким написаниям одного и того же: классы в глоссарии
@@ -274,30 +301,30 @@ const SINGULAR = {
  * названия иногда без артикля. Ничего не выдумываем — только другие написания.
  */
 function plain(value) {
-  const bare = value.replace(/^\[|\]$/g, '')
+  const bare = value.replace(/^\[|\]$/g, "");
   const variants = [
     value,
     `[${bare}]`,
     bare,
     `${bare}s`,
     `${bare}es`,
-    bare.replace(/^The\s+/i, ''),
+    bare.replace(/^The\s+/i, ""),
     `The ${bare}`,
     // Вики зовёт вид одним человеком, глоссарий — народом: «Drowned Person» и
     // «Drowned Man» — одни и те же утопшие.
-    bare.replace(/\bPerson$/, 'Man'),
-    bare.replace(/\bPerson$/, 'People'),
-    bare.replace(/\bPeople$/, 'Person'),
-  ]
+    bare.replace(/\bPerson$/, "Man"),
+    bare.replace(/\bPerson$/, "People"),
+    bare.replace(/\bPeople$/, "Person"),
+  ];
 
   for (const variant of variants) {
-    const found = dictionary.get(key(variant))
-    if (!found) continue
+    const found = dictionary.get(key(variant));
+    if (!found) continue;
 
-    const clean = found.replace(/^\[|\]$/g, '').trim()
-    return SINGULAR[clean] ?? clean
+    const clean = found.replace(/^\[|\]$/g, "").trim();
+    return SINGULAR[clean] ?? clean;
   }
-  return null
+  return null;
 }
 
 /**
@@ -307,22 +334,23 @@ function plain(value) {
  * за тем же словом стоит вовсе не человек.
  */
 function surname(word) {
-  if (/\s/.test(word)) return null
+  if (/\s/.test(word)) return null;
 
-  const tail = ` ${key(word)}`
+  const tail = ` ${key(word)}`;
   for (const [en, ru] of dictionary) {
-    if (!en.endsWith(tail) || en.split(' ').length > 3) continue
+    if (!en.endsWith(tail) || en.split(" ").length > 3) continue;
 
     // Отбрасываем ровно столько первых слов перевода, сколько слов стоит перед
     // фамилией в оригинале: у «Bealt Gemscale» это имя, и остаётся вся фамилия
     // целиком — «Самоцветная Чешуя», а не одно последнее слово.
-    const words = ru.trim().split(/\s+/)
+    const words = ru.trim().split(/\s+/);
     // Перевод бывает короче оригинала («Isles of Minos» — «Острова Миноса»):
     // тогда фамилией остаётся последнее слово.
-    const found = words.slice(en.split(' ').length - 1).join(' ') || words.at(-1)
-    if (found) return found
+    const found =
+      words.slice(en.split(" ").length - 1).join(" ") || words.at(-1);
+    if (found) return found;
   }
-  return null
+  return null;
 }
 
 /**
@@ -332,28 +360,28 @@ function surname(word) {
  * не выдумываем и уходим ни с чем.
  */
 const COMPOUNDS = [
-  [/^House of (.+)$/i, 'Дом', true],
-  [/^House (.+)$/i, 'Дом', true],
-  [/^(.+) [Ff]amily$/, 'Семья', true],
-  [/^(.+) Clan$/, 'Клан', true],
-  [/^(.+) Tribe$/, 'Племя', false],
-  [/^Kingdom of (.+)$/i, 'Королевство', false],
-  [/^Order of the (.+)$/i, 'Орден', false],
-  [/^Order of (.+)$/i, 'Орден', false],
-]
+  [/^House of (.+)$/i, "Дом", true],
+  [/^House (.+)$/i, "Дом", true],
+  [/^(.+) [Ff]amily$/, "Семья", true],
+  [/^(.+) Clan$/, "Клан", true],
+  [/^(.+) Tribe$/, "Племя", false],
+  [/^Kingdom of (.+)$/i, "Королевство", false],
+  [/^Order of the (.+)$/i, "Орден", false],
+  [/^Order of (.+)$/i, "Орден", false],
+];
 
 function translate(value) {
-  const direct = plain(value)
-  if (direct) return direct
+  const direct = plain(value);
+  if (direct) return direct;
 
   for (const [pattern, word, byPerson] of COMPOUNDS) {
-    const inner = pattern.exec(value)?.[1]
-    if (!inner) continue
+    const inner = pattern.exec(value)?.[1];
+    if (!inner) continue;
 
-    const ru = plain(inner) ?? (byPerson ? surname(inner) : null)
-    if (ru) return `${word} ${ru}`
+    const ru = plain(inner) ?? (byPerson ? surname(inner) : null);
+    if (ru) return `${word} ${ru}`;
   }
-  return null
+  return null;
 }
 
 /**
@@ -363,51 +391,55 @@ function translate(value) {
  * перевод и правда начинается с титула: иначе неясно, что от него отрезать.
  */
 const TITLES = [
-  ['Lady', 'леди'],
-  ['Lord', 'лорд'],
-  ['Dame', 'дама'],
-  ['Sir', 'сэр'],
-]
+  ["Lady", "леди"],
+  ["Lord", "лорд"],
+  ["Dame", "дама"],
+  ["Sir", "сэр"],
+];
 
 function untitled(value) {
   for (const [en, ru] of TITLES) {
-    const found = dictionary.get(key(`${en} ${value}`))
-    const prefix = `${ru} `
-    if (found?.toLowerCase().startsWith(prefix)) return found.slice(prefix.length).trim()
+    const found = dictionary.get(key(`${en} ${value}`));
+    const prefix = `${ru} `;
+    if (found?.toLowerCase().startsWith(prefix))
+      return found.slice(prefix.length).trim();
   }
-  return null
+  return null;
 }
 
 /** Имя с фамилией из двух строк глоссария: «Сирия» и «Весностранница». */
 function joined(name, full, short) {
-  if (!short || !full.startsWith(`${name} `)) return null
-  const last = dictionary.get(key(full.slice(name.length + 1)))
-  return last ? `${short} ${last.replace(/^[|]$/g, '').trim()}` : null
+  if (!short || !full.startsWith(`${name} `)) return null;
+  const last = dictionary.get(key(full.slice(name.length + 1)));
+  return last ? `${short} ${last.replace(/^[|]$/g, "").trim()}` : null;
 }
 
 // ── Что вообще нужно игре ──────────────────────────────────
-const characters = unpackCharacters(readFileSync(PACK, 'utf8'))
+const characters = unpackCharacters(readFileSync(PACK, "utf8"));
 
-const names = {}
-const fullNames = {}
-const missingNames = []
+const names = {};
+const fullNames = {};
+const missingNames = [];
 
 for (const c of characters) {
-  const full = fullNameOf(c)
+  const full = fullNameOf(c);
 
-  const short = translate(c.name) ?? untitled(c.name)
+  const short = translate(c.name) ?? untitled(c.name);
   // Сперва ищем всю строку целиком. Нет её — складываем из имени и фамилии, но
   // фамилию берём только точной строкой глоссария, без вариантов написания:
   // глоссарий полон похожих строк, и по догадке выходит чужая фамилия. С
   // октября 2026 глоссарий держит имя и фамилию отдельными строками
   // («Ceria» и «Springwalker»), пары вроде «Ceria Springwalker» из него убрали.
-  const whole = full !== c.name ? translate(full) ?? untitled(full) ?? joined(c.name, full, short) : null
+  const whole =
+    full !== c.name
+      ? (translate(full) ?? untitled(full) ?? joined(c.name, full, short))
+      : null;
 
-  if (short) names[c.name] = short
-  if (whole && whole !== short) fullNames[c.name] = whole
+  if (short) names[c.name] = short;
+  if (whole && whole !== short) fullNames[c.name] = whole;
 
-  if (!short && !whole) missingNames.push(c.name)
-  else if (!short && whole) names[c.name] = whole
+  if (!short && !whole) missingNames.push(c.name);
+  else if (!short && whole) names[c.name] = whole;
 }
 
 /**
@@ -420,8 +452,8 @@ for (const c of characters) {
  * сюда не попадает.
  */
 const AS_IN_GLOSSARY = {
-  Griffin: 'Griffon',
-}
+  Griffin: "Griffon",
+};
 
 /**
  * Решения поверх рабочего глоссария: там перевод записан с вариантами, а на
@@ -429,76 +461,115 @@ const AS_IN_GLOSSARY = {
  * каждом импорте, пока её не перенесли в сам xlsx.
  */
 const DECIDED = {
-  Beastkin: 'Зверочеловек', // в глоссарии «Зверолюди / Зверочеловек» (реш. 01.10.2026)
+  Beastkin: "Зверочеловек", // в глоссарии «Зверолюди / Зверочеловек» (реш. 01.10.2026)
   // В глоссарии «Knight» — Антиниум-шахматист, и он «Конь». Занятие у вики то же
   // слово, но это рыцари: Илауэс, Брункр, Орден Сезонов.
-  Knight: 'Рыцарь',
-}
+  Knight: "Рыцарь",
+};
 
 /**
  * Глоссарий пишет нарицательные со строчной («авантюрист», «дом Рейнхарт»), а
  * в карточке признак стоит отдельным значением, рядом с «Алхимик» и «Дом
  * Велтрас». Первую букву поднимаем, чтобы список не пестрел.
  */
-const capitalized = s => s && s[0].toUpperCase() + s.slice(1)
+const capitalized = (s) => s && s[0].toUpperCase() + s.slice(1);
 
 /**
  * Связью у вики бывает человек: у Бетал это «Magnolia Reinhart». Полных имён в
  * глоссарии больше нет отдельной строкой, зато их уже собрали для имён выше.
  */
-const personByFullName = new Map(characters.map(c => [fullNameOf(c), fullNames[c.name] ?? names[c.name]]).filter(([, ru]) => ru))
+const personByFullName = new Map(
+  characters
+    .map((c) => [fullNameOf(c), fullNames[c.name] ?? names[c.name]])
+    .filter(([, ru]) => ru),
+);
 
-const terms = {}
-const missingTerms = new Set()
-let fromFallback = 0
+const terms = {};
+const missingTerms = new Set();
+let fromFallback = 0;
 
 for (const c of characters) {
   // Локации тоже переводятся через terms: в карточке персонажа это отдельная
   // строка, и без них «Bloodfields» и «High Passes» стояли бы по-английски.
-  for (const value of [c.gender, c.status, ...c.species, ...c.affiliation, ...c.continent, ...c.occupation, ...c.cls, ...c.locations]) {
-    if (!value || terms[value]) continue
+  for (const value of [
+    c.gender,
+    c.status,
+    ...c.species,
+    ...c.affiliation,
+    ...c.continent,
+    ...c.occupation,
+    ...c.cls,
+    ...c.locations,
+  ]) {
+    if (!value || terms[value]) continue;
 
-    const hit = DECIDED[value] ?? translate(AS_IN_GLOSSARY[value] ?? value) ?? personByFullName.get(value)
+    const hit =
+      DECIDED[value] ??
+      translate(AS_IN_GLOSSARY[value] ?? value) ??
+      personByFullName.get(value);
     if (hit) {
-      terms[value] = capitalized(hit)
+      terms[value] = capitalized(hit);
     } else if (FALLBACK[value]) {
-      terms[value] = FALLBACK[value]
-      fromFallback++
+      terms[value] = FALLBACK[value];
+      fromFallback++;
     } else {
-      missingTerms.add(value)
+      missingTerms.add(value);
     }
   }
 }
 
-const sorted = obj => Object.fromEntries(Object.entries(obj).sort(([a], [b]) => a.localeCompare(b)))
+const sorted = (obj) =>
+  Object.fromEntries(
+    Object.entries(obj).sort(([a], [b]) => a.localeCompare(b)),
+  );
 
-writeFileSync(OUT, `${JSON.stringify({
-  _readme: [
-    'Словарь игры «Кто из таверны». Собирается из рабочего глоссария перевода:',
-    'node scripts/import-glossary.mjs [пути-к-xlsx…]. Правки руками переживут только',
-    'до следующего запуска импорта — лучше править сам глоссарий.',
-    'names — короткие имена, fullNames — имя с фамилией (показываем его, если есть),',
-    'terms — виды, организации, континенты, занятия, классы, локации.',
-    'Чего здесь нет, то показывается по-английски. Сервер читает файл на лету.',
-  ],
-  names: sorted(names),
-  fullNames: sorted(fullNames),
-  terms: sorted(terms),
-}, null, 2)}\n`, 'utf8')
+writeFileSync(
+  OUT,
+  `${JSON.stringify(
+    {
+      _readme: [
+        "Словарь игры «Кто из таверны». Собирается из рабочего глоссария перевода:",
+        "node scripts/import-glossary.mjs [пути-к-xlsx…]. Правки руками переживут только",
+        "до следующего запуска импорта — лучше править сам глоссарий.",
+        "names — короткие имена, fullNames — имя с фамилией (показываем его, если есть),",
+        "terms — виды, организации, континенты, занятия, классы, локации.",
+        "Чего здесь нет, то показывается по-английски. Сервер читает файл на лету.",
+      ],
+      names: sorted(names),
+      fullNames: sorted(fullNames),
+      terms: sorted(terms),
+    },
+    null,
+    2,
+  )}\n`,
+  "utf8",
+);
 
-const pct = (n, total) => `${Math.round((n / total) * 100)}%`
+const pct = (n, total) => `${Math.round((n / total) * 100)}%`;
 
-console.log(`Строк в глоссарии: ${dictionary.size}`)
-console.log(`Имена: ${Object.keys(names).length} из ${characters.length} (${pct(Object.keys(names).length, characters.length)})`)
-console.log(`Имена с фамилией: ${Object.keys(fullNames).length}`)
-console.log(`Термины: ${Object.keys(terms).length} (из них ${fromFallback} служебных, не из глоссария), без перевода осталось ${missingTerms.size}`)
-console.log(`Без перевода (примеры имён): ${missingNames.slice(0, 8).join(', ')}`)
-console.log(`Без перевода (примеры терминов): ${[...missingTerms].slice(0, 8).join(', ')}`)
+console.log(`Строк в глоссарии: ${dictionary.size}`);
+console.log(
+  `Имена: ${Object.keys(names).length} из ${characters.length} (${pct(Object.keys(names).length, characters.length)})`,
+);
+console.log(`Имена с фамилией: ${Object.keys(fullNames).length}`);
+console.log(
+  `Термины: ${Object.keys(terms).length} (из них ${fromFallback} служебных, не из глоссария), без перевода осталось ${missingTerms.size}`,
+);
+console.log(
+  `Без перевода (примеры имён): ${missingNames.slice(0, 8).join(", ")}`,
+);
+console.log(
+  `Без перевода (примеры терминов): ${[...missingTerms].slice(0, 8).join(", ")}`,
+);
 
 // Список того, что осталось по-английски, — рядом с самим глоссарием: это
 // готовый перечень строк, которые стоит завести в рабочем файле перевода.
-const TODO = resolve('.data/game/to-translate-terms.txt')
-writeFileSync(TODO, `${[...missingTerms].sort((a, b) => a.localeCompare(b)).join('\n')}\n`, 'utf8')
+const TODO = resolve(".data/game/to-translate-terms.txt");
+writeFileSync(
+  TODO,
+  `${[...missingTerms].sort((a, b) => a.localeCompare(b)).join("\n")}\n`,
+  "utf8",
+);
 
-console.log(`Записано: ${OUT}`)
-console.log(`Список без перевода: ${TODO}`)
+console.log(`Записано: ${OUT}`);
+console.log(`Список без перевода: ${TODO}`);

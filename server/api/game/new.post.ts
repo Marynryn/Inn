@@ -1,6 +1,10 @@
-import { clampVolume, isPool } from '../../utils/game-data'
-import { checkRateLimit } from '../../utils/rate-limit'
-import { playerIdentity, sessionState, startEndless } from '../../utils/game-session'
+import { clampVolume, isPool } from "../../utils/game-data";
+import { checkRateLimit } from "../../utils/rate-limit";
+import {
+  playerIdentity,
+  sessionState,
+  startEndless,
+} from "../../utils/game-session";
 
 /**
  * Новая партия в свободном режиме: тут игрок сам выбирает и набор, и потолок
@@ -8,20 +12,23 @@ import { playerIdentity, sessionState, startEndless } from '../../utils/game-ses
  * потолок ему задаёт админка.
  */
 export default defineEventHandler(async (event) => {
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
+  const ip = getRequestIP(event, { xForwardedFor: true }) ?? "unknown";
   if (!checkRateLimit(`game-new:${ip}`, 20, 60_000)) {
-    throw createError({ statusCode: 429, message: 'Слишком часто. Подожди минуту.' })
+    throw createError({
+      statusCode: 429,
+      message: "Слишком часто. Подожди минуту.",
+    });
   }
 
-  const body = await readBody<{ pool?: string; maxVolume?: number }>(event)
-  const { player, userId, isAdmin } = await playerIdentity(event)
+  const body = await readBody<{ pool?: string; maxVolume?: number }>(event);
+  const { player, userId, isAdmin } = await playerIdentity(event);
   const row = await startEndless(
     player,
-    isPool(body?.pool) ? body.pool : 'known',
+    isPool(body?.pool) ? body.pool : "known",
     clampVolume(body?.maxVolume),
     isAdmin,
     userId,
-  )
+  );
 
-  return sessionState(row)
-})
+  return sessionState(row);
+});

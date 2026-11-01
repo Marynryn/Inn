@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ReelState, ReelSymbol, SpinResult } from '#shared/utils/reel'
-import { fullReelTexts } from '#shared/utils/reel'
-import { frameScale } from '#shared/utils/avatarFrames'
+import type { ReelState, ReelSymbol, SpinResult } from "#shared/utils/reel";
+import { fullReelTexts } from "#shared/utils/reel";
+import { frameScale } from "#shared/utils/avatarFrames";
 
 /**
  * Барабан: окошко, в котором крутятся символы, и то, что выпало. Что выпадет,
@@ -10,253 +10,298 @@ import { frameScale } from '#shared/utils/avatarFrames'
  * С trialId это пробная прокрутка из панели: любого барабана, черновика тоже,
  * и ничего не записывается и не выдаётся.
  */
-const props = defineProps<{ trialId?: number }>()
-const emit = defineEmits<{ close: [] }>()
+const props = defineProps<{ trialId?: number }>();
+const emit = defineEmits<{ close: [] }>();
 
-const auth = useAuthStore()
-useScrollLock()
+const auth = useAuthStore();
+useScrollLock();
 
-type Phase = 'loading' | 'ready' | 'spinning' | 'result' | 'error'
+type Phase = "loading" | "ready" | "spinning" | "result" | "error";
 
-const phase = ref<Phase>('loading')
-const state = ref<ReelState | null>(null)
-const result = ref<SpinResult | null>(null)
-const error = ref('')
-const nearMiss = ref(false)
+const phase = ref<Phase>("loading");
+const state = ref<ReelState | null>(null);
+const result = ref<SpinResult | null>(null);
+const error = ref("");
+const nearMiss = ref(false);
 
-const symbols = computed(() => state.value?.reel?.symbols ?? [])
-const title = computed(() => state.value?.reel?.title ?? '')
-const t = computed(() => state.value?.reel?.texts ?? fullReelTexts(null))
+const symbols = computed(() => state.value?.reel?.symbols ?? []);
+const title = computed(() => state.value?.reel?.title ?? "");
+const t = computed(() => state.value?.reel?.texts ?? fullReelTexts(null));
 
 // Фон окна: картинка под затемнением — фоном самой карточки, а не слоем в ней,
 // чтобы при прокрутке длинного результата он оставался на месте.
-const look = computed(() => state.value?.reel?.look ?? null)
+const look = computed(() => state.value?.reel?.look ?? null);
 const sheetStyle = computed(() => {
-  const l = look.value
-  if (!l) return {}
-  const style: Record<string, string> = { '--bg-blur': `${l.blur}px` }
+  const l = look.value;
+  if (!l) return {};
+  const style: Record<string, string> = { "--bg-blur": `${l.blur}px` };
   if (l.background) {
-    const dim = `rgba(20, 14, 10, ${l.dim / 100})`
-    style.backgroundImage = `linear-gradient(${dim}, ${dim}), url("${l.background}")`
+    const dim = `rgba(20, 14, 10, ${l.dim / 100})`;
+    style.backgroundImage = `linear-gradient(${dim}, ${dim}), url("${l.background}")`;
   }
-  return style
-})
-const trial = computed(() => Boolean(props.trialId))
+  return style;
+});
+const trial = computed(() => Boolean(props.trialId));
 /** Гость видит барабан, но крутить его нельзя: вместо кнопки — позвать войти.
  *  После входа главная откроет барабан сама (?reel=1). */
-const guest = computed(() => !trial.value && auth.ready && !auth.isAuthed)
-const loginHref = `/login?next=${encodeURIComponent('/?reel=1')}`
+const guest = computed(() => !trial.value && auth.ready && !auth.isAuthed);
+const loginHref = `/login?next=${encodeURIComponent("/?reel=1")}`;
 // Для админки: сколько гостей хотели покрутить, но упёрлись во вход. Шлём,
 // когда барабан загрузился и гостю показано «войти»; один раз за открытие.
-const stopGuestWatch = watch(() => guest.value && phase.value === 'ready', (shown) => {
-  if (!shown) return
-  stopGuestWatch()
-  $fetch('/api/reel/guest', { method: 'POST', body: { visitor: visitorId() } }).catch(() => {})
-})
+const stopGuestWatch = watch(
+  () => guest.value && phase.value === "ready",
+  (shown) => {
+    if (!shown) return;
+    stopGuestWatch();
+    $fetch("/api/reel/guest", {
+      method: "POST",
+      body: { visitor: visitorId() },
+    }).catch(() => {});
+  },
+);
 /** Сколько попыток осталось сегодня; null — без ограничений (админ, проба). */
-const left = ref<number | null>(null)
-const perDay = computed(() => state.value?.perDay ?? 1)
+const left = ref<number | null>(null);
+const perDay = computed(() => state.value?.perDay ?? 1);
 
-const base = computed(() => (props.trialId ? `/api/admin/reels/${props.trialId}/trial` : '/api/reel'))
+const base = computed(() =>
+  props.trialId ? `/api/admin/reels/${props.trialId}/trial` : "/api/reel",
+);
 
 // Лента: сверху то, что видно сейчас, снизу — куда она доедет.
-const strip = ref<ReelSymbol[]>([])
-const offset = ref(0)
-const transition = ref('none')
-const windowEl = ref<HTMLElement | null>(null)
+const strip = ref<ReelSymbol[]>([]);
+const offset = ref(0);
+const transition = ref("none");
+const windowEl = ref<HTMLElement | null>(null);
 
-const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)]!
+const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)]!;
 
 /** Следующая клетка ленты: не та же картинка, что в двух клетках над ней, и
  *  не из `avoid` (то, что встанет следом). Без этого случайная лента то и дело
  *  выкладывала три одинаковые рамки подряд. Сравнение по картинке, а не по id:
  *  две клетки с одной рамкой для глаза — тоже повтор. Если символов мало и
  *  уйти от повтора нельзя, правило ослабляется, но лента всё равно строится. */
-const pickApart = (before: ReelSymbol[], from: ReelSymbol[], avoid: ReelSymbol[] = []) => {
-  const recent = before.slice(-2).map(s => s.url)
-  const strict = from.filter(s => !recent.includes(s.url) && !avoid.some(a => a.url === s.url))
-  if (strict.length) return pick(strict)
-  const loose = from.filter(s => s.url !== before.at(-1)?.url)
-  return pick(loose.length ? loose : from)
-}
+const pickApart = (
+  before: ReelSymbol[],
+  from: ReelSymbol[],
+  avoid: ReelSymbol[] = [],
+) => {
+  const recent = before.slice(-2).map((s) => s.url);
+  const strict = from.filter(
+    (s) => !recent.includes(s.url) && !avoid.some((a) => a.url === s.url),
+  );
+  if (strict.length) return pick(strict);
+  const loose = from.filter((s) => s.url !== before.at(-1)?.url);
+  return pick(loose.length ? loose : from);
+};
 
 const load = async () => {
   try {
-    state.value = await $fetch<ReelState>(base.value)
+    state.value = await $fetch<ReelState>(base.value);
   } catch (e: any) {
-    error.value = e.data?.message || 'Барабан не загрузился'
-    phase.value = 'error'
-    return
+    error.value = e.data?.message || "Барабан не загрузился";
+    phase.value = "error";
+    return;
   }
 
   if (!state.value.reel || !symbols.value.length) {
-    error.value = 'Барабан сейчас не крутится'
-    phase.value = 'error'
-    return
+    error.value = "Барабан сейчас не крутится";
+    phase.value = "error";
+    return;
   }
 
-  left.value = state.value.left
+  left.value = state.value.left;
   // Попытки на сегодня кончились — например, закрыл вкладку посреди вращения.
   // Показываем, что выпало в последний раз, а не ленту, которую не запустить.
   if (state.value.today && left.value === 0) {
-    result.value = state.value.today
-    phase.value = 'result'
-    return
+    result.value = state.value.today;
+    phase.value = "result";
+    return;
   }
 
-  const first: ReelSymbol[] = []
-  for (let i = 0; i < 3; i++) first.push(pickApart(first, symbols.value))
-  strip.value = first
-  phase.value = 'ready'
-  predecode()
-}
+  const first: ReelSymbol[] = [];
+  for (let i = 0; i < 3; i++) first.push(pickApart(first, symbols.value));
+  strip.value = first;
+  phase.value = "ready";
+  predecode();
+};
 
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Раскодировать картинки ленты заранее: иначе браузер распаковывает рамку в
  *  момент, когда она въезжает в окошко, и лента дёргается. */
 const predecode = () => {
   for (const s of symbols.value) {
-    const img = new Image()
-    img.src = s.url
-    img.decode?.().catch(() => {})
+    const img = new Image();
+    img.src = s.url;
+    img.decode?.().catch(() => {});
   }
-}
+};
 
 const spinNow = async () => {
-  if (phase.value !== 'ready') return
-  phase.value = 'spinning'
-  error.value = ''
+  if (phase.value !== "ready") return;
+  phase.value = "spinning";
+  error.value = "";
 
-  let res: SpinResult
+  let res: SpinResult;
   try {
-    res = await $fetch<SpinResult>(props.trialId ? base.value : '/api/reel/spin', { method: 'POST' })
+    res = await $fetch<SpinResult>(
+      props.trialId ? base.value : "/api/reel/spin",
+      { method: "POST" },
+    );
   } catch (e: any) {
-    error.value = e.data?.message || 'Не получилось — попробуй ещё раз'
-    phase.value = e.statusCode === 409 ? 'error' : 'ready'
-    return
+    error.value = e.data?.message || "Не получилось — попробуй ещё раз";
+    phase.value = e.statusCode === 409 ? "error" : "ready";
+    return;
   }
 
-  const target = symbols.value.find(s => s.id === res.segmentId) ?? pick(symbols.value)
-  const others = symbols.value.filter(s => s.id !== target.id)
-  const pool = others.length ? others : symbols.value
+  const target =
+    symbols.value.find((s) => s.id === res.segmentId) ?? pick(symbols.value);
+  const others = symbols.value.filter((s) => s.id !== target.id);
+  const pool = others.length ? others : symbols.value;
 
   // «Почти»: выпала сценка, а приз проехал на соседней клетке — над линией
   // или под ней. Не всегда, иначе это перестанет что-либо значить.
-  const prizes = pool.filter(s => s.isPrize)
-  nearMiss.value = !target.isPrize && prizes.length > 0 && Math.random() < 0.5
-  const neighbour = nearMiss.value ? pick(prizes) : pickApart([target], pool)
-  const other = pickApart([target, neighbour], pool)
-  const around = Math.random() < 0.5 ? [neighbour, other] : [other, neighbour]
+  const prizes = pool.filter((s) => s.isPrize);
+  nearMiss.value = !target.isPrize && prizes.length > 0 && Math.random() < 0.5;
+  const neighbour = nearMiss.value ? pick(prizes) : pickApart([target], pool);
+  const other = pickApart([target, neighbour], pool);
+  const around = Math.random() < 0.5 ? [neighbour, other] : [other, neighbour];
 
   // «Меньше движения» в системе (в Windows — выключенные анимации, их часто
   // гасят ради скорости) ленту не выключает: вращение и есть барабан, без него
   // результат выскакивал сразу. Такому читателю — короткий ровный проезд, без
   // долгого дотягивания в конце.
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const seconds = reduce ? 2.5 : nearMiss.value ? 4.6 : 3.8
-  const curve = reduce ? '.3,.1,.3,1' : nearMiss.value ? '.2,.7,.1,1' : '.15,.6,.2,1'
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const seconds = reduce ? 2.5 : nearMiss.value ? 4.6 : 3.8;
+  const curve = reduce
+    ? ".3,.1,.3,1"
+    : nearMiss.value
+      ? ".2,.7,.1,1"
+      : ".15,.6,.2,1";
 
   // Две последние клетки разгона стоят вплотную к тройке у линии — им нельзя
   // повторять ни её верхнюю клетку, ни выпавший приз.
-  const lane = strip.value.slice(-3)
-  for (let i = 0; i < 26; i++) lane.push(pickApart(lane, symbols.value, i >= 24 ? [around[0]!, target] : []))
-  strip.value = [...lane, around[0]!, target, around[1]!]
+  const lane = strip.value.slice(-3);
+  for (let i = 0; i < 26; i++)
+    lane.push(
+      pickApart(lane, symbols.value, i >= 24 ? [around[0]!, target] : []),
+    );
+  strip.value = [...lane, around[0]!, target, around[1]!];
 
   // Сначала без анимации ставим ленту в начало, потом едем: иначе браузер
   // склеит оба положения в одно и лента прыгнет сразу в конец.
-  transition.value = 'none'
-  offset.value = 0
-  await nextTick()
-  void windowEl.value?.offsetHeight
+  transition.value = "none";
+  offset.value = 0;
+  await nextTick();
+  void windowEl.value?.offsetHeight;
 
-  const cell = windowEl.value ? parseFloat(getComputedStyle(windowEl.value).getPropertyValue('--cell')) : 116
-  transition.value = `transform ${seconds}s cubic-bezier(${curve})`
-  offset.value = -(strip.value.length - 3) * cell
+  const cell = windowEl.value
+    ? parseFloat(getComputedStyle(windowEl.value).getPropertyValue("--cell"))
+    : 116;
+  transition.value = `transform ${seconds}s cubic-bezier(${curve})`;
+  offset.value = -(strip.value.length - 3) * cell;
 
-  await wait(seconds * 1000 + 120)
-  await wait(reduce ? 400 : 900)
-  if (!trial.value) left.value = res.left ?? null
-  result.value = res
-  phase.value = 'result'
-}
+  await wait(seconds * 1000 + 120);
+  await wait(reduce ? 400 : 900);
+  if (!trial.value) left.value = res.left ?? null;
+  result.value = res;
+  phase.value = "result";
+};
 
 // ── Результат ─────────────────────────────────────
-const PRIZE = 232
+const PRIZE = 232;
 const prizeFace = computed(() => {
-  const fit = result.value?.frame?.fit
-  return fit ? Math.round(PRIZE / frameScale(fit)) : PRIZE
-})
+  const fit = result.value?.frame?.fit;
+  return fit ? Math.round(PRIZE / frameScale(fit)) : PRIZE;
+});
 
-const wearing = ref(false)
-const worn = ref(false)
+const wearing = ref(false);
+const worn = ref(false);
 const isWorn = computed(() => {
-  if (worn.value) return true
-  if (result.value?.frame) return (auth.user as any)?.avatarFrame?.id === result.value.frame.id
-  if (result.value?.figure) return auth.user?.figure?.id === result.value.figure.id
-  return false
-})
-const prize = computed(() => result.value?.frame ?? result.value?.figure ?? result.value?.skin ?? null)
+  if (worn.value) return true;
+  if (result.value?.frame)
+    return (auth.user as any)?.avatarFrame?.id === result.value.frame.id;
+  if (result.value?.figure)
+    return auth.user?.figure?.id === result.value.figure.id;
+  return false;
+});
+const prize = computed(
+  () =>
+    result.value?.frame ?? result.value?.figure ?? result.value?.skin ?? null,
+);
 
 // Аватарка в рамке видна сразу у повторки — эта рамка и так своя — и после
 // «Надеть» у выигрыша. До того в середине пусто: рамку показываем саму по себе.
-const faceShown = computed(() => result.value?.outcome === 'duplicate' || worn.value)
+const faceShown = computed(
+  () => result.value?.outcome === "duplicate" || worn.value,
+);
 
 const wear = async () => {
-  if (!prize.value || trial.value) return
-  wearing.value = true
-  error.value = ''
+  if (!prize.value || trial.value) return;
+  wearing.value = true;
+  error.value = "";
   try {
-    const form = new FormData()
-    if (result.value?.frame) form.append('avatarFrameId', String(result.value.frame.id))
-    else if (result.value?.figure) form.append('figure', result.value.figure.id)
-    else form.append('skinId', String(result.value!.skin!.id))
-    await $fetch('/api/profile', { method: 'PUT', body: form })
-    await auth.fetchMe()
-    worn.value = true
+    const form = new FormData();
+    if (result.value?.frame)
+      form.append("avatarFrameId", String(result.value.frame.id));
+    else if (result.value?.figure)
+      form.append("figure", result.value.figure.id);
+    else form.append("skinId", String(result.value!.skin!.id));
+    await $fetch("/api/profile", { method: "PUT", body: form });
+    await auth.fetchMe();
+    worn.value = true;
   } catch (e: any) {
-    error.value = e.data?.message || 'Не наделась — попробуй из профиля'
+    error.value = e.data?.message || "Не наделась — попробуй из профиля";
   } finally {
-    wearing.value = false
+    wearing.value = false;
   }
-}
+};
 
 const eyebrow = computed(() => {
-  if (trial.value) return 'Выпало бы'
+  if (trial.value) return "Выпало бы";
   switch (result.value?.outcome) {
-    case 'won': return result.value.figure ? t.value.wonFigure : result.value.skin ? t.value.wonSkin : t.value.wonFrame
-    case 'duplicate': return t.value.duplicate
-    default: return t.value.scene
+    case "won":
+      return result.value.figure
+        ? t.value.wonFigure
+        : result.value.skin
+          ? t.value.wonSkin
+          : t.value.wonFrame;
+    case "duplicate":
+      return t.value.duplicate;
+    default:
+      return t.value.scene;
   }
-})
+});
 
 /** Ещё попытка: обратно к ленте, она стоит там, где остановилась. */
-const canAgain = computed(() => !trial.value && (left.value === null || left.value > 0))
+const canAgain = computed(
+  () => !trial.value && (left.value === null || left.value > 0),
+);
 // «Крутить ещё» сразу запускает ленту: второй раз жать «Крутить» незачем.
 // Тик ждём, чтобы окошко ленты успело появиться вместо результата.
 const again = async () => {
-  result.value = null
-  worn.value = false
-  error.value = ''
-  phase.value = 'ready'
-  await nextTick()
-  spinNow()
-}
+  result.value = null;
+  worn.value = false;
+  error.value = "";
+  phase.value = "ready";
+  await nextTick();
+  spinNow();
+};
 
 const close = () => {
-  if (phase.value === 'spinning') return
-  emit('close')
-}
+  if (phase.value === "spinning") return;
+  emit("close");
+};
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') close()
-}
+  if (e.key === "Escape") close();
+};
 
 onMounted(() => {
-  document.addEventListener('keydown', onKeydown)
-  load()
-})
-onUnmounted(() => document.removeEventListener('keydown', onKeydown))
+  document.addEventListener("keydown", onKeydown);
+  load();
+});
+onUnmounted(() => document.removeEventListener("keydown", onKeydown));
 </script>
 
 <template>
@@ -270,14 +315,30 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
         aria-modal="true"
         aria-labelledby="reel-title"
       >
-        <button v-if="phase !== 'spinning'" class="reel-close" type="button" aria-label="Закрыть" @click="close">×</button>
+        <button
+          v-if="phase !== 'spinning'"
+          class="reel-close"
+          type="button"
+          aria-label="Закрыть"
+          @click="close"
+        >
+          ×
+        </button>
         <span v-if="trial" class="trial-tag">Пробная прокрутка</span>
 
         <!-- Лента -->
-        <template v-if="phase === 'loading' || phase === 'ready' || phase === 'spinning'">
-          <h2 id="reel-title" class="display reel-title">«{{ title || 'Барабан' }}»</h2>
+        <template
+          v-if="
+            phase === 'loading' || phase === 'ready' || phase === 'spinning'
+          "
+        >
+          <h2 id="reel-title" class="display reel-title">
+            «{{ title || "Барабан" }}»
+          </h2>
           <p class="reel-lead">
-            <template v-if="trial">Видишь только ты. Ничего не выдаётся и не записывается.</template>
+            <template v-if="trial"
+              >Видишь только ты. Ничего не выдаётся и не записывается.</template
+            >
             <b v-else-if="guest" class="guest-title">{{ t.guestTitle }}</b>
             <template v-else>{{ t.lead }}</template>
           </p>
@@ -290,7 +351,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                 :style="{ transform: `translateY(${offset}px)`, transition }"
               >
                 <div v-for="(s, i) in strip" :key="i" class="reel-cell">
-                  <img :src="s.url" alt="" draggable="false">
+                  <img :src="s.url" alt="" draggable="false" />
                 </div>
               </div>
             </div>
@@ -299,9 +360,26 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
           <p class="reel-err" aria-live="polite">{{ error }}</p>
 
-          <NuxtLink v-if="guest" class="reel-btn btn btn--primary btn--lg" :to="loginHref">{{ t.guestButton }}</NuxtLink>
-          <button v-else class="reel-btn btn btn--primary btn--lg" type="button" :disabled="phase !== 'ready'" @click="spinNow">
-            {{ phase === 'spinning' ? 'Крутится…' : phase === 'loading' ? 'Смотрим…' : t.spinButton }}
+          <NuxtLink
+            v-if="guest"
+            class="reel-btn btn btn--primary btn--lg"
+            :to="loginHref"
+            >{{ t.guestButton }}</NuxtLink
+          >
+          <button
+            v-else
+            class="reel-btn btn btn--primary btn--lg"
+            type="button"
+            :disabled="phase !== 'ready'"
+            @click="spinNow"
+          >
+            {{
+              phase === "spinning"
+                ? "Крутится…"
+                : phase === "loading"
+                  ? "Смотрим…"
+                  : t.spinButton
+            }}
           </button>
         </template>
 
@@ -309,7 +387,13 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
         <template v-else-if="phase === 'error'">
           <h2 id="reel-title" class="display reel-title">Барабан</h2>
           <p class="reel-lead">{{ error }}</p>
-          <button class="reel-btn btn btn--ghost btn--lg" type="button" @click="close">Закрыть</button>
+          <button
+            class="reel-btn btn btn--ghost btn--lg"
+            type="button"
+            @click="close"
+          >
+            Закрыть
+          </button>
         </template>
 
         <!-- Что выпало -->
@@ -332,10 +416,15 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
               :size="prizeFace"
               alt=""
             />
-            <img class="prize-frame" :src="result.frame.url" alt="" draggable="false">
+            <img
+              class="prize-frame"
+              :src="result.frame.url"
+              alt=""
+              draggable="false"
+            />
           </div>
           <div v-else-if="result.figure" class="prize-figure">
-            <img :src="result.figure.big" alt="" draggable="false">
+            <img :src="result.figure.big" alt="" draggable="false" />
             <span class="figure-by-name">
               {{ auth.name }}<NameFigure :figure="result.figure" />
             </span>
@@ -343,25 +432,60 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <div
             v-else-if="result.skin"
             class="prize-skin"
-            :style="{ background: result.skin.tint, '--accent': result.skin.accent }"
+            :style="{
+              background: result.skin.tint,
+              '--accent': result.skin.accent,
+            }"
           >
-            <img class="corner" :src="result.skin.url" alt="" draggable="false">
-            <img class="corner corner--right" :src="result.skin.url" alt="" draggable="false">
+            <img
+              class="corner"
+              :src="result.skin.url"
+              alt=""
+              draggable="false"
+            />
+            <img
+              class="corner corner--right"
+              :src="result.skin.url"
+              alt=""
+              draggable="false"
+            />
             <span class="skin-name">{{ auth.name }}</span>
             <span class="skin-line" />
             <span class="skin-line skin-line--short" />
           </div>
-          <img v-else class="scene-pic" :src="result.imageUrl" alt="" draggable="false">
+          <img
+            v-else
+            class="scene-pic"
+            :src="result.imageUrl"
+            alt=""
+            draggable="false"
+          />
 
           <h2 id="reel-title" class="display prize-name">{{ result.label }}</h2>
 
           <p class="prize-sub">
-            <template v-if="result.outcome === 'won' && !trial && result.figure">{{ t.wonFigureSub }}</template>
-            <template v-else-if="result.outcome === 'won' && !trial && result.skin">{{ t.wonSkinSub }}</template>
-            <template v-else-if="result.outcome === 'won' && !trial">{{ t.wonFrameSub }}</template>
-            <template v-else-if="result.outcome === 'duplicate' && result.skin">{{ t.duplicateSkinSub }}</template>
-            <template v-else-if="result.outcome === 'duplicate' && result.figure">{{ t.duplicateFigureSub }}</template>
-            <template v-else-if="result.outcome === 'duplicate'">{{ t.duplicateFrameSub }}</template>
+            <template
+              v-if="result.outcome === 'won' && !trial && result.figure"
+              >{{ t.wonFigureSub }}</template
+            >
+            <template
+              v-else-if="result.outcome === 'won' && !trial && result.skin"
+              >{{ t.wonSkinSub }}</template
+            >
+            <template v-else-if="result.outcome === 'won' && !trial">{{
+              t.wonFrameSub
+            }}</template>
+            <template
+              v-else-if="result.outcome === 'duplicate' && result.skin"
+              >{{ t.duplicateSkinSub }}</template
+            >
+            <template
+              v-else-if="result.outcome === 'duplicate' && result.figure"
+              >{{ t.duplicateFigureSub }}</template
+            >
+            <template v-else-if="result.outcome === 'duplicate'">{{
+              t.duplicateFrameSub
+            }}</template>
             <template v-else-if="result.text">{{ result.text }}</template>
           </p>
 
@@ -373,17 +497,29 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
               :disabled="wearing"
               @click="wear"
             >
-              {{ wearing ? 'Надеваем…' : t.wearButton }}
+              {{ wearing ? "Надеваем…" : t.wearButton }}
             </button>
             <span v-else-if="prize && !trial" class="worn-tag">✓ Надета</span>
-            <button v-if="canAgain" class="reel-btn btn btn--lg" :class="prize && !isWorn ? 'btn--ghost' : 'btn--primary'" type="button" @click="again">
-              {{ t.againButton }}<template v-if="left !== null"> · {{ left }}</template>
+            <button
+              v-if="canAgain"
+              class="reel-btn btn btn--lg"
+              :class="prize && !isWorn ? 'btn--ghost' : 'btn--primary'"
+              type="button"
+              @click="again"
+            >
+              {{ t.againButton
+              }}<template v-if="left !== null"> · {{ left }}</template>
             </button>
           </div>
 
           <p v-if="error" class="reel-err">{{ error }}</p>
           <p v-if="!trial && left === 0" class="reel-fine">{{ t.footer }}</p>
-          <p v-else-if="!trial && left !== null && perDay > 1" class="reel-fine">Осталось попыток сегодня: {{ left }} из {{ perDay }}</p>
+          <p
+            v-else-if="!trial && left !== null && perDay > 1"
+            class="reel-fine"
+          >
+            Осталось попыток сегодня: {{ left }} из {{ perDay }}
+          </p>
         </template>
       </div>
     </div>
@@ -400,7 +536,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   padding: 16px;
   /* Без backdrop-filter: размытие всего экрана под едущей лентой на большом
      мониторе стоило кадров, а затемнения и так хватает. */
-  background: rgba(15, 11, 8, .86);
+  background: rgba(15, 11, 8, 0.86);
 }
 
 .reel-sheet {
@@ -430,12 +566,12 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
 /* На картинке подписи теряются — им нужна тень, на тёмном окне её не видно. */
 .reel-sheet.has-bg :is(.reel-title, .prize-name, .eyebrow) {
-  text-shadow: 0 2px 10px rgba(0, 0, 0, .7);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
 }
 
 .reel-sheet.has-bg :is(.reel-lead, .prize-sub) {
-  color: rgba(241, 230, 210, .82);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, .8);
+  color: rgba(241, 230, 210, 0.82);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
 }
 
 /* Лучи шире окна и крутятся: прямо в окне их углы раздували бы прокрутку.
@@ -458,7 +594,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   border: none;
   border-radius: var(--radius-round);
   background: none;
-  color: rgba(241, 230, 210, .6);
+  color: rgba(241, 230, 210, 0.6);
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
@@ -477,7 +613,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   background: var(--gold);
   color: var(--bg-dark);
   font-size: 11px;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -492,7 +628,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   max-width: 34ch;
   margin: 0 auto 18px;
   font-size: 13px;
-  color: rgba(241, 230, 210, .62);
+  color: rgba(241, 230, 210, 0.62);
 }
 
 /* ── Окошко ─────────────────────────────────── */
@@ -514,8 +650,20 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   position: relative;
   height: 100%;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(180deg, transparent, #000 32%, #000 68%, transparent);
-  mask-image: linear-gradient(180deg, transparent, #000 32%, #000 68%, transparent);
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent,
+    #000 32%,
+    #000 68%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent,
+    #000 32%,
+    #000 68%,
+    transparent
+  );
 }
 
 /* Подложка выпадающей клетки: размывает фон окна под лентой, а не саму ленту.
@@ -528,7 +676,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   height: var(--cell);
   transform: translateY(-50%);
   border-radius: var(--radius-lg);
-  background: rgba(20, 14, 10, .2);
+  background: rgba(20, 14, 10, 0.2);
   -webkit-backdrop-filter: blur(var(--bg-blur, 6px));
   backdrop-filter: blur(var(--bg-blur, 6px));
   pointer-events: none;
@@ -559,9 +707,11 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   z-index: 1;
   height: var(--cell);
   transform: translateY(-50%);
-  border: 2px solid rgba(232, 176, 122, .7);
+  border: 2px solid rgba(232, 176, 122, 0.7);
   border-radius: var(--radius-lg);
-  box-shadow: 0 0 18px rgba(214, 136, 62, .35), inset 0 0 12px rgba(214, 136, 62, .2);
+  box-shadow:
+    0 0 18px rgba(214, 136, 62, 0.35),
+    inset 0 0 12px rgba(214, 136, 62, 0.2);
   pointer-events: none;
 }
 
@@ -573,7 +723,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 }
 
 /* Вид — общий .btn (--lg); здесь только то, чего у него нет. */
-.reel-btn { padding-inline: 28px; }
+.reel-btn {
+  padding-inline: 28px;
+}
 
 .guest-title {
   display: block;
@@ -591,13 +743,21 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   height: 560px;
   margin: -280px 0 0 -280px;
   pointer-events: none;
-  background: repeating-conic-gradient(from 0deg, rgba(232, 176, 122, .13) 0 8deg, transparent 8deg 22deg);
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(232, 176, 122, 0.13) 0 8deg,
+    transparent 8deg 22deg
+  );
   -webkit-mask: radial-gradient(circle, #000 18%, transparent 62%);
   mask: radial-gradient(circle, #000 18%, transparent 62%);
   animation: rays 24s linear infinite;
 }
 
-@keyframes rays { to { transform: rotate(360deg); } }
+@keyframes rays {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .is-result > *:not(.rays-clip):not(.reel-close) {
   position: relative;
@@ -606,7 +766,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 .eyebrow {
   margin: 0 0 6px;
   font-size: 11px;
-  letter-spacing: .14em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ember-soft);
 }
@@ -631,16 +791,22 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 .prize-hole {
   transform: translate(-50%, -50%);
   border: 1.5px dashed var(--line-bold);
-  background: radial-gradient(circle, rgba(232, 176, 122, .12), transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(232, 176, 122, 0.12),
+    transparent 70%
+  );
 }
 
 /* Аватарка въезжает в середину рамки, когда её надели. */
 .prize-face {
-  transform: translate(-50%, -50%) scale(.2);
+  transform: translate(-50%, -50%) scale(0.2);
   opacity: 0;
   background: linear-gradient(135deg, var(--ember-soft), var(--moss));
   color: var(--bg-dark);
-  transition: transform .8s cubic-bezier(.2, .9, .25, 1.2), opacity .4s;
+  transition:
+    transform 0.8s cubic-bezier(0.2, 0.9, 0.25, 1.2),
+    opacity 0.4s;
 }
 
 .prize.face-shown .prize-face {
@@ -653,7 +819,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   inset: 0;
   width: 100%;
   height: 100%;
-  animation: rise .9s cubic-bezier(.2, .9, .25, 1.25) both;
+  animation: rise 0.9s cubic-bezier(0.2, 0.9, 0.25, 1.25) both;
   user-select: none;
 }
 
@@ -670,7 +836,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   overflow: hidden;
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
-  animation: rise .8s cubic-bezier(.2, .9, .25, 1.25) both;
+  animation: rise 0.8s cubic-bezier(0.2, 0.9, 0.25, 1.25) both;
 }
 
 .prize-skin .corner {
@@ -704,7 +870,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   background: var(--fill-bold);
 }
 
-.skin-line--short { width: 70px; }
+.skin-line--short {
+  width: 70px;
+}
 
 /* Фигурка крупно, а под ней — как она встанет у имени. */
 .prize-figure {
@@ -713,7 +881,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   justify-items: center;
   gap: 10px;
   margin: 8px auto 6px;
-  animation: rise .8s cubic-bezier(.2, .9, .25, 1.25) both;
+  animation: rise 0.8s cubic-bezier(0.2, 0.9, 0.25, 1.25) both;
 }
 
 .prize-figure > img {
@@ -734,12 +902,18 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   height: 160px;
   margin: 8px auto 10px;
   object-fit: contain;
-  animation: rise .8s cubic-bezier(.2, .9, .25, 1.25) both;
+  animation: rise 0.8s cubic-bezier(0.2, 0.9, 0.25, 1.25) both;
 }
 
 @keyframes rise {
-  from { transform: scale(.4) rotate(-25deg); opacity: 0; }
-  to { transform: none; opacity: 1; }
+  from {
+    transform: scale(0.4) rotate(-25deg);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }
 
 .prize-name {
@@ -754,7 +928,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   margin: 6px auto 20px;
   font-size: 14px;
   line-height: 1.55;
-  color: rgba(241, 230, 210, .7);
+  color: rgba(241, 230, 210, 0.7);
 }
 
 .actions {
@@ -775,11 +949,13 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 .reel-fine {
   margin: 16px 0 0;
   font-size: 12px;
-  color: rgba(241, 230, 210, .4);
+  color: rgba(241, 230, 210, 0.4);
 }
 
 @media (max-width: 480px) {
-  .reel-window { --cell: 96px; }
+  .reel-window {
+    --cell: 96px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -787,7 +963,11 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   .prize-frame,
   .prize-figure,
   .prize-skin,
-  .scene-pic { animation: none; }
-  .prize-face { transition: none; }
+  .scene-pic {
+    animation: none;
+  }
+  .prize-face {
+    transition: none;
+  }
 }
 </style>

@@ -1,227 +1,292 @@
 <script setup lang="ts">
-import { FRAME_FIT_DEFAULT, FRAME_FIT_MAX, FRAME_FIT_MIN } from '#shared/utils/avatarFrames'
+import {
+  FRAME_FIT_DEFAULT,
+  FRAME_FIT_MAX,
+  FRAME_FIT_MIN,
+} from "#shared/utils/avatarFrames";
 
 // Чужих отсеивает middleware ещё на сервере: каркас панели не рендерится никому,
 // кроме администратора.
-definePageMeta({ middleware: 'admin' })
+definePageMeta({ middleware: "admin" });
 
-const { data: settings, refresh: refreshSettings } = await useFetch('/api/settings')
+const { data: settings, refresh: refreshSettings } =
+  await useFetch("/api/settings");
 
 // --- Список глав ---
-const { data: chaptersData, refresh: refreshChapters } = await useFetch('/api/chapters')
-const chapterList = ref<any[]>([])
-watch(chaptersData, (v) => { if (v) chapterList.value = [...v] }, { immediate: true })
+const { data: chaptersData, refresh: refreshChapters } =
+  await useFetch("/api/chapters");
+const chapterList = ref<any[]>([]);
+watch(
+  chaptersData,
+  (v) => {
+    if (v) chapterList.value = [...v];
+  },
+  { immediate: true },
+);
 
 const volumeGroups = computed(() => {
-  const map = new Map<number, any[]>()
+  const map = new Map<number, any[]>();
   for (const ch of chapterList.value) {
-    if (!map.has(ch.volume)) map.set(ch.volume, [])
-    map.get(ch.volume)!.push(ch)
+    if (!map.has(ch.volume)) map.set(ch.volume, []);
+    map.get(ch.volume)!.push(ch);
   }
-  return [...map.entries()].sort((a, b) => a[0] - b[0])
-})
+  return [...map.entries()].sort((a, b) => a[0] - b[0]);
+});
 
-const openVolumes = ref(new Set<number>())
-const knownVolumes = ref(new Set<number>())
-watch(chapterList, (list) => {
-  const vols = new Set(list.map(c => c.volume))
-  const next = new Set(openVolumes.value)
-  // При открытии панели раскрыт только последний том — с ним и работают.
-  // Том, появившийся потом (загрузили главу нового тома), раскрываем сразу.
-  if (!knownVolumes.value.size) {
-    if (vols.size) next.add(Math.max(...vols))
-  } else {
-    for (const vol of vols) {
-      if (!knownVolumes.value.has(vol)) next.add(vol)
+const openVolumes = ref(new Set<number>());
+const knownVolumes = ref(new Set<number>());
+watch(
+  chapterList,
+  (list) => {
+    const vols = new Set(list.map((c) => c.volume));
+    const next = new Set(openVolumes.value);
+    // При открытии панели раскрыт только последний том — с ним и работают.
+    // Том, появившийся потом (загрузили главу нового тома), раскрываем сразу.
+    if (!knownVolumes.value.size) {
+      if (vols.size) next.add(Math.max(...vols));
+    } else {
+      for (const vol of vols) {
+        if (!knownVolumes.value.has(vol)) next.add(vol);
+      }
     }
-  }
-  for (const vol of next) {
-    if (!vols.has(vol)) next.delete(vol)
-  }
-  knownVolumes.value = vols
-  openVolumes.value = next
-}, { immediate: true })
+    for (const vol of next) {
+      if (!vols.has(vol)) next.delete(vol);
+    }
+    knownVolumes.value = vols;
+    openVolumes.value = next;
+  },
+  { immediate: true },
+);
 const toggleVolume = (vol: number) => {
-  const s = new Set(openVolumes.value)
-  s.has(vol) ? s.delete(vol) : s.add(vol)
-  openVolumes.value = s
-}
+  const s = new Set(openVolumes.value);
+  s.has(vol) ? s.delete(vol) : s.add(vol);
+  openVolumes.value = s;
+};
 
 // Drag-and-drop
-const dragSrcId = ref<string | null>(null)
-const dragSrcVol = ref<number | null>(null)
-const dragOverId = ref<string | null>(null)
+const dragSrcId = ref<string | null>(null);
+const dragSrcVol = ref<number | null>(null);
+const dragOverId = ref<string | null>(null);
 
 const onDragStart = (e: DragEvent, ch: any) => {
-  dragSrcId.value = ch.id
-  dragSrcVol.value = ch.volume
-  e.dataTransfer!.effectAllowed = 'move'
-}
+  dragSrcId.value = ch.id;
+  dragSrcVol.value = ch.volume;
+  e.dataTransfer!.effectAllowed = "move";
+};
 const onDragOver = (e: DragEvent, ch: any) => {
-  if(ch.volume !== dragSrcVol.value || ch.id === dragSrcId.value){return}
-  e.preventDefault()
-  dragOverId.value = ch.id
-}
+  if (ch.volume !== dragSrcVol.value || ch.id === dragSrcId.value) {
+    return;
+  }
+  e.preventDefault();
+  dragOverId.value = ch.id;
+};
 const onDrop = (ch: any) => {
-  if(!dragSrcId.value || ch.id === dragSrcId.value || ch.volume !== dragSrcVol.value){return}
-  const arr = [...chapterList.value]
-  const from = arr.findIndex(c => c.id === dragSrcId.value)
-  const to = arr.findIndex(c => c.id === ch.id)
-  arr.splice(to, 0, arr.splice(from, 1)[0])
-  chapterList.value = arr
-}
+  if (
+    !dragSrcId.value ||
+    ch.id === dragSrcId.value ||
+    ch.volume !== dragSrcVol.value
+  ) {
+    return;
+  }
+  const arr = [...chapterList.value];
+  const from = arr.findIndex((c) => c.id === dragSrcId.value);
+  const to = arr.findIndex((c) => c.id === ch.id);
+  arr.splice(to, 0, arr.splice(from, 1)[0]);
+  chapterList.value = arr;
+};
 const onDragEnd = () => {
-  dragSrcId.value = null
-  dragSrcVol.value = null
-  dragOverId.value = null
-}
+  dragSrcId.value = null;
+  dragSrcVol.value = null;
+  dragOverId.value = null;
+};
 
 const orderChanged = computed(() => {
-  if (!chaptersData.value) return false
-  const currentIds = volumeGroups.value.flatMap(([, chs]) => chs.map((c: any) => c.id))
-  return currentIds.some((id, i) => id !== (chaptersData.value as any[])[i]?.id)
-})
-const savingOrder = ref(false)
+  if (!chaptersData.value) return false;
+  const currentIds = volumeGroups.value.flatMap(([, chs]) =>
+    chs.map((c: any) => c.id),
+  );
+  return currentIds.some(
+    (id, i) => id !== (chaptersData.value as any[])[i]?.id,
+  );
+});
+const savingOrder = ref(false);
 const saveOrder = async () => {
-  savingOrder.value = true
+  savingOrder.value = true;
   try {
-    const ids = volumeGroups.value.flatMap(([, chs]) => chs.map((c: any) => c.id))
-    await $fetch('/api/admin/chapters/reorder', {
-      method: 'PUT',
+    const ids = volumeGroups.value.flatMap(([, chs]) =>
+      chs.map((c: any) => c.id),
+    );
+    await $fetch("/api/admin/chapters/reorder", {
+      method: "PUT",
       body: { ids },
-    })
-    await refreshChapters()
+    });
+    await refreshChapters();
   } finally {
-    savingOrder.value = false
+    savingOrder.value = false;
   }
-}
+};
 
-const deletingId = ref<string | null>(null)
+const deletingId = ref<string | null>(null);
 const deleteChapter = async (id: string) => {
-  if(!confirm(`Удалить главу ${id}? Это действие нельзя отменить.`)){return}
-  deletingId.value = id
-  try {
-    await $fetch(`/api/admin/chapters/${id}`, { method: 'DELETE' })
-    await refreshChapters()
-  } finally {
-    deletingId.value = null
+  if (!confirm(`Удалить главу ${id}? Это действие нельзя отменить.`)) {
+    return;
   }
-}
+  deletingId.value = id;
+  try {
+    await $fetch(`/api/admin/chapters/${id}`, { method: "DELETE" });
+    await refreshChapters();
+  } finally {
+    deletingId.value = null;
+  }
+};
 
-const editingChapter = ref<{ id: string; title: string } | null>(null)
+const editingChapter = ref<{ id: string; title: string } | null>(null);
 
 // --- Профиль ---
-const { data: profile, refresh: refreshProfile } = await useFetch('/api/admin/profile')
-const displayName = ref('')
-const profileEmail = ref('')
-const newPassword = ref('')
-const confirmPassword = ref('')
-const avatarFile = ref<File | null>(null)
-const avatarPreview = ref<string | null>(null)
-const savingProfile = ref(false)
-const profileSaved = ref(false)
-const profileError = ref('')
+const { data: profile, refresh: refreshProfile } =
+  await useFetch("/api/admin/profile");
+const displayName = ref("");
+const profileEmail = ref("");
+const newPassword = ref("");
+const confirmPassword = ref("");
+const avatarFile = ref<File | null>(null);
+const avatarPreview = ref<string | null>(null);
+const savingProfile = ref(false);
+const profileSaved = ref(false);
+const profileError = ref("");
 
-watch(profile, (p) => {
-  if(p){
-    displayName.value = p.displayName || ''
-    profileEmail.value = p.email || ''
-  }
-}, { immediate: true })
+watch(
+  profile,
+  (p) => {
+    if (p) {
+      displayName.value = p.displayName || "";
+      profileEmail.value = p.email || "";
+    }
+  },
+  { immediate: true },
+);
 
 const onAvatarFile = (e: Event) => {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0] ?? null
-  avatarFile.value = file
-  if(file) avatarPreview.value = URL.createObjectURL(file)
-}
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0] ?? null;
+  avatarFile.value = file;
+  if (file) avatarPreview.value = URL.createObjectURL(file);
+};
 
 const saveProfile = async () => {
-  profileError.value = ''
-  if(newPassword.value && newPassword.value !== confirmPassword.value){
-    profileError.value = 'Пароли не совпадают'
-    return
+  profileError.value = "";
+  if (newPassword.value && newPassword.value !== confirmPassword.value) {
+    profileError.value = "Пароли не совпадают";
+    return;
   }
-  savingProfile.value = true
+  savingProfile.value = true;
   try {
-    const fd = new FormData()
-    fd.append('displayName', displayName.value)
-    if(profileEmail.value) fd.append('email', profileEmail.value)
-    if(newPassword.value) fd.append('newPassword', newPassword.value)
-    if(avatarFile.value) fd.append('avatar', await toSmallSquare(avatarFile.value), 'avatar.webp')
-    await $fetch('/api/admin/profile', { method: 'PUT', body: fd })
-    newPassword.value = ''
-    confirmPassword.value = ''
-    profileSaved.value = true
-    setTimeout(() => { profileSaved.value = false }, 2000)
-    await refreshProfile()
-  } catch(e: any) {
-    profileError.value = e?.data?.message || 'Ошибка сохранения'
+    const fd = new FormData();
+    fd.append("displayName", displayName.value);
+    if (profileEmail.value) fd.append("email", profileEmail.value);
+    if (newPassword.value) fd.append("newPassword", newPassword.value);
+    if (avatarFile.value)
+      fd.append("avatar", await toSmallSquare(avatarFile.value), "avatar.webp");
+    await $fetch("/api/admin/profile", { method: "PUT", body: fd });
+    newPassword.value = "";
+    confirmPassword.value = "";
+    profileSaved.value = true;
+    setTimeout(() => {
+      profileSaved.value = false;
+    }, 2000);
+    await refreshProfile();
+  } catch (e: any) {
+    profileError.value = e?.data?.message || "Ошибка сохранения";
   } finally {
-    savingProfile.value = false
+    savingProfile.value = false;
   }
-}
+};
 
-const currentAvatar = computed(() => avatarPreview.value || profile.value?.avatarUrl || null)
+const currentAvatar = computed(
+  () => avatarPreview.value || profile.value?.avatarUrl || null,
+);
 
 // --- Пользователи ---
-const newUserEmail = ref('')
-const newUserPassword = ref('')
-const creatingUser = ref(false)
-const userCreated = ref(false)
-const userError = ref('')
+const newUserEmail = ref("");
+const newUserPassword = ref("");
+const creatingUser = ref(false);
+const userCreated = ref(false);
+const userError = ref("");
 
 const createUser = async () => {
-  userError.value = ''
-  if(!newUserEmail.value || !newUserPassword.value){ userError.value = 'Заполни все поля'; return }
-  creatingUser.value = true
-  try {
-    await $fetch('/api/admin/users', { method: 'POST', body: { email: newUserEmail.value, password: newUserPassword.value, role: 'admin' } })
-    newUserEmail.value = ''
-    newUserPassword.value = ''
-    userCreated.value = true
-    setTimeout(() => { userCreated.value = false }, 3000)
-  } catch(e: any) {
-    userError.value = e?.data?.message || 'Ошибка создания'
-  } finally {
-    creatingUser.value = false
+  userError.value = "";
+  if (!newUserEmail.value || !newUserPassword.value) {
+    userError.value = "Заполни все поля";
+    return;
   }
-}
+  creatingUser.value = true;
+  try {
+    await $fetch("/api/admin/users", {
+      method: "POST",
+      body: {
+        email: newUserEmail.value,
+        password: newUserPassword.value,
+        role: "admin",
+      },
+    });
+    newUserEmail.value = "";
+    newUserPassword.value = "";
+    userCreated.value = true;
+    setTimeout(() => {
+      userCreated.value = false;
+    }, 3000);
+  } catch (e: any) {
+    userError.value = e?.data?.message || "Ошибка создания";
+  } finally {
+    creatingUser.value = false;
+  }
+};
 
 // --- Рамки для аватарок ---
-type AdminFrame = { id: number; name: string; url: string; fit: number; inPool: boolean; isDefault: boolean; owners: number }
+type AdminFrame = {
+  id: number;
+  name: string;
+  url: string;
+  fit: number;
+  inPool: boolean;
+  isDefault: boolean;
+  owners: number;
+};
 type FrameOwner = {
-  id: number
-  name: string
-  avatarUrl: string | null
-  wearing: number | null
-  frames: { id: number; grantedAt: string }[]
-}
+  id: number;
+  name: string;
+  avatarUrl: string | null;
+  wearing: number | null;
+  frames: { id: number; grantedAt: string }[];
+};
 
 /** Сторона картинки рамки. Вчетверо крупнее аватарки: у рамки мелкие детали по
  *  кругу, и на 256 пикселях от них остаётся каша. */
-const FRAME_SIDE = 512
+const FRAME_SIDE = 512;
 
-const { data: framesData, refresh: refreshFrames } =
-  await useFetch<{ frames: AdminFrame[]; owners: FrameOwner[] }>('/api/admin/frames')
+const { data: framesData, refresh: refreshFrames } = await useFetch<{
+  frames: AdminFrame[];
+  owners: FrameOwner[];
+}>("/api/admin/frames");
 
-const frames = computed(() => framesData.value?.frames ?? [])
-const frameOwners = computed(() => framesData.value?.owners ?? [])
-const frameName = (id: number | null) => frames.value.find(f => f.id === id)?.name ?? '—'
+const frames = computed(() => framesData.value?.frames ?? []);
+const frameOwners = computed(() => framesData.value?.owners ?? []);
+const frameName = (id: number | null) =>
+  frames.value.find((f) => f.id === id)?.name ?? "—";
 
-const newFrame = reactive({ name: '', fit: FRAME_FIT_DEFAULT })
-const newFrameFile = ref<File | null>(null)
-const newFramePreview = ref<string | null>(null)
-const frameFileInput = ref<HTMLInputElement | null>(null)
-const savingFrame = ref(false)
-const frameMsg = ref('')
-const frameError = ref('')
+const newFrame = reactive({ name: "", fit: FRAME_FIT_DEFAULT });
+const newFrameFile = ref<File | null>(null);
+const newFramePreview = ref<string | null>(null);
+const frameFileInput = ref<HTMLInputElement | null>(null);
+const savingFrame = ref(false);
+const frameMsg = ref("");
+const frameError = ref("");
 
 const onFrameFile = (e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0] ?? null
-  newFrameFile.value = file
-  newFramePreview.value = file ? URL.createObjectURL(file) : null
-}
+  const file = (e.target as HTMLInputElement).files?.[0] ?? null;
+  newFrameFile.value = file;
+  newFramePreview.value = file ? URL.createObjectURL(file) : null;
+};
 
 /**
  * Ужимает картинку рамки до 512×512 прямо в браузере — на сервере нативной
@@ -229,186 +294,232 @@ const onFrameFile = (e: Event) => {
  * бы квадратом, накрывающим аватарку. Картинку вписываем целиком, не обрезая:
  * у рамки края — это и есть рамка.
  */
-const toFrameImage = (file: File): Promise<Blob> => new Promise((resolve) => {
-  const img = new Image()
-  const url = URL.createObjectURL(file)
+const toFrameImage = (file: File): Promise<Blob> =>
+  new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
 
-  img.onload = () => {
-    URL.revokeObjectURL(url)
-    const canvas = document.createElement('canvas')
-    canvas.width = FRAME_SIDE
-    canvas.height = FRAME_SIDE
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      canvas.width = FRAME_SIDE;
+      canvas.height = FRAME_SIDE;
 
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return resolve(file)
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve(file);
 
-    const scale = FRAME_SIDE / Math.max(img.width, img.height)
-    const w = img.width * scale
-    const h = img.height * scale
-    ctx.drawImage(img, (FRAME_SIDE - w) / 2, (FRAME_SIDE - h) / 2, w, h)
-    canvas.toBlob(blob => resolve(blob ?? file), 'image/webp', 0.9)
-  }
+      const scale = FRAME_SIDE / Math.max(img.width, img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      ctx.drawImage(img, (FRAME_SIDE - w) / 2, (FRAME_SIDE - h) / 2, w, h);
+      canvas.toBlob((blob) => resolve(blob ?? file), "image/webp", 0.9);
+    };
 
-  img.onerror = () => {
-    URL.revokeObjectURL(url)
-    resolve(file)
-  }
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
 
-  img.src = url
-})
+    img.src = url;
+  });
 
 const createFrame = async () => {
-  frameError.value = ''
-  frameMsg.value = ''
+  frameError.value = "";
+  frameMsg.value = "";
 
-  if (!newFrame.name.trim()) { frameError.value = 'Нужно название'; return }
-  if (!newFrameFile.value) { frameError.value = 'Нужна картинка'; return }
-
-  savingFrame.value = true
-  try {
-    const fd = new FormData()
-    fd.append('name', newFrame.name.trim())
-    fd.append('fit', String(newFrame.fit))
-    fd.append('image', await toFrameImage(newFrameFile.value), 'frame.webp')
-
-    await $fetch('/api/admin/frames', { method: 'POST', body: fd })
-
-    newFrame.name = ''
-    newFrame.fit = FRAME_FIT_DEFAULT
-    newFrameFile.value = null
-    newFramePreview.value = null
-    if (frameFileInput.value) frameFileInput.value.value = ''
-    frameMsg.value = 'Рамка добавлена'
-    await refreshFrames()
-  } catch (e: any) {
-    frameError.value = e?.data?.message || 'Не сохранилось'
-  } finally {
-    savingFrame.value = false
+  if (!newFrame.name.trim()) {
+    frameError.value = "Нужно название";
+    return;
   }
-}
+  if (!newFrameFile.value) {
+    frameError.value = "Нужна картинка";
+    return;
+  }
 
-const defaultFrame = computed(() => frames.value.find(f => f.isDefault) ?? null)
-const backfilling = ref(false)
+  savingFrame.value = true;
+  try {
+    const fd = new FormData();
+    fd.append("name", newFrame.name.trim());
+    fd.append("fit", String(newFrame.fit));
+    fd.append("image", await toFrameImage(newFrameFile.value), "frame.webp");
+
+    await $fetch("/api/admin/frames", { method: "POST", body: fd });
+
+    newFrame.name = "";
+    newFrame.fit = FRAME_FIT_DEFAULT;
+    newFrameFile.value = null;
+    newFramePreview.value = null;
+    if (frameFileInput.value) frameFileInput.value.value = "";
+    frameMsg.value = "Рамка добавлена";
+    await refreshFrames();
+  } catch (e: any) {
+    frameError.value = e?.data?.message || "Не сохранилось";
+  } finally {
+    savingFrame.value = false;
+  }
+};
+
+const defaultFrame = computed(
+  () => frames.value.find((f) => f.isDefault) ?? null,
+);
+const backfilling = ref(false);
 
 /** Раздать рамку новичка тем, кто зарегистрировался до её появления. */
 const backfillDefault = async () => {
-  if (!confirm('Выдать рамку новичка всем, кто уже зарегистрирован? Надета она будет только на тех, кто ходит без рамки.')) return
+  if (
+    !confirm(
+      "Выдать рамку новичка всем, кто уже зарегистрирован? Надета она будет только на тех, кто ходит без рамки.",
+    )
+  )
+    return;
 
-  backfilling.value = true
-  frameMsg.value = ''
+  backfilling.value = true;
+  frameMsg.value = "";
   try {
-    const res = await $fetch<{ message: string }>('/api/admin/frames/backfill', { method: 'POST' })
-    frameMsg.value = res.message
-    await refreshFrames()
+    const res = await $fetch<{ message: string }>(
+      "/api/admin/frames/backfill",
+      { method: "POST" },
+    );
+    frameMsg.value = res.message;
+    await refreshFrames();
   } catch (e: any) {
-    frameError.value = e?.data?.message || 'Не вышло'
+    frameError.value = e?.data?.message || "Не вышло";
   } finally {
-    backfilling.value = false
+    backfilling.value = false;
   }
-}
+};
 
-const saveFrame = async (frame: AdminFrame, patch: { name?: string; fit?: number; inPool?: boolean; isDefault?: boolean }) => {
-  frameError.value = ''
-  const fd = new FormData()
-  if (patch.name !== undefined) fd.append('name', patch.name)
-  if (patch.fit !== undefined) fd.append('fit', String(patch.fit))
-  if (patch.inPool !== undefined) fd.append('inPool', patch.inPool ? '1' : '0')
-  if (patch.isDefault !== undefined) fd.append('isDefault', patch.isDefault ? '1' : '0')
+const saveFrame = async (
+  frame: AdminFrame,
+  patch: { name?: string; fit?: number; inPool?: boolean; isDefault?: boolean },
+) => {
+  frameError.value = "";
+  const fd = new FormData();
+  if (patch.name !== undefined) fd.append("name", patch.name);
+  if (patch.fit !== undefined) fd.append("fit", String(patch.fit));
+  if (patch.inPool !== undefined) fd.append("inPool", patch.inPool ? "1" : "0");
+  if (patch.isDefault !== undefined)
+    fd.append("isDefault", patch.isDefault ? "1" : "0");
 
   try {
-    await $fetch(`/api/admin/frames/${frame.id}`, { method: 'PUT', body: fd })
-    await refreshFrames()
+    await $fetch(`/api/admin/frames/${frame.id}`, { method: "PUT", body: fd });
+    await refreshFrames();
   } catch (e: any) {
-    frameError.value = e?.data?.message || 'Не сохранилось'
+    frameError.value = e?.data?.message || "Не сохранилось";
   }
-}
+};
 
 const removeFrame = async (frame: AdminFrame) => {
   const owned = frame.owners
     ? ` Её потеряют ${frame.owners} чел. — это отменит их награду.`
-    : ''
-  if (!confirm(`Удалить рамку «${frame.name}»?${owned}`)) return
+    : "";
+  if (!confirm(`Удалить рамку «${frame.name}»?${owned}`)) return;
 
   try {
-    await $fetch(`/api/admin/frames/${frame.id}`, { method: 'DELETE' })
-    await refreshFrames()
+    await $fetch(`/api/admin/frames/${frame.id}`, { method: "DELETE" });
+    await refreshFrames();
   } catch (e: any) {
-    frameError.value = e?.data?.message || 'Не удалилось'
+    frameError.value = e?.data?.message || "Не удалилось";
   }
-}
+};
 
 // --- Выдача рамок ---
-const userQuery = ref('')
-const foundUsers = ref<{ id: number; name: string; email: string | null; avatarUrl: string | null }[]>([])
-const grantTarget = ref<{ id: number; name: string; avatarUrl: string | null } | null>(null)
-const grantFrameId = ref<number | 'random'>('random')
-const granting = ref(false)
-const grantMsg = ref('')
+const userQuery = ref("");
+const foundUsers = ref<
+  { id: number; name: string; email: string | null; avatarUrl: string | null }[]
+>([]);
+const grantTarget = ref<{
+  id: number;
+  name: string;
+  avatarUrl: string | null;
+} | null>(null);
+const grantFrameId = ref<number | "random">("random");
+const granting = ref(false);
+const grantMsg = ref("");
 
 // Ищем не на каждую букву: поиск идёт в базу, а имя дописывают быстрее, чем
 // приходит ответ.
-let userSearchTimer: ReturnType<typeof setTimeout> | undefined
+let userSearchTimer: ReturnType<typeof setTimeout> | undefined;
 watch(userQuery, (q) => {
-  clearTimeout(userSearchTimer)
-  if (q.trim().length < 2) { foundUsers.value = []; return }
+  clearTimeout(userSearchTimer);
+  if (q.trim().length < 2) {
+    foundUsers.value = [];
+    return;
+  }
 
   userSearchTimer = setTimeout(async () => {
-    foundUsers.value = await $fetch('/api/admin/users', { query: { q: q.trim() } }).catch(() => [])
-  }, 300)
-})
+    foundUsers.value = await $fetch("/api/admin/users", {
+      query: { q: q.trim() },
+    }).catch(() => []);
+  }, 300);
+});
 
-const pickUser = (u: { id: number; name: string; avatarUrl: string | null }) => {
-  grantTarget.value = u
-  userQuery.value = ''
-  foundUsers.value = []
-}
+const pickUser = (u: {
+  id: number;
+  name: string;
+  avatarUrl: string | null;
+}) => {
+  grantTarget.value = u;
+  userQuery.value = "";
+  foundUsers.value = [];
+};
 
-const sendGrant = async (userId: number, frameId: number | 'random', revoke = false) => {
-  granting.value = true
-  grantMsg.value = ''
+const sendGrant = async (
+  userId: number,
+  frameId: number | "random",
+  revoke = false,
+) => {
+  granting.value = true;
+  grantMsg.value = "";
 
   try {
-    const res = await $fetch<{ message: string }>('/api/admin/frames/grant', {
-      method: 'POST',
+    const res = await $fetch<{ message: string }>("/api/admin/frames/grant", {
+      method: "POST",
       body: { userId, frameId, revoke },
-    })
-    grantMsg.value = res.message
-    await refreshFrames()
+    });
+    grantMsg.value = res.message;
+    await refreshFrames();
   } catch (e: any) {
-    grantMsg.value = e?.data?.message || 'Не вышло'
+    grantMsg.value = e?.data?.message || "Не вышло";
   } finally {
-    granting.value = false
+    granting.value = false;
   }
-}
+};
 
 // --- Настройки сайта ---
 const form = reactive({
-  hero_title: '',
-  hero_subtitle: '',
-  hero_ticker: '',
-  hero_ticker_on: '',
-  ledger_note: '',
-  footer_text: '',
-  telegram_url: '',
-  boosty_url: '',
-  tribute_url: '',
-  about_title: '',
-  about_text: '',
-  error_404_sub: '',
-  update_schedule: '',
-  original_chapters_total: '',
-  original_words_ratio: '',
-  game_max_volume: '',
-  game_cta_title: '',
-  game_cta_text: '',
-  tg_cta_title: '',
-  tg_cta_text: '',
-  characters_title: '',
-  characters_subtitle: '',
-  season_theme: '',
-  halloween_reader_bg: '',
-})
-watch(settings, (s) => { if (s) Object.assign(form, s) }, { immediate: true })
+  hero_title: "",
+  hero_subtitle: "",
+  hero_ticker: "",
+  hero_ticker_on: "",
+  ledger_note: "",
+  footer_text: "",
+  telegram_url: "",
+  boosty_url: "",
+  tribute_url: "",
+  about_title: "",
+  about_text: "",
+  error_404_sub: "",
+  update_schedule: "",
+  original_chapters_total: "",
+  original_words_ratio: "",
+  game_max_volume: "",
+  game_cta_title: "",
+  game_cta_text: "",
+  tg_cta_title: "",
+  tg_cta_text: "",
+  characters_title: "",
+  characters_subtitle: "",
+  season_theme: "",
+  halloween_reader_bg: "",
+});
+watch(
+  settings,
+  (s) => {
+    if (s) Object.assign(form, s);
+  },
+  { immediate: true },
+);
 
 /*
   Настройки хранятся строками, а галочке нужно логическое значение — отсюда
@@ -417,213 +528,256 @@ watch(settings, (s) => { if (s) Object.assign(form, s) }, { immediate: true })
 */
 // Фон читалки на Хеллоуин: образцы, своя палитра и превью куска главы.
 // Палитре нужен цвет всегда, поэтому пустая настройка показывает обычный фон.
-const readerBg = computed(() => safeHex(form.halloween_reader_bg))
+const readerBg = computed(() => safeHex(form.halloween_reader_bg));
 const readerBgPick = computed({
-  get: () => readerBg.value ?? '#2b221c',
-  set: (v: string) => { form.halloween_reader_bg = v },
-})
+  get: () => readerBg.value ?? "#2b221c",
+  set: (v: string) => {
+    form.halloween_reader_bg = v;
+  },
+});
 
 const tickerOn = computed({
-  get: () => form.hero_ticker_on !== '0',
-  set: (v: boolean) => { form.hero_ticker_on = v ? '1' : '0' },
-})
+  get: () => form.hero_ticker_on !== "0",
+  set: (v: boolean) => {
+    form.hero_ticker_on = v ? "1" : "0";
+  },
+});
 
-const savingSettings = ref(false)
-const settingsSaved = ref(false)
+const savingSettings = ref(false);
+const settingsSaved = ref(false);
 
 const saveSettings = async () => {
-  savingSettings.value = true
+  savingSettings.value = true;
   try {
-    await $fetch('/api/admin/settings', { method: 'PUT', body: form })
-    settingsSaved.value = true
-    setTimeout(() => { settingsSaved.value = false }, 2000)
-    await refreshSettings()
+    await $fetch("/api/admin/settings", { method: "PUT", body: form });
+    settingsSaved.value = true;
+    setTimeout(() => {
+      settingsSaved.value = false;
+    }, 2000);
+    await refreshSettings();
   } finally {
-    savingSettings.value = false
+    savingSettings.value = false;
   }
-}
+};
 
 // --- Загрузка главы ---
-const chapterId = ref('')
-const chapterTitle = ref('')
-const chapterVolume = ref('')
-const chapterDate = ref(new Date().toISOString().slice(0, 10))
-const chapterPublished = ref(true)
-const epubFile = ref<File | null>(null)
-const uploading = ref(false)
-const uploadResult = ref('')
+const chapterId = ref("");
+const chapterTitle = ref("");
+const chapterVolume = ref("");
+const chapterDate = ref(new Date().toISOString().slice(0, 10));
+const chapterPublished = ref(true);
+const epubFile = ref<File | null>(null);
+const uploading = ref(false);
+const uploadResult = ref("");
 
 const onFile = (e: Event) => {
-  const input = e.target as HTMLInputElement
-  epubFile.value = input.files?.[0] ?? null
-}
+  const input = e.target as HTMLInputElement;
+  epubFile.value = input.files?.[0] ?? null;
+};
 
 const uploadChapter = async () => {
-  if(!epubFile.value || !chapterId.value || !chapterTitle.value || !chapterVolume.value){
-    uploadResult.value = 'Заполните все поля'
-    return
+  if (
+    !epubFile.value ||
+    !chapterId.value ||
+    !chapterTitle.value ||
+    !chapterVolume.value
+  ) {
+    uploadResult.value = "Заполните все поля";
+    return;
   }
-  uploading.value = true
-  uploadResult.value = ''
+  uploading.value = true;
+  uploadResult.value = "";
   try {
-    const fd = new FormData()
-    fd.append('epub', epubFile.value)
-    fd.append('id', chapterId.value)
-    fd.append('title', chapterTitle.value)
-    fd.append('volume', chapterVolume.value)
-    fd.append('publishedAt', chapterDate.value)
-    fd.append('isPublished', chapterPublished.value ? '1' : '0')
-    await $fetch('/api/admin/chapters', { method: 'POST', body: fd })
-    uploadResult.value = `✓ Глава ${chapterId.value} загружена`
-    chapterId.value = ''
-    chapterTitle.value = ''
-    chapterVolume.value = ''
-    chapterPublished.value = true
-    epubFile.value = null
+    const fd = new FormData();
+    fd.append("epub", epubFile.value);
+    fd.append("id", chapterId.value);
+    fd.append("title", chapterTitle.value);
+    fd.append("volume", chapterVolume.value);
+    fd.append("publishedAt", chapterDate.value);
+    fd.append("isPublished", chapterPublished.value ? "1" : "0");
+    await $fetch("/api/admin/chapters", { method: "POST", body: fd });
+    uploadResult.value = `✓ Глава ${chapterId.value} загружена`;
+    chapterId.value = "";
+    chapterTitle.value = "";
+    chapterVolume.value = "";
+    chapterPublished.value = true;
+    epubFile.value = null;
   } catch (e: any) {
-    uploadResult.value = `Ошибка: ${e.data?.message || e.message}`
+    uploadResult.value = `Ошибка: ${e.data?.message || e.message}`;
   } finally {
-    uploading.value = false
+    uploading.value = false;
   }
-}
+};
 
 // --- Уведомления в телеграм ---
-const runtimeConfig = useRuntimeConfig()
-const { data: notifyData, refresh: refreshNotify } = await useFetch('/api/admin/notify')
-const selectedNotifyIds = ref<string[]>([])
-const sendingNotify = ref(false)
-const notifyResult = ref('')
-const notifyError = ref('')
+const runtimeConfig = useRuntimeConfig();
+const { data: notifyData, refresh: refreshNotify } =
+  await useFetch("/api/admin/notify");
+const selectedNotifyIds = ref<string[]>([]);
+const sendingNotify = ref(false);
+const notifyResult = ref("");
+const notifyError = ref("");
 
-const pendingChapters = computed(() => notifyData.value?.chapters ?? [])
+const pendingChapters = computed(() => notifyData.value?.chapters ?? []);
 
 // После загрузки и после отправки список сам отмечает то, про что ещё не писали.
-watch(notifyData, () => {
-  selectedNotifyIds.value = pendingChapters.value.map(c => c.id)
-}, { immediate: true })
+watch(
+  notifyData,
+  () => {
+    selectedNotifyIds.value = pendingChapters.value.map((c) => c.id);
+  },
+  { immediate: true },
+);
 
 const notifyPreview = computed(() => {
-  const byId = new Map((notifyData.value?.chapters ?? []).map(c => [c.id, c]))
-  const picked = selectedNotifyIds.value.map(id => byId.get(id)).filter(Boolean) as { id: string; title: string }[]
-  return buildChapterNotification(picked, runtimeConfig.public.siteUrl)
-})
+  const byId = new Map(
+    (notifyData.value?.chapters ?? []).map((c) => [c.id, c]),
+  );
+  const picked = selectedNotifyIds.value
+    .map((id) => byId.get(id))
+    .filter(Boolean) as { id: string; title: string }[];
+  return buildChapterNotification(picked, runtimeConfig.public.siteUrl);
+});
 
 // Текст сообщения правится прямо перед отправкой. Пока его не трогали, он
 // следует за выбором глав; тронули — остаётся твоим, пока не соберёшь заново.
-const notifyText = ref('')
-const notifyEdited = ref(false)
-const notifyTextEl = ref<HTMLTextAreaElement | null>(null)
+const notifyText = ref("");
+const notifyEdited = ref(false);
+const notifyTextEl = ref<HTMLTextAreaElement | null>(null);
 
-watch(notifyPreview, (text) => {
-  if (!notifyEdited.value) notifyText.value = text
-}, { immediate: true })
+watch(
+  notifyPreview,
+  (text) => {
+    if (!notifyEdited.value) notifyText.value = text;
+  },
+  { immediate: true },
+);
 
 const rebuildNotifyText = () => {
-  notifyEdited.value = false
-  notifyText.value = notifyPreview.value
-}
+  notifyEdited.value = false;
+  notifyText.value = notifyPreview.value;
+};
 
 // Сервер пишет время рассылки в UTC (toISOString) — показываем по Москве,
 // иначе рассылка в 12:07 МСК выглядела как 09:07.
-const formatNotifyDate = (iso?: string | null) => iso
-  ? new Intl.DateTimeFormat('ru-RU', {
-      timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    }).format(new Date(iso))
-  : '—'
+const formatNotifyDate = (iso?: string | null) =>
+  iso
+    ? new Intl.DateTimeFormat("ru-RU", {
+        timeZone: "Europe/Moscow",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(iso))
+    : "—";
 
 const sendNotify = async () => {
-  notifyError.value = ''
-  notifyResult.value = ''
-  sendingNotify.value = true
+  notifyError.value = "";
+  notifyResult.value = "";
+  sendingNotify.value = true;
   try {
-    const res = await $fetch('/api/admin/notify', {
-      method: 'POST',
+    const res = await $fetch("/api/admin/notify", {
+      method: "POST",
       body: { chapterIds: selectedNotifyIds.value, text: notifyText.value },
-    })
-    notifyResult.value = `✓ Отправлено в телеграм: ${res.count} гл.`
-    notifyEdited.value = false
-    await refreshNotify()
+    });
+    notifyResult.value = `✓ Отправлено в телеграм: ${res.count} гл.`;
+    notifyEdited.value = false;
+    await refreshNotify();
   } catch (e: any) {
-    notifyError.value = e?.data?.message || 'Не удалось отправить'
+    notifyError.value = e?.data?.message || "Не удалось отправить";
   } finally {
-    sendingNotify.value = false
+    sendingNotify.value = false;
   }
-}
+};
 
 // --- Статистика ---
-const { data: stats } = await useFetch('/api/admin/stats')
+const { data: stats } = await useFetch("/api/admin/stats");
 
 // Столбики «разных читателей»: самый высокий день — 64px, остальные от него.
 // Пустой день — тонкая полоска, чтобы ряд не выглядел оборванным.
-const readerDaysMax = computed(() => Math.max(1, ...(stats.value?.readersByDay ?? []).map(d => d.count)))
-const readerBarHeight = (n: number) => n ? Math.max(6, Math.round(n / readerDaysMax.value * 64)) : 2
+const readerDaysMax = computed(() =>
+  Math.max(1, ...(stats.value?.readersByDay ?? []).map((d) => d.count)),
+);
+const readerBarHeight = (n: number) =>
+  n ? Math.max(6, Math.round((n / readerDaysMax.value) * 64)) : 2;
 // Плитки-кнопки: у сегодняшних просмотров и у скачиваний за суммой открывается
 // список по главам. У скачиваний сумма общая, а список — только за сегодня.
-const viewsModal = ref(false)
-const downloadsModal = ref(false)
-const commentsModal = ref(false)
-type StatsSortKey = 'order' | 'date' | 'views' | 'downloads'
-const statsSort = ref<{ key: StatsSortKey; dir: 'asc' | 'desc' }>({ key: 'views', dir: 'desc' })
+const viewsModal = ref(false);
+const downloadsModal = ref(false);
+const commentsModal = ref(false);
+type StatsSortKey = "order" | "date" | "views" | "downloads";
+const statsSort = ref<{ key: StatsSortKey; dir: "asc" | "desc" }>({
+  key: "views",
+  dir: "desc",
+});
 
 const toggleStatsSort = (key: StatsSortKey) => {
   // Повторный клик по той же колонке переворачивает порядок. У новой колонки
   // направление по умолчанию своё: главы читают сверху вниз, числа — от большего.
-  statsSort.value = statsSort.value.key === key
-    ? { key, dir: statsSort.value.dir === 'desc' ? 'asc' : 'desc' }
-    : { key, dir: key === 'views' || key === 'downloads' ? 'desc' : 'asc' }
-}
+  statsSort.value =
+    statsSort.value.key === key
+      ? { key, dir: statsSort.value.dir === "desc" ? "asc" : "desc" }
+      : { key, dir: key === "views" || key === "downloads" ? "desc" : "asc" };
+};
 
 const statsSortClass = (key: StatsSortKey) => ({
   active: statsSort.value.key === key,
-  asc: statsSort.value.key === key && statsSort.value.dir === 'asc',
-})
+  asc: statsSort.value.key === key && statsSort.value.dir === "asc",
+});
 
-const statsQuery = ref('')
+const statsQuery = ref("");
 
 const visibleStats = computed(() => {
-  const q = statsQuery.value.trim().toLowerCase()
-  const rows = (stats.value?.topChapters ?? []).filter(ch =>
-    !q || ch.id.toLowerCase().includes(q) || ch.title.toLowerCase().includes(q))
-  const { key, dir } = statsSort.value
-  const sign = dir === 'asc' ? 1 : -1
+  const q = statsQuery.value.trim().toLowerCase();
+  const rows = (stats.value?.topChapters ?? []).filter(
+    (ch) =>
+      !q ||
+      ch.id.toLowerCase().includes(q) ||
+      ch.title.toLowerCase().includes(q),
+  );
+  const { key, dir } = statsSort.value;
+  const sign = dir === "asc" ? 1 : -1;
   return rows.sort((a, b) => {
     // «По номеру» — это порядок глав на сайте, тот самый, что задан перетаскиванием.
-    if (key === 'order') return (a.sortOrder - b.sortOrder) * sign
-    if (key === 'date') return (a.publishedAt ?? '').localeCompare(b.publishedAt ?? '') * sign
-    return ((a[key] ?? 0) - (b[key] ?? 0)) * sign
-  })
-})
+    if (key === "order") return (a.sortOrder - b.sortOrder) * sign;
+    if (key === "date")
+      return (a.publishedAt ?? "").localeCompare(b.publishedAt ?? "") * sign;
+    return ((a[key] ?? 0) - (b[key] ?? 0)) * sign;
+  });
+});
 
 const formatStatsDate = (iso?: string | null) =>
-  iso ? iso.slice(0, 10).split('-').reverse().join('.') : '—'
+  iso ? iso.slice(0, 10).split("-").reverse().join(".") : "—";
 
-const { data: commentLogs, refresh: refreshLogs } = await useFetch('/api/admin/comments')
+const { data: commentLogs, refresh: refreshLogs } = await useFetch(
+  "/api/admin/comments",
+);
 
 // Вкладка живёт в адресе (/admin?tab=reel): перезагрузка оставляет на месте,
 // «назад» возвращает на прошлую вкладку, а шторка с любой страницы ведёт сразу
 // в нужную.
-const route = useRoute()
-const activeTab = computed(() => toAdminTab(route.query.tab))
-const adminTabs = ADMIN_TABS
+const route = useRoute();
+const activeTab = computed(() => toAdminTab(route.query.tab));
+const adminTabs = ADMIN_TABS;
 
 // Точка на вкладке «Сообщения»: проверяем при входе и всякий раз, когда сокет
 // говорит, что пришло новое или что-то прочитано в другой вкладке.
-const { has: unreadMessages, refresh: refreshUnread } = useAdminUnread()
-onMounted(refreshUnread)
+const { has: unreadMessages, refresh: refreshUnread } = useAdminUnread();
+onMounted(refreshUnread);
 notifyBus.on((msg) => {
-  if (msg?.type === 'message' || msg?.type === 'notification') refreshUnread()
-})
+  if (msg?.type === "message" || msg?.type === "notification") refreshUnread();
+});
 
 useHead({
-  title: 'Админ · Странствующая Таверна',
-  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
-})
+  title: "Админ · Странствующая Таверна",
+  meta: [{ name: "robots", content: "noindex, nofollow" }],
+});
 </script>
 
 <template>
   <div class="admin-wrap" data-clarity-mask="true">
     <div class="admin-layout">
-
       <AppHeader
         :telegram-url="settings?.telegram_url"
         :boosty-url="settings?.boosty_url"
@@ -648,36 +802,48 @@ useHead({
 
       <!-- КОНТЕНТ -->
       <main class="admin-content">
-
         <!-- Добавить главу -->
         <section v-if="activeTab === 'upload'" class="card card--panel">
           <h2>Загрузить главу (.epub)</h2>
           <div class="field-row">
             <label>ID главы (том.номер)</label>
-            <input v-model="chapterId" placeholder="4.21" type="text">
+            <input v-model="chapterId" placeholder="4.21" type="text" />
           </div>
           <div class="field-row">
             <label>Название</label>
-            <input v-model="chapterTitle" placeholder="Глава 4.21 · В" type="text">
+            <input
+              v-model="chapterTitle"
+              placeholder="Глава 4.21 · В"
+              type="text"
+            />
           </div>
           <div class="field-row">
             <label>Том</label>
-            <input v-model="chapterVolume" placeholder="4" type="number" min="1">
+            <input
+              v-model="chapterVolume"
+              placeholder="4"
+              type="number"
+              min="1"
+            />
           </div>
           <div class="field-row">
             <label>Дата публикации</label>
-            <input v-model="chapterDate" type="date">
+            <input v-model="chapterDate" type="date" />
           </div>
           <div class="field-row">
             <label>Файл .epub</label>
-            <input type="file" accept=".epub" @change="onFile">
+            <input type="file" accept=".epub" @change="onFile" />
           </div>
           <label class="checkbox-row">
-            <input v-model="chapterPublished" type="checkbox">
+            <input v-model="chapterPublished" type="checkbox" />
             <span>Опубликовать сразу (видно всем читателям)</span>
           </label>
-          <button class="btn btn--primary" :disabled="uploading" @click="uploadChapter">
-            {{ uploading ? 'Загружаем...' : 'Загрузить' }}
+          <button
+            class="btn btn--primary"
+            :disabled="uploading"
+            @click="uploadChapter"
+          >
+            {{ uploading ? "Загружаем..." : "Загрузить" }}
           </button>
           <p v-if="uploadResult" class="result-msg">{{ uploadResult }}</p>
         </section>
@@ -686,22 +852,37 @@ useHead({
         <section v-if="activeTab === 'chapters'" class="card card--panel">
           <div class="card-head">
             <h2>Главы ({{ chapterList.length }})</h2>
-            <button v-if="orderChanged" class="btn btn--sm btn--primary" :disabled="savingOrder" @click="saveOrder">
-              {{ savingOrder ? 'Сохраняем...' : 'Сохранить порядок' }}
+            <button
+              v-if="orderChanged"
+              class="btn btn--sm btn--primary"
+              :disabled="savingOrder"
+              @click="saveOrder"
+            >
+              {{ savingOrder ? "Сохраняем..." : "Сохранить порядок" }}
             </button>
           </div>
-          <div v-if="chapterList.length === 0" class="empty-hint">Глав пока нет</div>
+          <div v-if="chapterList.length === 0" class="empty-hint">
+            Глав пока нет
+          </div>
           <div v-for="[vol, chs] in volumeGroups" :key="vol" class="vol-block">
             <button class="vol-head" @click="toggleVolume(vol)">
-              <span>Том {{ vol }} <span class="vol-count">{{ chs.length }} гл.</span></span>
-              <span class="vol-chev" :class="{ open: openVolumes.has(vol) }">▸</span>
+              <span
+                >Том {{ vol }}
+                <span class="vol-count">{{ chs.length }} гл.</span></span
+              >
+              <span class="vol-chev" :class="{ open: openVolumes.has(vol) }"
+                >▸</span
+              >
             </button>
             <div v-show="openVolumes.has(vol)" class="vol-body">
               <div
                 v-for="ch in chs"
                 :key="ch.id"
                 class="chapter-row"
-                :class="{ 'drag-over': dragOverId === ch.id, 'dragging': dragSrcId === ch.id }"
+                :class="{
+                  'drag-over': dragOverId === ch.id,
+                  dragging: dragSrcId === ch.id,
+                }"
                 draggable="true"
                 @dragstart="onDragStart($event, ch)"
                 @dragover="onDragOver($event, ch)"
@@ -712,11 +893,15 @@ useHead({
                 <span class="drag-handle" title="Перетащить">⠿</span>
                 <span class="chapter-row-id">{{ ch.id }}</span>
                 <span class="chapter-row-title">{{ ch.title }}</span>
-                <span v-if="!ch.isPublished" class="chapter-row-draft">черновик</span>
+                <span v-if="!ch.isPublished" class="chapter-row-draft"
+                  >черновик</span
+                >
                 <button
                   class="btn btn--sm btn--primary"
                   @click.stop="editingChapter = { id: ch.id, title: ch.title }"
-                >Редактировать</button>
+                >
+                  Редактировать
+                </button>
                 <button
                   class="btn btn--icon btn--outline-danger btn-delete"
                   title="Удалить"
@@ -724,7 +909,27 @@ useHead({
                   @click.stop="deleteChapter(ch.id)"
                 >
                   <span v-if="deletingId === ch.id">...</span>
-                  <svg v-else width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 3.5h9M5 3.5V2.3a.8.8 0 0 1 .8-.8h1.4a.8.8 0 0 1 .8.8v1.2M3.5 3.5v7.2a.8.8 0 0 0 .8.8h4.4a.8.8 0 0 0 .8-.8V3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.3 6v3.5M7.7 6v3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+                  <svg
+                    v-else
+                    width="13"
+                    height="13"
+                    viewBox="0 0 13 13"
+                    fill="none"
+                  >
+                    <path
+                      d="M2 3.5h9M5 3.5V2.3a.8.8 0 0 1 .8-.8h1.4a.8.8 0 0 1 .8.8v1.2M3.5 3.5v7.2a.8.8 0 0 0 .8.8h4.4a.8.8 0 0 0 .8-.8V3.5"
+                      stroke="currentColor"
+                      stroke-width="1.1"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M5.3 6v3.5M7.7 6v3.5"
+                      stroke="currentColor"
+                      stroke-width="1.1"
+                      stroke-linecap="round"
+                    />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -736,7 +941,10 @@ useHead({
           :chapter-id="editingChapter.id"
           :chapter-title="editingChapter.title"
           @close="editingChapter = null"
-          @saved="editingChapter = null; refreshChapters()"
+          @saved="
+            editingChapter = null;
+            refreshChapters();
+          "
         />
 
         <!-- Профиль -->
@@ -744,77 +952,155 @@ useHead({
           <h2>Мой профиль</h2>
           <div class="profile-row">
             <div class="avatar-wrap">
-              <img v-if="currentAvatar" :src="currentAvatar" class="avatar-img" alt="">
+              <img
+                v-if="currentAvatar"
+                :src="currentAvatar"
+                class="avatar-img"
+                alt=""
+              />
               <div v-else class="avatar-placeholder display">
-                {{ (displayName || profile?.email || '?')[0].toUpperCase() }}
+                {{ (displayName || profile?.email || "?")[0].toUpperCase() }}
               </div>
               <label class="avatar-upload-btn" title="Загрузить фото">
                 ✎
-                <input type="file" accept="image/*" class="avatar-input" @change="onAvatarFile">
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="avatar-input"
+                  @change="onAvatarFile"
+                />
               </label>
             </div>
             <div class="profile-fields">
               <div class="field-row">
                 <label>Отображаемое имя</label>
-                <input v-model="displayName" type="text" placeholder="Как тебя звать в комментах">
+                <input
+                  v-model="displayName"
+                  type="text"
+                  placeholder="Как тебя звать в комментах"
+                />
               </div>
               <div class="field-row">
                 <label>Email</label>
-                <input v-model="profileEmail" type="email" placeholder="Email для входа">
+                <input
+                  v-model="profileEmail"
+                  type="email"
+                  placeholder="Email для входа"
+                />
               </div>
               <div class="field-row">
                 <label>Новый пароль</label>
-                <input v-model="newPassword" type="password" placeholder="Оставь пустым, чтобы не менять">
+                <input
+                  v-model="newPassword"
+                  type="password"
+                  placeholder="Оставь пустым, чтобы не менять"
+                />
               </div>
               <div class="field-row" v-if="newPassword">
                 <label>Повтори пароль</label>
-                <input v-model="confirmPassword" type="password" placeholder="Повтори новый пароль">
+                <input
+                  v-model="confirmPassword"
+                  type="password"
+                  placeholder="Повтори новый пароль"
+                />
               </div>
             </div>
           </div>
           <div v-if="profileError" class="form-error">{{ profileError }}</div>
-          <button class="btn btn--primary" :disabled="savingProfile" @click="saveProfile">
-            {{ profileSaved ? '✓ Сохранено' : savingProfile ? 'Сохраняем...' : 'Сохранить профиль' }}
+          <button
+            class="btn btn--primary"
+            :disabled="savingProfile"
+            @click="saveProfile"
+          >
+            {{
+              profileSaved
+                ? "✓ Сохранено"
+                : savingProfile
+                  ? "Сохраняем..."
+                  : "Сохранить профиль"
+            }}
           </button>
 
-          <hr class="section-divider">
+          <hr class="section-divider" />
           <h2>Добавить пользователя</h2>
-          <div class="profile-fields" style="max-width:360px">
+          <div class="profile-fields" style="max-width: 360px">
             <div class="field-row">
               <label>Email</label>
-              <input v-model="newUserEmail" type="email" placeholder="Email нового пользователя">
+              <input
+                v-model="newUserEmail"
+                type="email"
+                placeholder="Email нового пользователя"
+              />
             </div>
             <div class="field-row">
               <label>Пароль</label>
-              <input v-model="newUserPassword" type="password" placeholder="Пароль (минимум 6 символов)">
+              <input
+                v-model="newUserPassword"
+                type="password"
+                placeholder="Пароль (минимум 6 символов)"
+              />
             </div>
           </div>
           <div v-if="userError" class="form-error">{{ userError }}</div>
-          <button class="btn btn--primary" :disabled="creatingUser" @click="createUser" style="margin-top:12px">
-            {{ userCreated ? '✓ Пользователь создан' : creatingUser ? 'Создаём...' : 'Создать администратора' }}
+          <button
+            class="btn btn--primary"
+            :disabled="creatingUser"
+            @click="createUser"
+            style="margin-top: 12px"
+          >
+            {{
+              userCreated
+                ? "✓ Пользователь создан"
+                : creatingUser
+                  ? "Создаём..."
+                  : "Создать администратора"
+            }}
           </button>
         </section>
 
         <!-- Статистика -->
-        <section v-if="activeTab === 'stats'" class="card card--panel card--wide">
+        <section
+          v-if="activeTab === 'stats'"
+          class="card card--panel card--wide"
+        >
           <h2>Статистика сайта</h2>
           <div class="stats-totals">
             <div class="stat-card">
-              <div class="stat-value">{{ stats?.totalViews?.toLocaleString('ru') ?? 0 }}</div>
+              <div class="stat-value">
+                {{ stats?.totalViews?.toLocaleString("ru") ?? 0 }}
+              </div>
               <div class="stat-label">Просмотров глав</div>
             </div>
             <!-- За этими двумя плитками есть что смотреть: сумма раскладывается
                  по главам за сегодня. -->
-            <button class="stat-card stat-card--today stat-card--open" type="button" @click="viewsModal = true">
-              <div class="stat-value">{{ stats?.viewsToday?.toLocaleString('ru') ?? 0 }}</div>
+            <button
+              class="stat-card stat-card--today stat-card--open"
+              type="button"
+              @click="viewsModal = true"
+            >
+              <div class="stat-value">
+                {{ stats?.viewsToday?.toLocaleString("ru") ?? 0 }}
+              </div>
               <div class="stat-label">Просмотров сегодня</div>
             </button>
-            <button class="stat-card stat-card--open" type="button" @click="downloadsModal = true">
-              <div class="stat-value">{{ stats?.totalDownloads?.toLocaleString('ru') ?? 0 }}</div>
+            <button
+              class="stat-card stat-card--open"
+              type="button"
+              @click="downloadsModal = true"
+            >
+              <div class="stat-value">
+                {{ stats?.totalDownloads?.toLocaleString("ru") ?? 0 }}
+              </div>
               <div class="stat-label">Скачиваний epub</div>
             </button>
-            <button class="stat-card stat-card--open" type="button" @click="commentsModal = true">
-              <div class="stat-value">{{ stats?.totalComments?.toLocaleString('ru') ?? 0 }}</div>
+            <button
+              class="stat-card stat-card--open"
+              type="button"
+              @click="commentsModal = true"
+            >
+              <div class="stat-value">
+                {{ stats?.totalComments?.toLocaleString("ru") ?? 0 }}
+              </div>
               <div class="stat-label">Комментариев</div>
             </button>
           </div>
@@ -822,16 +1108,29 @@ useHead({
           <!-- Читатели — строкой, а не пятой плиткой: на этом экране их уже
                четыре, и ещё одна ничего не прибавила бы к пониманию. -->
           <p class="readers-line">
-            <span>Читателей <b>{{ stats?.readers?.total?.toLocaleString('ru') ?? 0 }}</b></span>
-            <span v-if="stats?.readers?.week" class="readers-new">+{{ stats.readers.week }} за неделю</span>
-            <span>Google {{ stats?.readers?.google ?? 0 }} · Telegram {{ stats?.readers?.telegram ?? 0 }}</span>
+            <span
+              >Читателей
+              <b>{{
+                stats?.readers?.total?.toLocaleString("ru") ?? 0
+              }}</b></span
+            >
+            <span v-if="stats?.readers?.week" class="readers-new"
+              >+{{ stats.readers.week }} за неделю</span
+            >
+            <span
+              >Google {{ stats?.readers?.google ?? 0 }} · Telegram
+              {{ stats?.readers?.telegram ?? 0 }}</span
+            >
             <span>пишут или играют {{ stats?.readers?.active ?? 0 }}</span>
           </p>
 
           <!-- Только пока включён Хеллоуин. Клики админов не считаются. -->
           <p v-if="stats?.pumpkin" class="readers-line">
-            <span>Тыкву тыкнули <b>{{ stats.pumpkin.total.toLocaleString('ru') }}</b></span>
-            <span>сегодня {{ stats.pumpkin.today.toLocaleString('ru') }}</span>
+            <span
+              >Тыкву тыкнули
+              <b>{{ stats.pumpkin.total.toLocaleString("ru") }}</b></span
+            >
+            <span>сегодня {{ stats.pumpkin.today.toLocaleString("ru") }}</span>
           </p>
 
           <!-- Сколько разных людей открывали главы: просмотры считают и повторы,
@@ -843,15 +1142,21 @@ useHead({
               <span class="stat-value">{{ stats?.readersToday ?? 0 }}</span>
               <span class="daily-readers-label">сегодня</span>
             </div>
-            <div class="daily-readers-bars" role="img" :aria-label="`Разные читатели за две недели: ${(stats?.readersByDay ?? []).map(d => d.count).join(', ')}`">
+            <div
+              class="daily-readers-bars"
+              role="img"
+              :aria-label="`Разные читатели за две недели: ${(stats?.readersByDay ?? []).map((d) => d.count).join(', ')}`"
+            >
               <div
                 v-for="d in stats?.readersByDay ?? []"
                 :key="d.day"
                 class="daily-readers-bar"
-                :class="{ 'is-today': d.day === stats?.readersByDay?.at(-1)?.day }"
+                :class="{
+                  'is-today': d.day === stats?.readersByDay?.at(-1)?.day,
+                }"
                 :title="`${d.day.slice(8, 10)}.${d.day.slice(5, 7)} — ${d.count}`"
               >
-                <span class="daily-readers-count">{{ d.count || '' }}</span>
+                <span class="daily-readers-count">{{ d.count || "" }}</span>
                 <span
                   class="daily-readers-fill"
                   :style="{ height: `${readerBarHeight(d.count)}px` }"
@@ -873,16 +1178,31 @@ useHead({
             </div>
             <div class="game-stats-row">
               <span>Заходили на страницы</span>
-              <span>{{ (stats?.board?.visitorsToday ?? 0).toLocaleString('ru') }}</span>
-              <span>{{ (stats?.board?.visitorsMonth ?? 0).toLocaleString('ru') }}</span>
+              <span>{{
+                (stats?.board?.visitorsToday ?? 0).toLocaleString("ru")
+              }}</span>
+              <span>{{
+                (stats?.board?.visitorsMonth ?? 0).toLocaleString("ru")
+              }}</span>
             </div>
             <div class="game-stats-row">
               <span>Партий доиграно</span>
-              <span>{{ (stats?.board?.finishedToday ?? 0).toLocaleString('ru') }}</span>
-              <span>{{ (stats?.board?.finishedMonth ?? 0).toLocaleString('ru') }}</span>
+              <span>{{
+                (stats?.board?.finishedToday ?? 0).toLocaleString("ru")
+              }}</span>
+              <span>{{
+                (stats?.board?.finishedMonth ?? 0).toLocaleString("ru")
+              }}</span>
             </div>
           </div>
-          <p class="readers-line"><span>Доиграно за всё время <b>{{ (stats?.board?.finishedTotal ?? 0).toLocaleString('ru') }}</b></span></p>
+          <p class="readers-line">
+            <span
+              >Доиграно за всё время
+              <b>{{
+                (stats?.board?.finishedTotal ?? 0).toLocaleString("ru")
+              }}</b></span
+            >
+          </p>
 
           <h3 class="stats-sub">Игра «Кто из таверны»</h3>
           <div class="game-stats">
@@ -893,48 +1213,110 @@ useHead({
             </div>
             <div class="game-stats-row">
               <span>Партий</span>
-              <span>{{ (stats?.game?.today?.played ?? 0).toLocaleString('ru') }}</span>
-              <span>{{ (stats?.game?.total?.played ?? 0).toLocaleString('ru') }}</span>
+              <span>{{
+                (stats?.game?.today?.played ?? 0).toLocaleString("ru")
+              }}</span>
+              <span>{{
+                (stats?.game?.total?.played ?? 0).toLocaleString("ru")
+              }}</span>
             </div>
             <div class="game-stats-row">
               <span>Угадано</span>
-              <span>{{ (stats?.game?.today?.won ?? 0).toLocaleString('ru') }}</span>
-              <span>{{ (stats?.game?.total?.won ?? 0).toLocaleString('ru') }}</span>
+              <span>{{
+                (stats?.game?.today?.won ?? 0).toLocaleString("ru")
+              }}</span>
+              <span>{{
+                (stats?.game?.total?.won ?? 0).toLocaleString("ru")
+              }}</span>
             </div>
             <div class="game-stats-row">
               <span>Попыток</span>
-              <span>{{ (stats?.game?.today?.guesses ?? 0).toLocaleString('ru') }}</span>
-              <span>{{ (stats?.game?.total?.guesses ?? 0).toLocaleString('ru') }}</span>
+              <span>{{
+                (stats?.game?.today?.guesses ?? 0).toLocaleString("ru")
+              }}</span>
+              <span>{{
+                (stats?.game?.total?.guesses ?? 0).toLocaleString("ru")
+              }}</span>
             </div>
           </div>
 
           <div class="stats-tablehead">
-            <h3 class="stats-sub">Главы<span v-if="statsQuery" class="stats-found"> · найдено {{ visibleStats.length }}</span></h3>
-            <input v-model="statsQuery" class="stats-search" type="search" placeholder="Номер или название">
+            <h3 class="stats-sub">
+              Главы<span v-if="statsQuery" class="stats-found">
+                · найдено {{ visibleStats.length }}</span
+              >
+            </h3>
+            <input
+              v-model="statsQuery"
+              class="stats-search"
+              type="search"
+              placeholder="Номер или название"
+            />
           </div>
           <div class="stats-table">
             <div class="stats-row stats-head">
-              <button class="stats-sort" :class="statsSortClass('order')" @click="toggleStatsSort('order')">Глава</button>
+              <button
+                class="stats-sort"
+                :class="statsSortClass('order')"
+                @click="toggleStatsSort('order')"
+              >
+                Глава
+              </button>
               <span></span>
-              <button class="stats-sort stats-sort--date" :class="statsSortClass('date')" @click="toggleStatsSort('date')">Дата</button>
-              <button class="stats-sort stats-sort--num" :class="statsSortClass('views')" @click="toggleStatsSort('views')">Просмотры</button>
-              <button class="stats-sort stats-sort--num" :class="statsSortClass('downloads')" @click="toggleStatsSort('downloads')">Скачивания</button>
+              <button
+                class="stats-sort stats-sort--date"
+                :class="statsSortClass('date')"
+                @click="toggleStatsSort('date')"
+              >
+                Дата
+              </button>
+              <button
+                class="stats-sort stats-sort--num"
+                :class="statsSortClass('views')"
+                @click="toggleStatsSort('views')"
+              >
+                Просмотры
+              </button>
+              <button
+                class="stats-sort stats-sort--num"
+                :class="statsSortClass('downloads')"
+                @click="toggleStatsSort('downloads')"
+              >
+                Скачивания
+              </button>
             </div>
             <div v-for="ch in visibleStats" :key="ch.id" class="stats-row">
               <span class="stats-id">{{ ch.id }}</span>
               <span class="stats-title">{{ ch.title }}</span>
-              <span class="stats-date">{{ formatStatsDate(ch.publishedAt) }}</span>
+              <span class="stats-date">{{
+                formatStatsDate(ch.publishedAt)
+              }}</span>
               <span class="stats-views">
-                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 2C3 2 1 5.5 1 5.5S3 9 5.5 9 10 5.5 10 5.5 8 2 5.5 2z" stroke="currentColor" stroke-width="1"/><circle cx="5.5" cy="5.5" r="1.5" fill="currentColor"/></svg>
-                {{ ch.views?.toLocaleString('ru') }}
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                  <path
+                    d="M5.5 2C3 2 1 5.5 1 5.5S3 9 5.5 9 10 5.5 10 5.5 8 2 5.5 2z"
+                    stroke="currentColor"
+                    stroke-width="1"
+                  />
+                  <circle cx="5.5" cy="5.5" r="1.5" fill="currentColor" />
+                </svg>
+                {{ ch.views?.toLocaleString("ru") }}
               </span>
               <span class="stats-dl">
-                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1v7M2 6l3.5 3.5L9 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                {{ ch.downloads?.toLocaleString('ru') }}
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                  <path
+                    d="M5.5 1v7M2 6l3.5 3.5L9 6"
+                    stroke="currentColor"
+                    stroke-width="1.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                {{ ch.downloads?.toLocaleString("ru") }}
               </span>
             </div>
             <div v-if="!visibleStats.length" class="empty-hint">
-              {{ statsQuery ? 'Ничего не нашлось' : 'Нет данных' }}
+              {{ statsQuery ? "Ничего не нашлось" : "Нет данных" }}
             </div>
           </div>
 
@@ -962,12 +1344,16 @@ useHead({
         </section>
 
         <!-- Рамки для аватарок -->
-        <section v-if="activeTab === 'frames'" class="card card--panel card--wide">
+        <section
+          v-if="activeTab === 'frames'"
+          class="card card--panel card--wide"
+        >
           <h2>Рамки для аватарок</h2>
 
           <p class="frames-note">
-            Рамка — картинка с прозрачной серединой. Достаётся за ивенты: выдать её можно
-            здесь, а носить человек будет ту из выигранных, которую выберет сам в профиле.
+            Рамка — картинка с прозрачной серединой. Достаётся за ивенты: выдать
+            её можно здесь, а носить человек будет ту из выигранных, которую
+            выберет сам в профиле.
           </p>
 
           <!-- Новая рамка -->
@@ -976,7 +1362,11 @@ useHead({
               class="frame-preview"
               :src="currentAvatar"
               :name="displayName"
-              :frame="newFramePreview ? { id: 0, name: '', url: newFramePreview, fit: newFrame.fit } : null"
+              :frame="
+                newFramePreview
+                  ? { id: 0, name: '', url: newFramePreview, fit: newFrame.fit }
+                  : null
+              "
               :size="72"
               alt=""
             />
@@ -984,34 +1374,51 @@ useHead({
             <div class="frame-new-fields">
               <div class="field-row">
                 <label>Название</label>
-                <input v-model="newFrame.name" type="text" maxlength="40" placeholder="Костяной венок">
+                <input
+                  v-model="newFrame.name"
+                  type="text"
+                  maxlength="40"
+                  placeholder="Костяной венок"
+                />
               </div>
 
               <div class="field-row">
                 <label>Картинка (png или webp с прозрачностью)</label>
-                <input ref="frameFileInput" type="file" accept="image/*" @change="onFrameFile">
+                <input
+                  ref="frameFileInput"
+                  type="file"
+                  accept="image/*"
+                  @change="onFrameFile"
+                />
               </div>
 
               <div class="field-row">
-                <label>Посадка аватарки — {{ Math.round(newFrame.fit * 100) }}%</label>
+                <label
+                  >Посадка аватарки —
+                  {{ Math.round(newFrame.fit * 100) }}%</label
+                >
                 <input
                   v-model.number="newFrame.fit"
                   type="range"
                   :min="FRAME_FIT_MIN"
                   :max="FRAME_FIT_MAX"
                   step="0.01"
-                >
+                />
               </div>
 
-              <button class="btn btn--primary" :disabled="savingFrame" @click="createFrame">
-                {{ savingFrame ? 'Сохраняем...' : 'Добавить рамку' }}
+              <button
+                class="btn btn--primary"
+                :disabled="savingFrame"
+                @click="createFrame"
+              >
+                {{ savingFrame ? "Сохраняем..." : "Добавить рамку" }}
               </button>
               <p v-if="frameMsg" class="result-msg">{{ frameMsg }}</p>
               <p v-if="frameError" class="err-msg">{{ frameError }}</p>
             </div>
           </div>
 
-          <hr class="section-divider">
+          <hr class="section-divider" />
 
           <!-- Каталог -->
           <h3 class="frames-sub">Каталог ({{ frames.length }})</h3>
@@ -1033,8 +1440,12 @@ useHead({
                 :value="f.name"
                 type="text"
                 maxlength="40"
-                @change="saveFrame(f, { name: ($event.target as HTMLInputElement).value })"
-              >
+                @change="
+                  saveFrame(f, {
+                    name: ($event.target as HTMLInputElement).value,
+                  })
+                "
+              />
 
               <div class="frame-row-line">
                 <label class="frame-fit">
@@ -1046,29 +1457,42 @@ useHead({
                     :max="FRAME_FIT_MAX"
                     step="0.01"
                     @change="saveFrame(f, { fit: f.fit })"
-                  >
+                  />
                 </label>
 
                 <label class="frame-pool">
                   <input
                     type="checkbox"
                     :checked="f.inPool"
-                    @change="saveFrame(f, { inPool: ($event.target as HTMLInputElement).checked })"
-                  >
+                    @change="
+                      saveFrame(f, {
+                        inPool: ($event.target as HTMLInputElement).checked,
+                      })
+                    "
+                  />
                   <span>в раздаче</span>
                 </label>
 
-                <label class="frame-pool" title="Достаётся при регистрации и сразу надевается. Такая рамка одна на сайт.">
+                <label
+                  class="frame-pool"
+                  title="Достаётся при регистрации и сразу надевается. Такая рамка одна на сайт."
+                >
                   <input
                     type="checkbox"
                     :checked="f.isDefault"
-                    @change="saveFrame(f, { isDefault: ($event.target as HTMLInputElement).checked })"
-                  >
+                    @change="
+                      saveFrame(f, {
+                        isDefault: ($event.target as HTMLInputElement).checked,
+                      })
+                    "
+                  />
                   <span>новичкам</span>
                 </label>
 
                 <span class="frame-owners">у {{ f.owners }} чел.</span>
-                <button class="frame-del" @click="removeFrame(f)">Удалить</button>
+                <button class="frame-del" @click="removeFrame(f)">
+                  Удалить
+                </button>
               </div>
             </div>
           </div>
@@ -1084,10 +1508,15 @@ useHead({
                 alt=""
               />
               <span class="newcomer-text">
-                Новички получают «{{ defaultFrame.name }}» при регистрации и сразу в ней ходят.
+                Новички получают «{{ defaultFrame.name }}» при регистрации и
+                сразу в ней ходят.
               </span>
-              <button class="btn btn--sm btn--primary" :disabled="backfilling" @click="backfillDefault">
-                {{ backfilling ? '...' : 'Выдать и тем, кто уже есть' }}
+              <button
+                class="btn btn--sm btn--primary"
+                :disabled="backfilling"
+                @click="backfillDefault"
+              >
+                {{ backfilling ? "..." : "Выдать и тем, кто уже есть" }}
               </button>
             </template>
             <span v-else class="newcomer-text">
@@ -1096,35 +1525,62 @@ useHead({
             </span>
           </div>
 
-          <hr class="section-divider">
+          <hr class="section-divider" />
 
           <!-- Выдача -->
           <h3 class="frames-sub">Выдать рамку</h3>
 
           <div class="field-row">
             <label>Кому</label>
-            <input v-model="userQuery" type="text" placeholder="имя или почта — от двух букв">
+            <input
+              v-model="userQuery"
+              type="text"
+              placeholder="имя или почта — от двух букв"
+            />
           </div>
 
           <div v-if="foundUsers.length" class="user-found">
-            <button v-for="u in foundUsers" :key="u.id" class="user-hit" @click="pickUser(u)">
-              <UserAvatar :src="u.avatarUrl" :name="u.name" :frame="null" :size="26" alt="" />
+            <button
+              v-for="u in foundUsers"
+              :key="u.id"
+              class="user-hit"
+              @click="pickUser(u)"
+            >
+              <UserAvatar
+                :src="u.avatarUrl"
+                :name="u.name"
+                :frame="null"
+                :size="26"
+                alt=""
+              />
               <span class="user-hit-name">{{ u.name }}</span>
               <span class="user-hit-mail">{{ u.email }}</span>
             </button>
           </div>
 
           <div v-if="grantTarget" class="grant-row">
-            <UserAvatar :src="grantTarget.avatarUrl" :name="grantTarget.name" :frame="null" :size="32" alt="" />
+            <UserAvatar
+              :src="grantTarget.avatarUrl"
+              :name="grantTarget.name"
+              :frame="null"
+              :size="32"
+              alt=""
+            />
             <span class="grant-name">{{ grantTarget.name }}</span>
 
             <select v-model="grantFrameId" class="grant-select">
               <option value="random">Случайная из раздачи</option>
-              <option v-for="f in frames" :key="f.id" :value="f.id">{{ f.name }}</option>
+              <option v-for="f in frames" :key="f.id" :value="f.id">
+                {{ f.name }}
+              </option>
             </select>
 
-            <button class="btn btn--primary" :disabled="granting" @click="sendGrant(grantTarget.id, grantFrameId)">
-              {{ granting ? '...' : 'Выдать' }}
+            <button
+              class="btn btn--primary"
+              :disabled="granting"
+              @click="sendGrant(grantTarget.id, grantFrameId)"
+            >
+              {{ granting ? "..." : "Выдать" }}
             </button>
           </div>
 
@@ -1132,10 +1588,18 @@ useHead({
 
           <!-- Кто чем владеет -->
           <h3 class="frames-sub">Владельцы ({{ frameOwners.length }})</h3>
-          <p v-if="!frameOwners.length" class="empty-hint">Пока никому ничего не выдано</p>
+          <p v-if="!frameOwners.length" class="empty-hint">
+            Пока никому ничего не выдано
+          </p>
 
           <div v-for="o in frameOwners" :key="o.id" class="owner-row">
-            <UserAvatar :src="o.avatarUrl" :name="o.name" :frame="null" :size="28" alt="" />
+            <UserAvatar
+              :src="o.avatarUrl"
+              :name="o.name"
+              :frame="null"
+              :size="28"
+              alt=""
+            />
             <span class="owner-name">{{ o.name }}</span>
 
             <span class="owner-frames">
@@ -1144,30 +1608,48 @@ useHead({
                 :key="uf.id"
                 class="owner-frame"
                 :class="{ worn: o.wearing === uf.id }"
-                :title="o.wearing === uf.id ? 'Носит сейчас — нажми, чтобы забрать' : 'Забрать рамку'"
+                :title="
+                  o.wearing === uf.id
+                    ? 'Носит сейчас — нажми, чтобы забрать'
+                    : 'Забрать рамку'
+                "
                 @click="sendGrant(o.id, uf.id, true)"
-              >{{ frameName(uf.id) }} ×</button>
+              >
+                {{ frameName(uf.id) }} ×
+              </button>
             </span>
           </div>
         </section>
 
         <!-- Настройки сайта -->
-        <section v-if="activeTab === 'skins'" class="card card--panel card--wide">
+        <section
+          v-if="activeTab === 'skins'"
+          class="card card--panel card--wide"
+        >
           <h2>Скины страницы читателя</h2>
           <AdminSkins />
         </section>
 
-        <section v-if="activeTab === 'reel'" class="card card--panel card--wide">
+        <section
+          v-if="activeTab === 'reel'"
+          class="card card--panel card--wide"
+        >
           <h2>Барабан</h2>
           <AdminReel />
         </section>
 
-        <section v-if="activeTab === 'messages'" class="card card--panel card--wide">
+        <section
+          v-if="activeTab === 'messages'"
+          class="card card--panel card--wide"
+        >
           <h2>Сообщения</h2>
           <AdminMessages />
         </section>
 
-        <section v-if="activeTab === 'readers'" class="card card--panel card--wide">
+        <section
+          v-if="activeTab === 'readers'"
+          class="card card--panel card--wide"
+        >
           <h2>Читатели</h2>
           <AdminReaders />
         </section>
@@ -1181,11 +1663,11 @@ useHead({
               <option value="halloween">Хеллоуин</option>
             </select>
             <span class="field-hint">
-              Праздничное убранство для всех читателей: тыква вместо луны в шапке
-              главной (на телефоне — в её правом нижнем углу), по клику она
-              смеётся и вспыхивает, Торен вместо Аписты у
-              оглавления, тыква у заголовка главы, мыши, тыквы и призраки в фоне
-              читалки. Включается после «Сохранить».
+              Праздничное убранство для всех читателей: тыква вместо луны в
+              шапке главной (на телефоне — в её правом нижнем углу), по клику
+              она смеётся и вспыхивает, Торен вместо Аписты у оглавления, тыква
+              у заголовка главы, мыши, тыквы и призраки в фоне читалки.
+              Включается после «Сохранить».
             </span>
           </div>
           <div class="field-row">
@@ -1203,28 +1685,47 @@ useHead({
               >
                 <span>{{ p.label }}</span>
               </button>
-              <input id="reader-bg" v-model="readerBgPick" type="color" class="bg-color" title="Свой цвет">
-              <button v-if="form.halloween_reader_bg" type="button" class="bg-reset" @click="form.halloween_reader_bg = ''">
+              <input
+                id="reader-bg"
+                v-model="readerBgPick"
+                type="color"
+                class="bg-color"
+                title="Свой цвет"
+              />
+              <button
+                v-if="form.halloween_reader_bg"
+                type="button"
+                class="bg-reset"
+                @click="form.halloween_reader_bg = ''"
+              >
                 Обычный
               </button>
             </div>
-            <div class="bg-preview" :style="{ background: readerBg || '#2b221c' }">
-              <span class="bg-preview-eyebrow">Странствующая Таверна · Том 1</span>
+            <div
+              class="bg-preview"
+              :style="{ background: readerBg || '#2b221c' }"
+            >
+              <span class="bg-preview-eyebrow"
+                >Странствующая Таверна · Том 1</span
+              >
               <b>Глава 1.55</b>
               <p>
-                Даже облака над Кровавыми Полями, разделявшими север от юга, казались
-                окрашенными гнойной желчью. Красноватые — как сама земля — от крови.
+                Даже облака над Кровавыми Полями, разделявшими север от юга,
+                казались окрашенными гнойной желчью. Красноватые — как сама
+                земля — от крови.
               </p>
-              <span class="bg-preview-code">{{ readerBg || 'обычный фон' }}</span>
+              <span class="bg-preview-code">{{
+                readerBg || "обычный фон"
+              }}</span>
             </div>
             <span class="field-hint">
-              Только в стандартной теме читалки и только когда выбран Хеллоуин. В
-              тёмной, сепии и белой фон остаётся их собственным.
+              Только в стандартной теме читалки и только когда выбран Хеллоуин.
+              В тёмной, сепии и белой фон остаётся их собственным.
             </span>
           </div>
           <div class="field-row">
             <label>Заголовок hero</label>
-            <input v-model="form.hero_title" type="text">
+            <input v-model="form.hero_title" type="text" />
           </div>
           <div class="field-row">
             <label>Подзаголовок hero</label>
@@ -1232,7 +1733,11 @@ useHead({
           </div>
           <div class="field-row">
             <label>Бегущая строка под hero</label>
-            <textarea v-model="form.hero_ticker" rows="4" placeholder="Каждая строка — отдельная фраза" />
+            <textarea
+              v-model="form.hero_ticker"
+              rows="4"
+              placeholder="Каждая строка — отдельная фраза"
+            />
             <span class="field-hint">
               По фразе на строку — на сайте они пойдут в ряд через точку и будут
               повторяться по кругу. Скорость подбирается сама по длине текста.
@@ -1241,12 +1746,15 @@ useHead({
             </span>
           </div>
           <label class="checkbox-row">
-            <input v-model="tickerOn" type="checkbox">
-            <span>Показывать бегущую строку (галочку можно снять, текст сохранится)</span>
+            <input v-model="tickerOn" type="checkbox" />
+            <span
+              >Показывать бегущую строку (галочку можно снять, текст
+              сохранится)</span
+            >
           </label>
           <div class="field-row">
             <label>Текст под оглавлением</label>
-            <input v-model="form.ledger_note" type="text">
+            <input v-model="form.ledger_note" type="text" />
           </div>
           <div class="field-row">
             <label>Текст футера</label>
@@ -1254,91 +1762,171 @@ useHead({
           </div>
           <div class="field-row">
             <label>Страница «О проекте» — заголовок</label>
-            <input v-model="form.about_title" type="text" placeholder="О проекте" />
+            <input
+              v-model="form.about_title"
+              type="text"
+              placeholder="О проекте"
+            />
           </div>
           <div class="field-row">
             <label>Страница «О проекте» — текст</label>
-            <textarea v-model="form.about_text" rows="8" placeholder="Расскажите о проекте, переводчиках, истории..." />
+            <textarea
+              v-model="form.about_text"
+              rows="8"
+              placeholder="Расскажите о проекте, переводчиках, истории..."
+            />
           </div>
           <div class="field-row">
             <label>Ссылка Telegram</label>
-            <input v-model="form.telegram_url" type="url">
+            <input v-model="form.telegram_url" type="url" />
           </div>
           <div class="field-row">
             <label>Блок про телеграм — заголовок</label>
-            <input v-model="form.tg_cta_title" type="text" placeholder="Не пропусти новую главу">
+            <input
+              v-model="form.tg_cta_title"
+              type="text"
+              placeholder="Не пропусти новую главу"
+            />
           </div>
           <div class="field-row">
             <label>Блок про телеграм — текст</label>
-            <textarea v-model="form.tg_cta_text" rows="2" placeholder="Бот в телеграм-канале присылает уведомление о каждой новой главе сразу после публикации." />
+            <textarea
+              v-model="form.tg_cta_text"
+              rows="2"
+              placeholder="Бот в телеграм-канале присылает уведомление о каждой новой главе сразу после публикации."
+            />
           </div>
           <div class="field-row">
             <label>Ссылка Boosty</label>
-            <input v-model="form.boosty_url" type="url" placeholder="https://boosty.to/...">
+            <input
+              v-model="form.boosty_url"
+              type="url"
+              placeholder="https://boosty.to/..."
+            />
           </div>
           <div class="field-row">
             <label>Ссылка Tribute</label>
-            <input v-model="form.tribute_url" type="url" placeholder="https://tribute.tg/...">
+            <input
+              v-model="form.tribute_url"
+              type="url"
+              placeholder="https://tribute.tg/..."
+            />
           </div>
           <div class="field-row">
             <label>Текст страницы 404</label>
-            <input v-model="form.error_404_sub" type="text" placeholder="Козёл добрался до этой страницы раньше тебя.">
+            <input
+              v-model="form.error_404_sub"
+              type="text"
+              placeholder="Козёл добрался до этой страницы раньше тебя."
+            />
           </div>
           <div class="field-row">
             <label>Глав в неделю</label>
-            <input v-model="form.update_schedule" type="text" placeholder="2–3">
+            <input
+              v-model="form.update_schedule"
+              type="text"
+              placeholder="2–3"
+            />
           </div>
           <div class="field-row">
             <label>Глав в оригинале</label>
-            <input v-model="form.original_chapters_total" type="number" min="1" :placeholder="settings?.original_chapters_auto || 'узнаём сами'">
+            <input
+              v-model="form.original_chapters_total"
+              type="number"
+              min="1"
+              :placeholder="settings?.original_chapters_auto || 'узнаём сами'"
+            />
             <span class="field-hint">
-              Для трекера прогресса. Оставь пустым — число раз в сутки подтягивается из
-              InnWords само{{ settings?.original_chapters_auto ? ` (сейчас ${settings.original_chapters_auto})` : '' }}.
-              Ставь своё, только если автоматика врёт или отвалилась.
+              Для трекера прогресса. Оставь пустым — число раз в сутки
+              подтягивается из InnWords само{{
+                settings?.original_chapters_auto
+                  ? ` (сейчас ${settings.original_chapters_auto})`
+                  : ""
+              }}. Ставь своё, только если автоматика врёт или отвалилась.
             </span>
           </div>
           <div class="field-row">
             <label>Слов на одно английское</label>
-            <input v-model="form.original_words_ratio" type="number" min="0.1" max="3" step="0.001" placeholder="0.824">
+            <input
+              v-model="form.original_words_ratio"
+              type="number"
+              min="0.1"
+              max="3"
+              step="0.001"
+              placeholder="0.824"
+            />
             <span class="field-hint">
-              Сколько русских слов выходит из одного английского — так трекер переводит
-              объём оригинала{{ settings?.original_words_auto ? ` (${Number(settings.original_words_auto).toLocaleString('ru-RU')} слов)` : '' }}
+              Сколько русских слов выходит из одного английского — так трекер
+              переводит объём оригинала{{
+                settings?.original_words_auto
+                  ? ` (${Number(settings.original_words_auto).toLocaleString("ru-RU")} слов)`
+                  : ""
+              }}
               в наши слова. Пусто — 0,824.
             </span>
           </div>
           <div class="field-row">
             <label>Игра: до какого тома</label>
-            <input v-model="form.game_max_volume" type="number" min="1" max="10" placeholder="пусто — по переводу">
+            <input
+              v-model="form.game_max_volume"
+              type="number"
+              min="1"
+              max="10"
+              placeholder="пусто — по переводу"
+            />
             <span class="field-hint">
-              Оставь пустым — потолок держится за границу перевода сам: новый том
-              открывается, когда в нём опубликовано 35 глав, до этого игра стоит на предыдущем. Число ставь, только если нужно открыть игру шире
-              или, наоборот, придержать. Персонаж дня берётся из тех, кто появился до этого
-              тома, спойлерные признаки скрываются; в свободной игре том выбирает сам игрок.
+              Оставь пустым — потолок держится за границу перевода сам: новый
+              том открывается, когда в нём опубликовано 35 глав, до этого игра
+              стоит на предыдущем. Число ставь, только если нужно открыть игру
+              шире или, наоборот, придержать. Персонаж дня берётся из тех, кто
+              появился до этого тома, спойлерные признаки скрываются; в
+              свободной игре том выбирает сам игрок.
             </span>
           </div>
           <div class="field-row">
             <label>Игра: заголовок баннера</label>
-            <input v-model="form.game_cta_title" type="text" placeholder="Кто из таверны?">
+            <input
+              v-model="form.game_cta_title"
+              type="text"
+              placeholder="Кто из таверны?"
+            />
           </div>
           <div class="field-row">
             <label>Игра: текст баннера</label>
             <textarea v-model="form.game_cta_text" rows="3" />
             <span class="field-hint">
-              Плашка на главной, перед оглавлением. Вместо <b>{том}</b> подставится номер
-              из поля выше — так обещание «без спойлеров» не устареет, когда перевод уйдёт дальше.
+              Плашка на главной, перед оглавлением. Вместо
+              <b>{том}</b> подставится номер из поля выше — так обещание «без
+              спойлеров» не устареет, когда перевод уйдёт дальше.
             </span>
           </div>
           <div class="field-row">
             <label>Персонажи: заголовок</label>
-            <input v-model="form.characters_title" type="text" placeholder="Кто живёт в таверне">
+            <input
+              v-model="form.characters_title"
+              type="text"
+              placeholder="Кто живёт в таверне"
+            />
           </div>
           <div class="field-row">
             <label>Персонажи: подзаголовок</label>
             <textarea v-model="form.characters_subtitle" rows="2" />
-            <span class="field-hint">Страница карточек персонажей, под заголовком.</span>
+            <span class="field-hint"
+              >Страница карточек персонажей, под заголовком.</span
+            >
           </div>
-          <button class="btn btn--primary" :disabled="savingSettings" @click="saveSettings">
-            {{ settingsSaved ? '✓ Сохранено' : savingSettings ? 'Сохраняем...' : 'Сохранить' }}
+          <button
+            class="btn btn--primary"
+            :disabled="savingSettings"
+            @click="saveSettings"
+          >
+            {{
+              settingsSaved
+                ? "✓ Сохранено"
+                : savingSettings
+                  ? "Сохраняем..."
+                  : "Сохранить"
+            }}
           </button>
         </section>
 
@@ -1346,20 +1934,33 @@ useHead({
         <section v-if="activeTab === 'notify'" class="card card--panel">
           <h2>Уведомления в Telegram</h2>
           <p class="notify-hint">
-            Отправляет сообщение прямо сейчас — в любое время и сколько угодно раз.
-            Расписание автоматической рассылки от этого не сдвигается: она уходит около 12:00 МСК
-            и никогда не приходит читателям ночью.
+            Отправляет сообщение прямо сейчас — в любое время и сколько угодно
+            раз. Расписание автоматической рассылки от этого не сдвигается: она
+            уходит около 12:00 МСК и никогда не приходит читателям ночью.
           </p>
 
           <p v-if="notifyData && !notifyData.configured" class="form-error">
             Бот не настроен: нет TELEGRAM_BOT_TOKEN или TELEGRAM_CHANNEL_ID.
           </p>
-          <p class="notify-last">Автоматическая рассылка последний раз: {{ formatNotifyDate(notifyData?.lastNotifyAt) }}</p>
+          <p class="notify-last">
+            Автоматическая рассылка последний раз:
+            {{ formatNotifyDate(notifyData?.lastNotifyAt) }}
+          </p>
 
-          <h3 class="notify-sub">Ещё не отправляли ({{ pendingChapters.length }})</h3>
+          <h3 class="notify-sub">
+            Ещё не отправляли ({{ pendingChapters.length }})
+          </h3>
           <div v-if="pendingChapters.length" class="notify-list">
-            <label v-for="ch in pendingChapters" :key="ch.id" class="notify-row">
-              <input v-model="selectedNotifyIds" type="checkbox" :value="ch.id">
+            <label
+              v-for="ch in pendingChapters"
+              :key="ch.id"
+              class="notify-row"
+            >
+              <input
+                v-model="selectedNotifyIds"
+                type="checkbox"
+                :value="ch.id"
+              />
               <span class="chapter-row-id">{{ ch.id }}</span>
               <span class="chapter-row-title">{{ ch.title }}</span>
             </label>
@@ -1367,8 +1968,15 @@ useHead({
 
           <div v-if="notifyPreview" class="notify-preview">
             <div class="notify-preview-head">
-              <label class="notify-preview-label" for="notify-text">Текст сообщения — можно править</label>
-              <button v-if="notifyEdited" class="notify-rebuild" type="button" @click="rebuildNotifyText">
+              <label class="notify-preview-label" for="notify-text"
+                >Текст сообщения — можно править</label
+              >
+              <button
+                v-if="notifyEdited"
+                class="notify-rebuild"
+                type="button"
+                @click="rebuildNotifyText"
+              >
                 Собрать заново
               </button>
             </div>
@@ -1390,16 +1998,24 @@ useHead({
           </div>
 
           <div v-if="notifyError" class="form-error">{{ notifyError }}</div>
-          <button class="btn btn--primary" :disabled="sendingNotify || !selectedNotifyIds.length || !notifyText.trim()" @click="sendNotify">
-            {{ sendingNotify ? 'Отправляем...' : `Отправить в Telegram (${selectedNotifyIds.length})` }}
+          <button
+            class="btn btn--primary"
+            :disabled="
+              sendingNotify || !selectedNotifyIds.length || !notifyText.trim()
+            "
+            @click="sendNotify"
+          >
+            {{
+              sendingNotify
+                ? "Отправляем..."
+                : `Отправить в Telegram (${selectedNotifyIds.length})`
+            }}
           </button>
           <p v-if="notifyResult" class="result-msg">{{ notifyResult }}</p>
 
           <AdminTelegramPost />
         </section>
       </main>
-
-
     </div>
   </div>
 </template>
@@ -1447,7 +2063,7 @@ useHead({
 .sb-section {
   padding: 18px 12px 6px;
   font-size: 11px;
-  letter-spacing: .12em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -1490,7 +2106,7 @@ useHead({
 .field-row label {
   font-size: 12px;
   color: var(--ink-soft);
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -1624,7 +2240,7 @@ useHead({
 .frames-note {
   font-size: 13px;
   line-height: 1.5;
-  opacity: .55;
+  opacity: 0.55;
   margin: -12px 0 22px;
   max-width: 60ch;
 }
@@ -1682,8 +2298,13 @@ useHead({
   max-width: 280px;
 }
 
-.frame-row-name:hover { border-color: rgba(241, 230, 210, .15); }
-.frame-row-name:focus-visible { outline: none; border-color: var(--ember-soft); }
+.frame-row-name:hover {
+  border-color: rgba(241, 230, 210, 0.15);
+}
+.frame-row-name:focus-visible {
+  outline: none;
+  border-color: var(--ember-soft);
+}
 
 .frame-row-line {
   display: flex;
@@ -1691,7 +2312,7 @@ useHead({
   gap: 18px;
   flex-wrap: wrap;
   font-size: 12px;
-  opacity: .6;
+  opacity: 0.6;
 }
 
 .frame-fit {
@@ -1700,7 +2321,9 @@ useHead({
   gap: 8px;
 }
 
-.frame-fit input { width: 110px; }
+.frame-fit input {
+  width: 110px;
+}
 
 .frame-pool {
   display: flex;
@@ -1709,7 +2332,9 @@ useHead({
   cursor: pointer;
 }
 
-.frame-owners { margin-left: auto; }
+.frame-owners {
+  margin-left: auto;
+}
 
 .frame-del {
   background: none;
@@ -1721,7 +2346,9 @@ useHead({
   cursor: pointer;
 }
 
-.frame-del:hover { text-decoration: underline; }
+.frame-del:hover {
+  text-decoration: underline;
+}
 
 /* Рамка новичка — не такая же строка каталога, а правило, которое к нему
    применяется: оттого своя полоса, а не ещё одна карточка. */
@@ -1742,7 +2369,7 @@ useHead({
   min-width: 220px;
   font-size: 12px;
   line-height: 1.5;
-  opacity: .65;
+  opacity: 0.65;
 }
 
 /* ── Выдача ─────────────────────────────────── */
@@ -1769,12 +2396,14 @@ useHead({
   text-align: left;
 }
 
-.user-hit:hover { background: rgba(241, 230, 210, .06); }
+.user-hit:hover {
+  background: rgba(241, 230, 210, 0.06);
+}
 
 .user-hit-mail {
   margin-left: auto;
   font-size: 11px;
-  opacity: .4;
+  opacity: 0.4;
 }
 
 .grant-row {
@@ -1807,7 +2436,9 @@ useHead({
   border-top: 1px solid var(--line-faint);
 }
 
-.owner-name { font-size: 13px; }
+.owner-name {
+  font-size: 13px;
+}
 
 .owner-frames {
   margin-left: auto;
@@ -1828,7 +2459,7 @@ useHead({
   font-size: 11px;
   padding: 4px 8px;
   cursor: pointer;
-  opacity: .7;
+  opacity: 0.7;
 }
 
 .owner-frame.worn {
@@ -1836,7 +2467,9 @@ useHead({
   opacity: 1;
 }
 
-.owner-frame:hover { color: var(--danger); }
+.owner-frame:hover {
+  color: var(--danger);
+}
 
 @media (max-width: 600px) {
   .frame-new {
@@ -1847,7 +2480,7 @@ useHead({
 
 .section-divider {
   border: none;
-  border-top: 1px solid rgba(43,30,22,.12);
+  border-top: 1px solid rgba(43, 30, 22, 0.12);
   margin: 28px 0;
 }
 
@@ -1890,7 +2523,7 @@ useHead({
 .vol-chev {
   font-size: 11px;
   color: var(--ink-soft);
-  transition: transform .2s;
+  transition: transform 0.2s;
 }
 
 .vol-chev.open {
@@ -1909,7 +2542,7 @@ useHead({
   border-radius: var(--radius-sm);
   cursor: grab;
   user-select: none;
-  transition: background .1s;
+  transition: background 0.1s;
 }
 
 .chapter-row:hover {
@@ -1917,12 +2550,12 @@ useHead({
 }
 
 .chapter-row.drag-over {
-  background: rgba(214, 136, 62, .12);
-  outline: 1px solid rgba(214, 136, 62, .4);
+  background: rgba(214, 136, 62, 0.12);
+  outline: 1px solid rgba(214, 136, 62, 0.4);
 }
 
 .chapter-row.dragging {
-  opacity: .4;
+  opacity: 0.4;
 }
 
 .drag-handle {
@@ -1952,7 +2585,7 @@ useHead({
 .chapter-row-draft {
   font-size: 11px;
   color: var(--ember-soft);
-  border: 1px solid rgba(214, 136, 62, .3);
+  border: 1px solid rgba(214, 136, 62, 0.3);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
   white-space: nowrap;
@@ -1983,8 +2616,8 @@ useHead({
 /* Сегодняшний счётчик — единственный живой на этом экране, остальные копятся
    годами. Подсвечен рамкой, чтобы глаз находил его первым. */
 .stat-card--today {
-  border-color: rgba(214, 136, 62, .35);
-  background: rgba(214, 136, 62, .07);
+  border-color: rgba(214, 136, 62, 0.35);
+  background: rgba(214, 136, 62, 0.07);
 }
 
 /* Плитка-кнопка: выглядит как соседние, но нажимается — рамка ярче под
@@ -2000,7 +2633,7 @@ useHead({
 
 .stat-card--open:hover,
 .stat-card--open:focus-visible {
-  border-color: rgba(214, 136, 62, .6);
+  border-color: rgba(214, 136, 62, 0.6);
 }
 
 .stat-value {
@@ -2015,7 +2648,7 @@ useHead({
   color: var(--ink-soft);
   margin-top: 4px;
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
 }
 
 /* Строка про читателей идёт сразу под плитками и держится к ним ближе, чем к
@@ -2036,9 +2669,9 @@ useHead({
 }
 
 .readers-line span + span::before {
-  content: '·';
+  content: "·";
   margin-right: 12px;
-  opacity: .45;
+  opacity: 0.45;
 }
 
 .readers-new {
@@ -2063,7 +2696,7 @@ useHead({
   font-size: 11px;
   color: var(--ink-soft);
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
 }
 
 .daily-readers-bars {
@@ -2087,7 +2720,7 @@ useHead({
   max-width: 22px;
   border-radius: 3px 3px 0 0;
   background: var(--ember);
-  opacity: .45;
+  opacity: 0.45;
 }
 
 .daily-readers-bar.is-today .daily-readers-fill {
@@ -2108,7 +2741,7 @@ useHead({
   color: var(--parchment-2);
   margin: 0 0 12px;
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
 }
 
 .stats-tablehead {
@@ -2161,7 +2794,7 @@ useHead({
   border: 1px solid var(--line-faint);
   border-radius: var(--radius-md);
   scrollbar-width: thin;
-  scrollbar-color: rgba(214, 136, 62, .3) transparent;
+  scrollbar-color: rgba(214, 136, 62, 0.3) transparent;
 }
 
 .stats-table::-webkit-scrollbar {
@@ -2173,12 +2806,12 @@ useHead({
 }
 
 .stats-table::-webkit-scrollbar-thumb {
-  background: rgba(214, 136, 62, .3);
+  background: rgba(214, 136, 62, 0.3);
   border-radius: var(--radius-sm);
 }
 
 .stats-table::-webkit-scrollbar-thumb:hover {
-  background: rgba(214, 136, 62, .6);
+  background: rgba(214, 136, 62, 0.6);
 }
 
 .stats-row {
@@ -2207,13 +2840,13 @@ useHead({
   padding: 0;
   font-family: var(--font-body);
   font-size: 11px;
-  letter-spacing: .05em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink-soft);
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
-  transition: color .15s;
+  transition: color 0.15s;
 }
 
 .stats-sort--num {
@@ -2230,12 +2863,12 @@ useHead({
 
 /* Стрелка только у активной колонки: ▼ по убыванию, ▲ по возрастанию. */
 .stats-sort.active::after {
-  content: ' ▼';
+  content: " ▼";
   font-size: 8px;
 }
 
 .stats-sort.active.asc::after {
-  content: ' ▲';
+  content: " ▲";
 }
 
 .stats-date {
@@ -2272,7 +2905,7 @@ useHead({
 
 .stats-views svg,
 .stats-dl svg {
-  opacity: .5;
+  opacity: 0.5;
   flex-shrink: 0;
 }
 
@@ -2363,7 +2996,7 @@ useHead({
   grid-template-columns: 1fr 110px 110px;
   gap: 8px;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(42, 30, 22, .08);
+  border-bottom: 1px solid rgba(42, 30, 22, 0.08);
   font-size: 13px;
 }
 
@@ -2375,7 +3008,7 @@ useHead({
 
 .game-stats-head {
   font-size: 11px;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-soft);
 }
@@ -2396,7 +3029,7 @@ useHead({
   padding: 6px 8px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
-  color: rgba(231, 217, 194, .8);
+  color: rgba(231, 217, 194, 0.8);
   font: inherit;
   font-size: 11px;
   text-align: left;
@@ -2444,7 +3077,7 @@ useHead({
   border-radius: var(--radius-md);
   color: #e7d9c2;
   font-family: var(--font-reading, Georgia, serif);
-  transition: background .2s;
+  transition: background 0.2s;
 }
 
 .bg-preview b {
@@ -2463,7 +3096,7 @@ useHead({
 .bg-preview-eyebrow {
   font-family: var(--font-body);
   font-size: 11px;
-  letter-spacing: .14em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ember-soft);
 }
@@ -2473,14 +3106,14 @@ useHead({
   margin-top: 10px;
   font-family: var(--font-body);
   font-size: 11px;
-  color: rgba(231, 217, 194, .45);
+  color: rgba(231, 217, 194, 0.45);
 }
 
 .field-hint {
   font-size: 12px;
   line-height: 1.5;
   color: var(--ink-soft);
-  opacity: .8;
+  opacity: 0.8;
 }
 
 .notify-last {
@@ -2533,7 +3166,7 @@ useHead({
 .notify-preview-label {
   font-size: 11px;
   color: var(--ink-soft);
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -2547,7 +3180,9 @@ useHead({
   cursor: pointer;
 }
 
-.notify-rebuild:hover { text-decoration: underline; }
+.notify-rebuild:hover {
+  text-decoration: underline;
+}
 
 /* Поле без рамки и фона — окошко вокруг уже рамка: правится текст там же,
    где раньше только показывался. */

@@ -7,14 +7,19 @@
  * в данных остаётся только его адрес. При переходе между главами браузер
  * запрашивает остров у сервера сам.
  */
-const props = defineProps<{ id: string }>()
+const props = defineProps<{ id: string }>();
 
-const { data } = await useFetch(`/api/chapters/${encodeURIComponent(props.id)}`, {
-  query: { text: 1 },
-  pick: ['contentHtml'],
-})
+const { data } = await useFetch(
+  `/api/chapters/${encodeURIComponent(props.id)}`,
+  {
+    query: { text: 1 },
+    pick: ["contentHtml"],
+  },
+);
 </script>
 
 <template>
-  <div v-html="data?.contentHtml || '<p><em>Текст главы загружается...</em></p>'" />
+  <div
+    v-html="data?.contentHtml || '<p><em>Текст главы загружается...</em></p>'"
+  />
 </template>

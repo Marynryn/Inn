@@ -4,25 +4,33 @@
  * в самом телеграме; без выделения ставят пару знаков и курсор между ними —
  * дописать слово внутрь. Знаки переводит в HTML сервер, см. telegramMarkup.
  */
-const props = defineProps<{ target: HTMLTextAreaElement | null, max: number }>()
-const text = defineModel<string>({ required: true })
+const props = defineProps<{
+  target: HTMLTextAreaElement | null;
+  max: number;
+}>();
+const text = defineModel<string>({ required: true });
 
 const marks = [
-  { mark: '**', label: 'Ж', title: 'Жирный', cls: 'tg-mark--bold' },
-  { mark: '~~', label: 'З', title: 'Зачёркнутый', cls: 'tg-mark--strike' },
-  { mark: '||', label: 'Спойлер', title: 'Спойлер', cls: '' },
-]
+  { mark: "**", label: "Ж", title: "Жирный", cls: "tg-mark--bold" },
+  { mark: "~~", label: "З", title: "Зачёркнутый", cls: "tg-mark--strike" },
+  { mark: "||", label: "Спойлер", title: "Спойлер", cls: "" },
+];
 
 const wrap = async (mark: string) => {
-  const el = props.target
-  if (!el) return
-  const { selectionStart: start, selectionEnd: end } = el
-  if (text.value.length + mark.length * 2 > props.max) return
-  text.value = text.value.slice(0, start) + mark + text.value.slice(start, end) + mark + text.value.slice(end)
-  await nextTick()
-  el.focus()
-  el.setSelectionRange(start + mark.length, end + mark.length)
-}
+  const el = props.target;
+  if (!el) return;
+  const { selectionStart: start, selectionEnd: end } = el;
+  if (text.value.length + mark.length * 2 > props.max) return;
+  text.value =
+    text.value.slice(0, start) +
+    mark +
+    text.value.slice(start, end) +
+    mark +
+    text.value.slice(end);
+  await nextTick();
+  el.focus();
+  el.setSelectionRange(start + mark.length, end + mark.length);
+};
 </script>
 
 <template>
@@ -61,7 +69,13 @@ const wrap = async (mark: string) => {
   cursor: pointer;
 }
 
-.tg-mark:hover { border-color: var(--ember-soft); }
-.tg-mark--bold { font-weight: 700; }
-.tg-mark--strike { text-decoration: line-through; }
+.tg-mark:hover {
+  border-color: var(--ember-soft);
+}
+.tg-mark--bold {
+  font-weight: 700;
+}
+.tg-mark--strike {
+  text-decoration: line-through;
+}
 </style>

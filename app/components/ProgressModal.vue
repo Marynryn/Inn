@@ -1,15 +1,15 @@
 <script setup lang="ts">
 defineProps<{
-  currentId: string
-  lastId: string
-}>()
+  currentId: string;
+  lastId: string;
+}>();
 
 const emit = defineEmits<{
-  update: []
-  keep: []
-}>()
+  update: [];
+  keep: [];
+}>();
 
-useScrollLock()
+useScrollLock();
 </script>
 
 <template>
@@ -18,15 +18,16 @@ useScrollLock()
       <div class="modal">
         <p class="modal-title">Обновить прогресс?</p>
         <p class="modal-body">
-          Вы вернулись к прочитанной ранее главе <b>{{ currentId }}</b>.
-          Обновить прогресс или оставить закладку на главе <b>{{ lastId }}</b>?
+          Вы вернулись к прочитанной ранее главе <b>{{ currentId }}</b
+          >. Обновить прогресс или оставить закладку на главе <b>{{ lastId }}</b
+          >?
         </p>
         <div class="modal-actions">
           <button class="btn btn--ghost" @click="emit('update')">
-             Обновить до {{ currentId }}
+            Обновить до {{ currentId }}
           </button>
           <button class="btn btn--primary" @click="emit('keep')">
-             Оставить {{ lastId }}
+            Оставить {{ lastId }}
           </button>
         </div>
       </div>
@@ -37,14 +38,14 @@ useScrollLock()
 <style scoped>
 .modal-backdrop {
   z-index: var(--z-modal);
-  animation: fade-in .15s ease;
+  animation: fade-in 0.15s ease;
 }
 
 .modal {
   padding: var(--space-24);
   max-width: 380px;
   width: calc(100% - 40px);
-  animation: slide-up .2s ease;
+  animation: slide-up 0.2s ease;
 }
 
 .modal-title {
@@ -56,7 +57,7 @@ useScrollLock()
   font-size: 14px;
   line-height: 1.6;
   color: var(--parchment-2);
-  opacity: .85;
+  opacity: 0.85;
 }
 
 .modal-body b {
@@ -71,12 +72,22 @@ useScrollLock()
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-up {
-  from { transform: translateY(12px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 </style>

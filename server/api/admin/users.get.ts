@@ -1,10 +1,10 @@
-import { like, or, sql } from 'drizzle-orm'
-import { displayNameKey } from '#shared/utils/displayName'
-import { users } from '../../database/schema'
-import { useDb } from '../../utils/db'
-import { readerName } from '../../utils/identity'
+import { like, or, sql } from "drizzle-orm";
+import { displayNameKey } from "#shared/utils/displayName";
+import { users } from "../../database/schema";
+import { useDb } from "../../utils/db";
+import { readerName } from "../../utils/identity";
 
-const LIMIT = 20
+const LIMIT = 20;
 
 /**
  * Поиск читателя по имени или почте — чтобы было кому выдать рамку. Отдаём
@@ -16,8 +16,8 @@ const LIMIT = 20
  * найдут по почте — она латиницей и так.
  */
 export default defineEventHandler(async (event) => {
-  const q = String(getQuery(event).q ?? '').trim()
-  if (q.length < 2) return []
+  const q = String(getQuery(event).q ?? "").trim();
+  if (q.length < 2) return [];
 
   const rows = await useDb()
     .select({
@@ -27,11 +27,18 @@ export default defineEventHandler(async (event) => {
       avatarUrl: users.avatarUrl,
     })
     .from(users)
-    .where(or(
-      like(users.displayNameKey, `%${displayNameKey(q)}%`),
-      like(sql`lower(${users.email})`, `%${q.toLowerCase()}%`),
-    ))
-    .limit(LIMIT)
+    .where(
+      or(
+        like(users.displayNameKey, `%${displayNameKey(q)}%`),
+        like(sql`lower(${users.email})`, `%${q.toLowerCase()}%`),
+      ),
+    )
+    .limit(LIMIT);
 
-  return rows.map(r => ({ id: r.id, name: readerName(r), email: r.email, avatarUrl: r.avatarUrl }))
-})
+  return rows.map((r) => ({
+    id: r.id,
+    name: readerName(r),
+    email: r.email,
+    avatarUrl: r.avatarUrl,
+  }));
+});

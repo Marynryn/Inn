@@ -1,13 +1,18 @@
-import { and, count, desc, eq, isNotNull, or } from 'drizzle-orm'
-import { alias } from 'drizzle-orm/sqlite-core'
-import { avatarFrames, comments, notifications, users } from '../../database/schema'
-import { excerptText } from '#shared/utils/excerpt'
-import { useDb } from '../../utils/db'
-import { framesByIds, toAvatarFrame } from '../../utils/frames'
-import { runningReelFor, spinsLeft, textsOf } from '../../utils/reel'
-import { invitingRoomFor } from '../../utils/board-rooms'
-import { otherAdmins, unreadBySender } from '../../utils/admin-messages'
-import { likeSummaries, type LikeSummary } from '../../utils/like-notify'
+import { and, count, desc, eq, isNotNull, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
+import {
+  avatarFrames,
+  comments,
+  notifications,
+  users,
+} from "../../database/schema";
+import { excerptText } from "#shared/utils/excerpt";
+import { useDb } from "../../utils/db";
+import { framesByIds, toAvatarFrame } from "../../utils/frames";
+import { runningReelFor, spinsLeft, textsOf } from "../../utils/reel";
+import { invitingRoomFor } from "../../utils/board-rooms";
+import { otherAdmins, unreadBySender } from "../../utils/admin-messages";
+import { likeSummaries, type LikeSummary } from "../../utils/like-notify";
 
 /**
  * Уведомления читателя: кто ответил на его комментарий и какие рамки ему
@@ -29,32 +34,37 @@ import { likeSummaries, type LikeSummary } from '../../utils/like-notify'
  * Сколько уведомлений показываем. Десяти хватает: ящик не захламляется, а до
  * старых ответов всё равно доходят через сами комментарии, а не через список.
  */
-const LIMIT = 10
+const LIMIT = 10;
 
 /** Длина выдержки из ответа: строчки хватает, чтобы узнать разговор. */
-const EXCERPT = 120
+const EXCERPT = 120;
 
 /** Своя реплика — только чтобы вспомнить, о чём речь. Половины строки довольно. */
-const ANSWERED_EXCERPT = 60
+const ANSWERED_EXCERPT = 60;
 
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
-  const userId = (session.user as { id?: number } | undefined)?.id ?? null
+  const session = await getUserSession(event);
+  const userId = (session.user as { id?: number } | undefined)?.id ?? null;
 
-  if (!userId) return { unread: 0, items: [], reel: null, board: null, messages: [] }
+  if (!userId)
+    return { unread: 0, items: [], reel: null, board: null, messages: [] };
 
-  const db = useDb()
+  const db = useDb();
 
   // Второе имя той же таблицы: одна строка — присланный ответ, другая — тот
   // комментарий читателя, на который отвечали. Без этого уведомление говорило
   // «Гриша ответил», не уточняя, на какой из твоих комментариев.
-  const answered = alias(comments, 'answered')
+  const answered = alias(comments, "answered");
 
   // Оба соединения левые: у уведомления о рамке нет комментария, у уведомления
   // об ответе нет рамки. Живым считается то, у которого нашлось хоть что-то —
   // это и есть «удалённое выпадает само».
-  const alive = or(isNotNull(comments.id), isNotNull(avatarFrames.id))
-  const mine = and(eq(notifications.userId, userId), eq(notifications.isRead, false), alive)
+  const alive = or(isNotNull(comments.id), isNotNull(avatarFrames.id));
+  const mine = and(
+    eq(notifications.userId, userId),
+    eq(notifications.isRead, false),
+    alive,
+  );
 
   const rows = await db
     .select({
@@ -83,7 +93,7 @@ export default defineEventHandler(async (event) => {
     .leftJoin(avatarFrames, eq(avatarFrames.id, notifications.frameId))
     .where(mine)
     .orderBy(desc(notifications.id))
-    .limit(LIMIT)
+    .limit(LIMIT);
 
   // Считаем отдельным запросом, а не по выданным строкам: непрочитанных может
   // быть больше, чем LIMIT, и тогда число на значке врало бы в меньшую сторону.
@@ -93,66 +103,83 @@ export default defineEventHandler(async (event) => {
     .from(notifications)
     .leftJoin(comments, eq(comments.id, notifications.commentId))
     .leftJoin(avatarFrames, eq(avatarFrames.id, notifications.frameId))
-    .where(mine)
+    .where(mine);
 
-  const frames = await framesByIds(rows.map(r => r.avatarFrameId))
+  const frames = await framesByIds(rows.map((r) => r.avatarFrameId));
 
   // Лайки: у такой строки комментарий — свой, а кто и сколько лайкнул,
   // считаем сейчас, чтобы снятый лайк не висел в уведомлении.
   const likes = await likeSummaries(
-    rows.filter(r => r.type === 'like' && r.commentId).map(r => r.commentId!),
+    rows
+      .filter((r) => r.type === "like" && r.commentId)
+      .map((r) => r.commentId!),
     userId,
-  )
+  );
   // Все лайки сняли — сообщать не о чем, строку прячем и из счёта тоже.
-  const gone = rows.filter(r => r.type === 'like' && !likes.has(r.commentId ?? 0)).length
+  const gone = rows.filter(
+    (r) => r.type === "like" && !likes.has(r.commentId ?? 0),
+  ).length;
 
   // Приглашение крутить барабан не хранится строкой: оно считается на лету —
   // так его видит и тот, кто зарегистрировался посреди ивента, а назавтра оно
   // появляется снова само, без рассылки каждому.
-  const role = (session.user as { role?: string } | undefined)?.role
-  const reel = await runningReelFor(role)
-  const reelInvite = reel && (await spinsLeft(reel, userId, role)).left !== 0
-    ? { id: reel.id, title: reel.title, invite: textsOf(reel).invite }
-    : null
+  const role = (session.user as { role?: string } | undefined)?.role;
+  const reel = await runningReelFor(role);
+  const reelInvite =
+    reel && (await spinsLeft(reel, userId, role)).left !== 0
+      ? { id: reel.id, title: reel.title, invite: textsOf(reel).invite }
+      : null;
 
   // Личные сообщения админов — по строке на написавшего, тоже на лету: они
   // уже лежат в своей таблице с отметкой «прочитано», копия здесь разошлась бы.
-  const messages = role === 'admin' ? await adminMessageItems(userId) : []
+  const messages = role === "admin" ? await adminMessageItems(userId) : [];
 
   // Стол, который ищет игроков, — тоже на лету, пока он открыт.
-  const board = invitingRoomFor(userId)
+  const board = invitingRoomFor(userId);
 
   return {
     unread: Math.max(0, (unread?.total ?? 0) - gone) + messages.length,
     reel: reelInvite,
     board,
     messages,
-    items: rows.filter(r => r.type !== 'like' || likes.has(r.commentId ?? 0)).map(({ avatarFrameId, grantedFrame, ...r }) => ({
-      ...r,
-      avatarFrame: frames.get(avatarFrameId ?? 0) ?? null,
-      ...likeFields(r.type === 'like' ? likes.get(r.commentId ?? 0) : undefined),
-      // Выданная рамка — целиком, как её рисует аватарка: шар покажет её на
-      // своём же лице читателя.
-      frame: grantedFrame ? toAvatarFrame(grantedFrame) : null,
-      // Спойлер в уведомлении не раскрываем: читатель мог до этой главы не дойти.
-      body: r.body == null ? null : (r.isSpoiler ? '[спойлер]' : excerptText(r.body, EXCERPT)),
-      // Свой же текст — коротким напоминанием, о чём был разговор. Спойлер
-      // прячем и здесь: уведомление могут читать через плечо.
-      answeredBody: r.answeredBody && r.type !== 'like'
-        ? (r.answeredSpoiler ? '[спойлер]' : excerptText(r.answeredBody, ANSWERED_EXCERPT))
-        : null,
-    })),
-  }
-})
+    items: rows
+      .filter((r) => r.type !== "like" || likes.has(r.commentId ?? 0))
+      .map(({ avatarFrameId, grantedFrame, ...r }) => ({
+        ...r,
+        avatarFrame: frames.get(avatarFrameId ?? 0) ?? null,
+        ...likeFields(
+          r.type === "like" ? likes.get(r.commentId ?? 0) : undefined,
+        ),
+        // Выданная рамка — целиком, как её рисует аватарка: шар покажет её на
+        // своём же лице читателя.
+        frame: grantedFrame ? toAvatarFrame(grantedFrame) : null,
+        // Спойлер в уведомлении не раскрываем: читатель мог до этой главы не дойти.
+        body:
+          r.body == null
+            ? null
+            : r.isSpoiler
+              ? "[спойлер]"
+              : excerptText(r.body, EXCERPT),
+        // Свой же текст — коротким напоминанием, о чём был разговор. Спойлер
+        // прячем и здесь: уведомление могут читать через плечо.
+        answeredBody:
+          r.answeredBody && r.type !== "like"
+            ? r.answeredSpoiler
+              ? "[спойлер]"
+              : excerptText(r.answeredBody, ANSWERED_EXCERPT)
+            : null,
+      })),
+  };
+});
 
 /** Непрочитанное от других админов — с именем и лицом написавшего. */
 async function adminMessageItems(me: number) {
-  const senders = await unreadBySender(me)
-  if (!senders.length) return []
-  const people = new Map((await otherAdmins(me)).map(a => [a.id, a]))
+  const senders = await unreadBySender(me);
+  if (!senders.length) return [];
+  const people = new Map((await otherAdmins(me)).map((a) => [a.id, a]));
   return senders
-    .filter(s => people.has(s.fromUserId))
-    .map(s => ({
+    .filter((s) => people.has(s.fromUserId))
+    .map((s) => ({
       fromUserId: s.fromUserId,
       name: people.get(s.fromUserId)!.name,
       avatarUrl: people.get(s.fromUserId)!.avatarUrl,
@@ -160,7 +187,7 @@ async function adminMessageItems(me: number) {
       count: s.count,
       body: excerptText(s.body, EXCERPT),
       createdAt: s.createdAt,
-    }))
+    }));
 }
 
 /**
@@ -168,11 +195,11 @@ async function adminMessageItems(me: number) {
  * комментария (автор — сам читатель). Лайкали одни гости — лица нет вовсе.
  */
 function likeFields(summary: LikeSummary | undefined) {
-  if (!summary) return { likes: null }
+  if (!summary) return { likes: null };
   return {
     likes: summary.likes,
     authorName: summary.liker?.name ?? null,
     avatarUrl: summary.liker?.avatarUrl ?? null,
     avatarFrame: summary.liker?.avatarFrame ?? null,
-  }
+  };
 }

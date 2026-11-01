@@ -6,9 +6,9 @@
   Обычный <script>, а не setup: его тело исполняется один раз на модуль, и
   переменная общая для всех полей. В script setup у каждого поля была бы своя.
 */
-const openedId = ref<symbol | null>(null)
+const openedId = ref<symbol | null>(null);
 
-export type ReaderSelectOption = { value: string | number, label: string }
+export type ReaderSelectOption = { value: string | number; label: string };
 </script>
 
 <script setup lang="ts">
@@ -20,65 +20,72 @@ export type ReaderSelectOption = { value: string | number, label: string }
  * Раскрывается вниз внутри окна, раздвигая то, что ниже: всплывающий слой
  * внутри прокручиваемой модалки обрезался бы её краем.
  */
-type Option = ReaderSelectOption
+type Option = ReaderSelectOption;
 
 const props = defineProps<{
   /** Подпись поля — она же имя кнопки для скринридера и тестов. */
-  label: string
-  modelValue: string | number
-  options: Option[]
-}>()
+  label: string;
+  modelValue: string | number;
+  options: Option[];
+}>();
 
-const emit = defineEmits<{ 'update:modelValue': [string | number] }>()
+const emit = defineEmits<{ "update:modelValue": [string | number] }>();
 
-const id = Symbol('reader-select')
-const open = computed(() => openedId.value === id)
-const root = ref<HTMLElement | null>(null)
+const id = Symbol("reader-select");
+const open = computed(() => openedId.value === id);
+const root = ref<HTMLElement | null>(null);
 
-const toggle = () => { openedId.value = open.value ? null : id }
-const close = () => { if (open.value) openedId.value = null }
+const toggle = () => {
+  openedId.value = open.value ? null : id;
+};
+const close = () => {
+  if (open.value) openedId.value = null;
+};
 
-const current = computed(() =>
-  props.options.find(o => o.value === props.modelValue)?.label ?? '')
+const current = computed(
+  () => props.options.find((o) => o.value === props.modelValue)?.label ?? "",
+);
 
 const pick = (value: string | number) => {
-  close()
-  if (value !== props.modelValue) emit('update:modelValue', value)
-}
+  close();
+  if (value !== props.modelValue) emit("update:modelValue", value);
+};
 
 /** Соседнее значение — для стрелок: список короткий, по нему ходят клавишами. */
 const step = (delta: number) => {
-  const i = props.options.findIndex(o => o.value === props.modelValue)
-  const next = props.options[Math.min(Math.max(i + delta, 0), props.options.length - 1)]
-  if (next) emit('update:modelValue', next.value)
-}
+  const i = props.options.findIndex((o) => o.value === props.modelValue);
+  const next =
+    props.options[Math.min(Math.max(i + delta, 0), props.options.length - 1)];
+  if (next) emit("update:modelValue", next.value);
+};
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && open.value) {
+  if (e.key === "Escape" && open.value) {
     // Своё закрытие, и дальше событие не пускаем: иначе Escape заодно закроет
     // и само окно настроек.
-    e.stopPropagation()
-    close()
-    return
+    e.stopPropagation();
+    close();
+    return;
   }
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-    e.preventDefault()
-    step(e.key === 'ArrowDown' ? 1 : -1)
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    step(e.key === "ArrowDown" ? 1 : -1);
   }
-}
+};
 
 const onOutside = (e: MouseEvent) => {
-  if (open.value && root.value && !root.value.contains(e.target as Node)) close()
-}
+  if (open.value && root.value && !root.value.contains(e.target as Node))
+    close();
+};
 
-onMounted(() => document.addEventListener('click', onOutside))
+onMounted(() => document.addEventListener("click", onOutside));
 
 onUnmounted(() => {
-  document.removeEventListener('click', onOutside)
+  document.removeEventListener("click", onOutside);
   // Окно закрыли с раскрытым списком — в следующий раз оно должно открыться
   // собранным, а не с тем же полем нараспашку.
-  close()
-})
+  close();
+});
 </script>
 
 <template>
@@ -95,7 +102,12 @@ onUnmounted(() => {
       <span class="sel-chevron" aria-hidden="true" />
     </button>
 
-    <div v-if="open" class="sel-list thin-scroll" role="listbox" :aria-label="label">
+    <div
+      v-if="open"
+      class="sel-list thin-scroll"
+      role="listbox"
+      :aria-label="label"
+    >
       <button
         v-for="o in options"
         :key="o.value"
@@ -107,7 +119,9 @@ onUnmounted(() => {
         @click="pick(o.value)"
       >
         {{ o.label }}
-        <span v-if="o.value === modelValue" class="sel-check" aria-hidden="true">✓</span>
+        <span v-if="o.value === modelValue" class="sel-check" aria-hidden="true"
+          >✓</span
+        >
       </button>
     </div>
   </div>
@@ -156,7 +170,7 @@ onUnmounted(() => {
   border-right: 1.5px solid var(--ember-soft);
   border-bottom: 1.5px solid var(--ember-soft);
   transform: rotate(45deg);
-  transition: transform .15s;
+  transition: transform 0.15s;
 }
 
 .sel.open .sel-chevron {

@@ -3,8 +3,8 @@
    и растянутыми под их метрики: при подмене строки не прыгают. Числа посчитаны
    fontaine (тем же, чем считает @nuxt/fonts) по метрикам обоих шрифтов. */
 @font-face {
-  font-family: 'Alegreya Fallback';
-  src: local('Georgia');
+  font-family: "Alegreya Fallback";
+  src: local("Georgia");
   size-adjust: 91.9693%;
   ascent-override: 110.4716%;
   descent-override: 37.5125%;
@@ -12,8 +12,8 @@
 }
 
 @font-face {
-  font-family: 'Inter Fallback';
-  src: local('Arial');
+  font-family: "Inter Fallback";
+  src: local("Arial");
   size-adjust: 107.1194%;
   ascent-override: 90.4365%;
   descent-override: 22.518%;
@@ -23,73 +23,88 @@
 /* ─── Design Tokens ──────────────────────────────────────── */
 :root {
   /* Backgrounds */
-  --bg-dark:     #1f1813;
-  --bg-dark-2:   #2b221c;
+  --bg-dark: #1f1813;
+  --bg-dark-2: #2b221c;
 
   /* Text */
-  --parchment:   #f1e6d2;
+  --parchment: #f1e6d2;
   --parchment-2: #e8dac0;
-  --ink:         #2a1e16;
-  --ink-soft:    #5a4c3e;
-  --text-muted:  rgba(241, 230, 210, 0.65); /* приглушённый текст на тёмном фоне */
+  --ink: #2a1e16;
+  --ink-soft: #5a4c3e;
+  --text-muted: rgba(
+    241,
+    230,
+    210,
+    0.65
+  ); /* приглушённый текст на тёмном фоне */
 
   /* Accent */
-  --ember:       #d6883e;
-  --ember-soft:  #e8b07a;
-  --moss:        #4b6149; /* подпись 14px на parchment-2 — 4.9:1 */
-  --gold:        #c9a02e;
+  --ember: #d6883e;
+  --ember-soft: #e8b07a;
+  --moss: #4b6149; /* подпись 14px на parchment-2 — 4.9:1 */
+  --gold: #c9a02e;
 
   /* Typography: оба с кириллицей, подключены @nuxt/fonts (nuxt.config.ts) */
-  --font-display: 'Alegreya', 'Alegreya Fallback', Georgia, serif;
-  --font-body:    'Inter', 'Inter Fallback', system-ui, sans-serif;
-  --font-reader:  var(--font-body); /* текст главы — тот же Inter, но вес 300 */
+  --font-display: "Alegreya", "Alegreya Fallback", Georgia, serif;
+  --font-body: "Inter", "Inter Fallback", system-ui, sans-serif;
+  --font-reader: var(--font-body); /* текст главы — тот же Inter, но вес 300 */
 
   /* Radius */
-  --radius-sm:    4px;
-  --radius-md:    8px;
-  --radius-lg:    12px;
-  --radius-pill:  999px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
   --radius-round: 50%;
 
   /* Status: в коде эти значения были записаны литералами */
-  --danger:       #e07070; /* ошибки и опасные действия на тёмном */
-  --danger-fill:  #a34a3f; /* заливка деструктивной кнопки; текст parchment на ней 4.7:1 */
+  --danger: #e07070; /* ошибки и опасные действия на тёмном */
+  --danger-fill: #a34a3f; /* заливка деструктивной кнопки; текст parchment на ней 4.7:1 */
 
   /* Рамка фокуса с клавиатуры: нужно от 3:1 к фону вокруг. ember-soft на тёмном
      около 9:1, на пергаменте только 1.6:1 — там светлые блоки ставят ink-soft. */
   /* Заливки пергаментом на тёмном: подложка поля, строка списка, наведение. */
-  --fill-faint:  rgba(241, 230, 210, .03);
-  --fill:        rgba(241, 230, 210, .05);
-  --fill-strong: rgba(241, 230, 210, .08);
-  --fill-bold:   rgba(241, 230, 210, .12);
+  --fill-faint: rgba(241, 230, 210, 0.03);
+  --fill: rgba(241, 230, 210, 0.05);
+  --fill-strong: rgba(241, 230, 210, 0.08);
+  --fill-bold: rgba(241, 230, 210, 0.12);
 
-  --focus-ring:       var(--ember-soft);
+  --focus-ring: var(--ember-soft);
   --focus-ring-light: var(--ink-soft);
 
   /* Слои. Значения прежние — у них только появились имена; порядок тот же. */
-  --z-dropdown: 50;   /* смайлики, меню поддержки */
-  --z-float:    90;   /* плавающие кнопки: колокольчик, настройки, полный экран */
-  --z-header:   100;  /* шапка */
-  --z-modal:    100;  /* окна; поверх шапки — тем, что идут в DOM позже */
-  --z-overlay:  200;  /* редактор главы, раскрытая панель уведомлений */
-  --z-sheet:    210;  /* подложка настроек читалки */
-  --z-reel:     300;  /* окно барабана */
-  --z-intro:    1000; /* заставка с летучими мышами, подпись персонажа */
-  --success:      #8fb07a; /* «идёт», «выиграно» на тёмном */
+  --z-dropdown: 50; /* смайлики, меню поддержки */
+  --z-float: 90; /* плавающие кнопки: колокольчик, настройки, полный экран */
+  --z-header: 100; /* шапка */
+  --z-modal: 100; /* окна; поверх шапки — тем, что идут в DOM позже */
+  --z-overlay: 200; /* редактор главы, раскрытая панель уведомлений */
+  --z-sheet: 210; /* подложка настроек читалки */
+  --z-reel: 300; /* окно барабана */
+  --z-intro: 1000; /* заставка с летучими мышами, подпись персонажа */
+  --success: #8fb07a; /* «идёт», «выиграно» на тёмном */
   --success-fill: #4b7145; /* попадание в игре */
 
   /* Scrim and lines */
-  --scrim:             rgba(20, 14, 10, 0.7);       /* подложка под модальными окнами */
-  --line-faint:        rgba(241, 230, 210, 0.08);   /* разделители, рамки карточек на тёмном */
-  --line:              rgba(241, 230, 210, 0.12);   /* рамки модалок и панелей на тёмном */
-  --line-strong:       rgba(241, 230, 210, 0.18);   /* рамки полей и кнопок на тёмном */
-  --line-bold:         rgba(241, 230, 210, 0.25);   /* рамка кнопки-призрака на тёмном */
-  --line-on-parchment: rgba(43, 30, 22, 0.08);      /* разделитель строк на пергаменте */
+  --scrim: rgba(20, 14, 10, 0.7); /* подложка под модальными окнами */
+  --line-faint: rgba(
+    241,
+    230,
+    210,
+    0.08
+  ); /* разделители, рамки карточек на тёмном */
+  --line: rgba(241, 230, 210, 0.12); /* рамки модалок и панелей на тёмном */
+  --line-strong: rgba(241, 230, 210, 0.18); /* рамки полей и кнопок на тёмном */
+  --line-bold: rgba(241, 230, 210, 0.25); /* рамка кнопки-призрака на тёмном */
+  --line-on-parchment: rgba(
+    43,
+    30,
+    22,
+    0.08
+  ); /* разделитель строк на пергаменте */
 
   /* Spacing: самые частые значения gap/padding/margin */
-  --space-4:  4px;
-  --space-6:  6px;
-  --space-8:  8px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
   --space-10: 10px;
   --space-12: 12px;
   --space-14: 14px;
@@ -101,11 +116,11 @@
   --space-48: 48px;
 
   /* Shadows */
-  --shadow-ember-lift: 0 6px 18px -6px rgba(214, 136, 62, .6);
-  --shadow-card-lift:  0 18px 30px -20px rgba(0, 0, 0, .9);
-  --shadow-popover:    0 8px 24px -8px rgba(0, 0, 0, .5);
-  --shadow-drawer:     12px 0 40px rgba(0, 0, 0, .45);
-  --shadow-dialog:     0 30px 80px rgba(0, 0, 0, .6);
+  --shadow-ember-lift: 0 6px 18px -6px rgba(214, 136, 62, 0.6);
+  --shadow-card-lift: 0 18px 30px -20px rgba(0, 0, 0, 0.9);
+  --shadow-popover: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+  --shadow-drawer: 12px 0 40px rgba(0, 0, 0, 0.45);
+  --shadow-dialog: 0 30px 80px rgba(0, 0, 0, 0.6);
 }
 
 /* ─── Reset & Base ───────────────────────────────────────── */
@@ -168,7 +183,9 @@ a {
 
 @media (max-width: 600px) {
   .hero-title,
-  .page-title { font-size: 30px; }
+  .page-title {
+    font-size: 30px;
+  }
 }
 
 .ui {
@@ -242,7 +259,12 @@ a {
   white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
-  transition: transform .15s, box-shadow .15s, background .15s, border-color .15s, color .15s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s,
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .btn--sm {
@@ -279,7 +301,7 @@ a {
 
 .btn--outline-danger {
   background: none;
-  border-color: rgba(224, 112, 112, .3);
+  border-color: rgba(224, 112, 112, 0.3);
   color: var(--danger);
 }
 
@@ -299,11 +321,11 @@ a {
 
 .btn--outline-danger:hover:not(:disabled) {
   border-color: var(--danger);
-  background: rgba(224, 112, 112, .1);
+  background: rgba(224, 112, 112, 0.1);
 }
 
 .btn:disabled {
-  opacity: .5;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -317,12 +339,14 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--icon-btn-border, rgba(43, 32, 24, .18));
+  border: 1px solid var(--icon-btn-border, rgba(43, 32, 24, 0.18));
   color: var(--icon-btn-color, var(--ink-soft));
   font-size: var(--icon-btn-glyph, 20px);
   background: none;
   cursor: pointer;
-  transition: border-color .15s, color .15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .icon-btn:hover {
@@ -332,7 +356,7 @@ a {
 
 .icon-btn.is-loading {
   pointer-events: none;
-  opacity: .7;
+  opacity: 0.7;
 }
 
 .icon-btn.is-done {
@@ -357,12 +381,15 @@ a {
 .card--tile {
   overflow: hidden;
   border-color: var(--line-faint);
-  transition: border-color .15s, transform .15s, box-shadow .15s;
+  transition:
+    border-color 0.15s,
+    transform 0.15s,
+    box-shadow 0.15s;
 }
 
 .card--tile:hover,
 .card--tile:focus-visible {
-  border-color: rgba(232, 176, 122, .45);
+  border-color: rgba(232, 176, 122, 0.45);
   transform: translateY(-2px);
   box-shadow: var(--shadow-card-lift);
 }
@@ -379,7 +406,7 @@ a {
    блок — списки подсказок, таблицы, модалки. */
 .thin-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(241, 230, 210, .22) transparent;
+  scrollbar-color: rgba(241, 230, 210, 0.22) transparent;
 }
 
 .thin-scroll::-webkit-scrollbar {
@@ -393,21 +420,23 @@ a {
 
 .thin-scroll::-webkit-scrollbar-thumb {
   border-radius: 3px;
-  background: rgba(241, 230, 210, .18);
+  background: rgba(241, 230, 210, 0.18);
 }
 
 .thin-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(241, 230, 210, .32);
+  background: rgba(241, 230, 210, 0.32);
 }
 
 /* ─── Spin animation ─────────────────────────────────────── */
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   * {
-    animation-duration: .001ms !important;
-    transition-duration: .001ms !important;
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
   }
 }

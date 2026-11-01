@@ -8,43 +8,41 @@
  * отсутствующей.
  */
 
-const supported = ref(false)
-const active = ref(false)
+const supported = ref(false);
+const active = ref(false);
 
 // Пока идёт запрос на полный экран, повторный клик не шлём: браузер отвечает
 // не сразу, и второй запрос он отклоняет с ошибкой в консоли.
-let busy = false
+let busy = false;
 
-const { tucked } = useScrollTuck()
+const { tucked } = useScrollTuck();
 
 const toggle = async () => {
-  if (busy) return
-  busy = true
+  if (busy) return;
+  busy = true;
   try {
-    if (document.fullscreenElement) await document.exitFullscreen()
-    else await document.documentElement.requestFullscreen()
-  }
-  catch {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch {
     // Браузер отказал — например, без жеста пользователя. Значок остаётся как есть.
+  } finally {
+    busy = false;
   }
-  finally {
-    busy = false
-  }
-}
+};
 
 const onChange = () => {
-  active.value = Boolean(document.fullscreenElement)
-}
+  active.value = Boolean(document.fullscreenElement);
+};
 
 onMounted(() => {
-  supported.value = Boolean(document.fullscreenEnabled)
-  onChange()
-  document.addEventListener('fullscreenchange', onChange)
-})
+  supported.value = Boolean(document.fullscreenEnabled);
+  onChange();
+  document.addEventListener("fullscreenchange", onChange);
+});
 
 onUnmounted(() => {
-  document.removeEventListener('fullscreenchange', onChange)
-})
+  document.removeEventListener("fullscreenchange", onChange);
+});
 </script>
 
 <template>
@@ -57,16 +55,44 @@ onUnmounted(() => {
       :class="{ 'is-active': active }"
       type="button"
       :title="active ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'"
-      :aria-label="active ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'"
+      :aria-label="
+        active ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'
+      "
       :aria-pressed="active"
       @click="toggle"
     >
       <!-- Углы рамки: развернуть — углы смотрят наружу, свернуть — внутрь. -->
-      <svg v-if="!active" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <path d="M2 6V2h4M12 2h4v4M16 12v4h-4M6 16H2v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg
+        v-if="!active"
+        width="18"
+        height="18"
+        viewBox="0 0 18 18"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M2 6V2h4M12 2h4v4M16 12v4h-4M6 16H2v-4"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
       </svg>
-      <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <path d="M6 2v4H2M12 2v4h4M16 12h-4v4M2 12h4v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg
+        v-else
+        width="18"
+        height="18"
+        viewBox="0 0 18 18"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M6 2v4H2M12 2v4h4M16 12h-4v4M2 12h4v4"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
       </svg>
     </button>
   </div>
@@ -96,7 +122,9 @@ onUnmounted(() => {
   justify-content: flex-end;
   /* Сама рейка прозрачна для мыши: кликается только кнопка. */
   pointer-events: none;
-  transition: transform .25s ease, opacity .25s ease;
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease;
 }
 
 .fs-btn {
@@ -111,7 +139,9 @@ onUnmounted(() => {
   background: var(--rd-bg, var(--bg-dark-2));
   color: var(--rd-muted, var(--parchment-2));
   cursor: pointer;
-  transition: border-color .15s, color .15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .fs-btn:hover {
@@ -128,12 +158,18 @@ onUnmounted(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fs-rail { transition: none; }
+  .fs-rail {
+    transition: none;
+  }
 }
 
 /* В полном экране шапки нет — значок поднимается на её место. */
-html:fullscreen .fs-rail { top: 16px; }
-html:-webkit-full-screen .fs-rail { top: 16px; }
+html:fullscreen .fs-rail {
+  top: 16px;
+}
+html:-webkit-full-screen .fs-rail {
+  top: 16px;
+}
 
 /* На телефоне поля и ширина колонки другие — повторяем их и здесь. */
 @media (max-width: 600px) {

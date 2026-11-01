@@ -1,44 +1,65 @@
-import { displayNameKey, nameFromEmail } from '#shared/utils/displayName'
-import { freeDisplayName } from '../../utils/display-name'
-import { useDb } from '../../utils/db'
-import { users } from '../../database/schema'
-import { eq } from 'drizzle-orm'
-import bcrypt from 'bcryptjs'
-import { grantDefaultFrame } from '../../utils/frames'
+import { displayNameKey, nameFromEmail } from "#shared/utils/displayName";
+import { freeDisplayName } from "../../utils/display-name";
+import { useDb } from "../../utils/db";
+import { users } from "../../database/schema";
+import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
+import { grantDefaultFrame } from "../../utils/frames";
 
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
-  const sessionUser = session.user as { id: number; role: string } | undefined
-  if(!sessionUser?.id || sessionUser.role !== 'admin'){
-    throw createError({ statusCode: 403, message: 'Нет доступа' })
+  const session = await getUserSession(event);
+  const sessionUser = session.user as { id: number; role: string } | undefined;
+  if (!sessionUser?.id || sessionUser.role !== "admin") {
+    throw createError({ statusCode: 403, message: "Нет доступа" });
   }
 
-  const { email, password, role = 'admin' } = await readBody(event)
-  if(!email || !password) throw createError({ statusCode: 400, message: 'email и password обязательны' })
-  if(password.length < 6) throw createError({ statusCode: 400, message: 'Пароль минимум 6 символов' })
-  if(!['admin', 'reader'].includes(role)) throw createError({ statusCode: 400, message: 'Неверная роль' })
+  const { email, password, role = "admin" } = await readBody(event);
+  if (!email || !password)
+    throw createError({
+      statusCode: 400,
+      message: "email и password обязательны",
+    });
+  if (password.length < 6)
+    throw createError({
+      statusCode: 400,
+      message: "Пароль минимум 6 символов",
+    });
+  if (!["admin", "reader"].includes(role))
+    throw createError({ statusCode: 400, message: "Неверная роль" });
 
-  const db = useDb()
-  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email.trim().toLowerCase()))
-  if(existing) throw createError({ statusCode: 409, message: 'Пользователь с таким email уже существует' })
+  const db = useDb();
+  const [existing] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email.trim().toLowerCase()));
+  if (existing)
+    throw createError({
+      statusCode: 409,
+      message: "Пользователь с таким email уже существует",
+    });
 
-  const hash = await bcrypt.hash(password, 12)
+  const hash = await bcrypt.hash(password, 12);
 
   // Подписью такому аккаунту служит почта до собаки — значит, и занимать имя
   // надо ею, иначе под этой подписью сможет отметиться кто-то ещё. Совпало с
   // чужим — берём ближайшее свободное; поправить можно в профиле.
-  const name = await freeDisplayName(nameFromEmail(String(email).trim().toLowerCase()))
+  const name = await freeDisplayName(
+    nameFromEmail(String(email).trim().toLowerCase()),
+  );
 
-  const [created] = await db.insert(users).values({
-    email: email.trim().toLowerCase(),
-    passwordHash: hash,
-    role,
-    displayName: name,
-    displayNameKey: displayNameKey(name) || null,
-  }).returning({ id: users.id })
+  const [created] = await db
+    .insert(users)
+    .values({
+      email: email.trim().toLowerCase(),
+      passwordHash: hash,
+      role,
+      displayName: name,
+      displayNameKey: displayNameKey(name) || null,
+    })
+    .returning({ id: users.id });
 
   // Заведённый руками — такой же новичок, и рамку новичка получает так же.
-  await grantDefaultFrame(created!.id)
+  await grantDefaultFrame(created!.id);
 
-  return { ok: true }
-})
+  return { ok: true };
+});

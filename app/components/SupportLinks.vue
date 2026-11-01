@@ -1,32 +1,32 @@
 <script setup lang="ts">
 const props = defineProps<{
-  boostyUrl?: string
-  tributeUrl?: string
-  linkClass?: string
+  boostyUrl?: string;
+  tributeUrl?: string;
+  linkClass?: string;
   /** Открывать карточку вверх, а не вниз — для футера, который внизу страницы
    * и там просто нет места снизу до конца скролла. */
-  openUp?: boolean
-}>()
+  openUp?: boolean;
+}>();
 
-const emit = defineEmits<{ select: [] }>()
+const emit = defineEmits<{ select: [] }>();
 
-const hasBoth = computed(() => !!props.boostyUrl && !!props.tributeUrl)
-const singleUrl = computed(() => props.boostyUrl || props.tributeUrl || '')
+const hasBoth = computed(() => !!props.boostyUrl && !!props.tributeUrl);
+const singleUrl = computed(() => props.boostyUrl || props.tributeUrl || "");
 
-const open = ref(false)
-const root = ref<HTMLElement | null>(null)
+const open = ref(false);
+const root = ref<HTMLElement | null>(null);
 
 const selectOption = () => {
-  open.value = false
-  emit('select')
-}
+  open.value = false;
+  emit("select");
+};
 
 const onDocClick = (e: MouseEvent) => {
-  if (root.value && !root.value.contains(e.target as Node)) open.value = false
-}
+  if (root.value && !root.value.contains(e.target as Node)) open.value = false;
+};
 
-onMounted(() => document.addEventListener('click', onDocClick))
-onUnmounted(() => document.removeEventListener('click', onDocClick))
+onMounted(() => document.addEventListener("click", onDocClick));
+onUnmounted(() => document.removeEventListener("click", onDocClick));
 </script>
 
 <template>
@@ -35,11 +35,22 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       Поддержать
     </button>
     <div v-if="open" class="support-menu" :class="{ 'open-up': openUp }">
-      <a :href="boostyUrl" target="_blank" rel="noopener" @click="selectOption">Boosty</a>
-      <a :href="tributeUrl" target="_blank" rel="noopener" @click="selectOption">Tribute</a>
+      <a :href="boostyUrl" target="_blank" rel="noopener" @click="selectOption"
+        >Boosty</a
+      >
+      <a :href="tributeUrl" target="_blank" rel="noopener" @click="selectOption"
+        >Tribute</a
+      >
     </div>
   </span>
-  <a v-else-if="singleUrl" :href="singleUrl" target="_blank" rel="noopener" :class="linkClass" @click="emit('select')">
+  <a
+    v-else-if="singleUrl"
+    :href="singleUrl"
+    target="_blank"
+    rel="noopener"
+    :class="linkClass"
+    @click="emit('select')"
+  >
     Поддержать
   </a>
 </template>

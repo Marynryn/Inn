@@ -1,56 +1,83 @@
 <script setup lang="ts">
-import { NuxtLink } from '#components'
-import type { AvatarFrame } from '#shared/utils/avatarFrames'
+import { NuxtLink } from "#components";
+import type { AvatarFrame } from "#shared/utils/avatarFrames";
 
 /**
  * Все читатели — чтобы админ мог ходить по их профилям. Строка ведёт на
  * публичную страницу читателя; «назад» возвращает на эту вкладку.
  */
 type Reader = {
-  id: number
-  name: string
-  code: string | null
-  isAdmin: boolean
-  avatarUrl: string | null
-  avatarFrame: AvatarFrame | null
-  providers: string[]
-  createdAt: string
-  online: boolean
-}
+  id: number;
+  name: string;
+  code: string | null;
+  isAdmin: boolean;
+  avatarUrl: string | null;
+  avatarFrame: AvatarFrame | null;
+  providers: string[];
+  createdAt: string;
+  online: boolean;
+};
 
-const { data: readers, pending, error, refresh } = await useFetch<Reader[]>('/api/admin/readers', { default: () => [] })
+const {
+  data: readers,
+  pending,
+  error,
+  refresh,
+} = await useFetch<Reader[]>("/api/admin/readers", { default: () => [] });
 
 // Кто на сайте, меняется на глазах — пока вкладка открыта, тихо перечитываем.
 // Свёрнутую вкладку браузера не трогаем: смотреть всё равно некому.
-let timer: ReturnType<typeof setInterval> | null = null
+let timer: ReturnType<typeof setInterval> | null = null;
 onMounted(() => {
-  timer = setInterval(() => { if (document.visibilityState === 'visible') refresh() }, 30_000)
-})
-onBeforeUnmount(() => { if (timer) clearInterval(timer) })
+  timer = setInterval(() => {
+    if (document.visibilityState === "visible") refresh();
+  }, 30_000);
+});
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer);
+});
 
-const PROVIDER: Record<string, string> = { google: 'Google', telegram: 'Телеграм' }
-const via = (r: Reader) => r.providers.length ? r.providers.map(p => PROVIDER[p] ?? p).join(' · ') : 'пароль'
+const PROVIDER: Record<string, string> = {
+  google: "Google",
+  telegram: "Телеграм",
+};
+const via = (r: Reader) =>
+  r.providers.length
+    ? r.providers.map((p) => PROVIDER[p] ?? p).join(" · ")
+    : "пароль";
 
-const date = (iso: string) => iso.slice(0, 10).split('-').reverse().join('.')
+const date = (iso: string) => iso.slice(0, 10).split("-").reverse().join(".");
 
 // Последние пять глав читателя: раскрываются под строкой по кнопке, грузятся при
 // первом раскрытии и дальше берутся из памяти — перечитывать их каждые 30 секунд незачем.
-type Progress = { id: string, title: string | null, updatedAt: string }[]
-const openCode = ref<string | null>(null)
-const progress = reactive<Record<string, Progress | 'error'>>({})
-const marks = computed(() => openCode.value ? progress[openCode.value] : undefined)
+type Progress = { id: string; title: string | null; updatedAt: string }[];
+const openCode = ref<string | null>(null);
+const progress = reactive<Record<string, Progress | "error">>({});
+const marks = computed(() =>
+  openCode.value ? progress[openCode.value] : undefined,
+);
 
 const toggle = async (code: string) => {
-  openCode.value = openCode.value === code ? null : code
-  if (openCode.value !== code || progress[code]) return
-  try { progress[code] = await $fetch<Progress>(`/api/admin/readers/${code}/progress`) }
-  catch { progress[code] = 'error' }
-}
+  openCode.value = openCode.value === code ? null : code;
+  if (openCode.value !== code || progress[code]) return;
+  try {
+    progress[code] = await $fetch<Progress>(
+      `/api/admin/readers/${code}/progress`,
+    );
+  } catch {
+    progress[code] = "error";
+  }
+};
 
 // В базе время по UTC без пояса — показываем по Москве.
-const when = (sqlTime: string) => new Date(`${sqlTime.replace(' ', 'T')}Z`).toLocaleString('ru', {
-  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow',
-})
+const when = (sqlTime: string) =>
+  new Date(`${sqlTime.replace(" ", "T")}Z`).toLocaleString("ru", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Moscow",
+  });
 </script>
 
 <template>
@@ -68,15 +95,43 @@ const when = (sqlTime: string) => new Date(`${sqlTime.replace(' ', 'T')}Z`).toLo
             :to="r.code ? `/reader/${r.code}` : undefined"
           >
             <span class="ava">
-              <UserAvatar :src="r.avatarUrl" :name="r.name" :frame="r.avatarFrame" :size="36" alt="" />
-              <span v-if="r.online" class="online" title="Сейчас на сайте" aria-label="Сейчас на сайте" />
+              <UserAvatar
+                :src="r.avatarUrl"
+                :name="r.name"
+                :frame="r.avatarFrame"
+                :size="36"
+                alt=""
+              />
+              <span
+                v-if="r.online"
+                class="online"
+                title="Сейчас на сайте"
+                aria-label="Сейчас на сайте"
+              />
             </span>
             <span class="who">
-              <span class="name">{{ r.name }}<span v-if="r.isAdmin" class="tag">админ</span></span>
+              <span class="name"
+                >{{ r.name
+                }}<span v-if="r.isAdmin" class="tag">админ</span></span
+              >
               <span class="meta">{{ via(r) }} · с {{ date(r.createdAt) }}</span>
             </span>
-            <svg v-if="r.code" class="go" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-              <path d="M9 18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            <svg
+              v-if="r.code"
+              class="go"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              aria-hidden="true"
+            >
+              <path
+                d="M9 18l6-6-6-6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
             </svg>
           </component>
           <button
@@ -90,18 +145,33 @@ const when = (sqlTime: string) => new Date(`${sqlTime.replace(' ', 'T')}Z`).toLo
             @click="toggle(r.code)"
           >
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-              <path d="M7 4h10v16l-5-4-5 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+              <path
+                d="M7 4h10v16l-5-4-5 4z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+              />
             </svg>
           </button>
         </div>
 
         <div v-if="r.code && openCode === r.code" class="marks">
           <p v-if="!marks" class="note">Смотрим…</p>
-          <p v-else-if="marks === 'error'" class="note">Закладки не загрузились.</p>
-          <p v-else-if="!marks.length" class="note">Ещё не открывал ни одной главы.</p>
+          <p v-else-if="marks === 'error'" class="note">
+            Закладки не загрузились.
+          </p>
+          <p v-else-if="!marks.length" class="note">
+            Ещё не открывал ни одной главы.
+          </p>
           <ul v-else class="marks-list">
             <li v-for="c in marks" :key="c.id">
-              <NuxtLink v-if="c.title" :to="`/chapter/${c.id}`" class="mark-title">{{ c.title }}</NuxtLink>
+              <NuxtLink
+                v-if="c.title"
+                :to="`/chapter/${c.id}`"
+                class="mark-title"
+                >{{ c.title }}</NuxtLink
+              >
               <span v-else class="mark-title gone">снята с сайта</span>
               <span class="mark-when">{{ when(c.updatedAt) }}</span>
             </li>
@@ -116,7 +186,7 @@ const when = (sqlTime: string) => new Date(`${sqlTime.replace(' ', 'T')}Z`).toLo
 .note {
   margin: 0;
   font-size: 13px;
-  color: rgba(241, 230, 210, .55);
+  color: rgba(241, 230, 210, 0.55);
 }
 
 .list {
@@ -189,17 +259,17 @@ a.row:hover {
   border-radius: var(--radius-sm);
   font-size: 11px;
   color: var(--ember-soft);
-  background: rgba(232, 176, 122, .12);
+  background: rgba(232, 176, 122, 0.12);
 }
 
 .meta {
   font-size: 12px;
-  color: rgba(241, 230, 210, .5);
+  color: rgba(241, 230, 210, 0.5);
 }
 
 .go {
   flex: none;
-  color: rgba(241, 230, 210, .35);
+  color: rgba(241, 230, 210, 0.35);
 }
 
 a.row:hover .go {
@@ -213,7 +283,7 @@ a.row:hover .go {
   border: 0;
   border-radius: var(--radius-sm);
   background: none;
-  color: rgba(241, 230, 210, .35);
+  color: rgba(241, 230, 210, 0.35);
   cursor: pointer;
 }
 
@@ -261,7 +331,7 @@ a.mark-title:hover {
 }
 
 .mark-title.gone {
-  color: rgba(241, 230, 210, .4);
+  color: rgba(241, 230, 210, 0.4);
   font-style: italic;
 }
 
@@ -269,7 +339,7 @@ a.mark-title:hover {
   flex: none;
   font-size: 12px;
   font-variant-numeric: tabular-nums lining-nums;
-  color: rgba(241, 230, 210, .5);
+  color: rgba(241, 230, 210, 0.5);
 }
 
 @media (max-width: 560px) {

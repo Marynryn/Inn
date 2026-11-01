@@ -1,22 +1,26 @@
 <script setup lang="ts">
 const props = defineProps<{
-  url?: string
-  title?: string
-  text?: string
+  url?: string;
+  title?: string;
+  text?: string;
   /** Вариант для тёмной подложки — страница главы. По умолчанию светлая, как оглавление. */
-  onDark?: boolean
+  onDark?: boolean;
   /**
    * Где стоит плашка: 'chapter', 'home'. Уходит в Clarity событием
    * tg_click_<place> — так видно, какая из плашек вообще приводит людей.
    */
-  place?: string
-}>()
+  place?: string;
+}>();
 
 // Тексты редактируются в админке; значения тут — запасные, если настройка пустая.
-const heading = computed(() => props.title || 'Не пропусти новую главу')
-const body = computed(() => props.text || 'Бот в телеграм-канале присылает уведомление о каждой новой главе сразу после публикации.')
+const heading = computed(() => props.title || "Не пропусти новую главу");
+const body = computed(
+  () =>
+    props.text ||
+    "Бот в телеграм-канале присылает уведомление о каждой новой главе сразу после публикации.",
+);
 
-const track = () => useClarity().event(`tg_click_${props.place || 'other'}`)
+const track = () => useClarity().event(`tg_click_${props.place || "other"}`);
 </script>
 
 <template>
@@ -25,8 +29,12 @@ const track = () => useClarity().event(`tg_click_${props.place || 'other'}`)
 
     <span class="tg-icon" aria-hidden="true">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M21.5 3.5 2.8 10.7c-.9.35-.88 1.63.03 1.95l4.6 1.6 1.77 5.35c.26.78 1.26.98 1.8.36l2.5-2.85 4.62 3.4c.6.44 1.46.11 1.62-.62l3.2-14.8c.17-.8-.62-1.47-1.44-1.6z" fill="currentColor" opacity=".9"/>
-        <path d="m7.43 14.25 9.9-6.9-8.1 8.35z" fill="#2b221c" opacity=".35"/>
+        <path
+          d="M21.5 3.5 2.8 10.7c-.9.35-.88 1.63.03 1.95l4.6 1.6 1.77 5.35c.26.78 1.26.98 1.8.36l2.5-2.85 4.62 3.4c.6.44 1.46.11 1.62-.62l3.2-14.8c.17-.8-.62-1.47-1.44-1.6z"
+          fill="currentColor"
+          opacity=".9"
+        />
+        <path d="m7.43 14.25 9.9-6.9-8.1 8.35z" fill="#2b221c" opacity=".35" />
       </svg>
     </span>
 
@@ -35,7 +43,13 @@ const track = () => useClarity().event(`tg_click_${props.place || 'other'}`)
       <p class="tg-sub">{{ body }}</p>
     </div>
 
-    <a :href="url" target="_blank" rel="noopener" class="btn btn--lg btn--primary tg-btn" @click="track">
+    <a
+      :href="url"
+      target="_blank"
+      rel="noopener"
+      class="btn btn--lg btn--primary tg-btn"
+      @click="track"
+    >
       Подписаться
     </a>
   </aside>
@@ -50,10 +64,10 @@ const track = () => useClarity().event(`tg_click_${props.place || 'other'}`)
   align-items: center;
   gap: 16px;
   padding: 18px 22px;
-  border: 1px solid rgba(43, 30, 22, .14);
+  border: 1px solid rgba(43, 30, 22, 0.14);
   border-left: 3px solid var(--ember);
   border-radius: var(--radius-md);
-  background: rgba(214, 136, 62, .06);
+  background: rgba(214, 136, 62, 0.06);
 }
 
 .tg-icon {
@@ -92,9 +106,15 @@ const track = () => useClarity().event(`tg_click_${props.place || 'other'}`)
 /* Расходящееся кольцо вместо изменения размера самой кнопки — иначе она
    дёргала бы соседний текст при каждом такте. */
 @keyframes tg-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(214, 136, 62, .45); }
-  65% { box-shadow: 0 0 0 12px rgba(214, 136, 62, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(214, 136, 62, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(214, 136, 62, 0.45);
+  }
+  65% {
+    box-shadow: 0 0 0 12px rgba(214, 136, 62, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(214, 136, 62, 0);
+  }
 }
 
 .tg-btn:hover {

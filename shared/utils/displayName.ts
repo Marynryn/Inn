@@ -4,11 +4,14 @@
  * бы кто угодно, а по комментариям этого не различить.
  */
 
-export const DISPLAY_NAME_MAX = 40
+export const DISPLAY_NAME_MAX = 40;
 
 /** Имя, каким его увидят: без краёв, без сдвоенных пробелов и не длиннее сорока. */
 export function normalizeDisplayName(raw: unknown): string {
-  return String(raw ?? '').replace(/\s+/g, ' ').trim().slice(0, DISPLAY_NAME_MAX)
+  return String(raw ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, DISPLAY_NAME_MAX);
 }
 
 /**
@@ -17,7 +20,7 @@ export function normalizeDisplayName(raw: unknown): string {
  * означает «имени нет» — такие ключи не хранятся и никого не занимают.
  */
 export function displayNameKey(raw: unknown): string {
-  return normalizeDisplayName(raw).toLowerCase()
+  return normalizeDisplayName(raw).toLowerCase();
 }
 
 /**
@@ -25,9 +28,10 @@ export function displayNameKey(raw: unknown): string {
  * нельзя, а подписаться ими может любой гость: иначе первый же
  * зарегистрировавшийся «Гость» отобрал бы у всех остальных подпись по умолчанию.
  */
-export const GENERIC_NAME_KEYS = ['гость', 'читатель']
+export const GENERIC_NAME_KEYS = ["гость", "читатель"];
 
-export const isGenericName = (raw: unknown) => GENERIC_NAME_KEYS.includes(displayNameKey(raw))
+export const isGenericName = (raw: unknown) =>
+  GENERIC_NAME_KEYS.includes(displayNameKey(raw));
 
 /**
  * Служебные имена. Они не достаются никому, даже если сейчас свободны: назовись
@@ -35,12 +39,18 @@ export const isGenericName = (raw: unknown) => GENERIC_NAME_KEYS.includes(displa
  * Хозяйке сайта они, наоборот, разрешены: роль admin эту проверку проходит.
  */
 export const STAFF_NAME_KEYS = [
-  'admin', 'админ', 'administrator', 'администратор',
-  'moderator', 'модератор', 'таверна',
-]
+  "admin",
+  "админ",
+  "administrator",
+  "администратор",
+  "moderator",
+  "модератор",
+  "таверна",
+];
 
-export const isStaffName = (raw: unknown) => STAFF_NAME_KEYS.includes(displayNameKey(raw))
+export const isStaffName = (raw: unknown) =>
+  STAFF_NAME_KEYS.includes(displayNameKey(raw));
 
 /** Имя из почты: до собаки. Им подписан тот, кто своего имени не задавал. */
 export const nameFromEmail = (email: string | null | undefined) =>
-  normalizeDisplayName(email?.split('@')[0])
+  normalizeDisplayName(email?.split("@")[0]);

@@ -1,4 +1,4 @@
-import { blockExternalFetch } from '../utils/offline-guard'
+import { blockExternalFetch } from "../utils/offline-guard";
 
 /*
   Тестовый режим — без интернета. Тесты поднимают сайт с пустыми ключами
@@ -9,11 +9,13 @@ import { blockExternalFetch } from '../utils/offline-guard'
   достаточно. На боевом сервере переменной нет, и плагин молчит.
 */
 export default defineNitroPlugin(() => {
-  if (process.env.E2E_OFFLINE !== '1') return
+  if (process.env.E2E_OFFLINE !== "1") return;
 
-  globalThis.fetch = blockExternalFetch(globalThis.fetch, url => {
-    console.error(`[offline-guard] заблокирован запрос наружу: ${url}`)
-  })
+  globalThis.fetch = blockExternalFetch(globalThis.fetch, (url) => {
+    console.error(`[offline-guard] заблокирован запрос наружу: ${url}`);
+  });
 
-  console.log('[offline-guard] тестовый режим: запросы во внешний мир заблокированы')
-})
+  console.log(
+    "[offline-guard] тестовый режим: запросы во внешний мир заблокированы",
+  );
+});
