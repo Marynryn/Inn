@@ -18,6 +18,19 @@ const buildId = (
   process.env.RAILWAY_GIT_COMMIT_SHA || Date.now().toString(36)
 ).slice(0, 8);
 
+// Файлы шрифтов, которые грузим заранее (preload). Без этого браузер узнаёт о
+// них, только разобрав CSS, и даже из кэша они поспевали после первой
+// отрисовки — текст мелькал запасным шрифтом. Модуль сам preload для global
+// не ставит. Обе гарнитуры переменные: по файлу на кириллицу и латиницу.
+// Имя — отпечаток адреса у Google: сменят версию шрифта или веса в fonts —
+// имена станут другими, и тест «шрифты грузятся заранее» это поймает.
+const PRELOAD_FONTS = [
+  "sDtdTUBYB7C2iFV5nHUtFXZXie8p_hMS6hAv5gIFKko-5E_xVTFw_PhkazLqZGxIEfOtHM9KVQh__wt8Wp-F3HM", // Alegreya, кириллица
+  "H26g2x_Fd3LETlZ5WbzysVpCKn2OzrBWDx-iASuKOZ0-Tm0YSITo0bripBPVGT6Pw6JQXenlhrfJ48ZuLqjttaA", // Alegreya, латиница
+  "UzhR3nAaijOxr33OombACPQO7z-6yxLefOdxL2qrdkM-a0beAYA6HgY0fQ5vpHiCL_P_ChfPRJkoN6xel0ZbT_M", // Inter, кириллица
+  "HgJel4iAS5mDVqJaDUYKmxaMJg4zKHTGmyD1FQkOsTM-2hVuuQIZ4GSGMgNv6dvlqz7cfD6lr7xLohUph7OCgFg", // Inter, латиница
+];
+
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
@@ -70,6 +83,13 @@ export default defineNuxtConfig({
       link: [
         { rel: "icon", type: "image/png", href: "/fav.png" },
         { rel: "apple-touch-icon", href: "/fav.png" },
+        ...PRELOAD_FONTS.map((name) => ({
+          rel: "preload",
+          as: "font",
+          type: "font/woff2",
+          href: `/_fonts/${name}.woff2`,
+          crossorigin: "",
+        })),
       ],
     },
   },

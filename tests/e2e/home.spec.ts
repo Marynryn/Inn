@@ -74,4 +74,27 @@ test.describe("Главная", () => {
     await sign.click();
     await expect(page).toHaveURL(/\/characters$/);
   });
+
+  // Список файлов в nuxt.config (PRELOAD_FONTS) написан руками. Сменит Google
+  // версию шрифта или поменяются веса — имена станут другими, preload начнёт
+  // качать мимо, и текст снова замелькает запасным шрифтом.
+  test("шрифты грузятся заранее — ровно те, что нужны странице", async ({
+    page,
+  }) => {
+    await open(page, "/");
+    await page.evaluate(() => document.fonts.ready);
+    const { preloaded, used } = await page.evaluate(() => ({
+      preloaded: [
+        ...document.querySelectorAll<HTMLLinkElement>(
+          "link[rel=preload][as=font]",
+        ),
+      ].map((l) => new URL(l.href).pathname),
+      used: performance
+        .getEntriesByType("resource")
+        .map((e) => new URL(e.name).pathname)
+        .filter((p) => p.endsWith(".woff2")),
+    }));
+    expect(used.length).toBeGreaterThan(0);
+    expect([...new Set(preloaded)].sort()).toEqual([...new Set(used)].sort());
+  });
 });
