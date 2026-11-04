@@ -28,3 +28,17 @@ export function useCharacterFlame() {
     }
   };
 }
+
+/**
+ * Чьи огоньки зажёг этот человек — отдельным запросом из браузера. В общем
+ * списке карточек их нет, чтобы список был одинаков для всех и годился для
+ * общего кеша. Не вышло — все огоньки просто остаются погашенными.
+ */
+export async function loadMyFlames(): Promise<Set<string>> {
+  try {
+    const { ids } = await $fetch<{ ids: string[] }>("/api/characters/lit");
+    return new Set(ids);
+  } catch {
+    return new Set();
+  }
+}

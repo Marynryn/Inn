@@ -3,9 +3,11 @@
 // сгенерированный список не сразу, и в шаблоне он оказывается undefined.
 import {
   CHARACTER_FILTERS,
+  toCharacter,
   type Character,
   type CharacterFilterKey,
   type Origin,
+  type PublicCharacter,
 } from "#shared/utils/characters";
 
 type Sort = "name" | "flames";
@@ -14,10 +16,43 @@ const auth = useAuthStore();
 const { data: settings } = await useFetch("/api/settings");
 // deep: огонёк меняет поля карточки на месте, и без глубокой реактивности
 // (в Nuxt 4 она по умолчанию выключена) страница этого не увидит.
-const { data } = await useFetch<{ characters: Character[] }>(
-  "/api/characters",
-  { deep: true },
-);
+//
+// Список одинаков для всех: без своих огоньков и без спрятанных карточек.
+// Личное достраивается в браузере после загрузки — огоньки из
+// /api/characters/lit, а админу полный список из /api/admin/characters.
+const { data } = await useFetch("/api/characters", {
+  deep: true,
+  transform: (res: { characters: PublicCharacter[] }) => ({
+    characters: res.characters.map(toCharacter),
+  }),
+});
+
+const applyMyFlames = async () => {
+  const mine = await loadMyFlames();
+  for (const c of data.value?.characters ?? []) c.lit = mine.has(c.id);
+};
+
+onMounted(() => {
+  applyMyFlames();
+  // Пользователь в сторе может появиться и после монтирования: плагин не ждёт
+  // ответа /api/auth/me.
+  watch(
+    () => auth.isAdmin,
+    async (isAdmin) => {
+      if (!isAdmin) return;
+      try {
+        const res = await $fetch<{
+          characters: (PublicCharacter & { hidden: boolean })[];
+        }>("/api/admin/characters");
+        data.value = { characters: res.characters.map(toCharacter) };
+        await applyMyFlames();
+      } catch {
+        // не вышло — админ видит то же, что читатель
+      }
+    },
+    { immediate: true },
+  );
+});
 
 const characters = computed(() => data.value?.characters ?? []);
 

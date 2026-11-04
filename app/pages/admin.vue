@@ -13,8 +13,11 @@ const { data: settings, refresh: refreshSettings } =
   await useFetch("/api/settings");
 
 // --- Список глав ---
-const { data: chaptersData, refresh: refreshChapters } =
-  await useFetch("/api/chapters");
+// Свой эндпоинт, с черновиками и полем isPublished: публичный /api/chapters
+// отдаёт только опубликованные, кто бы ни спрашивал.
+const { data: chaptersData, refresh: refreshChapters } = await useFetch(
+  "/api/admin/chapters",
+);
 const chapterList = ref<any[]>([]);
 watch(
   chaptersData,

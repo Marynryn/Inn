@@ -16,30 +16,29 @@ const mineFilter = (actor: { userId: number | null; ip: string }) =>
     ? eq(characterFlames.userId, actor.userId)
     : and(eq(characterFlames.ip, actor.ip), isNull(characterFlames.userId));
 
-/** Счётчики по всем персонажам и те, что зажёг этот человек. */
-export async function flameSummary(event: H3Event) {
-  const db = useDb();
-  const actor = await flameActor(event);
-
-  const counts = await db
+/**
+ * Счётчики по всем персонажам. Одинаковы для всех, кто спрашивает: ни сессия,
+ * ни IP сюда не входят, поэтому их можно отдавать в общем списке.
+ */
+export async function flameCounts(): Promise<Record<string, number>> {
+  const rows = await useDb()
     .select({
       characterId: characterFlames.characterId,
       count: sql<number>`count(*)`,
     })
     .from(characterFlames)
     .groupBy(characterFlames.characterId);
+  return Object.fromEntries(rows.map((r) => [r.characterId, Number(r.count)]));
+}
 
-  const mine = await db
+/** Персонажи, которым этот человек зажёг огонёк. Только для личного запроса. */
+export async function myFlames(event: H3Event): Promise<string[]> {
+  const actor = await flameActor(event);
+  const rows = await useDb()
     .select({ characterId: characterFlames.characterId })
     .from(characterFlames)
     .where(mineFilter(actor));
-
-  return {
-    counts: Object.fromEntries(
-      counts.map((r) => [r.characterId, Number(r.count)]),
-    ),
-    mine: new Set(mine.map((r) => r.characterId)),
-  };
+  return rows.map((r) => r.characterId);
 }
 
 /** Поставить или снять огонёк; возвращает новое состояние для этого персонажа. */

@@ -24,6 +24,7 @@ test.describe("Панель администратора", () => {
   test("гостю и читателю в API панели нет хода", async ({ page }) => {
     expect((await page.request.get("/api/admin/stats")).status()).toBe(403);
     expect((await page.request.get("/api/admin/users")).status()).toBe(403);
+    expect((await page.request.get("/api/admin/chapters")).status()).toBe(403);
 
     await login(page, READER);
     expect((await page.request.get("/api/admin/stats")).status()).toBe(403);
@@ -176,6 +177,37 @@ test.describe("Панель администратора", () => {
     expect(show.ok()).toBeTruthy();
     const after = await (await page.request.get("/api/chapters")).json();
     expect(after.map((c: any) => c.id)).toContain(id);
+  });
+
+  test("публичный список глав не зависит от того, кто спрашивает", async ({
+    page,
+    browser,
+  }) => {
+    await login(page, ADMIN);
+    const id = CHAPTERS[2]!.id;
+    const hide = await editChapter(page, id, { isPublished: false });
+    expect(hide.ok(), await hide.text()).toBeTruthy();
+
+    try {
+      // Под админской сессией публичный список тот же, что у гостя: без
+      // черновика и без поля isPublished. Иначе первый заход админа положил бы
+      // черновик в общий кеш страниц.
+      const asAdmin = await page.request.get("/api/chapters");
+      const adminList = await asAdmin.json();
+      expect(adminList.map((c: any) => c.id)).not.toContain(id);
+      for (const c of adminList) expect(c).not.toHaveProperty("isPublished");
+
+      const guest = await browser.newContext();
+      const asGuest = await guest.request.get("/api/chapters");
+      expect(await asAdmin.text()).toBe(await asGuest.text());
+      await guest.close();
+
+      // Черновик админ видит в своём списке — с меткой для панели.
+      const full = await (await page.request.get("/api/admin/chapters")).json();
+      expect(full.find((c: any) => c.id === id)?.isPublished).toBe(false);
+    } finally {
+      await editChapter(page, id, { isPublished: true });
+    }
   });
 
   test("переименование главы видно на главной", async ({ page }) => {
