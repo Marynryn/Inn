@@ -9,6 +9,8 @@ import { users } from "../../database/schema";
 import { eq } from "drizzle-orm";
 import { saveAvatar } from "../../utils/avatar";
 import bcrypt from "bcryptjs";
+import { requireStrongPassword } from "../../utils/password";
+import { toSessionUser } from "../../utils/identity";
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event);
@@ -56,12 +58,7 @@ export default defineEventHandler(async (event) => {
   const pwPart = form.find((f) => f.name === "newPassword");
   const pw = pwPart ? String(pwPart.data).trim() : "";
   if (pw) {
-    if (pw.length < 6)
-      throw createError({
-        statusCode: 400,
-        message: "Пароль минимум 6 символов",
-      });
-    updates.passwordHash = await bcrypt.hash(pw, 12);
+    updates.passwordHash = await bcrypt.hash(requireStrongPassword(pw), 12);
   }
 
   // Та же проверка и та же раскладка по диску, что у читателей: без них сюда
@@ -81,14 +78,15 @@ export default defineEventHandler(async (event) => {
     db.update(users).set(updates).where(eq(users.id, sessionUser.id)),
   );
 
+  // Сессию — целиком из базы: раньше в неё клалась только почта с ролью, и
+  // до следующего /api/auth/me шапка теряла имя и аватарку.
   if (updates.email || updates.passwordHash) {
-    await replaceUserSession(event, {
-      user: {
-        id: sessionUser.id,
-        email: updates.email ?? (session.user as any).email,
-        role: sessionUser.role,
-      },
-    });
+    const [fresh] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, sessionUser.id));
+    if (fresh)
+      await replaceUserSession(event, { user: await toSessionUser(fresh) });
   }
 
   // Хеш пароля наружу не отдаём, даже самой хозяйке.

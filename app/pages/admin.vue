@@ -1025,7 +1025,7 @@ useHead({
               <input
                 v-model="newUserPassword"
                 type="password"
-                placeholder="Пароль (минимум 6 символов)"
+                placeholder="Пароль (минимум 12 символов)"
               />
             </div>
           </div>

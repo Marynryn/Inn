@@ -1,4 +1,5 @@
 import { createClient } from "@libsql/client";
+import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import {
   DISPLAY_NAME_MAX,
@@ -978,17 +979,24 @@ export async function runMigrations() {
     }
   }
 
-  // Создать admin-аккаунт если нет ни одного пользователя
+  // Первый админ на пустой базе. Пароль — из ADMIN_PASSWORD, а без неё
+  // случайный, один раз в лог. Раньше здесь стоял общеизвестный admin123: сайт,
+  // поднявшийся на пустой базе (том не подключился, STORAGE_DIR указал не
+  // туда), пускал в панель любого, кто его знал.
   const existing = await client.execute("SELECT COUNT(*) as cnt FROM users");
   const count = (existing.rows[0] as any).cnt as number;
   if (count === 0) {
-    const hash = await bcrypt.hash("admin123", 12);
+    const fromEnv = process.env.ADMIN_PASSWORD?.trim();
+    const password = fromEnv || randomBytes(12).toString("base64url");
+    const hash = await bcrypt.hash(password, 12);
     await client.execute({
       sql: "INSERT INTO users (email, password_hash, role, display_name, display_name_key) VALUES (?, ?, 'admin', ?, ?)",
       args: ["admin@tavern.local", hash, "admin", "admin"],
     });
     console.log(
-      "[migrate] Admin created: admin@tavern.local / admin123 — смени пароль!",
+      fromEnv
+        ? "[migrate] Admin created: admin@tavern.local, пароль — из ADMIN_PASSWORD"
+        : `[migrate] Admin created: admin@tavern.local / ${password} — пароль случайный, смени его в панели`,
     );
   }
 

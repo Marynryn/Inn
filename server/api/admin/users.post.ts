@@ -5,6 +5,7 @@ import { users } from "../../database/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { grantDefaultFrame } from "../../utils/frames";
+import { requireStrongPassword } from "../../utils/password";
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event);
@@ -19,11 +20,7 @@ export default defineEventHandler(async (event) => {
       statusCode: 400,
       message: "email и password обязательны",
     });
-  if (password.length < 6)
-    throw createError({
-      statusCode: 400,
-      message: "Пароль минимум 6 символов",
-    });
+  requireStrongPassword(password);
   if (!["admin", "reader"].includes(role))
     throw createError({ statusCode: 400, message: "Неверная роль" });
 

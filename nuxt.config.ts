@@ -240,9 +240,20 @@ export default defineNuxtConfig({
         "Cache-Control": "no-store",
       },
     },
+    // Заголовки безопасности — на всё: правила по адресам сливаются, и более
+    // точное правило выше меняет только Cache-Control, остальное берётся отсюда.
+    // frame-ancestors и X-Frame-Options не дают встроить сайт (и панель) в
+    // чужую страницу; nosniff — выдать картинку из хранилища за скрипт.
     "/**": {
       headers: {
         "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Content-Security-Policy":
+          "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Strict-Transport-Security": "max-age=31536000",
       },
     },
   },

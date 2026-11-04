@@ -39,6 +39,8 @@ const env = {
   NUXT_OAUTH_GOOGLE_CLIENT_ID: "e2e-google-client",
   NUXT_OAUTH_GOOGLE_CLIENT_SECRET: "e2e-google-secret",
   NOTIFY_SECRET: "e2e",
+  // Пароль первого админа: без переменной миграция завела бы случайный.
+  ADMIN_PASSWORD: "admin123",
   // Dev-сервер Vite отбрасывает запросы с чужим Host. Тесты про зеркало
   // приходят с Host taverna-book.ru — пускаем его (в бою этой проверки нет).
   __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: "taverna-book.ru",
