@@ -9,7 +9,7 @@ import { notifyChapters } from "../utils/notify-chapters";
  * notifiedAt, поэтому оставшийся воркфлоу на GitHub безопасно дублирует этот
  * вызов, пока мы не убедимся, что новый будильник звонит исправно.
  */
-export default defineTask({
+export default defineTask<unknown>({
   meta: {
     name: "notify-chapters",
     description: "Рассылает в телеграм главы, про которые ещё не писали",

@@ -70,8 +70,10 @@ const peek = async () => {
   who.value = null;
   whoError.value = "";
   try {
-    who.value = await $fetch(
-      `/api/admin/characters/${encodeURIComponent(props.characterId!)}/flames`,
+    // Адрес строкой: вывод типа по шаблону маршрута здесь упирается в предел
+    // глубины TypeScript, а форма ответа и так известна.
+    who.value = await $fetch<{ readers: string[]; guests: number }>(
+      `/api/admin/characters/${encodeURIComponent(props.characterId!)}/flames` as string,
     );
   } catch {
     whoError.value = "Список не загрузился";

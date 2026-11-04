@@ -20,6 +20,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Дёшево и до браузера: типы и форматирование падают за минуту, а не
+      # после двадцати минут сценариев.
+      - run: npm run typecheck
+      - run: npm run format:check
       - run: npx playwright install --with-deps chromium
       - run: npm test
         env:

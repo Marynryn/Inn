@@ -34,10 +34,9 @@ export async function parseEpub(buffer: Buffer): Promise<string> {
     ?.async("string");
   if (!containerXml) throw new Error("Невалидный epub: нет container.xml");
 
-  const rootfileMatch = containerXml.match(/full-path="([^"]+)"/);
-  if (!rootfileMatch) throw new Error("Невалидный epub: нет rootfile");
+  const opfPath = containerXml.match(/full-path="([^"]+)"/)?.[1];
+  if (!opfPath) throw new Error("Невалидный epub: нет rootfile");
 
-  const opfPath = rootfileMatch[1];
   const opfDir = opfPath.includes("/")
     ? opfPath.slice(0, opfPath.lastIndexOf("/") + 1)
     : "";
@@ -64,7 +63,7 @@ export async function parseEpub(buffer: Buffer): Promise<string> {
 
     // Вырезать содержимое <body>
     const bodyMatch = content.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    if (bodyMatch) htmlParts.push(bodyMatch[1]);
+    if (bodyMatch?.[1]) htmlParts.push(bodyMatch[1]);
   }
 
   const raw = htmlParts

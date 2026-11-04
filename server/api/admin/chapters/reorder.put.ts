@@ -11,12 +11,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: "ids must be array" });
 
   const db = useDb();
-  for (let i = 0; i < ids.length; i++) {
-    await db
+  // Одной транзакцией: порядок либо меняется целиком, либо не меняется вовсе —
+  // оборванная на середине перестановка оставляла бы главы вперемешку.
+  const updates = ids.map((id, i) =>
+    db
       .update(chapters)
       .set({ sortOrder: i + 1 })
-      .where(eq(chapters.id, ids[i]));
-  }
+      .where(eq(chapters.id, String(id))),
+  );
+  if (updates.length) await db.batch(updates as [any, ...any[]]);
 
   return { ok: true };
 });

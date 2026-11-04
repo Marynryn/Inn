@@ -1,14 +1,8 @@
-import type { NameFigure } from "#shared/utils/nameFigures";
+import type { User } from "#auth-utils";
 
-export type SessionUser = {
-  /** Только у хозяйки сайта: читателю свой номер не отдаётся, см. /api/auth/me. */
-  id?: number;
-  email: string | null;
-  role: "admin" | "reader";
-  displayName: string | null;
-  avatarUrl: string | null;
-  figure?: NameFigure | null;
-};
+/** Тот же пользователь, что в сессии (shared/types/auth.d.ts), но номер есть
+ *  только у хозяйки сайта: читателю свой номер не отдаётся, см. /api/auth/me. */
+export type SessionUser = Omit<User, "id"> & { id?: number };
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<SessionUser | null>(null);
@@ -26,7 +20,9 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function fetchMe() {
     try {
-      user.value = await $fetch("/api/auth/me");
+      // Адрес строкой: вывод типа по таблице маршрутов здесь упирается в предел
+      // глубины TypeScript.
+      user.value = await $fetch<SessionUser | null>("/api/auth/me" as string);
     } catch {
       user.value = null;
     }

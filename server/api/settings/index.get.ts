@@ -6,10 +6,18 @@ import {
   ORIGINAL_MANUAL_KEY,
 } from "../../utils/original-toc";
 
-export default defineEventHandler(async () => {
+/** Ключ → значение; чего нет в базе, того нет и здесь. */
+export type SiteSettings = Partial<Record<string, string>> & {
+  game_volume_effective: string;
+  original_chapters_effective: string;
+};
+
+export default defineEventHandler(async (): Promise<SiteSettings> => {
   const db = useDb();
   const rows = await db.select().from(siteSettings);
-  const settings = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const settings: Record<string, string> = Object.fromEntries(
+    rows.map((r) => [r.key, r.value]),
+  );
 
   return {
     ...settings,

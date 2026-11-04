@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
 
   let publishedAt: string | undefined;
   if (typeof body.publishedAt === "string" && body.publishedAt.trim()) {
-    publishedAt = body.publishedAt.trim();
+    publishedAt = String(body.publishedAt).trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(publishedAt)) {
       throw createError({
         statusCode: 400,

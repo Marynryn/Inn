@@ -9,7 +9,7 @@ export default defineEventHandler((event) => {
   const match = pathname.match(/^\/chapter\/([^/]+)((?:\/comments)?)\/?$/);
   if (!match) return;
 
-  const [, rawSegment, suffix] = match;
+  const [, rawSegment = "", suffix = ""] = match;
   // A broken escape ("%E0%A4%A") made decodeURIComponent throw, and the
   // request ended as a 500 "Ошибка" page. No chapter can live there: 404.
   let decoded: string;

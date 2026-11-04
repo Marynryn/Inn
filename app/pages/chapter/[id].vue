@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ChapterMeta } from "#shared/utils/chapterMeta";
 import titleLeaf from "~/assets/leaves/maple-lime.svg";
 
 const route = useRoute();
@@ -7,7 +8,7 @@ const rawParam = route.params.id as string;
 // Без текста (?meta=1): его рисует серверный компонент ChapterText. С текстом
 // он ехал бы второй раз — в данных страницы, а при переходе стрелкой ещё и
 // вторым запросом рядом с островом.
-const { data: chapter, error } = await useFetch(
+const { data: chapter, error } = await useFetch<ChapterMeta>(
   `/api/chapters/${encodeURIComponent(rawParam)}`,
   {
     query: { meta: 1 },
@@ -29,7 +30,9 @@ const { data: chapter, error } = await useFetch(
 if (error.value) {
   throw createError({
     statusCode: error.value.statusCode ?? 404,
-    message: error.value.data?.message || "Глава не найдена",
+    message:
+      (error.value.data as { message?: string } | undefined)?.message ||
+      "Глава не найдена",
     fatal: true,
   });
 }

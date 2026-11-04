@@ -133,7 +133,9 @@ const deleteChapter = async (id: string) => {
   }
   deletingId.value = id;
   try {
-    await $fetch(`/api/admin/chapters/${id}`, { method: "DELETE" });
+    await $fetch(`/api/admin/chapters/${encodeURIComponent(id)}` as string, {
+      method: "DELETE",
+    });
     await refreshChapters();
   } finally {
     deletingId.value = null;
@@ -947,7 +949,9 @@ useHead({
                 alt=""
               />
               <div v-else class="avatar-placeholder display">
-                {{ (displayName || profile?.email || "?")[0].toUpperCase() }}
+                {{
+                  (displayName || profile?.email || "?").charAt(0).toUpperCase()
+                }}
               </div>
               <label class="avatar-upload-btn" title="Загрузить фото">
                 ✎

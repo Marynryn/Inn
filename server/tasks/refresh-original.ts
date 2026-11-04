@@ -1,7 +1,7 @@
 import { refreshOriginalChapters } from "../utils/original-toc";
 
 /** Раз в сутки узнаёт у InnWords, сколько глав в оригинале, — для трекера прогресса. */
-export default defineTask({
+export default defineTask<unknown>({
   meta: {
     name: "refresh-original",
     description: "Обновляет число глав оригинала из InnWords",

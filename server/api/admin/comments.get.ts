@@ -1,6 +1,6 @@
 import { useDb } from "../../utils/db";
 import { comments, chapters, users } from "../../database/schema";
-import { desc, leftJoin, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event);
