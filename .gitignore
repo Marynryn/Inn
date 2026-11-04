@@ -33,6 +33,8 @@ storage/skins/
 storage/avatars/
 storage/frames/
 storage/reel/
+# Ночные снимки базы (server/utils/backup.ts)
+storage/backups/
 
 # Личные настройки Claude Code (разрешения этой машины); скиллы в .claude/skills — общие
 .claude/settings.local.json

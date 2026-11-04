@@ -6,7 +6,8 @@ import {
 } from "../../../database/schema";
 import { eq, sql } from "drizzle-orm";
 import { readFile } from "fs/promises";
-import { resolve } from "path";
+import { basename, join, resolve } from "path";
+import { getStorageDir } from "../../../utils/storage";
 
 export default defineEventHandler(async (event) => {
   const param = getRouterParam(event, "id")!;
@@ -39,8 +40,19 @@ export default defineEventHandler(async (event) => {
       message: "epub для этой главы недоступен",
     });
 
-  const filePath = resolve(chapter.epubPath);
-  const file = await readFile(filePath);
+  // Путь в базе абсолютный — каким он был на сервере при загрузке. База,
+  // поднятая из копии в другой папке (локальная проверка, переезд тома), его
+  // не найдёт; тогда берём файл с тем же именем из epubs/ текущего хранилища.
+  const file = await readFile(resolve(chapter.epubPath)).catch(() =>
+    readFile(join(getStorageDir(), "epubs", basename(chapter.epubPath!))).catch(
+      () => {
+        throw createError({
+          statusCode: 404,
+          message: "epub для этой главы недоступен",
+        });
+      },
+    ),
+  );
 
   const safeName = `chapter-${slugifyChapterId(id)}.epub`;
   setHeader(event, "Content-Type", "application/epub+zip");

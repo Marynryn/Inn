@@ -1044,6 +1044,9 @@ useHead({
                   : "Создать администратора"
             }}
           </button>
+
+          <hr class="section-divider" />
+          <AdminBackups />
         </section>
 
         <!-- Статистика -->
