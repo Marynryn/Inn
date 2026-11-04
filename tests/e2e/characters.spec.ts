@@ -168,8 +168,69 @@ test.describe("Карточки персонажей", () => {
     expect(names).not.toContain("Торен");
     await guest.close();
 
+    // И админу общий список отдаёт то же, что всем: спрятанную карточку он
+    // получает из своего /api/admin/characters, уже в браузере.
+    const own = await (await page.request.get("/api/characters")).json();
+    expect(
+      (own.characters as { name: string }[]).map((c) => c.name),
+    ).not.toContain("Торен");
+
+    // После перезагрузки карточка у админа на месте, с пометкой.
+    await open(page, "/characters");
+    await page.getByPlaceholder(SEARCH).fill("Торен");
+    await expect(card).toHaveClass(/hidden/);
+
     await card.locator(".hide-btn").click();
     await expect(card).not.toHaveClass(/hidden/);
+  });
+
+  test("общий список карточек одинаков для всех, свои огоньки — отдельно", async ({
+    page,
+    browser,
+  }) => {
+    const guest = await browser.newContext();
+    const asGuest = await (await guest.request.get("/api/characters")).text();
+    const erin = (
+      JSON.parse(asGuest).characters as { id: string; name: string }[]
+    ).find((c) => c.name === "Эрин Солстис")!;
+    // В общем ответе нет ни личного огонька, ни пометки «спрятана».
+    for (const c of JSON.parse(asGuest).characters) {
+      expect(c).not.toHaveProperty("lit");
+      expect(c).not.toHaveProperty("hidden");
+    }
+
+    await login(page, READER);
+    const lit = await page.request.post(`/api/characters/${erin.id}/flame`);
+    expect((await lit.json()).lit).toBe(true);
+
+    try {
+      // Огонёк читателя меняет счётчик для всех, но сам ответ у читателя и у
+      // гостя совпадает байт в байт.
+      const asReader = await (await page.request.get("/api/characters")).text();
+      const guestAfter = await (
+        await guest.request.get("/api/characters")
+      ).text();
+      expect(asReader).toBe(guestAfter);
+
+      // Свой огонёк читатель узнаёт отдельным запросом; гость его не видит.
+      const mine = await (await page.request.get("/api/characters/lit")).json();
+      expect(mine.ids).toContain(erin.id);
+      const theirs = await (
+        await guest.request.get("/api/characters/lit")
+      ).json();
+      expect(theirs.ids).not.toContain(erin.id);
+
+      // На странице огонёк подсвечивается после загрузки.
+      await open(page, "/characters");
+      await page.getByPlaceholder(SEARCH).fill("erin");
+      await expect(page.locator(".card").first().locator(".flame")).toHaveClass(
+        /lit/,
+      );
+    } finally {
+      // Гасим за собой: другие тесты ждут, что огоньков на стенде нет.
+      await page.request.post(`/api/characters/${erin.id}/flame`);
+      await guest.close();
+    }
   });
 
   test("админ видит, кто зажёг огонёк", async ({ page }) => {

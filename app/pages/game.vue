@@ -11,7 +11,12 @@ import {
   type GameMode,
   type GameStatus,
 } from "#shared/utils/gameColumns";
-import type { Character, Origin } from "#shared/utils/characters";
+import {
+  toCharacter,
+  type Character,
+  type Origin,
+  type PublicCharacter,
+} from "#shared/utils/characters";
 
 type Pool = "known" | "all";
 
@@ -107,9 +112,14 @@ const openCard = (id: string, e: Event) => {
 // и задерживать ими саму игру незачем.
 onMounted(async () => {
   try {
-    cards.value = (
-      await $fetch<{ characters: Character[] }>("/api/characters")
-    ).characters;
+    const [res, mine] = await Promise.all([
+      $fetch<{ characters: PublicCharacter[] }>("/api/characters"),
+      loadMyFlames(),
+    ]);
+    cards.value = res.characters.map((c) => ({
+      ...toCharacter(c),
+      lit: mine.has(c.id),
+    }));
   } catch {
     // Не загрузились — имена останутся простым текстом, игра от этого не страдает.
   }
