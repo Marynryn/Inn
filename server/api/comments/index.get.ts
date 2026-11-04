@@ -79,7 +79,7 @@ export default defineEventHandler(async (event) => {
 
   const session = await getUserSession(event);
   const sessionUserId = (session.user as any)?.id ?? null;
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? "unknown";
+  const ip = clientIp(event);
 
   const reactionsByComment = new Map<
     number,

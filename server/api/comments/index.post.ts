@@ -15,7 +15,7 @@ import { frameById } from "../../utils/frames";
 import { figureById } from "#shared/utils/nameFigures";
 
 export default defineEventHandler(async (event) => {
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? "unknown";
+  const ip = clientIp(event);
   if (!checkRateLimit(`comment:${ip}`, 5, 60_000)) {
     throw createError({
       statusCode: 429,

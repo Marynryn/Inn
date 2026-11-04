@@ -712,6 +712,32 @@ export async function runMigrations() {
     "CREATE INDEX IF NOT EXISTS comment_reactions_comment ON comment_reactions (comment_id)",
   );
 
+  // Одна реакция от человека на комментарий — это держит база, а не проверка в
+  // коде: двойной клик проскакивал между чтением и записью и ставил два лайка.
+  // Перед индексами убираем накопившиеся повторы (остаётся первая реакция) и
+  // реакции на удалённые комментарии. Один раз — пока индекса нет.
+  const reactionsUnique = await client.execute(
+    "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'comment_reactions_user'",
+  );
+  if (!reactionsUnique.rows.length) {
+    await client.batch(
+      [
+        "DELETE FROM comment_reactions WHERE comment_id NOT IN (SELECT id FROM comments)",
+        `DELETE FROM comment_reactions WHERE user_id IS NOT NULL AND id NOT IN (
+          SELECT MIN(id) FROM comment_reactions WHERE user_id IS NOT NULL
+          GROUP BY comment_id, user_id)`,
+        `DELETE FROM comment_reactions WHERE user_id IS NULL AND id NOT IN (
+          SELECT MIN(id) FROM comment_reactions WHERE user_id IS NULL
+          GROUP BY comment_id, ip)`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS comment_reactions_guest
+          ON comment_reactions (comment_id, ip) WHERE user_id IS NULL`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS comment_reactions_user
+          ON comment_reactions (comment_id, user_id) WHERE user_id IS NOT NULL`,
+      ],
+      "write",
+    );
+  }
+
   // Дефолтные настройки сайта
   const defaults: Record<string, string> = {
     hero_title: "Истории трактира,\nрассказанные заново",

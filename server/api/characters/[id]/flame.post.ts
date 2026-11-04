@@ -5,7 +5,7 @@ import { characterCards } from "../../../utils/characters";
 /** Зажечь или погасить огонёк на карточке. */
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id") ?? "";
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? "unknown";
+  const ip = clientIp(event);
   if (!checkRateLimit(`flame:${ip}`, 30, 60_000)) {
     throw createError({ statusCode: 429, message: "Слишком часто" });
   }

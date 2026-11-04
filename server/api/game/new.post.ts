@@ -12,7 +12,7 @@ import {
  * потолок ему задаёт админка.
  */
 export default defineEventHandler(async (event) => {
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? "unknown";
+  const ip = clientIp(event);
   if (!checkRateLimit(`game-new:${ip}`, 20, 60_000)) {
     throw createError({
       statusCode: 429,

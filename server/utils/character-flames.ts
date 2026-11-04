@@ -1,13 +1,14 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { H3Event } from "h3";
 import { characterFlames } from "../database/schema";
+import { clientIp } from "./client-ip";
 import { useDb } from "./db";
 
 /** Кто ставит огонёк: вошедший — по аккаунту, гость — по IP. */
 export async function flameActor(event: H3Event) {
   const session = await getUserSession(event);
   const userId = (session.user as { id?: number } | undefined)?.id ?? null;
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? "unknown";
+  const ip = clientIp(event);
   return { userId, ip };
 }
 

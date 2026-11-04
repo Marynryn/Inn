@@ -1,7 +1,8 @@
 import { useDb } from "../../../utils/db";
-import { commentReactions } from "../../../database/schema";
+import { commentReactions, comments } from "../../../database/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { notifyLike } from "../../../utils/like-notify";
+import { checkRateLimit } from "../../../utils/rate-limit";
 
 export default defineEventHandler(async (event) => {
   const commentId = Number(getRouterParam(event, "id"));
@@ -14,10 +15,28 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  const ip = clientIp(event);
+  if (!checkRateLimit(`react:${ip}`, 60, 60_000)) {
+    throw createError({
+      statusCode: 429,
+      message: "Слишком часто. Подожди минуту.",
+    });
+  }
+
   const db = useDb();
+
+  // Реакция на несуществующий комментарий осталась бы в базе сиротой.
+  const [comment] = Number.isInteger(commentId)
+    ? await db
+        .select({ id: comments.id })
+        .from(comments)
+        .where(eq(comments.id, commentId))
+    : [];
+  if (!comment)
+    throw createError({ statusCode: 404, message: "Комментарий не найден" });
+
   const session = await getUserSession(event);
-  const userId = (session.user as any)?.id ?? null;
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? "unknown";
+  const userId = session.user?.id ?? null;
 
   const existing = userId
     ? await db
@@ -40,28 +59,31 @@ export default defineEventHandler(async (event) => {
           ),
         );
 
-  if (existing.length > 0) {
-    if (existing[0].type === type) {
+  const [mine] = existing;
+  if (mine) {
+    if (mine.type === type) {
       // Снять реакцию
-      await db
-        .delete(commentReactions)
-        .where(eq(commentReactions.id, existing[0].id));
+      await db.delete(commentReactions).where(eq(commentReactions.id, mine.id));
       return { action: "removed", type };
     } else {
       // Переключить тип
       await db
         .update(commentReactions)
         .set({ type })
-        .where(eq(commentReactions.id, existing[0].id));
+        .where(eq(commentReactions.id, mine.id));
       if (type === "like") await notifyLike(commentId, userId);
       return { action: "switched", type };
     }
   }
 
-  await db
+  // Второй такой же запрос, проскочивший мимо проверки выше (двойной клик),
+  // упрётся в уникальный индекс и ничего не добавит.
+  const inserted = await db
     .insert(commentReactions)
-    .values({ commentId, type, userId, ip: userId ? null : ip });
+    .values({ commentId, type, userId, ip: userId ? null : ip })
+    .onConflictDoNothing()
+    .returning({ id: commentReactions.id });
   // Дизлайк автору не несём: от него только огорчение, а пользы никакой.
-  if (type === "like") await notifyLike(commentId, userId);
+  if (inserted.length && type === "like") await notifyLike(commentId, userId);
   return { action: "added", type };
 });
