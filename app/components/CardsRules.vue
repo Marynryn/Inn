@@ -155,6 +155,19 @@ const dice = (n: number) =>
         <b>Скелет</b> (ульта Пишеса) — 3 раунда бьёт активного врага на 1 Магией
         в конце раунда.
       </li>
+      <li>
+        <b>🐀 Крыса</b> (ульта Тайфенуса) — 3 раунда в конце раунда кусает
+        активного врага на 1 Ядом и лечит твоего активного героя на 1.
+      </li>
+      <li>
+        <b>❄ Пришла зима</b> (ульта Айволет) — до конца раунда соперник не
+        может сменить героя ни ходом, ни Волшебной дверью. Если его герой
+        падает, замену выбрать всё равно можно.
+      </li>
+      <li>
+        <b>Ответный удар</b> (ульта Ивлон) — пока держится её щит, каждый удар
+        героя по Ивлон возвращает ему 1 урон.
+      </li>
     </ul>
 
     <h3>Герои</h3>
@@ -162,9 +175,13 @@ const dice = (n: number) =>
       <li v-for="id in CARD_HERO_IDS" :key="id">
         <b>{{ CARD_HEROES[id].name }}</b> ({{
           CARD_HEROES[id].role.toLowerCase()
-        }}, ❤ {{ CARD_HEROES[id].hp }}). Навык «{{
-          CARD_HEROES[id].skill.name
-        }}»: {{ CARD_HEROES[id].skill.text.toLowerCase() }}. Ульта «{{
+        }}, ❤ {{ CARD_HEROES[id].hp }}).
+        <template v-if="CARD_HEROES[id].passive"
+          >Пассивка «{{ CARD_HEROES[id].passive!.name }}»:
+          {{ CARD_HEROES[id].passive!.text.toLowerCase() }}.
+        </template>
+        Навык «{{ CARD_HEROES[id].skill.name }}»:
+        {{ CARD_HEROES[id].skill.text.toLowerCase() }}. Ульта «{{
           CARD_HEROES[id].burst.name
         }}» ({{ CARD_HEROES[id].energy }} энергии):
         {{ CARD_HEROES[id].burst.text.toLowerCase() }}.

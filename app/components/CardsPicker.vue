@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Выбор отряда «Карт таверны»: трое из шести героев, с их навыками и
+ * Выбор отряда «Карт таверны»: трое из двенадцати героев, с их навыками и
  * правилами под списком. Один и тот же на игре с компьютером и за столом.
  */
 import {
@@ -23,7 +23,6 @@ function togglePick(id: HeroId) {
 }
 
 const elColor = (el: Element) => CARD_ELEMENTS[el].color;
-const imgOf = (id: HeroId) => `/characters/${id}.webp`;
 </script>
 
 <template>
@@ -40,12 +39,7 @@ const imgOf = (id: HeroId) => `/characters/${id}.webp`;
           :aria-pressed="modelValue.includes(id)"
           @click="togglePick(id)"
         >
-          <img
-            :src="imgOf(id)"
-            :alt="CARD_HEROES[id].name"
-            class="pick-img"
-            loading="lazy"
-          />
+          <CardsHeroImg :id="id" class="pick-img" lazy />
           <span class="pick-body">
             <span class="pick-head">
               <span class="pick-name">{{ CARD_HEROES[id].name }}</span>
@@ -58,6 +52,10 @@ const imgOf = (id: HeroId) => `/characters/${id}.webp`;
             </span>
             <span class="pick-meta"
               >{{ CARD_HEROES[id].role }} · ❤ {{ CARD_HEROES[id].hp }}</span
+            >
+            <span v-if="CARD_HEROES[id].passive" class="pick-move"
+              ><b>{{ CARD_HEROES[id].passive!.name }}</b> (пассивка):
+              {{ CARD_HEROES[id].passive!.text }}</span
             >
             <span class="pick-move"
               ><b>{{ CARD_HEROES[id].skill.name }}:</b>
