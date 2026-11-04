@@ -58,6 +58,9 @@ export const CARD_HEROES: Record<
     role: string;
     /** Стихия обычной атаки: у магов своя, у остальных — Сталь. */
     atk?: Element;
+    /** Своя картинка для игры — public/cards/<id>.webp. Без неё берётся
+     *  портрет из карточек персонажей. */
+    art?: boolean;
     /** Пассивка — работает сама, без кубиков. */
     passive?: Move;
     attack: Move;
@@ -241,6 +244,7 @@ export const CARD_HEROES: Record<
   typhenous: {
     name: "Тайфенус",
     el: "poison",
+    art: true,
     hp: 9,
     energy: 3,
     role: "Маг",

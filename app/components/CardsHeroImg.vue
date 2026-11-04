@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * Портрет героя «Карт таверны». Картинки кладут по одной в
- * public/characters/<id>.webp; пока файла нет — на его месте значок стихии,
+ * public/characters/<id>.webp (или своя для игры — public/cards/<id>.webp,
+ * если у героя стоит art); пока файла нет — на его месте значок стихии,
  * а не битая картинка. Положили файл — портрет появляется сам.
  */
 import { CARD_HEROES, CARD_ELEMENTS, type HeroId } from "#shared/utils/cards";
@@ -29,7 +30,7 @@ const el = computed(() => CARD_ELEMENTS[hero.value.el]);
   <img
     v-if="!broken"
     ref="img"
-    :src="`/characters/${id}.webp`"
+    :src="`/${hero.art ? 'cards' : 'characters'}/${id}.webp`"
     :alt="hero.name"
     :loading="lazy ? 'lazy' : undefined"
     @error="broken = true"
