@@ -50,9 +50,10 @@ const imgOf = (id: HeroId) => `/characters/${id}.webp`;
             <span class="pick-head">
               <span class="pick-name">{{ CARD_HEROES[id].name }}</span>
               <span class="pick-el"
-                ><span class="el-dot" />{{
-                  CARD_ELEMENTS[CARD_HEROES[id].el].name
+                ><span class="el-icon" aria-hidden="true">{{
+                  CARD_ELEMENTS[CARD_HEROES[id].el].symbol
                 }}</span
+                >{{ CARD_ELEMENTS[CARD_HEROES[id].el].name }}</span
               >
             </span>
             <span class="pick-meta"
@@ -162,11 +163,18 @@ const imgOf = (id: HeroId) => `/characters/${id}.webp`;
   font-weight: 600;
 }
 
-.el-dot {
-  width: 10px;
-  height: 10px;
+/* Значок стихии — тот же, что на кубиках: игрок сразу видит, какие грани
+   ему нужны. Кружок одного цвета различался плохо. */
+.el-icon {
+  width: 20px;
+  height: 20px;
   border-radius: var(--radius-round);
-  background: var(--el);
-  display: inline-block;
+  border: 1px solid var(--el);
+  background: color-mix(in srgb, var(--el) 18%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
 }
 </style>
