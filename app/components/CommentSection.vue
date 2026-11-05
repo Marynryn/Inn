@@ -30,7 +30,7 @@ const guestPosted = ref(false);
 
 const url = computed(() =>
   props.chapterId
-    ? `/api/comments?chapterId=${props.chapterId}`
+    ? `/api/comments?chapterId=${encodeURIComponent(props.chapterId)}`
     : "/api/comments?siteWide=1",
 );
 const { data: comments, refresh } = await useFetch<any[]>(url);
@@ -283,18 +283,33 @@ const revealTarget = async () => {
 onMounted(revealTarget);
 watch(() => route.hash, revealTarget);
 
-// WebSocket. Закрываем на верхнем уровне: onUnmounted, зарегистрированный
-// внутри onMounted, Vue уже не привязывает к компоненту надёжно.
+// WebSocket — новые комментарии без перезагрузки. Связь рвётся при каждом
+// деплое и смене сети на телефоне; раньше после этого новые комментарии молча
+// переставали приходить. Теперь переподключаемся с растущей паузой (1, 2, 4…
+// до 30 с), а после разрыва перечитываем список: что пришло, пока связи не
+// было, сокет уже не пришлёт. Закрываем на верхнем уровне: onUnmounted,
+// зарегистрированный внутри onMounted, Vue уже не привязывает надёжно.
 let ws: WebSocket | null = null;
-onUnmounted(() => ws?.close());
+let retry = 0;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let closedByUs = false;
 
-onMounted(() => {
-  if (typeof WebSocket === "undefined") return;
+const connect = () => {
+  if (typeof WebSocket === "undefined" || closedByUs || ws) return;
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  const param = props.chapterId ? `?chapterId=${props.chapterId}` : "";
-  ws = new WebSocket(`${proto}://${location.host}/_ws${param}`);
+  const param = props.chapterId
+    ? `?chapterId=${encodeURIComponent(props.chapterId)}`
+    : "";
+  const socket = new WebSocket(`${proto}://${location.host}/_ws${param}`);
+  ws = socket;
 
-  ws.onmessage = (e) => {
+  socket.onopen = () => {
+    // Переподключились — дочитываем пропущенное.
+    if (retry > 0) refresh();
+    retry = 0;
+  };
+
+  socket.onmessage = (e) => {
     try {
       const msg = JSON.parse(e.data);
       if (msg.type === "new_comment" && comments.value) {
@@ -304,6 +319,34 @@ onMounted(() => {
       }
     } catch {}
   };
+
+  socket.onclose = () => {
+    ws = null;
+    if (closedByUs) return;
+    const delay = Math.min(30_000, 1000 * 2 ** retry);
+    retry++;
+    retryTimer = setTimeout(connect, delay);
+  };
+};
+
+// Вернулись во вкладку, а связи нет (телефон усыпил её) — не ждём паузы.
+const onVisible = () => {
+  if (document.visibilityState !== "visible" || ws) return;
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = null;
+  connect();
+};
+
+onUnmounted(() => {
+  closedByUs = true;
+  if (retryTimer) clearTimeout(retryTimer);
+  document.removeEventListener("visibilitychange", onVisible);
+  ws?.close();
+});
+
+onMounted(() => {
+  connect();
+  document.addEventListener("visibilitychange", onVisible);
 });
 </script>
 

@@ -25,6 +25,45 @@ test.describe("Комментарии", () => {
     ).toHaveValue("");
   });
 
+  test("сокет переподключается после разрыва и дочитывает пропущенное", async ({
+    page,
+    playwright,
+  }, info) => {
+    // Второе соединение ничего не пересылает со стороны сервера: пропущенный
+    // комментарий тогда может появиться только из перечитанного списка.
+    let connections = 0;
+    let first: { close: () => Promise<void> } | null = null;
+    await page.routeWebSocket(/\/_ws\?chapterId=/, (ws) => {
+      connections++;
+      const server = ws.connectToServer();
+      if (connections === 1) first = ws;
+      else server.onMessage(() => {});
+    });
+
+    await open(page, discussionUrl);
+    await expect.poll(() => connections).toBe(1);
+
+    // Связь рвётся (деплой, смена сети на телефоне)…
+    await first!.close();
+
+    // …и пока её нет, кто-то пишет.
+    const text = `Пока связи не было ${stamp()}`;
+    const other = await playwright.request.newContext({
+      baseURL: info.project.use.baseURL,
+      extraHTTPHeaders: { "x-forwarded-for": "10.240.0.9" },
+    });
+    const posted = await other.post("/api/comments", {
+      data: { chapterId: CHAPTERS[0]!.id, body: text, authorName: "" },
+    });
+    expect(posted.ok()).toBe(true);
+    await other.dispose();
+
+    await expect.poll(() => connections, { timeout: 10_000 }).toBe(2);
+    await expect(
+      page.locator(".comments-section .comment-item", { hasText: text }),
+    ).toBeVisible();
+  });
+
   test("кнопка «Обсуждение главы» показывает число комментариев", async ({
     page,
   }) => {
