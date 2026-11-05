@@ -56,11 +56,14 @@ if (
 // порядке, который был при первом заходе, — перестановки в панели не доезжают.
 // Для стрелок и проверки закладки нужны только номер и место в порядке —
 // остальные поля всех глав незачем везти в браузер вместе со страницей.
+const toNav = (list: { id: string; sortOrder: number }[]) =>
+  list.map((c) => ({ id: c.id, sortOrder: c.sortOrder }));
 const { data: allChapters } = await useFetch("/api/chapters", {
   key: `chapters-nav:${rawParam}`,
-  transform: (list: { id: string; sortOrder: number }[]) =>
-    list.map((c) => ({ id: c.id, sortOrder: c.sortOrder })),
+  transform: toNav,
 });
+// Админ читает черновики впереди — стрелки должны вести и по ним.
+useAdminDrafts(allChapters, toNav);
 // Только то, что рисуют шапка и плашка телеграма: целиком настройки везут с
 // собой, например, весь текст страницы «О проекте».
 const { data: settings } = useFetch("/api/settings", {

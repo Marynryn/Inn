@@ -210,6 +210,41 @@ test.describe("Панель администратора", () => {
     }
   });
 
+  test("черновик админ видит в оглавлении и в стрелках, гость — нет", async ({
+    page,
+    browser,
+  }) => {
+    await login(page, ADMIN);
+    const draft = CHAPTERS[2]!;
+    const hide = await editChapter(page, draft.id, { isPublished: false });
+    expect(hide.ok(), await hide.text()).toBeTruthy();
+
+    try {
+      // Общий список без черновика, полный админ дозапрашивает в браузере.
+      await open(page, "/");
+      const vol2 = page.locator(".volume", { hasText: "Том 2" });
+      await vol2.locator(".volume-head").click();
+      await expect(vol2.getByText(draft.title)).toBeVisible();
+
+      await open(page, chapterUrl(CHAPTERS[1]!.id));
+      await expect(
+        page.getByRole("link", { name: `${draft.id} →` }).first(),
+      ).toBeVisible();
+
+      const guest = await browser.newContext();
+      const guestPage = await guest.newPage();
+      await open(guestPage, "/");
+      await expect(guestPage.getByText(draft.title)).toHaveCount(0);
+      await open(guestPage, chapterUrl(CHAPTERS[1]!.id));
+      await expect(
+        guestPage.getByRole("link", { name: `${draft.id} →` }),
+      ).toHaveCount(0);
+      await guest.close();
+    } finally {
+      await editChapter(page, draft.id, { isPublished: true });
+    }
+  });
+
   test("переименование главы видно на главной", async ({ page }) => {
     await login(page, ADMIN);
     const ch = CHAPTERS[1]!;
