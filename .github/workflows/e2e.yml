@@ -24,6 +24,7 @@ jobs:
       # после двадцати минут сценариев.
       - run: npm run typecheck
       - run: npm run format:check
+      - run: npm run test:unit
       - run: npx playwright install --with-deps chromium
       # Сценарии идут на продакшен-сборке (tests/e2e/serve.mjs). Собираем
       # отдельным шагом — так ошибка сборки видна сразу, а не в логе сервера.

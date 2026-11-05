@@ -13,6 +13,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test": "playwright test",
+    "test:unit": "vitest run",
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report .data/e2e-report",
     "test:explore": "playwright test --config playwright.explore.config.ts",
@@ -50,6 +51,7 @@
     "prettier": "3.6.2",
     "sharp": "^0.35.2",
     "typescript": "~5.9.3",
+    "vitest": "^5.1.0",
     "vue-tsc": "^3.3.14",
     "zod": "^4.6.2"
   }
