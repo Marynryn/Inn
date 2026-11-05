@@ -35,6 +35,26 @@ const url = computed(() =>
 );
 const { data: comments, refresh } = await useFetch<any[]>(url);
 
+// Свои реакции — отдельно и только в браузере. Общий список одинаков для всех
+// и рендерится на сервере; подсветка «это я лайкнул» личная, и в серверном HTML
+// ей не место: с общим кешем первый зашедший раздал бы всем свои лайки.
+const { data: myReactions, refresh: refreshMine } = useFetch<
+  Record<string, "like" | "dislike">
+>("/api/comments/reactions", {
+  query: computed(() =>
+    props.chapterId ? { chapterId: props.chapterId } : { siteWide: "1" },
+  ),
+  server: false,
+  lazy: true,
+  default: () => ({}),
+});
+// Вошёл или вышел — «свои» реакции теперь другие.
+watch(
+  () => auth.user?.id,
+  () => refreshMine(),
+);
+const myReaction = (id: number) => myReactions.value[id] ?? null;
+
 const authorName = ref("");
 const body = ref("");
 const isSpoiler = ref(false);
@@ -245,7 +265,7 @@ const remove = async (id: number) => {
 
 const react = async (id: number, type: "like" | "dislike") => {
   await $fetch(`/api/comments/${id}/react`, { method: "POST", body: { type } });
-  await refresh();
+  await Promise.all([refresh(), refreshMine()]);
 };
 
 const revealedSpoilers = ref<Set<number>>(new Set());
@@ -443,14 +463,14 @@ onMounted(() => {
           <div class="comment-actions">
             <button
               class="reaction-btn"
-              :class="{ active: c.myReaction === 'like' }"
+              :class="{ active: myReaction(c.id) === 'like' }"
               @click="react(c.id, 'like')"
             >
               👍 {{ c.likes || "" }}
             </button>
             <button
               class="reaction-btn"
-              :class="{ active: c.myReaction === 'dislike' }"
+              :class="{ active: myReaction(c.id) === 'dislike' }"
               @click="react(c.id, 'dislike')"
             >
               👎 {{ c.dislikes || "" }}

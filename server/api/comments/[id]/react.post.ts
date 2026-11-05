@@ -2,6 +2,7 @@ import { useDb } from "../../../utils/db";
 import { commentReactions } from "../../../database/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { notifyLike } from "../../../utils/like-notify";
+import { anonId } from "../../../utils/anon-id";
 
 export default defineEventHandler(async (event) => {
   const commentId = Number(getRouterParam(event, "id"));
@@ -17,7 +18,8 @@ export default defineEventHandler(async (event) => {
   const db = useDb();
   const session = await getUserSession(event);
   const userId = (session.user as any)?.id ?? null;
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? "unknown";
+  // Гость — по своей куке, не по IP: за одним IP бывают разные люди.
+  const anon = userId ? null : anonId(event, true);
 
   const existing = userId
     ? await db
@@ -35,7 +37,7 @@ export default defineEventHandler(async (event) => {
         .where(
           and(
             eq(commentReactions.commentId, commentId),
-            eq(commentReactions.ip, ip),
+            eq(commentReactions.anonId, anon!),
             isNull(commentReactions.userId),
           ),
         );
@@ -60,7 +62,7 @@ export default defineEventHandler(async (event) => {
 
   await db
     .insert(commentReactions)
-    .values({ commentId, type, userId, ip: userId ? null : ip });
+    .values({ commentId, type, userId, anonId: anon });
   // Дизлайк автору не несём: от него только огорчение, а пользы никакой.
   if (type === "like") await notifyLike(commentId, userId);
   return { action: "added", type };

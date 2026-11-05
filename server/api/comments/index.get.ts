@@ -71,33 +71,21 @@ export default defineEventHandler(async (event) => {
     .select({
       commentId: commentReactions.commentId,
       type: commentReactions.type,
-      userId: commentReactions.userId,
-      ip: commentReactions.ip,
     })
     .from(commentReactions)
     .where(inArray(commentReactions.commentId, commentIds));
 
-  const session = await getUserSession(event);
-  const sessionUserId = (session.user as any)?.id ?? null;
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? "unknown";
-
-  const reactionsByComment = new Map<
-    number,
-    { likes: number; dislikes: number; myReaction: string | null }
-  >();
-  for (const id of commentIds)
-    reactionsByComment.set(id, { likes: 0, dislikes: 0, myReaction: null });
-
+  // Счётчики — общие для всех. Какую реакцию поставил сам читатель, здесь
+  // не считаем: список уезжает в серверный HTML и payload страницы, и с общим
+  // кешем первый зашедший раздал бы всем свои подсветки. Свои реакции браузер
+  // спрашивает отдельно — /api/comments/reactions.
+  const counts = new Map<number, { likes: number; dislikes: number }>();
+  for (const id of commentIds) counts.set(id, { likes: 0, dislikes: 0 });
   for (const r of allReactions) {
-    const bucket = reactionsByComment.get(r.commentId);
+    const bucket = counts.get(r.commentId);
     if (!bucket) continue;
     if (r.type === "like") bucket.likes++;
     else bucket.dislikes++;
-
-    const isMine = sessionUserId
-      ? r.userId === sessionUserId
-      : r.ip === ip && r.userId === null;
-    if (isMine) bucket.myReaction = r.type;
   }
 
   // Номер автора наружу не отдаём — по нему видно, сколько на сайте
@@ -110,8 +98,7 @@ export default defineEventHandler(async (event) => {
       ? (frames.get(frameIdMap.get(userId) ?? 0) ?? null)
       : null,
     authorFigure: userId ? figureById(figureMap.get(userId)) : null,
-    likes: reactionsByComment.get(r.id)!.likes,
-    dislikes: reactionsByComment.get(r.id)!.dislikes,
-    myReaction: reactionsByComment.get(r.id)!.myReaction,
+    likes: counts.get(r.id)!.likes,
+    dislikes: counts.get(r.id)!.dislikes,
   }));
 });

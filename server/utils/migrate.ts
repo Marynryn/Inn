@@ -970,6 +970,10 @@ export async function runMigrations() {
     "ALTER TABLE reels ADD COLUMN bg_blur INTEGER NOT NULL DEFAULT 6",
     "ALTER TABLE reels ADD COLUMN banner_desk TEXT",
     "ALTER TABLE reels ADD COLUMN banner_mob TEXT",
+    // Гость, поставивший реакцию, опознаётся по своей куке, а не по IP: за одним
+    // IP (мобильный оператор, офис) бывают разные люди. Старые гостевые
+    // реакции остаются с одним ip и считаются в общих счётчиках, но ничьими.
+    "ALTER TABLE comment_reactions ADD COLUMN anon_id TEXT",
   ]) {
     try {
       await client.execute(sql);
@@ -977,6 +981,10 @@ export async function runMigrations() {
       // Столбец уже существует — это нормально
     }
   }
+
+  await client.execute(
+    "CREATE INDEX IF NOT EXISTS comment_reactions_anon ON comment_reactions (anon_id) WHERE anon_id IS NOT NULL",
+  );
 
   // Создать admin-аккаунт если нет ни одного пользователя
   const existing = await client.execute("SELECT COUNT(*) as cnt FROM users");
