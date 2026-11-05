@@ -1,12 +1,21 @@
+import { runMigrations } from "../utils/migrate";
 import { refreshOriginalChaptersIfStale } from "../utils/original-toc";
 
 /*
   Число глав оригинала подтягиваем на старте, если оно устарело: будильник
   звонит раз в сутки, а новый сервер мог подняться за минуту до него — и день
   показывал бы пустую карточку. Не ждём ответа, чтобы не задерживать запуск.
-  Идёт после migrate (таблица настроек уже есть) и offline-guard (в тестах
-  запрос наружу упрётся в заслон и просто запишется в лог).
+  Сначала дожидается миграций (на пустой базе таблицы настроек до них нет);
+  идёт после offline-guard — в тестах запрос наружу упрётся в заслон и просто
+  запишется в лог.
 */
 export default defineNitroPlugin(() => {
-  refreshOriginalChaptersIfStale();
+  // Сначала миграции: на пустой базе таблицы настроек до них ещё нет.
+  runMigrations()
+    .then(() => refreshOriginalChaptersIfStale())
+    .catch((e) =>
+      console.warn(
+        `[original] не удалось обновить на старте: ${e?.message ?? e}`,
+      ),
+    );
 });

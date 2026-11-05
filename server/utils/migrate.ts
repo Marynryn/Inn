@@ -9,7 +9,20 @@ import { MIGRATIONS } from "../database/migrations";
  * откатывается целиком, в лог уходит, на чём упало, а версия остаётся
  * прежней — следующий старт попробует снова.
  */
-export async function runMigrations() {
+let running: Promise<void> | null = null;
+
+/**
+ * Запуск миграций — один на процесс. Повторный вызов отдаёт тот же промис:
+ * так всё, что на старте читает базу (плагины), может сначала дождаться
+ * миграций, а не успеть раньше них на пустой базе.
+ */
+export function runMigrations(): Promise<void> {
+  running ??= migrateDatabase();
+  return running;
+}
+
+/** Сам прогон миграций и уборки — без запоминания. Нужен тестам: им нужен второй «старт». */
+export async function migrateDatabase() {
   const storageDir = process.env.STORAGE_DIR || "storage";
   const client = createClient({ url: `file:${storageDir}/db.sqlite` });
   // Nitro не ждёт плагин миграций: сайт уже отвечает, пока они идут, и запросы
