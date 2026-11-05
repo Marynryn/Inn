@@ -186,16 +186,18 @@ test.describe("Защита", () => {
     expect(db.subarray(0, 15).toString()).toBe("SQLite format 3");
   });
 
-  test("ночной снимок базы ложится в список резервных копий", async ({
+  test("снимок базы по кнопке ложится в список резервных копий", async ({
     page,
   }) => {
-    // Задачу дёргаем вручную: в деве по расписанию она пропускается.
-    const run = await page.request.get("/_nitro/tasks/backup-db?force=1");
-    expect(run.ok()).toBe(true);
-    const { result } = await run.json();
-    expect(result.file).toMatch(/^db-.+\.sqlite\.gz$/);
+    await login(page, READER);
+    expect((await page.request.post("/api/admin/backups")).status()).toBe(403);
 
     await login(page, ADMIN);
+    const run = await page.request.post("/api/admin/backups");
+    expect(run.ok()).toBe(true);
+    const result = await run.json();
+    expect(result.file).toMatch(/^db-.+\.sqlite\.gz$/);
+
     const list = await (await page.request.get("/api/admin/backups")).json();
     expect(list.keep).toBe(7);
     expect(list.snapshots.map((s: { file: string }) => s.file)).toContain(

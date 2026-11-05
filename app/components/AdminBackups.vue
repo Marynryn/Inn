@@ -6,10 +6,26 @@
  */
 type Snapshot = { file: string; bytes: number };
 
-const { data, error } = useFetch<{ keep: number; snapshots: Snapshot[] }>(
-  "/api/admin/backups",
-  { server: false },
-);
+const { data, error, refresh } = useFetch<{
+  keep: number;
+  snapshots: Snapshot[];
+}>("/api/admin/backups", { server: false });
+
+/** Снимок сейчас — перед рискованным делом (перезаливка глав, чистка) не ждать ночи. */
+const snapping = ref(false);
+const snapError = ref("");
+const snapNow = async () => {
+  snapping.value = true;
+  snapError.value = "";
+  try {
+    await $fetch("/api/admin/backups", { method: "POST" });
+    await refresh();
+  } catch {
+    snapError.value = "Снимок не получился — подробности в логе сервера";
+  } finally {
+    snapping.value = false;
+  }
+};
 
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
 
@@ -41,10 +57,23 @@ const when = (file: string) => {
       Скачать полную копию
     </a>
 
-    <h3 class="backups-sub">Ночные снимки базы</h3>
+    <h3 class="backups-sub">Снимки базы</h3>
+    <p class="backups-hint">
+      Каждую ночь в 03:43 по Москве — и по кнопке, например перед перезаливкой
+      глав.
+    </p>
+    <button
+      class="btn btn--ghost btn--sm"
+      type="button"
+      :disabled="snapping"
+      @click="snapNow"
+    >
+      {{ snapping ? "Снимаем..." : "Снять снимок сейчас" }}
+    </button>
+    <p v-if="snapError" class="backups-hint backups-error">{{ snapError }}</p>
     <p v-if="error" class="backups-hint">Список не загрузился</p>
     <p v-else-if="data && !data.snapshots.length" class="backups-hint">
-      Пока ни одного: снимок делается каждую ночь в 03:43 по Москве.
+      Пока ни одного.
     </p>
     <ul v-else-if="data" class="backups-list">
       <li v-for="s in data.snapshots" :key="s.file">
@@ -78,9 +107,14 @@ const when = (file: string) => {
   max-width: 560px;
 }
 
+.backups-error {
+  color: var(--danger);
+  margin-top: 8px;
+}
+
 .backups-list {
   list-style: none;
-  margin: 0 0 8px;
+  margin: 12px 0 8px;
   padding: 0;
   max-width: 360px;
 }

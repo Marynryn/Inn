@@ -6,11 +6,10 @@ export default defineTask<unknown>({
     name: "backup-db",
     description: "Снимок базы в storage/backups, последние 7",
   },
-  async run({ payload }) {
-    // В деве незачем копить снимки локальной базы по расписанию. Вручную —
-    // /_nitro/tasks/backup-db?force=1 — можно: так его проверяют тесты.
-    if (import.meta.dev && !payload?.force)
-      return { result: { skipped: "dev" } };
+  async run() {
+    // В деве незачем копить снимки локальной базы. Снять снимок руками можно
+    // всегда — кнопкой в панели (POST /api/admin/backups).
+    if (import.meta.dev) return { result: { skipped: "dev" } };
 
     try {
       const snapshot = await makeSnapshot();
