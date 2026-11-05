@@ -4,8 +4,10 @@ import {
   type ReaderSettings,
 } from "#shared/utils/readerSettings";
 
-/** Ключ в браузере. Тот же читает встроенный скрипт в шапке главы — см. LS_READER там. */
-export const LS_READER = "tavern:reader";
+import { LS_READER } from "#shared/utils/inlineScripts";
+
+/** Ключ в браузере. Тот же читает встроенный скрипт в шапке главы (READER_BOOT). */
+export { LS_READER };
 
 /**
  * Вид страницы главы: тема, кегль, высота строки, ширина колонки.

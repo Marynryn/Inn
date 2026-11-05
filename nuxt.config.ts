@@ -108,6 +108,9 @@ export default defineNuxtConfig({
       },
     },
     notifySecret: process.env.NOTIFY_SECRET,
+    // CSP только сообщает о нарушениях, не блокируя (server/plugins/csp.ts).
+    // Включается переменной NUXT_CSP_REPORT_ONLY=true.
+    cspReportOnly: false,
     // Ключи входа через Google. Пустые — кнопка на странице входа не появится.
     oauth: {
       google: {

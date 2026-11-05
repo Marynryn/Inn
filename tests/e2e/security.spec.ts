@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
 import { createClient } from "@libsql/client";
 import JSZip from "jszip";
-import { test, expect, login } from "./helpers";
-import { ADMIN, CHAPTERS, READER } from "./fixtures";
+import { test, expect, login, open } from "./helpers";
+import { ADMIN, CHAPTERS, READER, chapterUrl } from "./fixtures";
 
 /** База тестового сервера — та, что вычищает tests/e2e/serve.mjs. */
 const testDb = () =>
@@ -138,6 +138,71 @@ test.describe("Защита", () => {
       );
       expect(h["referrer-policy"], url).toBeTruthy();
     }
+  });
+
+  test("у каждой страницы свой nonce, и все её скрипты его несут", async ({
+    page,
+  }) => {
+    const res = await page.request.get("/");
+    const csp = res.headers()["content-security-policy"] ?? "";
+    test.skip(
+      !csp.includes("script-src"),
+      "полная политика — только в собранном сайте, не на nuxt dev",
+    );
+    const nonce = /'nonce-([^']+)'/.exec(csp)![1]!;
+    const tags = [...(await res.text()).matchAll(/<script\b[^>]*>/g)].map(
+      (m) => m[0],
+    );
+    expect(tags.length).toBeGreaterThan(0);
+    for (const tag of tags) expect(tag).toContain(`nonce="${nonce}"`);
+
+    const again = await page.request.get("/");
+    expect(again.headers()["content-security-policy"]).not.toContain(nonce);
+  });
+
+  test("CSP ничего не блокирует — ни при заходе, ни при переходах", async ({
+    page,
+  }) => {
+    const violations: string[] = [];
+    page.on("console", (m) => {
+      if (/Content Security Policy/i.test(m.text())) violations.push(m.text());
+    });
+    await page.addInitScript(() => {
+      document.addEventListener("securitypolicyviolation", (e) =>
+        console.error(
+          `Content Security Policy: ${e.violatedDirective} ${e.blockedURI}`,
+        ),
+      );
+    });
+
+    for (const url of ["/", "/characters", "/game", "/progress", "/about"])
+      await open(page, url);
+    await open(page, chapterUrl(CHAPTERS[0]!.id));
+
+    // Переход внутри сайта: скрипт настроек читалки Nuxt вставляет сам, без
+    // nonce, — его пропускает хэш.
+    await open(page, "/characters");
+    await page.evaluate((to) => {
+      const app = (document.querySelector("#__nuxt") as any).__vue_app__;
+      return app.config.globalProperties.$router.push(to);
+    }, chapterUrl(CHAPTERS[1]!.id));
+    await expect(page.locator("h1")).toContainText(CHAPTERS[1]!.title);
+
+    expect(violations).toEqual([]);
+  });
+
+  test("отчёт о нарушении CSP принимается", async ({ page }) => {
+    const res = await page.request.post("/api/csp-report", {
+      headers: { "content-type": "application/csp-report" },
+      data: JSON.stringify({
+        "csp-report": {
+          "document-uri": "http://localhost/",
+          "violated-directive": "script-src",
+          "blocked-uri": "inline",
+        },
+      }),
+    });
+    expect(res.status()).toBe(204);
   });
 
   test("двойной клик ставит один лайк, а несуществующему комментарию — 404", async ({
