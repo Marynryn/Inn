@@ -134,6 +134,20 @@ test.describe("Карточки персонажей", () => {
     await expect(dialog).toBeHidden();
   });
 
+  test("сетка берёт уменьшенные портреты, а не исходники 800×800", async ({
+    page,
+  }) => {
+    await open(page, "/characters");
+    const img = page.locator(".card .portrait img").first();
+    await expect(img).toHaveAttribute("srcset", /\/_ipx\/w_240\/\S+ 240w/);
+
+    const src = await img.getAttribute("src");
+    expect(src).toMatch(/^\/_ipx\/w_400\//);
+    const res = await page.request.get(src!);
+    expect(res.ok()).toBe(true);
+    expect(res.headers()["content-type"]).toContain("image/");
+  });
+
   test("без полной картинки увеличивается сама карточка", async ({ page }) => {
     await open(page, "/characters");
     await page.getByPlaceholder(SEARCH).fill("Торен");
