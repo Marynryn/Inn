@@ -3,7 +3,11 @@
 // --- Список глав ---
 // Свой эндпоинт, с черновиками и полем isPublished: публичный /api/chapters
 // отдаёт только опубликованные, кто бы ни спрашивал.
-const { data: chaptersData, refresh: refreshChapters } = useFetch(
+//
+// С await: список ниже — копия ответа через watch, а на сервере watch не
+// срабатывает, когда данные приходят позже. Без await сервер рисовал
+// «Глав пока нет», браузер — главы, и гидратация расходилась.
+const { data: chaptersData, refresh: refreshChapters } = await useFetch(
   "/api/admin/chapters",
 );
 const chapterList = ref<any[]>([]);

@@ -1,5 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
-import { READER_BOOT, claritySnippet } from "#shared/utils/inlineScripts";
+import {
+  NUXT_IMG_ONERROR,
+  READER_BOOT,
+  claritySnippet,
+} from "#shared/utils/inlineScripts";
 
 /**
  * Политика безопасности содержимого для страниц сайта (server/plugins/csp.ts).
@@ -44,6 +48,10 @@ export function contentSecurityPolicy(opts: {
       "'self'",
       `'nonce-${opts.nonce}'`,
       ...inlineHashes,
+      // Атрибуты-обработчики пропускаются только с 'unsafe-hashes' и только
+      // этот один, по хэшу: onerror у картинок Nuxt Image.
+      "'unsafe-hashes'",
+      sha256(NUXT_IMG_ONERROR),
       ...clarity,
     ],
     "style-src": ["'self'", "'unsafe-inline'"],

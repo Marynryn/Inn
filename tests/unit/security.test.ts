@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import type { H3Event } from "h3";
 import { clientIp } from "../../server/utils/client-ip";
@@ -7,6 +8,7 @@ import {
   isRateLimited,
 } from "../../server/utils/rate-limit";
 import { addNonce, contentSecurityPolicy } from "../../server/utils/csp";
+import { NUXT_IMG_ONERROR } from "../../shared/utils/inlineScripts";
 import {
   issueHandoffTicket,
   takeHandoffTicket,
@@ -94,7 +96,20 @@ describe("CSP", () => {
 
     const withClarity = contentSecurityPolicy({ nonce: "N", clarityId: "abc" });
     expect(withClarity).toContain("https://www.clarity.ms");
-    expect(withClarity.match(/'sha256-/g)).toHaveLength(2);
+    // Скрипт читалки, onerror картинок и сниппет Clarity.
+    expect(withClarity.match(/'sha256-/g)).toHaveLength(3);
+  });
+  it("onerror картинок Nuxt Image пропускается по хэшу — тот самый, что в пакете", () => {
+    expect(contentSecurityPolicy({ nonce: "N" })).toContain("'unsafe-hashes'");
+    // Обновили @nuxt/image и строка поменялась — хэш в политике больше не
+    // совпадёт, и браузер начнёт жаловаться на каждой странице с картинкой.
+    for (const c of ["NuxtImg", "NuxtPicture"]) {
+      const src = readFileSync(
+        `node_modules/@nuxt/image/dist/runtime/components/${c}.vue`,
+        "utf8",
+      );
+      expect(src).toContain(JSON.stringify(NUXT_IMG_ONERROR));
+    }
   });
 });
 

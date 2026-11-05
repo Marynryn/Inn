@@ -2,8 +2,10 @@
 /** Вкладка «Уведомления»: рассылка о новых главах в телеграм. */
 // --- Уведомления в телеграм ---
 const runtimeConfig = useRuntimeConfig();
+// С await: выбор глав и текст ниже заполняются через watch, а на сервере watch
+// не срабатывает, когда данные приходят позже, — гидратация расходилась.
 const { data: notifyData, refresh: refreshNotify } =
-  useFetch("/api/admin/notify");
+  await useFetch("/api/admin/notify");
 const selectedNotifyIds = ref<string[]>([]);
 const sendingNotify = ref(false);
 const notifyResult = ref("");

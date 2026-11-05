@@ -17,6 +17,14 @@ export const LS_READER = "tavern:reader";
  */
 export const READER_BOOT = `(function(){try{var s=JSON.parse(localStorage.getItem(${JSON.stringify(LS_READER)})||'null');if(!s)return;var d=document.documentElement;if(typeof s.theme==='string')d.setAttribute('data-reader-theme',s.theme);if(s.fontSize)d.style.setProperty('--reader-font',s.fontSize+'pt');if(s.lineHeight)d.style.setProperty('--reader-lh',String(s.lineHeight));if(s.width)d.style.setProperty('--reader-width',String(s.width))}catch(e){}})()`;
 
+/**
+ * Обработчик, который Nuxt Image ставит картинкам в серверном HTML
+ * (onerror="…" у NuxtImg и NuxtPicture): картинка, упавшая до гидратации,
+ * помечает себя, и компонент потом всё равно сообщит об ошибке. Строка — как в
+ * @nuxt/image, байт в байт: по ней считается хэш для unsafe-hashes.
+ */
+export const NUXT_IMG_ONERROR = "this.setAttribute('data-error', 1)";
+
 /** Официальный сниппет Microsoft Clarity: очередь вызовов до загрузки тега. */
 export const claritySnippet = (id: string) =>
   `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script",${JSON.stringify(id)});`;
