@@ -1,5 +1,5 @@
 import { BlockList, isIP } from "node:net";
-import type { H3Event } from "h3";
+import { getRequestHeader, type H3Event } from "h3";
 
 /**
  * Адрес человека — для лимитов, реакций гостей и огоньков.
@@ -25,12 +25,13 @@ export function clientIp(event: H3Event): string {
     return real;
   }
 
-  const forwarded = header(event, "x-forwarded-for")
+  const forwarded = getRequestHeader(event, "x-forwarded-for")
     ?.split(",")
     .map((s) => s.trim())
     .filter(Boolean)
     .at(-1);
-  return forwarded || event.node.req.socket.remoteAddress || "unknown";
+  if (forwarded && isIP(forwarded)) return forwarded;
+  return event.node.req.socket.remoteAddress || "unknown";
 }
 
 function header(event: H3Event, name: string): string | null {
