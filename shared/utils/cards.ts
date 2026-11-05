@@ -689,19 +689,27 @@ function hurt(g: Game, side: Side, idx: number, amount: number) {
   const blocked = Math.min(f.shield, amount);
   f.shield -= blocked;
   if (!f.shield) f.thorns = false;
+  const was = f.hp;
   f.hp = Math.max(0, f.hp - (amount - blocked));
-  if (!alive(f) && f.id === "teriarch" && !f.revived) {
+  // Древний дракон остаётся с 1 ❤ — и в надписи, и в журнале потеря
+  // настоящая, а не весь удар.
+  const revived = !alive(f) && f.id === "teriarch" && !f.revived;
+  if (revived) {
     f.revived = true;
     f.hp = 1;
+  }
+  const lost = was - f.hp;
+  if (blocked) pop(g, f, "shield", `щит −${blocked}`);
+  if (lost) pop(g, f, "dmg", `−${lost}`);
+  if (lost || !revived)
+    say(
+      g,
+      `${tag(g, side, f)} получает ${lost}${blocked ? ` (щит поглотил ${blocked})` : ""}`,
+    );
+  if (revived) {
     say(g, `Древний дракон: ${tag(g, side, f)} выдерживает удар`);
     pop(g, f, "note", "Древний дракон");
   }
-  if (blocked) pop(g, f, "shield", `щит −${blocked}`);
-  if (amount - blocked) pop(g, f, "dmg", `−${amount - blocked}`);
-  say(
-    g,
-    `${tag(g, side, f)} получает ${amount - blocked}${blocked ? ` (щит поглотил ${blocked})` : ""}`,
-  );
   if (!alive(f)) {
     Object.assign(f, {
       energy: 0,
