@@ -270,7 +270,8 @@ export const commentReactions = sqliteTable("comment_reactions", {
   commentId: integer("comment_id").notNull(),
   type: text("type", { enum: ["like", "dislike"] }).notNull(),
   userId: integer("user_id"),
-  ip: text("ip"),
+  ip: text("ip"), // устарело: гости до кук; теперь у новых реакций NULL
+  anonId: text("anon_id"), // у гостя — его кука tavern_anon; у вошедшего NULL
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

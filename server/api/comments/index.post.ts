@@ -174,7 +174,6 @@ export default defineEventHandler(async (event) => {
       authorFigure,
       likes: 0,
       dislikes: 0,
-      myReaction: null,
     },
   };
   wsBroadcast(chapterId, payload);

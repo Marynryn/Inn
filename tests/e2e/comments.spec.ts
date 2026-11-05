@@ -220,6 +220,91 @@ test.describe("Комментарии", () => {
     await expect(like).not.toHaveClass(/active/);
   });
 
+  test("два гостя за одним IP не видят реакций друг друга", async ({
+    browser,
+  }) => {
+    // Один адрес на двоих — как у мобильного оператора или офиса.
+    const sameIp = { extraHTTPHeaders: { "x-forwarded-for": "10.7.7.7" } };
+    const first = await browser.newContext(sameIp);
+    const second = await browser.newContext(sameIp);
+    const a = await first.newPage();
+    const b = await second.newPage();
+
+    try {
+      await open(a, discussionUrl);
+      const likeA = a
+        .locator(".comment-item")
+        .first()
+        .locator(".reaction-btn")
+        .first();
+      await likeA.click();
+      await expect(likeA).toHaveClass(/active/);
+
+      // Свой лайк первый гость видит и после перезагрузки — по своей куке.
+      await open(a, discussionUrl);
+      await expect(likeA).toHaveClass(/active/);
+
+      // Второй гость с того же IP своим его не считает.
+      await open(b, discussionUrl);
+      const likeB = b
+        .locator(".comment-item")
+        .first()
+        .locator(".reaction-btn")
+        .first();
+      await expect(likeB).toHaveText(await likeA.innerText());
+      await expect(likeB).not.toHaveClass(/active/);
+      const mine = await (
+        await b.request.get(
+          `/api/comments/reactions?chapterId=${encodeURIComponent(CHAPTERS[0]!.id)}`,
+        )
+      ).json();
+      expect(mine).toEqual({});
+
+      // Снимаем за собой.
+      await likeA.click();
+      await expect(likeA).not.toHaveClass(/active/);
+    } finally {
+      await first.close();
+      await second.close();
+    }
+  });
+
+  test("серверный HTML обсуждения не зависит от того, кто его смотрит", async ({
+    browser,
+    page,
+  }) => {
+    const listUrl = `/api/comments?chapterId=${encodeURIComponent(CHAPTERS[0]!.id)}`;
+
+    await login(page, READER);
+    await open(page, discussionUrl);
+    const like = page
+      .locator(".comment-item")
+      .first()
+      .locator(".reaction-btn")
+      .first();
+    await like.click();
+    await expect(like).toHaveClass(/active/);
+
+    try {
+      const guest = await browser.newContext();
+      // Список комментариев у читателя с лайком и у гостя совпадает байт в
+      // байт: своей реакции в нём нет, только общие счётчики.
+      const asReader = await (await page.request.get(listUrl)).text();
+      const asGuest = await (await guest.request.get(listUrl)).text();
+      expect(asReader).toBe(asGuest);
+      expect(asReader).not.toContain("myReaction");
+
+      // И в HTML страницы, который отдаёт сервер, лайк читателя не подсвечен.
+      const html = await (await page.request.get(discussionUrl)).text();
+      expect(html).toContain("reaction-btn");
+      expect(html).not.toMatch(/class="reaction-btn active"/);
+      await guest.close();
+    } finally {
+      await like.click();
+      await expect(like).not.toHaveClass(/active/);
+    }
+  });
+
   test("администратор удаляет комментарий", async ({ page }) => {
     await login(page, ADMIN);
     await open(page, discussionUrl);
