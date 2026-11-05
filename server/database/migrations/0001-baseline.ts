@@ -1,0 +1,860 @@
+import type { Client } from "@libsql/client";
+import {
+  DISPLAY_NAME_MAX,
+  displayNameKey,
+  nameFromEmail,
+  normalizeDisplayName,
+} from "#shared/utils/displayName";
+import { addColumn, type Migration } from "./helpers";
+
+/**
+ * Базовая миграция — вся схема, какой она была к переходу на нумерованные
+ * миграции (PRAGMA user_version). До того эти шаги шли на каждом старте и
+ * были написаны так, чтобы повтор ничего не ломал: CREATE … IF NOT EXISTS,
+ * столбец — только если его нет, разовые переделки — под меткой в
+ * site_settings. Поэтому её безопасно прогнать и на пустой базе, и на боевой,
+ * которая всё это уже прошла: после неё обе в одном виде, с версией 1.
+ *
+ * Дальше эта функция не меняется. Новое — следующей миграцией в index.ts.
+ */
+export const baseline: Migration = {
+  version: 1,
+  name: "схема на момент перехода на версии",
+  transaction: false,
+  async up(db: Client, { storageDir }) {
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS chapters (
+        id TEXT PRIMARY KEY,
+        volume INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        content_html TEXT NOT NULL DEFAULT '',
+        epub_path TEXT,
+        published_at TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        is_published INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'reader' CHECK(role IN ('admin','reader'))
+      );
+
+      CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chapter_id TEXT,
+        author_name TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS chapter_stats (
+        chapter_id TEXT PRIMARY KEY,
+        views_count INTEGER NOT NULL DEFAULT 0,
+        downloads_count INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS site_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL DEFAULT ''
+      );
+    `);
+
+    // Таблица реакций на комментарии
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS comment_reactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        comment_id INTEGER NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('like','dislike')),
+        user_id INTEGER,
+        ip TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Новые столбцы для аватарки и привязки комментария к пользователю
+    await addColumn(db, "users", "avatar_url", "TEXT");
+    await addColumn(db, "users", "display_name", "TEXT");
+    await addColumn(db, "comments", "user_id", "INTEGER");
+    await addColumn(db, "comments", "is_spoiler", "INTEGER NOT NULL DEFAULT 0");
+    // Ответ на комментарий. Ветка одноуровневая: здесь всегда id корневого.
+    await addColumn(db, "comments", "parent_id", "INTEGER");
+    // Кому отвечали. У ответов, написанных до этого столбца, останется NULL —
+    // тогда подпись «в ответ» просто не показывается, а ветка цела.
+    await addColumn(db, "comments", "reply_to_id", "INTEGER");
+
+    // Ответы читаются веткой: без индекса каждый показ главы сканировал бы
+    // всю таблицу комментариев ради нескольких строк.
+    await db.execute(
+      "CREATE INDEX IF NOT EXISTS comments_parent ON comments (parent_id)",
+    );
+
+    // Уведомления: «на твой комментарий ответили». Держим только получателя и id
+    // ответа — остальное достаётся из самого комментария при чтении.
+    //
+    // Уникальность по паре (получатель, ответ) — от повторной записи: один ответ
+    // порождает ровно одно уведомление, сколько бы раз обработчик ни сработал.
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        comment_id INTEGER NOT NULL,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS notifications_once
+        ON notifications (user_id, comment_id);
+
+      CREATE INDEX IF NOT EXISTS notifications_unread
+        ON notifications (user_id, is_read);
+    `);
+
+    // Добавить sort_order если столбца ещё нет (для уже существующих БД)
+    await addColumn(db, "chapters", "sort_order", "INTEGER NOT NULL DEFAULT 0");
+
+    await addColumn(
+      db,
+      "chapters",
+      "is_published",
+      "INTEGER NOT NULL DEFAULT 1",
+    );
+
+    // Отметка о том, что про главу уже уведомляли в телеграме. При первом
+    // добавлении столбца проставляем её всем уже опубликованным главам, чтобы бот
+    // не разослал разом уведомления про весь архив. У черновиков она остаётся
+    // пустой — про них уведомим тогда, когда их опубликуют.
+    if (await addColumn(db, "chapters", "notified_at", "TEXT"))
+      await db.execute(
+        "UPDATE chapters SET notified_at = created_at WHERE is_published = 1",
+      );
+
+    // Длина главы в словах — для трекера прогресса. Новые главы считаются при
+    // сохранении, а уже загруженные досчитываем здесь: по одной, чтобы не
+    // поднимать в память весь перевод разом. Глава с нулём слов при пустом
+    // тексте пересчитается на каждом старте — это один дешёвый запрос.
+    await addColumn(db, "chapters", "word_count", "INTEGER NOT NULL DEFAULT 0");
+
+    // Просмотры по дням — одна строка на главу за день, для счётчика «за сегодня».
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS chapter_view_days (
+        chapter_id TEXT NOT NULL,
+        day TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (chapter_id, day)
+      );
+    `);
+
+    // Прежний журнал хранил строку на каждый адрес ради дедупликации — от неё
+    // отказались, адреса больше не пишем.
+    await db.execute("DROP TABLE IF EXISTS chapter_views");
+
+    // Скачивания по дням — та же форма, для плитки «Скачиваний epub».
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS chapter_download_days (
+        chapter_id TEXT NOT NULL,
+        day TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (chapter_id, day)
+      );
+    `);
+
+    // Клики по хеллоуинской тыкве по дням.
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS pumpkin_click_days (
+        day TEXT PRIMARY KEY,
+        count INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+
+    // Разные читатели за день. Строка на браузер за день, вместо кода браузера —
+    // отпечаток с датой, см. readerDays в schema.ts.
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS reader_days (
+        day TEXT NOT NULL,
+        visitor TEXT NOT NULL,
+        PRIMARY KEY (day, visitor)
+      )
+    `);
+
+    // Настольная игра: разные люди на её страницах по дням и доигранные партии.
+    // Заходы держим месяц, как reader_days; партии — строка на день, их мало.
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS board_visit_days (
+        day TEXT NOT NULL,
+        visitor TEXT NOT NULL,
+        PRIMARY KEY (day, visitor)
+      )
+    `);
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS board_game_days (
+        day TEXT PRIMARY KEY,
+        finished INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+
+    // Игра «Кто из таверны»: партии игроков и сводка по персонажу дня.
+    // Уникальный индекс частичный — партия дня одна на игрока, свободных сколько угодно.
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS game_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        player TEXT NOT NULL,
+        mode TEXT NOT NULL CHECK(mode IN ('daily','endless')),
+        pool TEXT NOT NULL CHECK(pool IN ('known','all')),
+        max_volume INTEGER NOT NULL DEFAULT 10,
+        day TEXT NOT NULL,
+        answer_id TEXT NOT NULL,
+        guesses TEXT NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL DEFAULT 'playing' CHECK(status IN ('playing','won','revealed')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        finished_at TEXT
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS game_sessions_daily
+        ON game_sessions (player, day) WHERE mode = 'daily';
+
+      CREATE INDEX IF NOT EXISTS game_sessions_player
+        ON game_sessions (player, mode, id);
+
+      CREATE TABLE IF NOT EXISTS game_stats (
+        day TEXT NOT NULL,
+        mode TEXT NOT NULL CHECK(mode IN ('daily','endless')),
+        played INTEGER NOT NULL DEFAULT 0,
+        won INTEGER NOT NULL DEFAULT 0,
+        guesses INTEGER NOT NULL DEFAULT 0,
+        win_guesses INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, mode)
+      );
+    `);
+
+    // Прежние счётчики знали только про персонажа дня и считали заодно нас самих.
+    // Игра ещё скрыта, терять нечего — просто выбрасываем старую таблицу.
+    await db.execute("DROP TABLE IF EXISTS game_daily_stats");
+
+    // Потолок тома появился позже самой игры — дописываем столбец в уже созданные базы.
+    await addColumn(
+      db,
+      "game_sessions",
+      "max_volume",
+      "INTEGER NOT NULL DEFAULT 10",
+    );
+
+    // Партии, заведённые до появления потолка тома, получили при ALTER значение по
+    // умолчанию — десятый том. Такая партия показывает спойлерные колонки и
+    // персонажей из непереведённых томов, поэтому разово их выбрасываем. Метка в
+    // настройках следит, чтобы уборка случилась один раз и не сносила потом
+    // партии живых игроков.
+    const reset = await db.execute(
+      "SELECT value FROM site_settings WHERE key = 'game_sessions_reset'",
+    );
+    if (reset.rows.length === 0) {
+      await db.execute("DELETE FROM game_sessions");
+      await db.execute(
+        "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('game_sessions_reset', '1')",
+      );
+    }
+
+    // Вход через Google и телеграм. У таких аккаунтов нет ни почты, ни пароля, а
+    // прежняя таблица объявляла оба столбца NOT NULL — снять это ALTER'ом SQLite
+    // не умеет, поэтому таблицу разово пересобираем. Метка в настройках следит,
+    // чтобы пересборка случилась один раз и не тронула живые строки повторно.
+    const usersRebuilt = await db.execute(
+      "SELECT value FROM site_settings WHERE key = 'users_nullable_rebuild'",
+    );
+    if (usersRebuilt.rows.length === 0) {
+      // Одной транзакцией вместе с меткой: оборвись процесс между DROP и
+      // переименованием — база осталась бы без таблицы пользователей, а метка
+      // непоставленной, и следующий запуск падал бы на том же месте. Либо всё,
+      // либо ничего.
+      await db.batch(
+        [
+          `CREATE TABLE users_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          email TEXT UNIQUE,
+          password_hash TEXT,
+          role TEXT NOT NULL DEFAULT 'reader' CHECK(role IN ('admin','reader')),
+          avatar_url TEXT,
+          display_name TEXT,
+          is_banned INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`,
+          `INSERT INTO users_new (id, email, password_hash, role, avatar_url, display_name)
+          SELECT id, email, password_hash, role, avatar_url, display_name FROM users`,
+          "DROP TABLE users",
+          "ALTER TABLE users_new RENAME TO users",
+          "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('users_nullable_rebuild', '1')",
+        ],
+        "write",
+      );
+    }
+
+    // Способы входа: один аккаунт — сколько угодно провайдеров. Отдельная таблица,
+    // а не столбцы в users: иначе третий провайдер потребует новой миграции, а
+    // привязать два входа к одному человеку будет нечем.
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS user_identities (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        provider TEXT NOT NULL CHECK(provider IN ('google','telegram')),
+        provider_user_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS user_identities_provider
+        ON user_identities (provider, provider_user_id);
+
+      CREATE INDEX IF NOT EXISTS user_identities_user
+        ON user_identities (user_id);
+    `);
+
+    // Достижения в игре. Отдельная таблица, а не выборка по партиям: свободные
+    // партии удаляются при старте следующей, а всё старше месяца вычищается —
+    // истории игрока в game_sessions не остаётся вовсе. Здесь строка на
+    // завершённую партию, и она переживает обе чистки.
+    //
+    // Партий дня у человека не может быть больше одной в сутки: без этого рейтинг
+    // накручивался бы перезаходом.
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS game_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        day TEXT NOT NULL,
+        mode TEXT NOT NULL CHECK(mode IN ('daily','endless')),
+        guesses INTEGER NOT NULL DEFAULT 0,
+        won INTEGER NOT NULL DEFAULT 0,
+        finished_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS game_results_daily
+        ON game_results (user_id, day) WHERE mode = 'daily';
+
+      CREATE INDEX IF NOT EXISTS game_results_user
+        ON game_results (user_id, finished_at);
+    `);
+
+    // Огоньки на карточках персонажей. Один от человека: у вошедшего — по
+    // аккаунту, у гостя — по IP; частичные индексы не дают поставить второй.
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS character_flames (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        character_id TEXT NOT NULL,
+        user_id INTEGER,
+        ip TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS character_flames_user
+        ON character_flames (character_id, user_id) WHERE user_id IS NOT NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS character_flames_ip
+        ON character_flames (character_id, ip) WHERE user_id IS NULL;
+    `);
+
+    // Партия, начатая до входа, должна засчитаться тому, кто потом вошёл.
+    await addColumn(db, "game_sessions", "user_id", "INTEGER");
+
+    // Партия вошедшего ищется по аккаунту, а не по куке: одна на все устройства.
+    await db.execute(
+      "CREATE INDEX IF NOT EXISTS game_sessions_user ON game_sessions (user_id, mode, day)",
+    );
+
+    // Закладка вошедшего читателя: прочитанные главы и место в каждой. У гостей
+    // всё это лежит в localStorage и там же остаётся — таблица только для тех,
+    // кто вошёл, ради того чтобы закладка совпадала на телефоне и на ноутбуке.
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS reading_progress (
+        user_id INTEGER NOT NULL,
+        chapter_id TEXT NOT NULL,
+        scroll REAL NOT NULL DEFAULT 0,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (user_id, chapter_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS reading_progress_recent
+        ON reading_progress (user_id, updated_at);
+    `);
+
+    // Имя под комментариями — одно на всех. Рядом с самим именем теперь лежит его
+    // ключ (написание, приведённое к одному виду), а уникальный индекс по ключу и
+    // держит правило. Тем, кто подписывался почтой, имя проставляем явно: пока оно
+    // только выводилось из почты, занятым оно не считалось и его мог взять кто-то
+    // ещё. Совпавшие имена разводим номером — прежнее остаётся тому, кто раньше.
+    const nameKeys = await db.execute(
+      "SELECT value FROM site_settings WHERE key = 'display_name_keys'",
+    );
+    if (nameKeys.rows.length === 0) {
+      await addColumn(db, "users", "display_name_key", "TEXT");
+
+      // Имя, выбранное руками, старше выведенного из почты: раздаём сперва тем,
+      // кто называл себя сам, и только потом остальным. Иначе служебный
+      // admin@tavern.local — он заводится сам при пустой базе и имени никогда не
+      // выбирал — отобрал бы «admin» у живого человека.
+      const rows = await db.execute(
+        "SELECT id, display_name, email FROM users ORDER BY id",
+      );
+      const ordered = [...rows.rows].sort(
+        (a, b) =>
+          Number(Boolean(b.display_name)) - Number(Boolean(a.display_name)),
+      );
+      const taken = new Set<string>();
+
+      for (const row of ordered as unknown as {
+        id: number;
+        display_name: string | null;
+        email: string | null;
+      }[]) {
+        const base =
+          normalizeDisplayName(row.display_name) || nameFromEmail(row.email);
+        if (!base) continue;
+
+        let name = base;
+        for (let n = 2; taken.has(displayNameKey(name)); n++) {
+          const suffix = ` ${n}`;
+          name = normalizeDisplayName(
+            base.slice(0, DISPLAY_NAME_MAX - suffix.length) + suffix,
+          );
+        }
+        taken.add(displayNameKey(name));
+
+        await db.execute({
+          sql: "UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?",
+          args: [name, displayNameKey(name), row.id],
+        });
+      }
+
+      await db.executeMultiple(`
+        CREATE UNIQUE INDEX IF NOT EXISTS users_display_name_key
+          ON users (display_name_key) WHERE display_name_key IS NOT NULL;
+      `);
+      await db.execute(
+        "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('display_name_keys', '1')",
+      );
+    }
+
+    // Разбор выше уже прошёл по боевой базе в прежнем порядке — по одному
+    // старшинству id, — и служебный admin@tavern.local успел отобрать «admin» у
+    // хозяйки сайта: ей осталось «admin 2». Возвращаем имя тому, кто его
+    // выбирал: у кого имя лишь выведено из почты, тот уступает его владельцу
+    // номерного двойника, а сам получает двойника взамен.
+    const nameOwners = await db.execute(
+      "SELECT value FROM site_settings WHERE key = 'display_name_owner_fix'",
+    );
+    if (nameOwners.rows.length === 0) {
+      type NameRow = {
+        id: number;
+        email: string | null;
+        role: string;
+        display_name: string | null;
+        display_name_key: string | null;
+      };
+      const all = await db.execute(
+        "SELECT id, email, role, display_name, display_name_key FROM users ORDER BY id",
+      );
+      const rows = all.rows as unknown as NameRow[];
+
+      for (const holder of rows) {
+        const key = holder.display_name_key;
+        if (!key) continue;
+
+        // Имя выбрано руками — оно и так у своего человека.
+        const fromMail = nameFromEmail(holder.email);
+        if (!fromMail || displayNameKey(fromMail) !== key) continue;
+
+        // Тот, кому это же имя досталось с номером, и есть тот, кто его выбирал.
+        // Только хозяйка сайта: чужие профили разово не переставляем, а если
+        // номерное имя досталось постороннему — имя тем более остаётся здесь.
+        const claimant = rows.find(
+          (r) =>
+            r.id !== holder.id &&
+            r.role === "admin" &&
+            /^ \d+$/.test((r.display_name_key ?? "").slice(key.length)) &&
+            (r.display_name_key ?? "").startsWith(`${key} `),
+        );
+        if (!claimant) continue;
+
+        const wanted = normalizeDisplayName(
+          (claimant.display_name ?? "").replace(/ \d+$/, ""),
+        );
+        const given = claimant.display_name!;
+        if (!wanted) continue;
+
+        // По одному шагу: уникальный индекс не даст двум строкам сойтись на одном
+        // ключе даже на миг, поэтому сначала освобождаем имя, а потом раздаём.
+        await db.batch(
+          [
+            {
+              sql: "UPDATE users SET display_name = NULL, display_name_key = NULL WHERE id = ?",
+              args: [holder.id],
+            },
+            {
+              sql: "UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?",
+              args: [wanted, displayNameKey(wanted), claimant.id],
+            },
+            {
+              sql: "UPDATE users SET display_name = ?, display_name_key = ? WHERE id = ?",
+              args: [given, displayNameKey(given), holder.id],
+            },
+          ],
+          "write",
+        );
+
+        holder.display_name = given;
+        holder.display_name_key = displayNameKey(given);
+        claimant.display_name = wanted;
+        claimant.display_name_key = displayNameKey(wanted);
+      }
+
+      await db.execute(
+        "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('display_name_owner_fix', '1')",
+      );
+    }
+
+    // Рамки для аватарок. Каталог в базе, картинки на диске: рамки раздаются на
+    // ивентах, и новая рамка не должна требовать выкатки сайта.
+    //
+    // Владение отдельной таблицей, а не флагом у пользователя: выбрать рамкой
+    // можно только выигранную, и список выигранных — это и есть награда.
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS avatar_frames (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        file TEXT NOT NULL,
+        fit REAL NOT NULL DEFAULT 0.72,
+        in_pool INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS user_frames (
+        user_id INTEGER NOT NULL,
+        frame_id INTEGER NOT NULL,
+        granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (user_id, frame_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS user_frames_frame ON user_frames (frame_id);
+    `);
+
+    await addColumn(db, "users", "avatar_frame_id", "INTEGER");
+
+    // Рамка новичка: её выдают при регистрации и сразу надевают.
+    await addColumn(
+      db,
+      "avatar_frames",
+      "is_default",
+      "INTEGER NOT NULL DEFAULT 0",
+    );
+
+    // Уведомление о выданной рамке. Таблица уведомлений была привязана к
+    // комментарию намертво — comment_id NOT NULL, — а у рамки комментария нет.
+    // Снять NOT NULL в SQLite можно только перестройкой, поэтому перестраиваем:
+    // тип события, необязательный comment_id и frame_id для рамки. Прежние
+    // строки переезжают как есть, с типом reply.
+    //
+    // Уникальность — своя на каждый тип: об одном ответе не уведомляем дважды,
+    // об одной рамке тоже. Индексы частичные: у ответа пуст frame_id, у рамки —
+    // comment_id, и в общем индексе они бы друг другу не мешали, но частичный
+    // говорит это прямо.
+    const notifRebuilt = await db.execute(
+      "SELECT value FROM site_settings WHERE key = 'notifications_frame_rebuild'",
+    );
+    if (notifRebuilt.rows.length === 0) {
+      await db.batch(
+        [
+          `CREATE TABLE notifications_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          type TEXT NOT NULL DEFAULT 'reply' CHECK(type IN ('reply','frame')),
+          comment_id INTEGER,
+          frame_id INTEGER,
+          is_read INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`,
+          `INSERT INTO notifications_new (id, user_id, type, comment_id, is_read, created_at)
+          SELECT id, user_id, 'reply', comment_id, is_read, created_at FROM notifications`,
+          "DROP TABLE notifications",
+          "ALTER TABLE notifications_new RENAME TO notifications",
+          `CREATE UNIQUE INDEX IF NOT EXISTS notifications_once
+          ON notifications (user_id, comment_id) WHERE comment_id IS NOT NULL`,
+          `CREATE UNIQUE INDEX IF NOT EXISTS notifications_frame_once
+          ON notifications (user_id, frame_id) WHERE frame_id IS NOT NULL`,
+          "CREATE INDEX IF NOT EXISTS notifications_unread ON notifications (user_id, is_read)",
+          "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('notifications_frame_rebuild', '1')",
+        ],
+        "write",
+      );
+    }
+
+    // Третий тип — лайки. CHECK в SQLite на месте не поправить, поэтому таблицу
+    // перекладываем ещё раз, как с рамками, и заодно добавляем счётчик лайков.
+    // Ответ и лайк делят индекс notifications_once и не сталкиваются: у ответа
+    // comment_id — чужая реплика, у лайка — своя.
+    const likeRebuilt = await db.execute(
+      "SELECT value FROM site_settings WHERE key = 'notifications_like_rebuild'",
+    );
+    if (likeRebuilt.rows.length === 0) {
+      await db.batch(
+        [
+          `CREATE TABLE notifications_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          type TEXT NOT NULL DEFAULT 'reply' CHECK(type IN ('reply','frame','like')),
+          comment_id INTEGER,
+          frame_id INTEGER,
+          likes INTEGER,
+          is_read INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`,
+          `INSERT INTO notifications_new (id, user_id, type, comment_id, frame_id, is_read, created_at)
+          SELECT id, user_id, type, comment_id, frame_id, is_read, created_at FROM notifications`,
+          "DROP TABLE notifications",
+          "ALTER TABLE notifications_new RENAME TO notifications",
+          `CREATE UNIQUE INDEX IF NOT EXISTS notifications_once
+          ON notifications (user_id, comment_id) WHERE comment_id IS NOT NULL`,
+          `CREATE UNIQUE INDEX IF NOT EXISTS notifications_frame_once
+          ON notifications (user_id, frame_id) WHERE frame_id IS NOT NULL`,
+          "CREATE INDEX IF NOT EXISTS notifications_unread ON notifications (user_id, is_read)",
+          "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('notifications_like_rebuild', '1')",
+        ],
+        "write",
+      );
+    }
+
+    // Лайки считают по комментарию — и счётчики под репликами, и уведомление о
+    // них. Без индекса каждый подсчёт проходил бы всю таблицу реакций.
+    await db.execute(
+      "CREATE INDEX IF NOT EXISTS comment_reactions_comment ON comment_reactions (comment_id)",
+    );
+
+    // Вид страницы главы у вошедшего — чтобы совпадал на телефоне и ноутбуке.
+    await addColumn(db, "users", "reader_settings", "TEXT");
+
+    // «О себе» — абзац на публичной странице читателя.
+    await addColumn(db, "users", "about", "TEXT");
+
+    // Хозяйка сайта раньше могла носить любую рамку каталога, теперь — только
+    // свою. Ту, что на ней сейчас, выдаём ей один раз, молча: рамка не должна
+    // слететь с аватарки из-за того, что поменялось правило.
+    const wornGranted = await db.execute(
+      "SELECT value FROM site_settings WHERE key = 'admin_worn_frames_granted'",
+    );
+    if (wornGranted.rows.length === 0) {
+      await db.batch(
+        [
+          `INSERT OR IGNORE INTO user_frames (user_id, frame_id)
+          SELECT u.id, u.avatar_frame_id FROM users u
+          JOIN avatar_frames f ON f.id = u.avatar_frame_id
+          WHERE u.role = 'admin'`,
+          "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('admin_worn_frames_granted', '1')",
+        ],
+        "write",
+      );
+    }
+
+    // Публичная страница считает комментарии читателя — без индекса это проход
+    // по всей таблице на каждое открытие профиля.
+    await db.execute(
+      "CREATE INDEX IF NOT EXISTS comments_user ON comments (user_id)",
+    );
+
+    // Публичный код читателя — вместо номера в адресах. Номер выдаёт, сколько у
+    // сайта читателей: /reader/42 значит «их около сорока». Код случайный и
+    // ничего не говорит.
+    //
+    // Код ставит база, а не код сайта: пользователей заводят в нескольких
+    // местах, и забыть его в одном из них было бы легко. Триггер срабатывает
+    // на любую вставку.
+    await addColumn(db, "users", "public_id", "TEXT");
+    await db.executeMultiple(`
+      UPDATE users SET public_id = lower(hex(randomblob(6))) WHERE public_id IS NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS users_public_id ON users (public_id);
+      CREATE TRIGGER IF NOT EXISTS users_public_id_fill AFTER INSERT ON users
+        WHEN NEW.public_id IS NULL
+        BEGIN
+          UPDATE users SET public_id = lower(hex(randomblob(6))) WHERE id = NEW.id;
+        END;
+    `);
+
+    // Аватарки лежали под номером читателя — avatar-42.webp, и адрес картинки
+    // выдавал тот же номер. Переносим под публичный код, один раз.
+    const avatarsMoved = await db.execute(
+      "SELECT value FROM site_settings WHERE key = 'avatars_by_public_id'",
+    );
+    if (avatarsMoved.rows.length === 0) {
+      const { rename } = await import("node:fs/promises");
+      const { join } = await import("node:path");
+      const dir = join(storageDir, "avatars");
+
+      const rows = await db.execute(
+        "SELECT id, public_id, avatar_url FROM users WHERE avatar_url LIKE '/api/avatars/avatar-%'",
+      );
+      for (const row of rows.rows as any[]) {
+        const match = /^\/api\/avatars\/avatar-(\d+)\.(\w+)/.exec(
+          String(row.avatar_url),
+        );
+        if (!match || Number(match[1]) !== Number(row.id)) continue;
+
+        const ext = match[2];
+        const moved = await rename(
+          join(dir, `avatar-${row.id}.${ext}`),
+          join(dir, `avatar-${row.public_id}.${ext}`),
+        ).then(
+          () => true,
+          () => false,
+        );
+        // Файла нет — ссылка и так вела в пустоту; адрес не трогаем, чтобы не
+        // выдумывать картинку, которой не было.
+        if (!moved) continue;
+
+        await db.execute({
+          sql: "UPDATE users SET avatar_url = ? WHERE id = ?",
+          args: [
+            `/api/avatars/avatar-${row.public_id}.${ext}?v=${Date.now()}`,
+            row.id,
+          ],
+        });
+      }
+
+      await db.execute(
+        "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('avatars_by_public_id', '1')",
+      );
+    }
+
+    // Скины публичной страницы — устроены как рамки: каталог, выданное и надетое.
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS profile_skins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        file TEXT NOT NULL,
+        accent TEXT NOT NULL DEFAULT '#c9b8e6',
+        tint TEXT NOT NULL DEFAULT '#24212a',
+        effects TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS user_skins (
+        user_id INTEGER NOT NULL,
+        skin_id INTEGER NOT NULL,
+        granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (user_id, skin_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS user_skins_skin ON user_skins (skin_id);
+    `);
+
+    await addColumn(db, "users", "skin_id", "INTEGER");
+
+    // Барабан — розыгрыш рамок. Попытка одна в день: это держит уникальный
+    // индекс, двойной клик между проверкой и записью иначе дал бы вторую.
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS reels (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','running','finished')),
+        started_at TEXT,
+        finished_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS reel_segments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reel_id INTEGER NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        label TEXT NOT NULL,
+        frame_id INTEGER,
+        image TEXT,
+        text TEXT,
+        weight INTEGER NOT NULL DEFAULT 0,
+        stock INTEGER
+      );
+
+      CREATE INDEX IF NOT EXISTS reel_segments_reel ON reel_segments (reel_id);
+
+      CREATE TABLE IF NOT EXISTS reel_spins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reel_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        day TEXT NOT NULL,
+        segment_id INTEGER NOT NULL,
+        outcome TEXT NOT NULL CHECK(outcome IN ('won','duplicate','scene')),
+        attempt INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS reel_spins_segment ON reel_spins (segment_id, outcome);
+
+      CREATE TABLE IF NOT EXISTS reel_guest_tries (
+        reel_id INTEGER NOT NULL,
+        visitor TEXT NOT NULL,
+        PRIMARY KEY (reel_id, visitor)
+      );
+    `);
+
+    // Фигурка у имени — второй вид приза барабана. Каталог в коде, в базе только
+    // выданное, надетое и сегмент, который её разыгрывает.
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS user_figures (
+        user_id INTEGER NOT NULL,
+        figure TEXT NOT NULL,
+        granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (user_id, figure)
+      );
+    `);
+
+    // Личная переписка админов. Индексы — под два вопроса: разговор пары по
+    // порядку и «что у меня непрочитанного» для колокольчика.
+    await db.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS admin_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_user_id INTEGER NOT NULL,
+        to_user_id INTEGER NOT NULL,
+        body TEXT NOT NULL,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS admin_messages_pair ON admin_messages (from_user_id, to_user_id, id);
+      CREATE INDEX IF NOT EXISTS admin_messages_unread ON admin_messages (to_user_id, is_read);
+    `);
+
+    await addColumn(db, "users", "figure", "TEXT");
+    await addColumn(db, "reel_segments", "figure", "TEXT");
+    await addColumn(db, "reels", "admins_only", "INTEGER NOT NULL DEFAULT 0");
+    await addColumn(db, "reels", "texts", "TEXT");
+    await addColumn(db, "reel_segments", "skin_id", "INTEGER");
+    await addColumn(db, "reels", "spins_per_day", "INTEGER NOT NULL DEFAULT 1");
+    await addColumn(db, "reel_spins", "attempt", "INTEGER NOT NULL DEFAULT 1");
+    await addColumn(db, "reels", "background", "TEXT");
+    await addColumn(db, "reels", "bg_dim", "INTEGER NOT NULL DEFAULT 35");
+    await addColumn(db, "reels", "bg_blur", "INTEGER NOT NULL DEFAULT 6");
+    await addColumn(db, "reels", "banner_desk", "TEXT");
+    await addColumn(db, "reels", "banner_mob", "TEXT");
+
+    // Попыток в день может быть несколько: уникален номер попытки за день, а не сам день.
+    await db.executeMultiple(`
+      DROP INDEX IF EXISTS reel_spins_daily;
+      CREATE UNIQUE INDEX IF NOT EXISTS reel_spins_attempt ON reel_spins (reel_id, user_id, day, attempt);
+    `);
+
+    // Обсуждение главы и счётчик на её странице ищут комментарии по главе. Без
+    // индекса каждый показ главы перебирал всю таблицу комментариев целиком, и
+    // чем больше обсуждали, тем дольше открывалась любая глава. Порядок — тот же,
+    // что в выдаче: новые сверху, так что сортировать уже ничего не нужно.
+    await db.execute(
+      "CREATE INDEX IF NOT EXISTS comments_chapter ON comments (chapter_id, created_at)",
+    );
+
+    // Оглавление без чтения текстов. Текст главы лежит в строке раньше столбцов,
+    // добавленных позже (порядок, опубликована ли, число слов), и чтобы добраться
+    // до них, SQLite проходил всю цепочку страниц текста — на каждый запрос
+    // оглавления читались все главы целиком, десятки мегабайт. Индекс держит все
+    // поля оглавления сам, и в таблицу запрос не заглядывает — ни оглавление
+    // (главная, страница главы, прогресс), ни sitemap.
+    await db.execute(`
+      CREATE INDEX IF NOT EXISTS chapters_list
+      ON chapters (is_published, sort_order, id, volume, title, published_at, word_count)
+    `);
+  },
+};
