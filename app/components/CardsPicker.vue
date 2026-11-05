@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Выбор отряда «Карт таверны»: трое из шести героев, с их навыками и
+ * Выбор отряда «Карт таверны»: трое из двенадцати героев, с их навыками и
  * правилами под списком. Один и тот же на игре с компьютером и за столом.
  */
 import {
@@ -23,7 +23,6 @@ function togglePick(id: HeroId) {
 }
 
 const elColor = (el: Element) => CARD_ELEMENTS[el].color;
-const imgOf = (id: HeroId) => `/characters/${id}.webp`;
 </script>
 
 <template>
@@ -40,23 +39,23 @@ const imgOf = (id: HeroId) => `/characters/${id}.webp`;
           :aria-pressed="modelValue.includes(id)"
           @click="togglePick(id)"
         >
-          <img
-            :src="imgOf(id)"
-            :alt="CARD_HEROES[id].name"
-            class="pick-img"
-            loading="lazy"
-          />
+          <CardsHeroImg :id="id" class="pick-img" lazy />
           <span class="pick-body">
             <span class="pick-head">
               <span class="pick-name">{{ CARD_HEROES[id].name }}</span>
               <span class="pick-el"
-                ><span class="el-dot" />{{
-                  CARD_ELEMENTS[CARD_HEROES[id].el].name
+                ><span class="el-icon" aria-hidden="true">{{
+                  CARD_ELEMENTS[CARD_HEROES[id].el].symbol
                 }}</span
+                >{{ CARD_ELEMENTS[CARD_HEROES[id].el].name }}</span
               >
             </span>
             <span class="pick-meta"
               >{{ CARD_HEROES[id].role }} · ❤ {{ CARD_HEROES[id].hp }}</span
+            >
+            <span v-if="CARD_HEROES[id].passive" class="pick-move"
+              ><b>{{ CARD_HEROES[id].passive!.name }}</b> (пассивка):
+              {{ CARD_HEROES[id].passive!.text }}</span
             >
             <span class="pick-move"
               ><b>{{ CARD_HEROES[id].skill.name }}:</b>
@@ -162,11 +161,18 @@ const imgOf = (id: HeroId) => `/characters/${id}.webp`;
   font-weight: 600;
 }
 
-.el-dot {
-  width: 10px;
-  height: 10px;
+/* Значок стихии — тот же, что на кубиках: игрок сразу видит, какие грани
+   ему нужны. Кружок одного цвета различался плохо. */
+.el-icon {
+  width: 20px;
+  height: 20px;
   border-radius: var(--radius-round);
-  background: var(--el);
-  display: inline-block;
+  border: 1px solid var(--el);
+  background: color-mix(in srgb, var(--el) 18%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
 }
 </style>

@@ -19,7 +19,6 @@ import {
   dieSymbol,
   type Game,
   type Fx,
-  type HeroId,
   type CardId,
   type Action,
   type Cost,
@@ -196,7 +195,6 @@ const roundsLeft = (n: number) =>
 
 // ─── Подписи ──────────────────────────────────────────────
 const elColor = (el: Element) => CARD_ELEMENTS[el].color;
-const imgOf = (id: HeroId) => `/characters/${id}.webp`;
 
 function costDots(cost: Cost, el: Element) {
   return [
@@ -233,6 +231,7 @@ const statusTitle = (f: Fighter) =>
     f.bonus ? `Следующий удар на ${f.bonus} сильнее` : "",
     f.poison ? `Отравлен: 1 урон Ядом в конце раунда, ещё ${f.poison}` : "",
     f.frozen ? "Заморожен до конца раунда: не может бить" : "",
+    f.thorns && f.shield ? "Ответный удар: бьющий получает 1 урон" : "",
   ]
     .filter(Boolean)
     .join("\n") || undefined;
@@ -320,6 +319,13 @@ const banner = computed(() => {
               >💀 Скелет Пишеса: бьёт на 1 в конце раунда,
               {{ roundsLeft(foe.skeleton) }}</span
             >
+            <span v-if="foe.rat" class="summon summon--rat"
+              >🐀 Крыса Тайфенуса: крадёт 1 ❤ в конце раунда,
+              {{ roundsLeft(foe.rat) }}</span
+            >
+            <span v-if="foe.locked" class="summon summon--ice"
+              >❄ Пришла зима: смена героя закрыта до конца раунда</span
+            >
             <span v-if="foe.ended" class="ended">закончил раунд</span>
           </div>
           <div class="row">
@@ -334,11 +340,7 @@ const banner = computed(() => {
               }"
               :style="{ '--el': elColor(CARD_HEROES[f.id].el) }"
             >
-              <img
-                :src="imgOf(f.id)"
-                :alt="CARD_HEROES[f.id].name"
-                class="fighter-img"
-              />
+              <CardsHeroImg :id="f.id" class="fighter-img" />
               <span class="hp">{{ f.hp }}</span>
               <span
                 v-if="f.aura"
@@ -431,11 +433,7 @@ const banner = computed(() => {
               :disabled="f.hp <= 0"
               @click="clickMine(i)"
             >
-              <img
-                :src="imgOf(f.id)"
-                :alt="CARD_HEROES[f.id].name"
-                class="fighter-img"
-              />
+              <CardsHeroImg :id="f.id" class="fighter-img" />
               <span class="hp">{{ f.hp }}</span>
               <span
                 v-if="f.aura"
@@ -492,6 +490,13 @@ const banner = computed(() => {
             <span v-if="me.skeleton" class="summon"
               >💀 Скелет Пишеса: бьёт на 1 в конце раунда,
               {{ roundsLeft(me.skeleton) }}</span
+            >
+            <span v-if="me.rat" class="summon summon--rat"
+              >🐀 Крыса Тайфенуса: крадёт 1 ❤ в конце раунда,
+              {{ roundsLeft(me.rat) }}</span
+            >
+            <span v-if="me.locked" class="summon summon--ice"
+              >❄ Пришла зима: смена героя закрыта до конца раунда</span
             >
           </div>
         </section>
@@ -716,6 +721,12 @@ const banner = computed(() => {
 
 .summon {
   color: #b48ae0;
+}
+.summon--rat {
+  color: #9cc25a;
+}
+.summon--ice {
+  color: #8fc6e8;
 }
 .ended {
   color: var(--ember-soft);

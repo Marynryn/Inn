@@ -33,7 +33,19 @@ export const dieSymbol = (d: Die) => dieInfo(d).symbol;
 /** Цена: el — кубики стихии героя (или «любые»), any — какие угодно. */
 export type Cost = { el?: number; any?: number };
 
-export type HeroId = "erin" | "ceria" | "pisces" | "ryoka" | "relc" | "rags";
+export type HeroId =
+  | "erin"
+  | "teriarch"
+  | "ceria"
+  | "ivolethe"
+  | "pisces"
+  | "xrn"
+  | "ryoka"
+  | "takhatres"
+  | "relc"
+  | "yvlon"
+  | "rags"
+  | "typhenous";
 type Move = { name: string; text: string };
 
 export const CARD_HEROES: Record<
@@ -44,6 +56,13 @@ export const CARD_HEROES: Record<
     hp: number;
     energy: number;
     role: string;
+    /** Стихия обычной атаки: у магов своя, у остальных — Сталь. */
+    atk?: Element;
+    /** Своя картинка для игры — public/cards/<id>.webp. Без неё берётся
+     *  портрет из карточек персонажей. */
+    art?: boolean;
+    /** Пассивка — работает сама, без кубиков. */
+    passive?: Move;
     attack: Move;
     skill: Move;
     burst: Move;
@@ -65,17 +84,55 @@ export const CARD_HEROES: Record<
       text: "Все свои лечатся на 2 и бьют следующим ударом на 1 сильнее",
     },
   },
+  teriarch: {
+    name: "Териарх",
+    el: "fire",
+    hp: 11,
+    energy: 3,
+    role: "Дракон",
+    passive: {
+      name: "Древний дракон",
+      text: "Раз за партию переживает смертельный удар: остаётся с 1 ❤",
+    },
+    attack: { name: "Когти", text: "2 урона Сталью" },
+    skill: {
+      name: "Огненное дыхание",
+      text: "2 урона Огнём, остальным врагам без меток — метка Огня",
+    },
+    burst: {
+      name: "Гнев дракона",
+      text: "2 урона Огнём и +1 за каждую метку стихии на врагах",
+    },
+  },
   ceria: {
     name: "Сирия",
     el: "ice",
     hp: 10,
     energy: 3,
     role: "Маг льда",
+    atk: "ice",
     attack: { name: "Ледяной осколок", text: "2 урона Льдом" },
     skill: { name: "Ледяное копьё", text: "3 урона Льдом" },
     burst: {
       name: "Ледяная буря",
       text: "4 урона Льдом, цель замерзает до конца раунда",
+    },
+  },
+  ivolethe: {
+    name: "Айволет",
+    el: "ice",
+    hp: 10,
+    energy: 3,
+    role: "Фея",
+    atk: "ice",
+    attack: { name: "Снежный укус", text: "2 урона Льдом" },
+    skill: {
+      name: "Ледяные узоры",
+      text: "2 урона Льдом; если на цели уже была метка Льда — она замерзает",
+    },
+    burst: {
+      name: "Пришла зима",
+      text: "2 урона Льдом, цель замерзает, соперник до конца раунда не может сменить героя",
     },
   },
   pisces: {
@@ -91,6 +148,23 @@ export const CARD_HEROES: Record<
       text: "2 урона Магией; скелет 3 раунда бьёт на 1 Магией в конце раунда",
     },
   },
+  xrn: {
+    name: "Зрн",
+    el: "magic",
+    hp: 10,
+    energy: 3,
+    role: "Сентениум",
+    atk: "magic",
+    attack: { name: "Цветная вспышка", text: "2 урона Магией" },
+    skill: {
+      name: "Развеивание",
+      text: "С цели снимаются щит и усиления, потом 2 урона Магией",
+    },
+    burst: {
+      name: "Калейдоскоп",
+      text: "2 урона Магией, соперник теряет 2 кубика, тебе — 1 кубик «Любой»",
+    },
+  },
   ryoka: {
     name: "Рёка",
     el: "wind",
@@ -104,6 +178,26 @@ export const CARD_HEROES: Record<
     },
     burst: { name: "Ураган", text: "2 урона Ветром каждому врагу" },
   },
+  takhatres: {
+    name: "Тахатрес",
+    el: "wind",
+    hp: 10,
+    energy: 2,
+    role: "Гаруда",
+    passive: {
+      name: "Крылья",
+      text: "Смена на Тахатреса не тратит ход",
+    },
+    attack: { name: "Когти", text: "2 урона Сталью" },
+    skill: {
+      name: "Пикирование",
+      text: "3 урона Ветром самому раненому врагу, даже в запасе",
+    },
+    burst: {
+      name: "Повелитель Небес",
+      text: "3 урона Ветром, и ход остаётся за тобой",
+    },
+  },
   relc: {
     name: "Релк",
     el: "steel",
@@ -113,6 +207,26 @@ export const CARD_HEROES: Record<
     attack: { name: "Выпад", text: "2 урона Сталью" },
     skill: { name: "Удар копьём", text: "4 урона Сталью" },
     burst: { name: "Сержант стражи", text: "3 урона Сталью и щит на 3 себе" },
+  },
+  yvlon: {
+    name: "Ивлон",
+    el: "steel",
+    hp: 11,
+    energy: 2,
+    role: "Воительница",
+    passive: {
+      name: "Серебряные руки",
+      text: "Получает на 1 урона меньше от Стали",
+    },
+    attack: { name: "Меч", text: "2 урона Сталью" },
+    skill: {
+      name: "Стойкость",
+      text: "2 урона Сталью и +1 за каждые 3 потерянных ❤",
+    },
+    burst: {
+      name: "Ответный удар",
+      text: "Щит на 3; пока он держится, каждый удар по Ивлон возвращает 1 урон",
+    },
   },
   rags: {
     name: "Рэгс",
@@ -126,6 +240,23 @@ export const CARD_HEROES: Record<
       text: "2 урона Ядом, цель отравлена на 2 раунда",
     },
     burst: { name: "Гоблинская засада", text: "2 урона Ядом каждому врагу" },
+  },
+  typhenous: {
+    name: "Тайфенус",
+    el: "poison",
+    art: true,
+    hp: 9,
+    energy: 3,
+    role: "Маг",
+    attack: { name: "Посох", text: "2 урона Сталью" },
+    skill: {
+      name: "Чумной туман",
+      text: "Все враги отравлены на 2 раунда",
+    },
+    burst: {
+      name: "Крыса-фамилиар",
+      text: "Крыса сразу и ещё 3 раунда в конце раунда крадёт 1 ❤ у врага и лечит твоего героя",
+    },
   },
 };
 export const CARD_HERO_IDS = Object.keys(CARD_HEROES) as HeroId[];
@@ -249,6 +380,10 @@ export type Fighter = {
   bonus: number; // прибавка к следующему удару
   poison: number; // сколько раундов ещё тикает яд
   frozen: boolean;
+  /** Древний дракон уже пережил смертельный удар. */
+  revived?: boolean;
+  /** Ответный удар Ивлон: пока держится щит, бьющий получает 1. */
+  thorns?: boolean;
 };
 
 export type Player = {
@@ -261,6 +396,9 @@ export type Player = {
   rerolls: number;
   rolling: boolean; // ещё не решил, что перебросить: пока кто-то решает, ходов нет
   skeleton: number; // сколько раундов ещё бьёт скелет Пишеса
+  rat?: number; // сколько раундов ещё кусает крыса Тайфенуса
+  /** «Пришла зима»: до конца раунда нельзя сменить героя. */
+  locked?: boolean;
 };
 
 export type Phase = "reroll" | "action" | "over";
@@ -345,6 +483,8 @@ function newPlayer(team: HeroId[]): Player {
       bonus: 0,
       poison: 0,
       frozen: false,
+      revived: false,
+      thorns: false,
     })),
     active: 0,
     dice: [],
@@ -356,6 +496,8 @@ function newPlayer(team: HeroId[]): Player {
     rerolls: 1,
     rolling: true,
     skeleton: 0,
+    rat: 0,
+    locked: false,
   };
 }
 
@@ -491,6 +633,10 @@ function damage(g: Game, h: Hit) {
   const f = p.fighters[h.idx]!;
   if (!alive(f)) return;
   let amount = h.amount;
+  if (h.el === "steel" && f.id === "yvlon" && amount > 0) {
+    amount--;
+    pop(g, f, "note", "Серебряные руки −1");
+  }
   const aura = f.aura;
   const pair = (a: Element, b: Element) =>
     (h.el === a && aura === b) || (h.el === b && aura === a);
@@ -525,6 +671,7 @@ function damage(g: Game, h: Hit) {
     amount += 1;
     f.aura = null;
     f.shield = 0;
+    f.thorns = false;
     f.bonus = 0;
     say(g, "Нейтрализация: +1 урон, щиты и усиления сняты");
     pop(g, f, "note", "Нейтрализация +1");
@@ -541,7 +688,14 @@ function hurt(g: Game, side: Side, idx: number, amount: number) {
   if (!alive(f)) return;
   const blocked = Math.min(f.shield, amount);
   f.shield -= blocked;
+  if (!f.shield) f.thorns = false;
   f.hp = Math.max(0, f.hp - (amount - blocked));
+  if (!alive(f) && f.id === "teriarch" && !f.revived) {
+    f.revived = true;
+    f.hp = 1;
+    say(g, `Древний дракон: ${tag(g, side, f)} выдерживает удар`);
+    pop(g, f, "note", "Древний дракон");
+  }
   if (blocked) pop(g, f, "shield", `щит −${blocked}`);
   if (amount - blocked) pop(g, f, "dmg", `−${amount - blocked}`);
   say(
@@ -593,11 +747,30 @@ function heal(g: Game, f: Fighter, n: number) {
 
 /** Удар героя: прибавка от еды и Пира срабатывает на первом же ударе. */
 function strike(g: Game, side: Side, amount: number, el: Element) {
-  const me = cardsActive(g.players[side]);
-  const foe = g.players[(1 - side) as Side];
+  strikeAt(g, side, g.players[(1 - side) as Side].active, amount, el);
+}
+
+/** Удар по выбранному врагу — не обязательно по активному (Пикирование). */
+function strikeAt(
+  g: Game,
+  side: Side,
+  idx: number,
+  amount: number,
+  el: Element,
+) {
+  const p = g.players[side];
+  const me = cardsActive(p);
+  const foeSide = (1 - side) as Side;
+  const target = g.players[foeSide].fighters[idx]!;
   amount += me.bonus;
   me.bonus = 0;
-  damage(g, { side: (1 - side) as Side, idx: foe.active, amount, el });
+  // Ответный удар Ивлон: щит должен держаться в момент удара.
+  const thorns = !!target.thorns && target.shield > 0 && alive(target);
+  damage(g, { side: foeSide, idx, amount, el });
+  if (thorns && alive(me)) {
+    say(g, `Ответный удар: ${tag(g, side, me)} получает 1`);
+    hurt(g, side, p.active, 1);
+  }
 }
 
 function forceSwitch(g: Game, side: Side) {
@@ -663,6 +836,8 @@ export function cardsCheck(g: Game, side: Side, a: Action): Check {
       );
     case "switch": {
       const f = p.fighters[a.to];
+      if (p.locked)
+        return no("Пришла зима: смена героя закрыта до конца раунда");
       if (!f || a.to === p.active || !alive(f))
         return no("Этот герой не может выйти");
       return pay(SWITCH_COST);
@@ -676,6 +851,8 @@ export function cardsCheck(g: Game, side: Side, a: Action): Check {
       )
         return no("Все здоровы");
       if (CARDS[c].target) {
+        if (p.locked)
+          return no("Пришла зима: смена героя закрыта до конца раунда");
         const f = a.to === undefined ? undefined : p.fighters[a.to];
         if (!f || a.to === p.active || !alive(f))
           return no("Выбери, кто выйдет в бой");
@@ -722,8 +899,7 @@ export function cardsApply(prev: Game, side: Side, a: Action): Game {
     case "attack": {
       const h = CARD_HEROES[me.id];
       say(g, `${tag(g, side, me)}: ${h.attack.name}`);
-      if (me.id === "ceria") strike(g, side, 2, "ice");
-      else strike(g, side, 2, "steel");
+      strike(g, side, 2, h.atk ?? "steel");
       me.energy = Math.min(h.energy, me.energy + 1);
       combat = true;
       break;
@@ -735,13 +911,15 @@ export function cardsApply(prev: Game, side: Side, a: Action): Game {
       break;
     case "burst":
       me.energy = 0;
-      burst(g, side);
-      combat = true;
+      // Повелитель Небес оставляет ход за собой.
+      combat = !burst(g, side);
       break;
     case "switch":
       p.active = a.to;
       say(g, `${who(g, side)}: в бой выходит ${heroName(cardsActive(p))}`);
-      combat = true;
+      // Крылья Тахатреса: вылетает в бой, не тратя ход.
+      combat = cardsActive(p).id !== "takhatres";
+      if (!combat) pop(g, cardsActive(p), "note", "Крылья: ход за тобой");
       break;
     case "play":
       playCard(g, side, a.card, a.to);
@@ -803,10 +981,81 @@ function skill(g: Game, side: Side) {
       if (alive(target)) target.poison = 2;
       break;
     }
+    case "teriarch": {
+      const foes = g.players[foe];
+      const others = foes.fighters.filter(
+        (f, i) => i !== foes.active && alive(f) && !f.aura,
+      );
+      strike(g, side, 2, "fire");
+      for (const f of others)
+        if (alive(f) && !f.aura) {
+          f.aura = "fire";
+          pop(g, f, "note", "🔥 метка");
+        }
+      break;
+    }
+    case "ivolethe": {
+      const target = cardsActive(g.players[foe]);
+      const iced = target.aura === "ice";
+      strike(g, side, 2, "ice");
+      if (iced && alive(target)) {
+        target.frozen = true;
+        say(g, `${tag(g, foe, target)} замерзает`);
+      }
+      break;
+    }
+    case "xrn": {
+      const target = cardsActive(g.players[foe]);
+      if (target.shield || target.bonus) pop(g, target, "note", "Развеяно");
+      target.shield = 0;
+      target.thorns = false;
+      target.bonus = 0;
+      strike(g, side, 2, "magic");
+      break;
+    }
+    case "takhatres": {
+      // Самый раненый — у кого меньше всего здоровья; поровну — активный.
+      const foes = g.players[foe];
+      const idx = foes.fighters
+        .map((f, i) => ({ f, i }))
+        .filter((x) => alive(x.f))
+        .sort(
+          (a, b) =>
+            a.f.hp - b.f.hp ||
+            Number(b.i === foes.active) - Number(a.i === foes.active),
+        )[0]!.i;
+      strikeAt(g, side, idx, 3, "wind");
+      break;
+    }
+    case "yvlon": {
+      const lost = CARD_HEROES.yvlon.hp - me.hp;
+      strike(g, side, 2 + Math.floor(lost / 3), "steel");
+      break;
+    }
+    case "typhenous":
+      for (const f of g.players[foe].fighters)
+        if (alive(f)) {
+          f.poison = Math.max(f.poison, 2);
+          pop(g, f, "note", "☣ отравлен");
+        }
+      break;
   }
 }
 
-function burst(g: Game, side: Side) {
+/** Крыса Тайфенуса: кусает активного врага на 1 Ядом и лечит своего на 1. */
+function ratBite(g: Game, side: Side) {
+  const foe = (1 - side) as Side;
+  damage(g, {
+    side: foe,
+    idx: g.players[foe].active,
+    amount: 1,
+    el: "poison",
+  });
+  heal(g, cardsActive(g.players[side]), 1);
+}
+
+/** Ульта. true — ход остаётся за тем, кто её сыграл. */
+function burst(g: Game, side: Side): boolean {
   const p = g.players[side];
   const me = cardsActive(p);
   const foe = (1 - side) as Side;
@@ -848,7 +1097,42 @@ function burst(g: Game, side: Side) {
     case "rags":
       everyone(2, "poison");
       break;
+    case "teriarch": {
+      const marks = foes.fighters.filter((f) => alive(f) && f.aura).length;
+      strike(g, side, 2 + marks, "fire");
+      break;
+    }
+    case "ivolethe": {
+      const target = cardsActive(foes);
+      strike(g, side, 2, "ice");
+      if (alive(target)) target.frozen = true;
+      foes.locked = true;
+      say(g, `${who(g, foe)}: смена героя закрыта до конца раунда`);
+      break;
+    }
+    case "xrn": {
+      strike(g, side, 2, "magic");
+      for (let k = 0; k < 2 && foes.dice.length; k++)
+        foes.dice.splice(Math.floor(rand(g) * foes.dice.length), 1);
+      p.dice.push("omni");
+      say(g, `${who(g, foe)} теряет кубики`);
+      break;
+    }
+    case "takhatres":
+      strike(g, side, 3, "wind");
+      return true;
+    case "yvlon":
+      me.shield += 3;
+      me.thorns = true;
+      pop(g, me, "shield", "щит +3");
+      break;
+    case "typhenous":
+      p.rat = 3;
+      say(g, "Крыса кусает");
+      ratBite(g, side);
+      break;
   }
+  return false;
 }
 
 function playCard(g: Game, side: Side, idx: number, to?: number) {
@@ -944,6 +1228,16 @@ function endRound(g: Game) {
       });
       p.skeleton--;
     }
+    if (p.rat && g.phase !== "over") {
+      say(
+        g,
+        g.vs === "computer"
+          ? `Крыса (${who(g, side).toLowerCase()}) кусает`
+          : `Крыса игрока ${who(g, side)} кусает`,
+      );
+      ratBite(g, side);
+      p.rat--;
+    }
   }
   for (const side of [0, 1] as Side[]) {
     const p = g.players[side];
@@ -961,6 +1255,7 @@ function endRound(g: Game) {
   g.turn = g.first;
   for (const p of g.players) {
     p.ended = false;
+    p.locked = false;
     p.rerolls = 1;
     p.rolling = true;
     draw(p, DRAW_PER_ROUND);
