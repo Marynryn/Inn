@@ -101,6 +101,16 @@ test.describe("Защита", () => {
     await ctx.close();
   });
 
+  test("слишком большой запрос — 413, сервер его не читает", async ({
+    page,
+  }) => {
+    const res = await page.request.post("/api/comments", {
+      headers: { "content-type": "application/json" },
+      data: JSON.stringify({ body: "x".repeat(3 * 1024 * 1024) }),
+    });
+    expect(res.status()).toBe(413);
+  });
+
   test("сброс статистики — только POST с подтверждением", async ({ page }) => {
     await login(page, ADMIN);
     const viaGet = await page.request.get("/api/admin/stats-reset?confirm=yes");
