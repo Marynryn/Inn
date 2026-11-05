@@ -1,9 +1,8 @@
 import type { H3Event } from "h3";
+import type { User } from "#auth-utils";
 import { and, eq } from "drizzle-orm";
 import { displayNameKey, nameFromEmail } from "#shared/utils/displayName";
 import { userIdentities, users } from "../database/schema";
-import type { AvatarFrame } from "#shared/utils/avatarFrames";
-import type { NameFigure } from "#shared/utils/nameFigures";
 import { figureById } from "#shared/utils/nameFigures";
 import { saveRemoteAvatar } from "./avatar";
 import { frameById, grantDefaultFrame } from "./frames";
@@ -21,18 +20,8 @@ export type ProviderProfile = {
   photoUrl?: string | null;
 };
 
-export type SessionUser = {
-  id: number;
-  email: string | null;
-  role: "admin" | "reader";
-  displayName: string | null;
-  avatarUrl: string | null;
-  // Рамка целиком, а не её id: шапка рисует аватарку из одной сессии и лезть
-  // за картинкой отдельным запросом на каждой странице ей незачем.
-  avatarFrame: AvatarFrame | null;
-  // Фигурка у имени — по той же причине целиком.
-  figure: NameFigure | null;
-};
+/** Что лежит в сессии — объявлено для nuxt-auth-utils в shared/types/auth.d.ts. */
+export type SessionUser = User;
 
 type UserRow = typeof users.$inferSelect;
 

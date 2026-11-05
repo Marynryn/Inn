@@ -87,6 +87,24 @@ test.describe("Панель администратора", () => {
     ).toBeVisible();
   });
 
+  test("набранное во вкладке не пропадает, если сходить на другую и вернуться", async ({
+    page,
+  }) => {
+    await login(page, ADMIN);
+    await open(page, "/admin?tab=settings");
+    const field = page
+      .locator(".field-row", { hasText: "Заголовок hero" })
+      .locator("input");
+    await field.fill("Черновик заголовка");
+
+    await page.locator(".sb-tab", { hasText: "Статистика" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Статистика сайта" }),
+    ).toBeVisible();
+    await page.locator(".sb-tab", { hasText: "Настройки сайта" }).click();
+    await expect(field).toHaveValue("Черновик заголовка");
+  });
+
   test("интерлюдия, загруженная позже, встаёт в конец своего тома, и навигация видит её без перезагрузки", async ({
     page,
   }) => {

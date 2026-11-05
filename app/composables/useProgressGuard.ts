@@ -1,6 +1,6 @@
 export const useProgressGuard = (
-  chapter: Ref<{ id: string; title: string } | null>,
-  allChapters: Ref<any[] | null>,
+  chapter: Ref<{ id: string; title: string } | null | undefined>,
+  allChapters: Ref<any[] | null | undefined>,
 ) => {
   const { lastRead, setLastRead, load, synced } = useReadProgress();
   const auth = useAuthStore();

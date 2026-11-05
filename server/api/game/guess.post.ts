@@ -11,7 +11,7 @@ import {
  * персонажа, а загаданный — только вместе с победой.
  */
 export default defineEventHandler(async (event) => {
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? "unknown";
+  const ip = clientIp(event);
   if (!checkRateLimit(`game-guess:${ip}`, 30, 60_000)) {
     throw createError({
       statusCode: 429,

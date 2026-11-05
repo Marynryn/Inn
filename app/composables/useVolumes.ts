@@ -1,7 +1,7 @@
 const NEW_DAYS = 3;
 
 const parseChapterId = (id: string) => {
-  const [vol, rest = "0"] = id.split(".");
+  const [vol = "0", rest = "0"] = id.split(".");
   return { vol: parseInt(vol) || 0, ch: parseFloat(rest) || 0 };
 };
 

@@ -115,9 +115,10 @@ export default defineEventHandler(async (event) => {
   // хозяйке сайта тоже: фигурку видят все, кто читает комментарии.
   const figurePart = form.find((f) => f.name === "figure");
   if (figurePart) {
-    const figure = figurePart.data.toString("utf8").trim();
-    if (figure && !isFigureId(figure))
+    const raw = figurePart.data.toString("utf8").trim();
+    if (raw && !isFigureId(raw))
       throw createError({ statusCode: 400, message: "Неизвестная фигурка" });
+    const figure = isFigureId(raw) ? raw : null;
     if (figure && !(await ownsFigure(sessionUser.id, figure))) {
       throw createError({
         statusCode: 403,
@@ -127,7 +128,7 @@ export default defineEventHandler(async (event) => {
             : "Эта фигурка не твоя",
       });
     }
-    updates.figure = figure || null;
+    updates.figure = figure;
   }
 
   if (!Object.keys(updates).length) {

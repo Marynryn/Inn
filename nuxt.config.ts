@@ -108,6 +108,9 @@ export default defineNuxtConfig({
       },
     },
     notifySecret: process.env.NOTIFY_SECRET,
+    // CSP только сообщает о нарушениях, не блокируя (server/plugins/csp.ts).
+    // Включается переменной NUXT_CSP_REPORT_ONLY=true.
+    cspReportOnly: false,
     // Ключи входа через Google. Пустые — кнопка на странице входа не появится.
     oauth: {
       google: {
@@ -173,6 +176,7 @@ export default defineNuxtConfig({
       "7 9 * * *": ["notify-chapters"], // 12:07 МСК — основной звонок
       "7 12 * * *": ["notify-chapters"], // 15:07 МСК — на случай деплоя в момент первого
       "17 3 * * *": ["refresh-original"], // 06:17 МСК — число глав оригинала для трекера
+      "43 0 * * *": ["backup-db"], // 03:43 МСК — ночной снимок базы, см. utils/backup.ts
     },
   },
 
@@ -240,9 +244,20 @@ export default defineNuxtConfig({
         "Cache-Control": "no-store",
       },
     },
+    // Заголовки безопасности — на всё: правила по адресам сливаются, и более
+    // точное правило выше меняет только Cache-Control, остальное берётся отсюда.
+    // frame-ancestors и X-Frame-Options не дают встроить сайт (и панель) в
+    // чужую страницу; nosniff — выдать картинку из хранилища за скрипт.
     "/**": {
       headers: {
         "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Content-Security-Policy":
+          "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Strict-Transport-Security": "max-age=31536000",
       },
     },
   },

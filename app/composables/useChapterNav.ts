@@ -1,6 +1,6 @@
 export const useChapterNav = (
   chapterId: string,
-  allChapters: Ref<any[] | null>,
+  allChapters: Ref<any[] | null | undefined>,
 ) => {
   const sorted = computed(() =>
     [...(allChapters.value ?? [])].sort(

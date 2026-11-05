@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ChapterMeta } from "#shared/utils/chapterMeta";
+
 definePageMeta({ path: "/chapter/:id/comments" });
 
 const route = useRoute();
@@ -6,7 +8,7 @@ const rawId = route.params.id as string;
 
 // Обсуждению нужны номер и название, а не текст главы: без pick он целиком
 // уезжал в страницу и в браузер.
-const { data: chapter, error } = await useFetch(
+const { data: chapter, error } = await useFetch<ChapterMeta>(
   `/api/chapters/${encodeURIComponent(rawId)}`,
   {
     query: { meta: 1 },
@@ -19,7 +21,9 @@ const { data: chapter, error } = await useFetch(
 if (error.value) {
   throw createError({
     statusCode: error.value.statusCode ?? 404,
-    message: error.value.data?.message || "Глава не найдена",
+    message:
+      (error.value.data as { message?: string } | undefined)?.message ||
+      "Глава не найдена",
     fatal: true,
   });
 }

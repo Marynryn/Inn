@@ -1,75 +1,111 @@
-# Nuxt Minimal Starter
+# Странствующая Таверна
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Сайт фанатского перевода The Wandering Inn на русский —
+[taverna-book.com](https://taverna-book.com) (зеркало — taverna-book.ru).
 
-## Setup
+Кроме глав с оглавлением, закладками и настройками читалки на сайте есть
+комментарии с ответами и уведомлениями, карточки персонажей, игра «Кто из
+таверны», настольная игра и «Карты таверны» для двоих по сети, барабан с
+наградами (рамки, скины, фигурки у имени), страницы читателей и панель
+администратора.
 
-Make sure to install dependencies:
+## Стек
+
+- **Nuxt 4** (Vue 3, Nitro) — страницы рендерятся на сервере, текст главы — серверным компонентом;
+- **SQLite** через libsql и **Drizzle ORM** — один файл базы на томе;
+- **nuxt-auth-utils** — сессии в запечатанной куке; вход через Google, Telegram и пароль (для админов);
+- WebSocket (crossws) — комментарии в реальном времени, уведомления, комнаты игр;
+- Playwright — e2e-сценарии, Vitest — unit-тесты;
+- Railway (nixpacks) — хостинг, Cloudflare перед ним.
+
+## Как устроено
+
+```
+app/                 клиент: страницы, компоненты, composables
+  pages/admin.vue    каркас панели; вкладки — components/Admin*.vue
+server/
+  api/               HTTP-обработчики (api/admin/** — только для админов, см. middleware/admin-guard.ts)
+  routes/            WebSocket (/_ws, /_board, /_cards), вход через Telegram/Google, sitemap
+  database/          schema.ts (Drizzle), migrations/ (нумерованные), maintenance.ts
+  middleware/        admin-guard, потолок размера запроса, редиректы старых адресов
+  plugins/           миграции на старте, CSP, заслон сети в тестах
+  tasks/             задачи по расписанию (см. ниже)
+  utils/             логика сервера: игры, барабан, бэкапы, clientIp, лимиты…
+shared/utils/        общее для клиента и сервера: движки игр, тексты, типы
+tests/e2e/           сценарии Playwright, tests/unit/ — Vitest
+docs/                backups.md — резервные копии и восстановление
+```
+
+Всё состояние сайта — папка `STORAGE_DIR`: база `db.sqlite` и загруженные
+файлы (epub, аватарки, рамки, скины, картинки барабана). Комнаты игр и
+сокеты живут в памяти процесса: сервер один, деплой обрывает идущие партии.
+
+## Запуск
+
+Нужен Node 22 (`engines` в package.json).
 
 ```bash
-# npm
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
+cp .env.example .env   # заполнить хотя бы NUXT_SESSION_PASSWORD
+npm run dev            # http://localhost:3000
 ```
 
-## Development Server
+На пустой базе миграция заводит админа `admin@tavern.local` с паролем из
+`ADMIN_PASSWORD` (или случайным — он один раз печатается в лог). Вход по
+паролю — `/login?pw=1`.
 
-Start the development server on `http://localhost:3000`:
+Переменные окружения описаны в `.env.example`. В собранном сайте
+runtime-настройки переопределяются переменными с префиксом `NUXT_`
+(`NUXT_TELEGRAM_BOT_TOKEN` и т. п.); без префикса они читаются только при
+сборке.
+
+## Проверки
 
 ```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
+npm run typecheck      # vue-tsc по всему проекту
+npm run test:unit      # Vitest: движки игр, жребий, миграции, защита — секунды
+npm test               # Playwright: собирает сайт и гоняет сценарии на продакшен-сборке
+npm run format:check   # Prettier
 ```
 
-## Production
+Всё это идёт в CI (`.github/workflows/e2e.yml`) на каждый пуш в main и PR.
+Подробнее о сценариях и исследователе — `tests/README.md`.
 
-Build the application for production:
+## База и миграции
 
-```bash
-# npm
-npm run build
+Схема — `server/database/schema.ts`. Миграции — `server/database/migrations`:
+номер последней выполненной хранится в `PRAGMA user_version`, каждая идёт
+один раз и одной транзакцией. Новая миграция — новый файл с номером на
+единицу больше и строка в `migrations/index.ts`; выпущенные не правятся.
+Ошибка миграции не глотается: откат, сообщение в лог, повтор на следующем
+старте. То, что должно идти на каждом старте (подсчёт слов, чистка
+счётчиков, настройки по умолчанию, WAL), — в `server/database/maintenance.ts`.
 
-# pnpm
-pnpm build
+## Деплой
 
-# yarn
-yarn build
+Railway собирает `npm run build` (nixpacks, Node из закреплённого снимка
+nixpkgs — см. `nixpacks.toml`) и запускает `node .output/server/index.mjs`.
+`STORAGE_DIR` указывает на примонтированный том.
 
-# bun
-bun run build
-```
+Задачи по расписанию (UTC, `nuxt.config.ts` → `nitro.scheduledTasks`):
 
-Locally preview production build:
+| Когда (МСК)   | Задача             | Что делает                                    |
+| ------------- | ------------------ | --------------------------------------------- |
+| 12:07, 15:07  | `notify-chapters`  | пост о новых главах в телеграм-канал          |
+| 06:17         | `refresh-original` | число глав оригинала для трекера прогресса    |
+| 03:43         | `backup-db`        | снимок базы в `storage/backups`, последние 7  |
 
-```bash
-# npm
-npm run preview
+## Безопасность
 
-# pnpm
-pnpm preview
+- права админа проверяются по базе на каждом запросе к `/api/admin/**`;
+- вход по паролю — не больше 10 неудачных попыток с адреса за 15 минут;
+- адрес клиента — `server/utils/clientIp` (X-Real-IP Railway, за Cloudflare — CF-Connecting-IP);
+- CSP с nonce на страницах (`server/plugins/csp.ts`), нарушения — в лог через `/api/csp-report`;
+  `NUXT_CSP_REPORT_ONLY=true` переводит политику в режим «только сообщать»;
+- потолок размера запроса: 2 МБ, в панели — 64 МБ.
 
-# yarn
-yarn preview
+## Резервные копии
 
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+Ночные снимки базы, полная копия по кнопке в панели («Аккаунт» →
+«Резервные копии») и снимки тома в Railway — в `docs/backups.md`, там же
+восстановление.

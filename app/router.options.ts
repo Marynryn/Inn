@@ -55,9 +55,9 @@ export default <RouterConfig>{
         const ready = (cb: () => void) =>
           to.path === from.path
             ? requestAnimationFrame(cb)
-            : nuxtApp.hooks.hookOnce("page:finish", () =>
-                requestAnimationFrame(cb),
-              );
+            : nuxtApp.hooks.hookOnce("page:finish", () => {
+                requestAnimationFrame(cb);
+              });
         ready(() => {
           const el = document.querySelector(to.hash);
           if (!el) {

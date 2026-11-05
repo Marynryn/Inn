@@ -11,12 +11,12 @@ export const ADMIN = {
 };
 export const READER = {
   email: "reader@test.local",
-  password: "reader123",
+  password: "reader-pass-123",
   name: "reader",
 };
 export const SECOND = {
   email: "second@test.local",
-  password: "second123",
+  password: "second-pass-123",
   name: "second",
 };
 

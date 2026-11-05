@@ -1,12 +1,14 @@
 import { useDb } from "../../utils/db";
-import { comments, notifications } from "../../database/schema";
+import {
+  commentReactions,
+  comments,
+  notifications,
+} from "../../database/schema";
 import { eq, inArray, or } from "drizzle-orm";
+import { requireAdmin } from "../../utils/admin-access";
 
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event);
-  if (session.user?.role !== "admin") {
-    throw createError({ statusCode: 403, message: "Нет доступа" });
-  }
+  await requireAdmin(event);
 
   const id = Number(getRouterParam(event, "id"));
   const db = useDb();
@@ -25,8 +27,13 @@ export default defineEventHandler(async (event) => {
 
   // Уведомления об этих ответах убираем сами. В списке они и так не показались
   // бы — там внутреннее соединение с comments, — но копиться в базе им незачем.
-  await db.delete(notifications).where(inArray(notifications.commentId, ids));
-  await db.delete(comments).where(inArray(comments.id, ids));
+  // Реакции на удалённые реплики тоже — иначе они копятся сиротами. Одной
+  // транзакцией: оборвись запрос посередине, ветка не останется наполовину.
+  await db.batch([
+    db.delete(notifications).where(inArray(notifications.commentId, ids)),
+    db.delete(commentReactions).where(inArray(commentReactions.commentId, ids)),
+    db.delete(comments).where(inArray(comments.id, ids)),
+  ]);
 
   return { ok: true };
 });

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ChapterMeta } from "#shared/utils/chapterMeta";
+import { READER_BOOT } from "#shared/utils/inlineScripts";
 import titleLeaf from "~/assets/leaves/maple-lime.svg";
 
 const route = useRoute();
@@ -7,7 +9,7 @@ const rawParam = route.params.id as string;
 // Без текста (?meta=1): его рисует серверный компонент ChapterText. С текстом
 // он ехал бы второй раз — в данных страницы, а при переходе стрелкой ещё и
 // вторым запросом рядом с островом.
-const { data: chapter, error } = await useFetch(
+const { data: chapter, error } = await useFetch<ChapterMeta>(
   `/api/chapters/${encodeURIComponent(rawParam)}`,
   {
     query: { meta: 1 },
@@ -29,7 +31,9 @@ const { data: chapter, error } = await useFetch(
 if (error.value) {
   throw createError({
     statusCode: error.value.statusCode ?? 404,
-    message: error.value.data?.message || "Глава не найдена",
+    message:
+      (error.value.data as { message?: string } | undefined)?.message ||
+      "Глава не найдена",
     fatal: true,
   });
 }
@@ -192,13 +196,8 @@ const description = computed(() =>
   chapter.value ? chapter.value.description : undefined,
 );
 
-/*
-  Вид страницы применяется ещё до первой отрисовки: скрипт в шапке читает
-  настройки из браузера и ставит переменные на <html>. Иначе читатель с сепией
-  видел бы на каждой главе тёмную вспышку, пока не подхватится клиент. Ключ и
-  переменные — те же, что в useReaderSettings.
-*/
-const READER_BOOT = `(function(){try{var s=JSON.parse(localStorage.getItem(${JSON.stringify(LS_READER)})||'null');if(!s)return;var d=document.documentElement;if(typeof s.theme==='string')d.setAttribute('data-reader-theme',s.theme);if(s.fontSize)d.style.setProperty('--reader-font',s.fontSize+'pt');if(s.lineHeight)d.style.setProperty('--reader-lh',String(s.lineHeight));if(s.width)d.style.setProperty('--reader-width',String(s.width))}catch(e){}})()`;
+// Вид страницы до первой отрисовки — READER_BOOT (shared/utils/inlineScripts):
+// там же, где его хэш берёт CSP.
 
 // В начале — то, чем главы отличаются друг от друга: в выдаче их бывает
 // несколько подряд, а видно около 60 знаков. «Читать онлайн» — так ищут в Яндексе.

@@ -56,6 +56,15 @@ onMounted(() => {
 
 const characters = computed(() => data.value?.characters ?? []);
 
+// Портрет в сетке — ячейка ~165–220 px, а файл 800×800 (он нужен окну карточки).
+// Сетке отдаём уменьшенные копии (их режет @nuxt/image), браузер берёт ту, что
+// по размеру ячейки и плотности экрана: на телефоне ~400 px вместо 800, и
+// страница весит в разы меньше.
+const img = useImage();
+const PORTRAIT_WIDTHS = [240, 400, 600];
+const portraitSrcset = (src: string) =>
+  PORTRAIT_WIDTHS.map((w) => `${img(src, { width: w })} ${w}w`).join(", ");
+
 // ── Поиск, фильтры, сортировка ─────────────────────────────
 const query = ref("");
 const sort = ref<Sort>("name");
@@ -282,7 +291,16 @@ useSeoMeta({
           @keydown.enter="openCard(c, $event)"
         >
           <div class="portrait">
-            <img v-if="c.image" :src="c.image" :alt="c.name" loading="lazy" />
+            <img
+              v-if="c.image"
+              :src="img(c.image, { width: 400 })"
+              :srcset="portraitSrcset(c.image)"
+              sizes="(max-width: 600px) 50vw, 220px"
+              width="400"
+              height="400"
+              :alt="c.name"
+              loading="lazy"
+            />
             <div v-else class="placeholder" aria-hidden="true">
               <span class="initial display">{{ c.name.slice(0, 1) }}</span>
             </div>

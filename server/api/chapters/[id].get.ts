@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
 
   // Сколько комментариев — для кнопки «Обсуждение главы». Здесь, а не отдельным
   // запросом: страница и так ждёт этот ответ, а счётчик — одно число.
-  const [{ commentsCount }] = await db
+  const [{ commentsCount } = { commentsCount: 0 }] = await db
     .select({ commentsCount: count() })
     .from(comments)
     .where(eq(comments.chapterId, id));

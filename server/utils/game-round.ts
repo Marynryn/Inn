@@ -43,7 +43,11 @@ function singleCell(
 }
 
 /** Числовая клетка: точное совпадение или промах со стрелкой в сторону ответа. */
-function numberCell(guess: number, answer: number, format = String): GameCell {
+function numberCell(
+  guess: number,
+  answer: number,
+  format: (n: number) => string = String,
+): GameCell {
   if (!guess || !answer)
     return { values: guess ? [format(guess)] : [], verdict: "miss" };
   if (guess === answer) return { values: [format(guess)], verdict: "hit" };

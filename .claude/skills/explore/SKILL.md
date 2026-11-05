@@ -25,7 +25,7 @@ node tests/explorer/stand.mjs
 
 Стенд даёт: главы `1.01 «Первая глава»`, `1.02 «Вторая глава»`, `2.01 «Новый
 том»` (адреса `/chapter/1-01` и т.д.); аккаунты `admin@tavern.local/admin123`,
-`reader@test.local/reader123`, `second@test.local/second123`.
+`reader@test.local/reader-pass-123`, `second@test.local/second-pass-123`.
 
 ## 2. Руки — Playwright MCP
 
@@ -38,7 +38,7 @@ node tests/explorer/stand.mjs
 
 Приёмы:
 - **Войти** быстрее через API, чем через форму:
-  `browser_evaluate` → `fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'reader@test.local',password:'reader123'})}).then(r=>r.status)` — затем `browser_navigate` на нужную страницу. Выйти: `fetch('/api/auth/logout',{method:'POST'})`. Форма пароля тоже есть: `/login?pw=1`.
+  `browser_evaluate` → `fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'reader@test.local',password:'reader-pass-123'})}).then(r=>r.status)` — затем `browser_navigate` на нужную страницу. Выйти: `fetch('/api/auth/logout',{method:'POST'})`. Форма пароля тоже есть: `/login?pw=1`.
 - **Прямые запросы к API** (границы, права, лимиты) — тем же `browser_evaluate`
   с `fetch(...)`, куки страницы подхватываются сами.
 - **Проверка вёрстки** — `browser_evaluate`:

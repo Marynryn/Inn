@@ -8,8 +8,8 @@ export function sortChaptersForNotification<T extends NotifiableChapter>(
   list: T[],
 ): T[] {
   return [...list].sort((a, b) => {
-    const [av, ac] = a.id.split(".").map(Number);
-    const [bv, bc] = b.id.split(".").map(Number);
+    const [av = 0, ac = 0] = a.id.split(".").map(Number);
+    const [bv = 0, bc = 0] = b.id.split(".").map(Number);
     return av - bv || ac - bc;
   });
 }
@@ -25,8 +25,9 @@ export function buildChapterNotification(
   const byNumber = sortChaptersForNotification(list);
   if (byNumber.length === 0) return "";
 
-  if (byNumber.length === 1) {
-    return `Добавлена новая глава — ${byNumber[0].id} «${byNumber[0].title}»\n${siteUrl}`;
+  const [only] = byNumber;
+  if (byNumber.length === 1 && only) {
+    return `Добавлена новая глава — ${only.id} «${only.title}»\n${siteUrl}`;
   }
 
   const volumes = new Map<number, NotifiableChapter[]>();
@@ -37,8 +38,8 @@ export function buildChapterNotification(
   }
 
   const ranges = [...volumes.values()].map((group) => {
-    const first = group[0].id;
-    const last = group[group.length - 1].id;
+    const first = group[0]!.id;
+    const last = group.at(-1)!.id;
     return first === last ? first : `${first}-${last}`;
   });
 

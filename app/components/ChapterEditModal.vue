@@ -99,10 +99,10 @@ const editor = useEditor({
 
       const content =
         lines.length === 1
-          ? schema.text(lines[0], marks)
+          ? schema.text(lines[0]!, marks)
           : Fragment.fromArray(
               lines.map((line) =>
-                schema.nodes.paragraph.create(
+                schema.nodes.paragraph!.create(
                   null,
                   line ? schema.text(line, marks) : undefined,
                 ),

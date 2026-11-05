@@ -19,7 +19,13 @@ useHead({
 <template>
   <div class="error-page">
     <template v-if="error.statusCode === 404">
-      <NuxtImg src="/404.webp" alt="404 — страница съедена" class="error-img" />
+      <NuxtImg
+        src="/404.webp"
+        width="380"
+        densities="x1 x2"
+        alt="404 — страница съедена"
+        class="error-img"
+      />
       <p class="error-sub">
         {{
           settings?.error_404_sub ||
@@ -29,13 +35,21 @@ useHead({
     </template>
 
     <template v-else-if="error.statusCode === 403">
-      <NuxtImg src="/403.webp" alt="403 — доступ закрыт" class="error-img" />
+      <NuxtImg
+        src="/403.webp"
+        width="380"
+        densities="x1 x2"
+        alt="403 — доступ закрыт"
+        class="error-img"
+      />
       <p class="error-sub">Сюда не пускают. Даже если очень хочется.</p>
     </template>
 
     <template v-else-if="error.statusCode === 500">
       <NuxtImg
         src="/500.webp"
+        width="380"
+        densities="x1 x2"
         alt="500 — что-то пошло не так"
         class="error-img"
       />
@@ -69,9 +83,12 @@ useHead({
   font-family: var(--font-body);
 }
 
+/* Картинка шире 380 px не бывает — отдаём её в 380 и 760 (для плотных
+   экранов), а не исходник в 1100–1600 px. */
 .error-img {
   width: 380px;
   max-width: 88vw;
+  height: auto;
   border-radius: var(--radius-lg);
 }
 

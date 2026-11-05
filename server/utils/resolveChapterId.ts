@@ -35,5 +35,5 @@ export async function resolveChapterId(
       /^[a-z]+$/.test(slug.slice(target.length + 1))
     );
   });
-  return renamed.length === 1 ? renamed[0].id : null;
+  return renamed.length === 1 ? renamed[0]!.id : null;
 }

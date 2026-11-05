@@ -3,7 +3,10 @@ import { ADMIN, READER } from "./fixtures";
 
 /** Второй админ — собеседник. Заводится тем же запросом, что и форма «Добавить
  *  пользователя» во вкладке «Аккаунт»; повторный запуск получит 409, это не беда. */
-const SECOND_ADMIN = { email: "admin2@tavern.local", password: "admin2pass" };
+const SECOND_ADMIN = {
+  email: "admin2@tavern.local",
+  password: "admin2-pass-123",
+};
 
 test.describe("Личные сообщения админов", () => {
   test("читателю переписка закрыта", async ({ page }) => {

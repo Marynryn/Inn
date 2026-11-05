@@ -48,7 +48,8 @@ export default defineConfig({
   webServer: {
     command: "node tests/e2e/serve.mjs",
     url: `${E2E_URL}/api/settings`,
-    timeout: 180_000,
+    // Перед запуском идёт продакшен-сборка (tests/e2e/serve.mjs) — пара минут.
+    timeout: 600_000,
     reuseExistingServer: false,
     stdout: "ignore",
     stderr: "pipe",
