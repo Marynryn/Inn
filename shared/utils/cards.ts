@@ -151,6 +151,7 @@ export const CARD_HEROES: Record<
   xrn: {
     name: "Зрн",
     el: "magic",
+    art: true,
     hp: 10,
     energy: 3,
     role: "Сентениум",
