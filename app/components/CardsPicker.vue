@@ -51,7 +51,8 @@ const elColor = (el: Element) => CARD_ELEMENTS[el].color;
               >
             </span>
             <span class="pick-meta"
-              >{{ CARD_HEROES[id].role }} · ❤ {{ CARD_HEROES[id].hp }}</span
+              >{{ CARD_HEROES[id].role }} · <span class="hp-heart">❤︎</span>
+              {{ CARD_HEROES[id].hp }}</span
             >
             <span v-if="CARD_HEROES[id].passive" class="pick-move"
               ><i>Пассивка</i> <b>{{ CARD_HEROES[id].passive!.name }}:</b>
@@ -150,6 +151,10 @@ const elColor = (el: Element) => CARD_ELEMENTS[el].color;
 .pick-meta {
   font-size: 13px;
   color: var(--text-muted);
+}
+/* Сердечко здоровья — розовое; знак текстовый, иначе эмодзи красное. */
+.hp-heart {
+  color: #f08cb4;
 }
 .pick-move {
   font-size: 12px;

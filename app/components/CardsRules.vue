@@ -186,7 +186,8 @@ const dice = (n: number) =>
           >{{ CARD_ELEMENTS[CARD_HEROES[id].el].symbol }}
           {{ CARD_ELEMENTS[CARD_HEROES[id].el].name }}</span
         >
-        ({{ CARD_HEROES[id].role.toLowerCase() }}, ❤ {{ CARD_HEROES[id].hp }}).
+        ({{ CARD_HEROES[id].role.toLowerCase() }},
+        <span class="hp-heart">❤︎</span> {{ CARD_HEROES[id].hp }}).
         <template v-if="CARD_HEROES[id].passive"
           ><br /><i>Пассивка</i> «{{ CARD_HEROES[id].passive!.name }}»:
           {{ CARD_HEROES[id].passive!.text.toLowerCase() }}.
@@ -251,6 +252,10 @@ const dice = (n: number) =>
 
 /* Vue выбрасывает перевод строки между тегами — пробел после имени даём
    отступом. */
+/* Сердечко здоровья — розовое; знак текстовый, иначе эмодзи красное. */
+.hp-heart {
+  color: #f08cb4;
+}
 .hero-el {
   margin-left: 0.3em;
 }
