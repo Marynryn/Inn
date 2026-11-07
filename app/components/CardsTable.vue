@@ -370,7 +370,8 @@ const banner = computed(() => {
                 <span v-if="f.frozen" class="frost"
                   ><span class="frost-flake">❄</span></span
                 >
-                <span v-if="f.shield || f.bonus" class="buffs">
+                <span v-if="f.shield || f.bonus || f.thorns" class="buffs">
+                  <span v-if="f.thorns" class="buff buff--thorns">↩ 1</span>
                   <span v-if="f.bonus" class="buff buff--atk"
                     >⚔ +{{ f.bonus }}</span
                   >
@@ -463,7 +464,8 @@ const banner = computed(() => {
                 <span v-if="f.frozen" class="frost"
                   ><span class="frost-flake">❄</span></span
                 >
-                <span v-if="f.shield || f.bonus" class="buffs">
+                <span v-if="f.shield || f.bonus || f.thorns" class="buffs">
+                  <span v-if="f.thorns" class="buff buff--thorns">↩ 1</span>
                   <span v-if="f.bonus" class="buff buff--atk"
                     >⚔ +{{ f.bonus }}</span
                   >
@@ -980,6 +982,11 @@ button.fighter {
 
 .buff--atk {
   color: var(--ember-soft);
+}
+
+/* Ответный удар Ивлон: свой значок — щит его больше не показывает. */
+.buff--thorns {
+  color: #e8c27a;
 }
 
 .buff--shield {
