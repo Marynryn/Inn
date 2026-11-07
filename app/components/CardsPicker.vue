@@ -23,6 +23,12 @@ function togglePick(id: HeroId) {
 }
 
 const elColor = (el: Element) => CARD_ELEMENTS[el].color;
+
+/** Место в очереди: первый выбранный выходит в бой, остальные ждут в запасе
+ *  в том же порядке. 0 — герой не выбран. */
+const place = (id: HeroId) => props.modelValue.indexOf(id) + 1;
+const placeText = (n: number) =>
+  n === 1 ? "выходит в бой первым" : `в запасе, ${n}-й в очереди`;
 </script>
 
 <template>
@@ -30,6 +36,9 @@ const elColor = (el: Element) => CARD_ELEMENTS[el].color;
     <h2 class="section-title display">
       Выбери троих · {{ modelValue.length }}/3
     </h2>
+    <p class="order-hint">
+      Первый выбранный выходит в бой, остальные ждут в запасе по порядку.
+    </p>
     <ul class="roster">
       <li v-for="id in CARD_HERO_IDS" :key="id">
         <button
@@ -39,7 +48,12 @@ const elColor = (el: Element) => CARD_ELEMENTS[el].color;
           :aria-pressed="modelValue.includes(id)"
           @click="togglePick(id)"
         >
-          <CardsHeroImg :id="id" class="pick-img" lazy />
+          <span class="pick-portrait">
+            <CardsHeroImg :id="id" class="pick-img" lazy />
+            <span v-if="place(id)" class="pick-place" aria-hidden="true">{{
+              place(id)
+            }}</span>
+          </span>
           <span class="pick-body">
             <span class="pick-head">
               <span class="pick-name">{{ CARD_HEROES[id].name }}</span>
@@ -50,6 +64,9 @@ const elColor = (el: Element) => CARD_ELEMENTS[el].color;
                 >{{ CARD_ELEMENTS[CARD_HEROES[id].el].name }}</span
               >
             </span>
+            <span v-if="place(id)" class="pick-order">{{
+              placeText(place(id))
+            }}</span>
             <span class="pick-meta"
               >{{ CARD_HEROES[id].role }} · <span class="hp-heart">❤︎</span>
               {{ CARD_HEROES[id].hp }}</span
@@ -79,6 +96,12 @@ const elColor = (el: Element) => CARD_ELEMENTS[el].color;
 .section-title {
   margin: 28px 0 12px;
   font-size: 22px;
+}
+
+.order-hint {
+  margin: -6px 0 12px;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 /* ─── Выбор отряда ─── */
@@ -122,6 +145,35 @@ const elColor = (el: Element) => CARD_ELEMENTS[el].color;
   object-fit: cover;
   border-radius: var(--radius-md);
   flex-shrink: 0;
+  /* Без зазора под картинкой: значок-заглушку (flex) не трогаем. */
+  vertical-align: top;
+}
+
+/* Номер в очереди — кружком на портрете, как цена на карте в руке. */
+.pick-portrait {
+  position: relative;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+.pick-place {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-round);
+  background: var(--el);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.pick-order {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el);
 }
 
 .pick-body {
