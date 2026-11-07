@@ -10,7 +10,8 @@ test.describe("Карты таверны", () => {
     test.setTimeout(60_000);
     await login(page, ADMIN);
     await open(page, "/cards");
-    const start = page.getByRole("button", { name: "В бой" });
+    // exact: в подписи карточки есть «выходит в бой первым».
+    const start = page.getByRole("button", { name: "В бой", exact: true });
     await expect(start).toBeDisabled();
     for (const name of ["Эрин", "Сирия", "Рэгс"])
       await page.locator(".pick", { hasText: name }).click();
