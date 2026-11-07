@@ -177,41 +177,22 @@ const dice = (n: number) =>
     </ul>
 
     <h3>Герои</h3>
-    <!-- Стихия у имени, навык и ульта своими строками: одним абзацем
-         было не понять, где что. -->
-    <ul class="heroes">
-      <li
-        v-for="id in CARD_HERO_IDS"
-        :key="id"
-        class="hero"
-        :style="{ '--el': CARD_ELEMENTS[CARD_HEROES[id].el].color }"
-      >
-        <span class="hero-head"
-          ><b>{{ CARD_HEROES[id].name }}</b>
-          <span class="hero-el"
-            ><span aria-hidden="true">{{
-              CARD_ELEMENTS[CARD_HEROES[id].el].symbol
-            }}</span>
-            {{ CARD_ELEMENTS[CARD_HEROES[id].el].name }}</span
-          >
-          <span class="hero-meta"
-            >{{ CARD_HEROES[id].role }} · ❤ {{ CARD_HEROES[id].hp }}</span
-          ></span
-        >
-        <span v-if="CARD_HEROES[id].passive" class="hero-move"
-          ><i>Пассивка</i> «{{ CARD_HEROES[id].passive!.name }}»:
-          {{ CARD_HEROES[id].passive!.text.toLowerCase() }}.</span
-        >
-        <span class="hero-move"
-          ><i>Навык</i> «{{ CARD_HEROES[id].skill.name }}»:
-          {{ CARD_HEROES[id].skill.text.toLowerCase() }}.</span
-        >
-        <span class="hero-move"
-          ><i>Ульта</i> «{{ CARD_HEROES[id].burst.name }}» ({{
-            CARD_HEROES[id].energy
-          }}
-          энергии): {{ CARD_HEROES[id].burst.text.toLowerCase() }}.</span
-        >
+    <ul>
+      <li v-for="id in CARD_HERO_IDS" :key="id">
+        <b>{{ CARD_HEROES[id].name }}</b>
+        {{ CARD_ELEMENTS[CARD_HEROES[id].el].symbol }}
+        {{ CARD_ELEMENTS[CARD_HEROES[id].el].name }} ({{
+          CARD_HEROES[id].role.toLowerCase()
+        }}, ❤ {{ CARD_HEROES[id].hp }}).
+        <template v-if="CARD_HEROES[id].passive"
+          ><br /><i>Пассивка</i> «{{ CARD_HEROES[id].passive!.name }}»:
+          {{ CARD_HEROES[id].passive!.text.toLowerCase() }}.
+        </template>
+        <br /><i>Навык</i> «{{ CARD_HEROES[id].skill.name }}»:
+        {{ CARD_HEROES[id].skill.text.toLowerCase() }}. <br /><i>Ульта</i> «{{
+          CARD_HEROES[id].burst.name
+        }}» ({{ CARD_HEROES[id].energy }} энергии):
+        {{ CARD_HEROES[id].burst.text.toLowerCase() }}.
       </li>
     </ul>
 
@@ -265,25 +246,7 @@ const dice = (n: number) =>
   margin-top: 4px;
 }
 
-/* Обычный список, как остальные правила: только навык и ульта — своими
-   строками, чтобы не сливались. */
-.rules .heroes .hero + .hero {
-  margin-top: 6px;
-}
-.hero-move {
-  display: block;
-  font-size: 13px;
-  line-height: 1.4;
-}
-.hero-el {
-  color: var(--el);
-}
-.hero-el,
-.hero-meta {
-  font-size: 13px;
-  margin-left: 6px;
-}
-.hero-move i {
+.rules li i {
   font-style: normal;
   color: var(--ember-soft);
 }
