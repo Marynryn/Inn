@@ -265,14 +265,20 @@ const dice = (n: number) =>
   margin-top: 4px;
 }
 
+/* Сеткой: во всю ширину строки выходили слишком длинными. */
 .heroes {
   list-style: none;
   padding-left: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 12px 16px;
 }
-.heroes .hero + .hero {
-  margin-top: 10px;
+.rules .heroes .hero + .hero {
+  margin-top: 0;
 }
 .hero {
+  font-size: 13px;
+  line-height: 1.45;
   display: flex;
   flex-direction: column;
   gap: 2px;
