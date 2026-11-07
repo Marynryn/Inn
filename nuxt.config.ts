@@ -208,7 +208,11 @@ export default defineNuxtConfig({
     // (ryoka.webp, hero.webp), поэтому, как и у '/_ipx/**', сутки, а не год.
     ...Object.fromEntries(
       [
-        "/characters/**",
+        // Не '/characters/**': оно ловит и саму страницу /characters, и та
+        // кешировалась в браузере на сутки. Одна звёздочка — только файлы в
+        // корне папки, full — вложенная папка с большими портретами.
+        "/characters/*",
+        "/characters/full/**",
         "/figures/**",
         "/avatars/**",
         "/403.webp",

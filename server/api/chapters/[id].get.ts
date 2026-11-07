@@ -26,9 +26,17 @@ export default defineEventHandler(async (event) => {
   if (!chapter)
     throw createError({ statusCode: 404, message: "Глава не найдена" });
 
-  const session = await getUserSession(event);
-  if (!chapter.isPublished && session.user?.role !== "admin") {
-    throw createError({ statusCode: 404, message: "Глава не найдена" });
+  // Сессия нужна только ради черновика, и только если кука уже есть:
+  // getUserSession гостю заводит новую сессию и ставит Set-Cookie, а с ним
+  // страницу главы нельзя положить в общий кеш (задача A).
+  if (!chapter.isPublished) {
+    const cookieName = useRuntimeConfig(event).session?.name || "nuxt-session";
+    const session = getCookie(event, cookieName)
+      ? await getUserSession(event)
+      : null;
+    if (session?.user?.role !== "admin") {
+      throw createError({ statusCode: 404, message: "Глава не найдена" });
+    }
   }
 
   // ?text=1 — только текст. Так спрашивает серверный компонент ChapterText:

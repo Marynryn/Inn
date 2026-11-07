@@ -731,6 +731,12 @@ const { data: commentLogs, refresh: refreshLogs } = useFetch(
   margin-bottom: 8px;
 }
 
+/* Итог «за всё время» под таблицей игры. Общий отступ строки (-18px)
+   рассчитан на блок с большим полем снизу — здесь он налезал на таблицу. */
+.game-stats + .readers-line {
+  margin-top: 6px;
+}
+
 .game-stats-row {
   display: grid;
   grid-template-columns: 1fr 110px 110px;
