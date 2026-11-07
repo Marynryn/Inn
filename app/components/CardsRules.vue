@@ -180,7 +180,9 @@ const dice = (n: number) =>
     <ul>
       <li v-for="id in CARD_HERO_IDS" :key="id">
         <b>{{ CARD_HEROES[id].name }}</b>
-        <span :style="{ color: CARD_ELEMENTS[CARD_HEROES[id].el].color }"
+        <span
+          class="hero-el"
+          :style="{ color: CARD_ELEMENTS[CARD_HEROES[id].el].color }"
           >{{ CARD_ELEMENTS[CARD_HEROES[id].el].symbol }}
           {{ CARD_ELEMENTS[CARD_HEROES[id].el].name }}</span
         >
@@ -247,6 +249,11 @@ const dice = (n: number) =>
   margin-top: 4px;
 }
 
+/* Vue выбрасывает перевод строки между тегами — пробел после имени даём
+   отступом. */
+.hero-el {
+  margin-left: 0.3em;
+}
 .rules li i {
   font-style: normal;
   color: var(--ember-soft);
