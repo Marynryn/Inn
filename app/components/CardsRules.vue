@@ -268,23 +268,20 @@ const dice = (n: number) =>
 /* Обычный список, как остальные правила: только навык и ульта — своими
    строками, чтобы не сливались. */
 .rules .heroes .hero + .hero {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 .hero-move {
   display: block;
-}
-.hero-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
+  font-size: 13px;
+  line-height: 1.4;
 }
 .hero-el {
   color: var(--el);
-  font-weight: 600;
 }
+.hero-el,
 .hero-meta {
   font-size: 13px;
+  margin-left: 6px;
 }
 .hero-move i {
   font-style: normal;
