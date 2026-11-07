@@ -251,11 +251,11 @@ export const CARD_HEROES: Record<
     attack: { name: "Посох", text: "2 урона Сталью" },
     skill: {
       name: "Чумной туман",
-      text: "Все враги отравлены на 2 раунда",
+      text: "Все враги отравлены на 2 раунда и получают метку Яда; по метке Огня или Магии — сразу реакция",
     },
     burst: {
       name: "Крыса-фамилиар",
-      text: "Крыса сразу и ещё 3 раунда в конце раунда крадёт 1 ❤ у врага и лечит твоего героя",
+      text: "Крыса кусает активного врага на 1 Ядом и лечит твоего героя на 1 — сразу и ещё 3 раунда в конце раунда",
     },
   },
 };
@@ -678,7 +678,8 @@ function damage(g: Game, h: Hit) {
   } else if (h.el !== "steel") {
     f.aura = h.el;
   }
-  hurt(g, h.side, h.idx, amount);
+  // Удар без урона (Чумной туман) только ставит метку или даёт реакцию.
+  if (amount > 0) hurt(g, h.side, h.idx, amount);
 }
 
 /** Чистый урон: сперва в щит, потом в здоровье. */
@@ -1041,11 +1042,14 @@ function skill(g: Game, side: Side) {
       break;
     }
     case "typhenous":
-      for (const f of g.players[foe].fighters)
-        if (alive(f)) {
-          f.poison = Math.max(f.poison, 2);
-          pop(g, f, "note", "☣ отравлен");
-        }
+      // Туман — Яд без урона: ставит метку, а по чужой метке даёт реакцию.
+      // Раньше он только отравлял, и Огонь следом ничего не взрывал.
+      g.players[foe].fighters.forEach((f, idx) => {
+        if (!alive(f)) return;
+        f.poison = Math.max(f.poison, 2);
+        pop(g, f, "note", "☣ отравлен");
+        damage(g, { side: foe, idx, amount: 0, el: "poison" });
+      });
       break;
   }
 }

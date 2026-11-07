@@ -1331,8 +1331,13 @@ button.fighter {
   .moves {
     grid-template-columns: 1fr;
   }
+  /* В столбик описание навыка остаётся: без него на телефоне было не
+     понять, что делает кнопка, — подсказки при наведении там нет. */
+  .move {
+    padding: 6px 8px;
+  }
   .move-text {
-    display: none;
+    font-size: 11.5px;
   }
 }
 </style>

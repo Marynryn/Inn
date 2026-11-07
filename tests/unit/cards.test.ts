@@ -120,6 +120,34 @@ describe("Карты таверны: движок", () => {
     expect(cardsPayment([other, other], { el: 2 }, el)).toBeNull();
   });
 
+  it("Чумной туман ставит метку Яда, а по метке Огня даёт Взрыв", () => {
+    const g = newCardsGame(
+      ["typhenous", "erin", "relc"],
+      ["relc", "yvlon", "ceria"],
+      5,
+    );
+    g.phase = "action";
+    g.turn = 0;
+    for (const p of g.players) p.rolling = false;
+    g.players[0].active = 0;
+    g.players[0].dice = ["poison", "poison", "poison"];
+    const foes = g.players[1].fighters;
+    foes[1]!.aura = "fire";
+
+    const after = cardsApply(g, 0, { type: "skill" });
+    expect(after).not.toBe(g);
+    const [relc, yvlon, ceria] = after.players[1].fighters;
+    for (const f of after.players[1].fighters) expect(f.poison).toBe(2);
+    // У кого метки не было — теперь метка Яда.
+    expect(ceria!.aura).toBe("poison");
+    expect(relc!.aura).toBe("poison");
+    // Взрыв по метке Огня на Ивлон: 0 + 1 урона ей и по 1 остальным.
+    expect(yvlon!.aura).toBeNull();
+    expect(yvlon!.hp).toBe(CARD_HEROES.yvlon.hp - 1);
+    expect(relc!.hp).toBe(CARD_HEROES.relc.hp - 1);
+    expect(ceria!.hp).toBe(CARD_HEROES.ceria.hp - 1);
+  });
+
   it("проверка входящих ходов и составов отсекает мусор", () => {
     expect(isCardsAction({ type: "attack" })).toBe(true);
     expect(isCardsAction({ type: "play", card: -1 })).toBe(false);
