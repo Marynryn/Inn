@@ -70,8 +70,6 @@ const diceFace = ref(1);
 /** Второй кубик — когда сыгран [Безупречный бросок]. */
 const diceFace2 = ref<number | null>(null);
 const diceRolling = ref(false);
-/** Что ещё случилось за последнее действие: навыки, Скиннер, встречи. */
-const notes = ref<string[]>([]);
 /** Встреча на клетке — оба кубика с именами, чтобы было видно, кто сколько
  *  выбросил. Держится на экране до следующего хода. */
 type Duel = {
@@ -119,7 +117,6 @@ async function fly(slot: number, to: number) {
 /** Проиграть действие по шагам, которые прислал сервер. */
 async function play(action: BoardAction) {
   animating.value = true;
-  notes.value = [];
   duelShown.value = null;
   if (duelTimer) clearTimeout(duelTimer);
 
@@ -180,7 +177,6 @@ async function play(action: BoardAction) {
     }
   }
 
-  notes.value = action.notes;
   animating.value = false;
   syncPositions();
   // Ход принёс победу — объявляем, когда фишка дошла, а не раньше.
@@ -223,7 +219,6 @@ watch(state, (s) => {
       }
       landedCell.value = action.landed;
       landedSlot.value = action.slot;
-      notes.value = action.notes;
     }
     return;
   }
@@ -233,7 +228,6 @@ watch(state, (s) => {
     landedCell.value = null;
     landedSlot.value = null;
     pickedCell.value = null;
-    notes.value = [];
     duelShown.value = null;
     diceFace2.value = null;
     showWinner(null);
@@ -818,14 +812,6 @@ useHead({
                 {{ BOARD_SKILLS[BOARD_CELLS[infoCell]!.skill!].name }}
               </p>
             </div>
-
-            <ul
-              v-if="notes.length && state.status !== 'lobby'"
-              class="notes"
-              aria-live="polite"
-            >
-              <li v-for="(n, i) in notes" :key="i">{{ n }}</li>
-            </ul>
 
             <!-- Два кубика: игрок сам выбирает, на какой идти — больший не всегда лучше. -->
             <div v-if="state.status === 'playing' && choice" class="choice">
@@ -1455,17 +1441,6 @@ useHead({
   margin: 8px 0 0;
   font-size: 13px;
   color: var(--gold);
-}
-
-.notes {
-  list-style: none;
-  margin: 0 0 14px;
-  padding: 0;
-  display: grid;
-  gap: 4px;
-  font-size: 14px;
-  line-height: 1.45;
-  color: var(--ember-soft);
 }
 
 .skills {
