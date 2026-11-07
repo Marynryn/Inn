@@ -1,5 +1,14 @@
 import { runMigrations } from "../utils/migrate";
 
-export default defineNitroPlugin(async () => {
+export default defineNitroPlugin(async (nitroApp) => {
+  // Nitro не ждёт асинхронных плагинов: сервер начинает принимать запросы, пока
+  // миграции ещё идут, и первые запросы попадали на недостроенную базу (вход
+  // админа на свежем стенде отвечал 401 — его ещё не успели завести). Каждый
+  // запрос ждёт тот же промис; после старта он уже выполнен и ничего не стоит.
+  // Упавшие миграции запросы не роняют — как и раньше, сайт работает дальше,
+  // а ошибка уже в логе.
+  nitroApp.hooks.hook("request", async () => {
+    await runMigrations().catch(() => {});
+  });
   await runMigrations();
 });
