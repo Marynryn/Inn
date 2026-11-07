@@ -917,46 +917,6 @@ useHead({
             </p>
           </section>
 
-          <section class="card card--panel">
-            <ul class="players">
-              <li
-                v-for="p in players"
-                :key="p.slot"
-                class="player"
-                :class="{
-                  'player--turn': p.slot === state.turnSlot,
-                  'player--left': p.left,
-                }"
-              >
-                <span class="dot" :style="{ background: p.color }" />
-                <span class="player-name"
-                  >{{ p.name
-                  }}<template v-if="p.slot === you"> (ты)</template></span
-                >
-                <span class="player-meta">
-                  <template v-if="p.left">не за столом</template>
-                  <template v-else-if="!p.online">не на связи</template>
-                  <template v-else-if="state.status !== 'lobby'">
-                    {{
-                      (shown[p.slot] ?? p.pos)
-                        ? `клетка ${shown[p.slot] ?? p.pos}`
-                        : "на старте"
-                    }}<template v-if="p.skills.length">
-                      · навыков {{ p.skills.length }}</template
-                    ><template v-if="p.bonus"> · бросок в запасе</template>
-                  </template>
-                </span>
-              </li>
-            </ul>
-            <button
-              v-if="state.status !== 'finished'"
-              class="btn btn--ghost btn--sm leave"
-              @click="leaveTable"
-            >
-              Встать из-за стола
-            </button>
-          </section>
-
           <section class="card chat">
             <div ref="chatEl" class="chat-list thin-scroll">
               <p v-if="!chat.length" class="muted chat-empty">
@@ -1006,6 +966,46 @@ useHead({
                 ↵
               </button>
             </form>
+          </section>
+
+          <section class="card card--panel">
+            <ul class="players">
+              <li
+                v-for="p in players"
+                :key="p.slot"
+                class="player"
+                :class="{
+                  'player--turn': p.slot === state.turnSlot,
+                  'player--left': p.left,
+                }"
+              >
+                <span class="dot" :style="{ background: p.color }" />
+                <span class="player-name"
+                  >{{ p.name
+                  }}<template v-if="p.slot === you"> (ты)</template></span
+                >
+                <span class="player-meta">
+                  <template v-if="p.left">не за столом</template>
+                  <template v-else-if="!p.online">не на связи</template>
+                  <template v-else-if="state.status !== 'lobby'">
+                    {{
+                      (shown[p.slot] ?? p.pos)
+                        ? `клетка ${shown[p.slot] ?? p.pos}`
+                        : "на старте"
+                    }}<template v-if="p.skills.length">
+                      · навыков {{ p.skills.length }}</template
+                    ><template v-if="p.bonus"> · бросок в запасе</template>
+                  </template>
+                </span>
+              </li>
+            </ul>
+            <button
+              v-if="state.status !== 'finished'"
+              class="btn btn--ghost btn--sm leave"
+              @click="leaveTable"
+            >
+              Встать из-за стола
+            </button>
           </section>
 
           <section class="card card--panel log-card log-card--phone">
