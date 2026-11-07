@@ -180,10 +180,11 @@ const dice = (n: number) =>
     <ul>
       <li v-for="id in CARD_HERO_IDS" :key="id">
         <b>{{ CARD_HEROES[id].name }}</b>
-        {{ CARD_ELEMENTS[CARD_HEROES[id].el].symbol }}
-        {{ CARD_ELEMENTS[CARD_HEROES[id].el].name }} ({{
-          CARD_HEROES[id].role.toLowerCase()
-        }}, ❤ {{ CARD_HEROES[id].hp }}).
+        <span :style="{ color: CARD_ELEMENTS[CARD_HEROES[id].el].color }"
+          >{{ CARD_ELEMENTS[CARD_HEROES[id].el].symbol }}
+          {{ CARD_ELEMENTS[CARD_HEROES[id].el].name }}</span
+        >
+        ({{ CARD_HEROES[id].role.toLowerCase() }}, ❤ {{ CARD_HEROES[id].hp }}).
         <template v-if="CARD_HEROES[id].passive"
           ><br /><i>Пассивка</i> «{{ CARD_HEROES[id].passive!.name }}»:
           {{ CARD_HEROES[id].passive!.text.toLowerCase() }}.
