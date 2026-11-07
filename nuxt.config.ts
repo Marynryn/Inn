@@ -158,6 +158,16 @@ export default defineNuxtConfig({
         if (chunk.src && heavy.test(chunk.src)) chunk.prefetch = false;
       }
     },
+    // nuxt-auth-utils при включённых вебсокетах Nitro подключает плагин,
+    // который зовёт getUserSession на КАЖДЫЙ запрос — гостю это заводит сессию
+    // и Set-Cookie на любой странице, и такой ответ нельзя положить в общий
+    // кеш (задача A). Нашим вебсокетам сессия не нужна: _ws, _board и _cards
+    // опознают по одноразовому билету. Поэтому плагин выкидываем.
+    "nitro:config": (nitro) => {
+      nitro.plugins = (nitro.plugins ?? []).filter(
+        (p) => !/nuxt-auth-utils[\\/].*[\\/]server[\\/]plugins[\\/]ws/.test(p),
+      );
+    },
   },
 
   nitro: {
