@@ -56,6 +56,21 @@ const scrollTop = () => {
   }
 };
 
+// Гостю шар уведомлений не показывается, а позвать за стол хочется и его:
+// пока кто-то ищет соперника (настольная игра или карты), на бургере точка, а
+// в шторке — у ссылки на игру. Спрашиваем при загрузке и раз в минуту, пока
+// вкладка на виду: у гостя нет сокета, чтобы узнать сразу.
+const guestTables = ref(false);
+let tablesTimer: ReturnType<typeof setInterval> | null = null;
+const loadGuestTables = () => {
+  if (auth.isAuthed || document.visibilityState !== "visible") return;
+  $fetch<{ open: number }>("/api/board/open")
+    .then((r) => {
+      guestTables.value = r.open > 0;
+    })
+    .catch(() => {});
+};
+
 const onScroll = () => {
   scrolled.value = window.scrollY > 10;
 };
@@ -64,10 +79,15 @@ onMounted(() => {
   hydrated.value = true;
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
+  loadGuestTables();
+  tablesTimer = setInterval(loadGuestTables, 60_000);
+  document.addEventListener("visibilitychange", loadGuestTables);
 });
 
 onUnmounted(() => {
   window.removeEventListener("scroll", onScroll);
+  if (tablesTimer) clearInterval(tablesTimer);
+  document.removeEventListener("visibilitychange", loadGuestTables);
 });
 </script>
 
@@ -80,11 +100,18 @@ onUnmounted(() => {
       <button
         type="button"
         class="burger"
-        aria-label="Меню"
+        :aria-label="
+          !authed && guestTables ? 'Меню — ищут соперника за стол' : 'Меню'
+        "
         :aria-expanded="menuOpen"
         @click="menuOpen = true"
       >
         <NavIcon name="burger" :size="22" />
+        <span
+          v-if="hydrated && !authed && guestTables"
+          class="burger-dot"
+          aria-hidden="true"
+        />
       </button>
       <NuxtLink href="/" class="brand" @click="scrollTop">
         <NuxtImg
@@ -210,6 +237,21 @@ onUnmounted(() => {
 
 .burger:hover {
   color: var(--ember-soft);
+}
+
+.burger {
+  position: relative;
+}
+.burger-dot {
+  position: absolute;
+  top: 9px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-round);
+  /* Как точка у ссылки в шторке. */
+  background: var(--ember-soft);
+  box-shadow: 0 0 6px rgba(214, 136, 62, 0.7);
 }
 
 /* ── Таверна ────────────────────────────────── */

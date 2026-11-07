@@ -11,6 +11,7 @@ import { useDb } from "../../utils/db";
 import { framesByIds, toAvatarFrame } from "../../utils/frames";
 import { runningReelFor, spinsLeft, textsOf } from "../../utils/reel";
 import { invitingRoomFor } from "../../utils/board-rooms";
+import { invitingCardsRoomFor } from "../../utils/cards-rooms";
 import { otherAdmins, unreadBySender } from "../../utils/admin-messages";
 import { likeSummaries, type LikeSummary } from "../../utils/like-notify";
 
@@ -136,11 +137,13 @@ export default defineEventHandler(async (event) => {
 
   // Стол, который ищет игроков, — тоже на лету, пока он открыт.
   const board = invitingRoomFor(userId);
+  const cards = invitingCardsRoomFor(userId);
 
   return {
     unread: Math.max(0, (unread?.total ?? 0) - gone) + messages.length,
     reel: reelInvite,
     board,
+    cards,
     messages,
     items: rows
       .filter((r) => r.type !== "like" || likes.has(r.commentId ?? 0))

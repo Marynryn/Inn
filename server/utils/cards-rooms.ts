@@ -21,6 +21,7 @@ import {
 } from "#shared/utils/cards";
 import type { BoardUser } from "./board-rooms";
 import { recordCardGame } from "./card-stats";
+import { wsToUser, wsUsers } from "./ws-rooms";
 
 /**
  * Столы «Карт таверны» на двоих. Как и настольная игра, живут в памяти
@@ -124,6 +125,7 @@ function push(room: Room) {
       room.peers.delete(peer);
     }
   }
+  nudgeOpenTables();
   // Цифры над героями — только к ходу, где всё случилось: следующая рассылка
   // (кто-то отключился, попросил реванш) не должна показывать их заново.
   if (room.game) room.game.fx = [];
@@ -138,6 +140,28 @@ export function openCardsRooms() {
   return [...rooms.values()]
     .filter((r) => !r.game && r.seats.length === 1 && r.peers.size > 0)
     .map((r) => ({ code: r.code, host: r.seats[0]!.name, players: 1, max: 2 }));
+}
+
+/** Стол, который ищет соперника, — для приглашения в шаре: первый открытый,
+ *  за которым этот читатель ещё не сидит. */
+export function invitingCardsRoomFor(userId: number) {
+  return (
+    openCardsRooms().find(
+      (r) => !rooms.get(r.code)!.seats.some((s) => s.userId === userId),
+    ) ?? null
+  );
+}
+
+/** Открытых столов стало больше или меньше — шары у всех, кто на сайте,
+ *  пересчитываются, как у настольной игры: иначе приглашение висело бы до
+ *  перезагрузки страницы. Число не изменилось — никого не дёргаем. */
+let openCount = -1;
+function nudgeOpenTables() {
+  const n = openCardsRooms().length;
+  if (n === openCount) return;
+  openCount = n;
+  for (const userId of wsUsers.keys())
+    wsToUser(userId, { type: "notification" });
 }
 
 export function createCardsRoom(): string {
@@ -280,8 +304,10 @@ export function leaveCardsRoom(peer: any) {
   if (room.game && room.game.phase !== "over")
     room.game = cardsForfeit(room.game, side);
   if (!room.game) room.seats = room.seats.filter((s) => s !== seat);
-  if (!room.peers.size && !room.seats.length) rooms.delete(room.code);
-  else push(room);
+  if (!room.peers.size && !room.seats.length) {
+    rooms.delete(room.code);
+    nudgeOpenTables();
+  } else push(room);
 }
 
 export function dropCardsPeer(peer: any) {
@@ -298,6 +324,7 @@ function tick() {
     if (room.peers.size) room.touchedAt = now;
     else if (now - room.touchedAt > EMPTY_ROOM_MS) rooms.delete(room.code);
   }
+  nudgeOpenTables();
 }
 
 const g = globalThis as { __cardsTick?: ReturnType<typeof setInterval> };

@@ -59,8 +59,14 @@ type BoardInvite = {
   max: number;
 };
 const board = ref<BoardInvite | null>(null);
+// Стол «Карт таверны», где ждут соперника, — так же, отдельной строкой.
+const cards = ref<BoardInvite | null>(null);
 const badge = computed(
-  () => unread.value + (reel.value ? 1 : 0) + (board.value ? 1 : 0),
+  () =>
+    unread.value +
+    (reel.value ? 1 : 0) +
+    (board.value ? 1 : 0) +
+    (cards.value ? 1 : 0),
 );
 const loading = ref(false);
 
@@ -71,6 +77,7 @@ const load = async () => {
     unread.value = 0;
     reel.value = null;
     board.value = null;
+    cards.value = null;
     return;
   }
 
@@ -81,6 +88,7 @@ const load = async () => {
       items: Item[];
       reel: { id: number; title: string; invite: string } | null;
       board?: BoardInvite | null;
+      cards?: BoardInvite | null;
       messages?: MessageItem[];
     }>("/api/notifications");
     items.value = data.items;
@@ -88,6 +96,7 @@ const load = async () => {
     unread.value = data.unread;
     reel.value = data.reel ?? null;
     board.value = data.board ?? null;
+    cards.value = data.cards ?? null;
   } catch {
     // Молча: не загрузились — значок просто не покажет числа, а страница цела.
   } finally {
@@ -397,13 +406,22 @@ onUnmounted(() => {
         </div>
 
         <p
-          v-if="loading && !items.length && !messages.length && !reel && !board"
+          v-if="
+            loading &&
+            !items.length &&
+            !messages.length &&
+            !reel &&
+            !board &&
+            !cards
+          "
           class="panel-note"
         >
           Смотрим…
         </p>
         <p
-          v-else-if="!items.length && !messages.length && !reel && !board"
+          v-else-if="
+            !items.length && !messages.length && !reel && !board && !cards
+          "
           class="panel-note"
         >
           Пока тихо. Здесь появятся ответы и лайки на твои комментарии и новые
@@ -439,6 +457,48 @@ onUnmounted(() => {
                   Настольная игра по первому тому<template v-if="board.host"
                     >, накрывает {{ board.host }}</template
                   >. За столом {{ board.players }} из {{ board.max }}.
+                </span>
+                <span class="item-go">Сесть за стол →</span>
+              </span>
+            </NuxtLink>
+          </li>
+          <li v-if="cards">
+            <NuxtLink
+              class="item item--reel"
+              :to="`/cards/${cards.code}`"
+              @click="open = false"
+            >
+              <svg class="reel-icon" viewBox="0 0 28 28" aria-hidden="true">
+                <rect
+                  x="4"
+                  y="7"
+                  width="12"
+                  height="17"
+                  rx="2.5"
+                  fill="#1f1813"
+                  stroke="#e8b07a"
+                  stroke-width="1.5"
+                  transform="rotate(-12 10 15.5)"
+                />
+                <rect
+                  x="12"
+                  y="4"
+                  width="12"
+                  height="17"
+                  rx="2.5"
+                  fill="#1f1813"
+                  stroke="#e8b07a"
+                  stroke-width="1.5"
+                  transform="rotate(10 18 12.5)"
+                />
+                <circle cx="18" cy="12.5" r="2.2" fill="#d6883e" />
+              </svg>
+              <span class="item-text">
+                <span class="item-top"><b>Ищут соперника</b></span>
+                <span class="item-body">
+                  Карты таверны<template v-if="cards.host"
+                    >, за столом ждёт {{ cards.host }}</template
+                  >.
                 </span>
                 <span class="item-go">Сесть за стол →</span>
               </span>
