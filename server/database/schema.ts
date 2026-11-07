@@ -333,6 +333,19 @@ export const boardGameDays = sqliteTable("board_game_days", {
   finished: integer("finished").notNull().default(0),
 });
 
+// «Карты таверны»: доигранные партии за день. mode — "computer" (против
+// компьютера, присылает страница) или "online" (на двоих, считает сервер).
+// Партии одних админов сюда не попадают.
+export const cardGameDays = sqliteTable(
+  "card_game_days",
+  {
+    day: text("day").notNull(), // '2026-11-07', по Москве
+    mode: text("mode").notNull(),
+    finished: integer("finished").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.mode] })],
+);
+
 // Клики по тыкве на Хеллоуин — строка на день, без людей. Клики
 // администраторов сюда не попадают.
 export const pumpkinClickDays = sqliteTable("pumpkin_click_days", {

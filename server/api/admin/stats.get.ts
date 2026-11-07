@@ -2,6 +2,7 @@ import { useDb } from "../../utils/db";
 import {
   boardGameDays,
   boardVisitDays,
+  cardGameDays,
   chapterDownloadDays,
   chapters,
   chapterStats,
@@ -144,6 +145,18 @@ export default defineEventHandler(async (event) => {
     .groupBy(boardVisitDays.day);
   const boardGameRows = await db.select().from(boardGameDays);
 
+  // Карты таверны: доигранные партии по режимам. Админы не в счёт.
+  const cardRows = await db.select().from(cardGameDays);
+  const cardSum = (mode: string, from = "") =>
+    cardRows
+      .filter((r) => r.mode === mode && r.day >= from)
+      .reduce((n, r) => n + r.finished, 0);
+  const cardMode = (mode: string) => ({
+    today: cardSum(mode, mskDay()),
+    month: cardSum(mode, month),
+    total: cardSum(mode),
+  });
+
   const topChapters = await db
     .select({
       id: chapters.id,
@@ -180,6 +193,10 @@ export default defineEventHandler(async (event) => {
         .filter((r) => r.day >= month)
         .reduce((s, r) => s + r.finished, 0),
       finishedTotal: boardGameRows.reduce((s, r) => s + r.finished, 0),
+    },
+    cards: {
+      computer: cardMode("computer"),
+      online: cardMode("online"),
     },
     readers: {
       total: readerTotal?.total ?? 0,

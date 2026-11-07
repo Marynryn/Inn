@@ -196,6 +196,39 @@ const { data: commentLogs, refresh: refreshLogs } = useFetch(
       >
     </p>
 
+    <!-- Карты таверны: доигранные партии. Против компьютера присылает
+       страница, на двоих считает сервер. Партии одних админов не в счёт. -->
+    <h3 class="stats-sub">Карты таверны</h3>
+    <div class="game-stats">
+      <div class="game-stats-row game-stats-head">
+        <span>Партий доиграно</span>
+        <span>Сегодня</span>
+        <span>За 30 дней</span>
+      </div>
+      <div
+        v-for="row in [
+          { label: 'Против компьютера', v: stats?.cards?.computer },
+          { label: 'На двоих', v: stats?.cards?.online },
+        ]"
+        :key="row.label"
+        class="game-stats-row"
+      >
+        <span>{{ row.label }}</span>
+        <span>{{ (row.v?.today ?? 0).toLocaleString("ru") }}</span>
+        <span>{{ (row.v?.month ?? 0).toLocaleString("ru") }}</span>
+      </div>
+    </div>
+    <p class="readers-line">
+      <span
+        >Доиграно за всё время: против компьютера
+        <b>{{ (stats?.cards?.computer?.total ?? 0).toLocaleString("ru") }}</b
+        >, на двоих
+        <b>{{
+          (stats?.cards?.online?.total ?? 0).toLocaleString("ru")
+        }}</b></span
+      >
+    </p>
+
     <h3 class="stats-sub">Игра «Кто из таверны»</h3>
     <div class="game-stats">
       <div class="game-stats-row game-stats-head">

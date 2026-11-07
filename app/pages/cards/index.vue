@@ -49,6 +49,16 @@ watch(game, (g) => {
 onBeforeUnmount(() => {
   if (timer) clearTimeout(timer);
 });
+
+// Партия доиграна — серверу для счётчика в админке: сама партия живёт только
+// здесь. Один раз, в момент конца; брошенная посередине не в счёт.
+watch(
+  () => game.value?.phase,
+  (phase, was) => {
+    if (phase === "over" && was !== "over")
+      $fetch("/api/cards/finished", { method: "POST" }).catch(() => {});
+  },
+);
 </script>
 
 <template>

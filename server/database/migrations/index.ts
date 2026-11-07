@@ -1,6 +1,7 @@
 import { baseline } from "./0001-baseline";
 import { commentReactionsUnique } from "./0002-comment-reactions-unique";
 import { commentReactionsAnon } from "./0003-comment-reactions-anon";
+import { cardGameDays } from "./0004-card-game-days";
 import type { Migration } from "./helpers";
 
 /**
@@ -16,4 +17,5 @@ export const MIGRATIONS: Migration[] = [
   baseline,
   commentReactionsUnique,
   commentReactionsAnon,
+  cardGameDays,
 ];

@@ -20,6 +20,7 @@ import {
   newCardsGame,
 } from "#shared/utils/cards";
 import type { BoardUser } from "./board-rooms";
+import { recordCardGame } from "./card-stats";
 
 /**
  * Столы «Карт таверны» на двоих. Как и настольная игра, живут в памяти
@@ -36,6 +37,8 @@ type Seat = {
   team: HeroId[] | null;
   rematch: boolean;
   wins: number;
+  /** Для статистики: партии одних админов не считаем. */
+  admin: boolean;
 };
 
 type Room = {
@@ -105,6 +108,7 @@ function push(room: Room) {
     room.counted = true;
     room.finished++;
     if (g.winner !== null && room.seats[g.winner]) room.seats[g.winner]!.wins++;
+    if (!room.seats.every((s) => s.admin)) void recordCardGame("online");
   }
   for (const [peer, userId] of room.peers) {
     const side = room.seats.findIndex((s) => s.userId === userId);
@@ -170,11 +174,13 @@ export function joinCardsRoom(
       team: null,
       rematch: false,
       wins: 0,
+      admin: user.admin,
     };
     room.seats.push(seat);
   } else {
     seat.name = user.name;
     seat.avatarUrl = user.avatarUrl;
+    seat.admin = user.admin;
   }
   room.peers.set(peer, user.id);
   room.touchedAt = Date.now();
