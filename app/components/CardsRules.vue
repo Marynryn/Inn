@@ -6,6 +6,7 @@
 import {
   CARD_HEROES,
   CARD_HERO_IDS,
+  CARD_ELEMENTS,
   CARDS,
   CARD_IDS,
   ATTACK_COST,
@@ -170,26 +171,47 @@ const dice = (n: number) =>
         падает, замену выбрать всё равно можно.
       </li>
       <li>
-        <b>Ответный удар</b> (ульта Ивлон) — пока держится её щит, каждый удар
-        героя по Ивлон возвращает ему 1 урон.
+        <b>Ответный удар</b> (ульта Ивлон) — до конца раунда каждый удар героя
+        по Ивлон возвращает ему 1 урон.
       </li>
     </ul>
 
     <h3>Герои</h3>
-    <ul>
-      <li v-for="id in CARD_HERO_IDS" :key="id">
-        <b>{{ CARD_HEROES[id].name }}</b> ({{
-          CARD_HEROES[id].role.toLowerCase()
-        }}, ❤ {{ CARD_HEROES[id].hp }}).
-        <template v-if="CARD_HEROES[id].passive"
-          >Пассивка «{{ CARD_HEROES[id].passive!.name }}»:
-          {{ CARD_HEROES[id].passive!.text.toLowerCase() }}.
-        </template>
-        Навык «{{ CARD_HEROES[id].skill.name }}»:
-        {{ CARD_HEROES[id].skill.text.toLowerCase() }}. Ульта «{{
-          CARD_HEROES[id].burst.name
-        }}» ({{ CARD_HEROES[id].energy }} энергии):
-        {{ CARD_HEROES[id].burst.text.toLowerCase() }}.
+    <!-- Каждый герой — карточкой: стихия у имени, навык и ульта своими
+         строками. Одним абзацем было не понять, где что. -->
+    <ul class="heroes">
+      <li
+        v-for="id in CARD_HERO_IDS"
+        :key="id"
+        class="hero"
+        :style="{ '--el': CARD_ELEMENTS[CARD_HEROES[id].el].color }"
+      >
+        <span class="hero-head"
+          ><b>{{ CARD_HEROES[id].name }}</b>
+          <span class="hero-el"
+            ><span aria-hidden="true">{{
+              CARD_ELEMENTS[CARD_HEROES[id].el].symbol
+            }}</span>
+            {{ CARD_ELEMENTS[CARD_HEROES[id].el].name }}</span
+          >
+          <span class="hero-meta"
+            >{{ CARD_HEROES[id].role }} · ❤ {{ CARD_HEROES[id].hp }}</span
+          ></span
+        >
+        <span v-if="CARD_HEROES[id].passive" class="hero-move"
+          ><i>Пассивка</i> «{{ CARD_HEROES[id].passive!.name }}»:
+          {{ CARD_HEROES[id].passive!.text.toLowerCase() }}.</span
+        >
+        <span class="hero-move"
+          ><i>Навык</i> «{{ CARD_HEROES[id].skill.name }}»:
+          {{ CARD_HEROES[id].skill.text.toLowerCase() }}.</span
+        >
+        <span class="hero-move"
+          ><i>Ульта</i> «{{ CARD_HEROES[id].burst.name }}» ({{
+            CARD_HEROES[id].energy
+          }}
+          энергии): {{ CARD_HEROES[id].burst.text.toLowerCase() }}.</span
+        >
       </li>
     </ul>
 
@@ -241,6 +263,38 @@ const dice = (n: number) =>
 }
 .rules li + li {
   margin-top: 4px;
+}
+
+.heroes {
+  list-style: none;
+  padding-left: 0;
+}
+.heroes .hero + .hero {
+  margin-top: 10px;
+}
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 10px;
+  border-left: 3px solid var(--el);
+}
+.hero-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.hero-el {
+  color: var(--el);
+  font-weight: 600;
+}
+.hero-meta {
+  font-size: 13px;
+}
+.hero-move i {
+  font-style: normal;
+  color: var(--ember-soft);
 }
 
 .costs {

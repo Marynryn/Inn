@@ -128,7 +128,7 @@ export const CARD_HEROES: Record<
     attack: { name: "Снежный укус", text: "2 урона Льдом" },
     skill: {
       name: "Ледяные узоры",
-      text: "2 урона Льдом; если на цели уже была метка Льда — она замерзает",
+      text: "3 урона Льдом; если на цели уже была метка Льда — она замерзает",
     },
     burst: {
       name: "Пришла зима",
@@ -145,7 +145,7 @@ export const CARD_HEROES: Record<
     skill: { name: "Магическая стрела", text: "3 урона Магией" },
     burst: {
       name: "Призыв скелета",
-      text: "2 урона Магией; скелет 3 раунда бьёт на 1 Магией в конце раунда",
+      text: "3 урона Магией; скелет 3 раунда бьёт на 1 Магией в конце раунда",
     },
   },
   xrn: {
@@ -158,7 +158,7 @@ export const CARD_HEROES: Record<
     attack: { name: "Цветная вспышка", text: "2 урона Магией" },
     skill: {
       name: "Развеивание",
-      text: "С цели снимаются щит и усиления, потом 2 урона Магией",
+      text: "С цели снимаются щит и усиления, потом 3 урона Магией",
     },
     burst: {
       name: "Калейдоскоп",
@@ -181,7 +181,7 @@ export const CARD_HEROES: Record<
   takhatres: {
     name: "Тахатрес",
     el: "wind",
-    hp: 10,
+    hp: 11,
     energy: 2,
     role: "Гаруда",
     passive: {
@@ -191,7 +191,7 @@ export const CARD_HEROES: Record<
     attack: { name: "Когти", text: "2 урона Сталью" },
     skill: {
       name: "Пикирование",
-      text: "3 урона Ветром самому раненому врагу, даже в запасе",
+      text: "4 урона Ветром самому раненому врагу, даже в запасе",
     },
     burst: {
       name: "Повелитель Небес",
@@ -201,11 +201,11 @@ export const CARD_HEROES: Record<
   relc: {
     name: "Релк",
     el: "steel",
-    hp: 12,
+    hp: 11,
     energy: 2,
     role: "Стражник",
     attack: { name: "Выпад", text: "2 урона Сталью" },
-    skill: { name: "Удар копьём", text: "4 урона Сталью" },
+    skill: { name: "Удар копьём", text: "3 урона Сталью" },
     burst: { name: "Сержант стражи", text: "3 урона Сталью и щит на 3 себе" },
   },
   yvlon: {
@@ -221,11 +221,11 @@ export const CARD_HEROES: Record<
     attack: { name: "Меч", text: "2 урона Сталью" },
     skill: {
       name: "Стойкость",
-      text: "2 урона Сталью и +1 за каждые 3 потерянных ❤",
+      text: "2 урона Сталью и +1 за каждые 3 ❤, потерянных самой Ивлон",
     },
     burst: {
       name: "Ответный удар",
-      text: "Щит на 3; пока он держится, каждый удар по Ивлон возвращает 1 урон",
+      text: "2 урона Сталью и щит на 2; до конца раунда каждый удар по Ивлон возвращает 1 урон",
     },
   },
   rags: {
@@ -251,7 +251,7 @@ export const CARD_HEROES: Record<
     attack: { name: "Посох", text: "2 урона Сталью" },
     skill: {
       name: "Чумной туман",
-      text: "Все враги отравлены на 2 раунда и получают метку Яда; по метке Огня или Магии — сразу реакция",
+      text: "1 урон Ядом каждому врагу, активный отравлен на 2 раунда",
     },
     burst: {
       name: "Крыса-фамилиар",
@@ -382,7 +382,7 @@ export type Fighter = {
   frozen: boolean;
   /** Древний дракон уже пережил смертельный удар. */
   revived?: boolean;
-  /** Ответный удар Ивлон: пока держится щит, бьющий получает 1. */
+  /** Ответный удар Ивлон: до конца раунда бьющий её получает 1. */
   thorns?: boolean;
 };
 
@@ -678,8 +678,7 @@ function damage(g: Game, h: Hit) {
   } else if (h.el !== "steel") {
     f.aura = h.el;
   }
-  // Удар без урона (Чумной туман) только ставит метку или даёт реакцию.
-  if (amount > 0) hurt(g, h.side, h.idx, amount);
+  hurt(g, h.side, h.idx, amount);
 }
 
 /** Чистый урон: сперва в щит, потом в здоровье. */
@@ -689,7 +688,6 @@ function hurt(g: Game, side: Side, idx: number, amount: number) {
   if (!alive(f)) return;
   const blocked = Math.min(f.shield, amount);
   f.shield -= blocked;
-  if (!f.shield) f.thorns = false;
   const was = f.hp;
   f.hp = Math.max(0, f.hp - (amount - blocked));
   // Древний дракон остаётся с 1 ❤ — и в надписи, и в журнале потеря
@@ -774,7 +772,7 @@ function strikeAt(
   amount += me.bonus;
   me.bonus = 0;
   // Ответный удар Ивлон: щит должен держаться в момент удара.
-  const thorns = !!target.thorns && target.shield > 0 && alive(target);
+  const thorns = !!target.thorns && alive(target);
   damage(g, { side: foeSide, idx, amount, el });
   if (thorns && alive(me)) {
     say(g, `Ответный удар: ${tag(g, side, me)} получает 1`);
@@ -982,7 +980,7 @@ function skill(g: Game, side: Side) {
       if (g.phase !== "over" && g.choosing !== foe) forceSwitch(g, foe);
       break;
     case "relc":
-      strike(g, side, 4, "steel");
+      strike(g, side, 3, "steel");
       break;
     case "rags": {
       const target = cardsActive(g.players[foe]);
@@ -1006,7 +1004,7 @@ function skill(g: Game, side: Side) {
     case "ivolethe": {
       const target = cardsActive(g.players[foe]);
       const iced = target.aura === "ice";
-      strike(g, side, 2, "ice");
+      strike(g, side, 3, "ice");
       if (iced && alive(target)) {
         target.frozen = true;
         say(g, `${tag(g, foe, target)} замерзает`);
@@ -1019,7 +1017,7 @@ function skill(g: Game, side: Side) {
       target.shield = 0;
       target.thorns = false;
       target.bonus = 0;
-      strike(g, side, 2, "magic");
+      strike(g, side, 3, "magic");
       break;
     }
     case "takhatres": {
@@ -1033,7 +1031,7 @@ function skill(g: Game, side: Side) {
             a.f.hp - b.f.hp ||
             Number(b.i === foes.active) - Number(a.i === foes.active),
         )[0]!.i;
-      strikeAt(g, side, idx, 3, "wind");
+      strikeAt(g, side, idx, 4, "wind");
       break;
     }
     case "yvlon": {
@@ -1041,16 +1039,21 @@ function skill(g: Game, side: Side) {
       strike(g, side, 2 + Math.floor(lost / 3), "steel");
       break;
     }
-    case "typhenous":
-      // Туман — Яд без урона: ставит метку, а по чужой метке даёт реакцию.
-      // Раньше он только отравлял, и Огонь следом ничего не взрывал.
-      g.players[foe].fighters.forEach((f, idx) => {
-        if (!alive(f)) return;
-        f.poison = Math.max(f.poison, 2);
-        pop(g, f, "note", "☣ отравлен");
-        damage(g, { side: foe, idx, amount: 0, el: "poison" });
-      });
+    case "typhenous": {
+      // Туман бьёт всех на 1 Ядом — это ставит метку и даёт реакции по чужим
+      // меткам; отравлен только активный: яд на всех троих был перебором.
+      const foes = g.players[foe];
+      const target = cardsActive(foes);
+      for (let k = 0; k < foes.fighters.length; k++) {
+        const idx = (foes.active + k) % foes.fighters.length;
+        damage(g, { side: foe, idx, amount: 1, el: "poison" });
+      }
+      if (alive(target)) {
+        target.poison = Math.max(target.poison, 2);
+        pop(g, target, "note", "☣ отравлен");
+      }
       break;
+    }
   }
 }
 
@@ -1095,7 +1098,7 @@ function burst(g: Game, side: Side): boolean {
       break;
     }
     case "pisces":
-      strike(g, side, 2, "magic");
+      strike(g, side, 3, "magic");
       p.skeleton = 3;
       break;
     case "ryoka":
@@ -1134,9 +1137,10 @@ function burst(g: Game, side: Side): boolean {
       strike(g, side, 3, "wind");
       return true;
     case "yvlon":
-      me.shield += 3;
+      strike(g, side, 2, "steel");
+      me.shield += 2;
       me.thorns = true;
-      pop(g, me, "shield", "щит +3");
+      pop(g, me, "shield", "щит +2");
       break;
     case "typhenous":
       p.rat = 3;
@@ -1260,6 +1264,7 @@ function endRound(g: Game) {
         damage(g, { side, idx: i, amount: 1, el: "poison" });
       }
       f.frozen = false;
+      f.thorns = false;
     });
   }
   if (g.phase === "over") return;

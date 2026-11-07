@@ -54,15 +54,15 @@ const elColor = (el: Element) => CARD_ELEMENTS[el].color;
               >{{ CARD_HEROES[id].role }} · ❤ {{ CARD_HEROES[id].hp }}</span
             >
             <span v-if="CARD_HEROES[id].passive" class="pick-move"
-              ><b>{{ CARD_HEROES[id].passive!.name }}</b> (пассивка):
+              ><i>Пассивка</i> <b>{{ CARD_HEROES[id].passive!.name }}:</b>
               {{ CARD_HEROES[id].passive!.text }}</span
             >
             <span class="pick-move"
-              ><b>{{ CARD_HEROES[id].skill.name }}:</b>
+              ><i>Навык</i> <b>{{ CARD_HEROES[id].skill.name }}:</b>
               {{ CARD_HEROES[id].skill.text }}</span
             >
             <span class="pick-move"
-              ><b>{{ CARD_HEROES[id].burst.name }}:</b>
+              ><i>Ульта</i> <b>{{ CARD_HEROES[id].burst.name }}:</b>
               {{ CARD_HEROES[id].burst.text }}</span
             >
           </span>
@@ -155,6 +155,10 @@ const elColor = (el: Element) => CARD_ELEMENTS[el].color;
   font-size: 12px;
   color: var(--text-muted);
   line-height: 1.4;
+}
+.pick-move i {
+  font-style: normal;
+  color: var(--ember-soft);
 }
 .pick-move b {
   color: var(--parchment-2);
