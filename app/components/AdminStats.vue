@@ -196,9 +196,9 @@ const { data: commentLogs, refresh: refreshLogs } = useFetch(
       >
     </p>
 
-    <!-- Карты таверны: доигранные партии. Против компьютера присылает
+    <!-- Странствующая колода: доигранные партии. Против компьютера присылает
        страница, на двоих считает сервер. Партии одних админов не в счёт. -->
-    <h3 class="stats-sub">Карты таверны</h3>
+    <h3 class="stats-sub">Странствующая колода</h3>
     <div class="game-stats">
       <div class="game-stats-row game-stats-head">
         <span>Партий доиграно</span>

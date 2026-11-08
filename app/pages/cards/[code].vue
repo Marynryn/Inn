@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Стол «Карт таверны» на двоих. Партия на сервере (server/utils/cards-rooms.ts),
+ * Стол «Странствующей колоды» на двоих. Партия на сервере (server/utils/cards-rooms.ts),
  * сюда приходит её вид глазами игрока. Пока за столом один — ссылка для
  * друга и выбор отряда; оба выбрали — партия начинается.
  */
@@ -11,7 +11,7 @@ const code = String(route.params.code).toUpperCase();
 
 const { data: settings } = await useFetch("/api/settings");
 useHead({
-  title: `Стол ${code} · Карты таверны`,
+  title: `Стол ${code} · Странствующая колода`,
   meta: [{ name: "robots", content: "noindex" }],
 });
 
@@ -82,7 +82,7 @@ function quit() {
     />
 
     <main v-if="fatal" class="lobby">
-      <h1 class="page-title title">Карты таверны</h1>
+      <h1 class="page-title title">Странствующая колода</h1>
       <p class="lead">{{ fatal }}</p>
       <div class="actions">
         <NuxtLink to="/board" class="btn btn--ghost">К столам</NuxtLink>
@@ -173,7 +173,7 @@ function quit() {
     <!-- Сбор за столом -->
     <main v-else class="lobby">
       <header class="intro">
-        <div class="eyebrow">Карты таверны · стол {{ code }}</div>
+        <div class="eyebrow">Странствующая колода · стол {{ code }}</div>
         <h1 class="page-title title">Стол на двоих</h1>
         <p v-if="!foe" class="lead">
           Отправь другу ссылку — как только он сядет и оба выберут отряд,

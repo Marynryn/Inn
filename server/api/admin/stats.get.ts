@@ -145,7 +145,7 @@ export default defineEventHandler(async (event) => {
     .groupBy(boardVisitDays.day);
   const boardGameRows = await db.select().from(boardGameDays);
 
-  // Карты таверны: доигранные партии по режимам. Админы не в счёт.
+  // Странствующая колода: доигранные партии по режимам. Админы не в счёт.
   const cardRows = await db.select().from(cardGameDays);
   const cardSum = (mode: string, from = "") =>
     cardRows

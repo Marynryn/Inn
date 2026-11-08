@@ -40,7 +40,7 @@ function moveFor(g: Game, side: Side): Action {
   return cardsComputerMove(cardsView(g, 1));
 }
 
-describe("Карты таверны: движок", () => {
+describe("Странствующая колода: движок", () => {
   it("сотня партий доигрывается до конца, и ни один ход не нарушает правил", () => {
     for (let seed = 1; seed <= 100; seed++) {
       let g = newCardsGame(

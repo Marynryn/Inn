@@ -6,8 +6,8 @@ import { isCardsCode } from "#shared/utils/cards";
  * кнопка «новая комната». Играть может любой вошедший; ссылка в меню — только
  * у админов, остальных зовут на стол ссылкой.
  *
- * Здесь же «Карты таверны»: пока они в разработке, стол для них накрывает
- * только админ, а друг садится по ссылке.
+ * Здесь же «Странствующая колода»: стол на двоих накрывает любой вошедший,
+ * друг садится по ссылке, а против компьютера играют все, даже гости.
  */
 
 type RoomsReply = {
@@ -27,7 +27,6 @@ const { data: settings } = await useFetch("/api/settings");
 const { data, refresh, pending } =
   await useFetch<RoomsReply>("/api/board/rooms");
 
-const auth = useAuthStore();
 const creating = ref(false);
 const error = ref("");
 const codeInput = ref("");
@@ -146,16 +145,15 @@ useHead({
           </div>
         </section>
 
-        <section v-if="auth.isAdmin" class="card card--panel game">
-          <h2 class="game-title display">
-            Карты таверны <span class="badge">для админов</span>
-          </h2>
+        <section class="card card--panel game">
+          <h2 class="game-title display">Странствующая колода</h2>
           <p class="game-lead">
-            Отряд из трёх героев, кубики стихий и реакции. Пока в разработке:
-            стол накрывает админ, друг садится по ссылке.
+            Отряд из трёх героев, кубики стихий и реакции. Сразись с компьютером
+            или накрой стол и позови друга ссылкой.
           </p>
           <div class="actions">
             <button
+              v-if="data?.canCreate"
               class="btn btn--primary"
               :disabled="creating"
               @click="createCards"
@@ -198,7 +196,9 @@ useHead({
             <div class="room-code">
               {{ r.code }}
               <span class="room-game">{{
-                r.game === "cards" ? "Карты таверны" : "Дорога через таверну"
+                r.game === "cards"
+                  ? "Странствующая колода"
+                  : "Дорога через таверну"
               }}</span>
             </div>
             <div class="room-meta">

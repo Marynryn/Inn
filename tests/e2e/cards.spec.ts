@@ -1,7 +1,7 @@
 import { test, expect, open, login } from "./helpers";
 import { ADMIN, READER } from "./fixtures";
 
-test.describe("Карты таверны", () => {
+test.describe("Странствующая колода", () => {
   test("против компьютера: отряд, переброс, ход уходит сопернику и возвращается", async ({
     page,
   }) => {
@@ -38,17 +38,31 @@ test.describe("Карты таверны", () => {
     }).toPass({ timeout: 40_000 });
   });
 
-  test("против компьютера — пока только админам", async ({ page }) => {
-    await login(page, READER);
-    await page.goto("/cards");
-    await expect(page).toHaveURL(/\/login/);
+  test("против компьютера — всем, даже гостю", async ({ page }) => {
+    await open(page, "/cards");
+    await expect(page).toHaveURL(/\/cards$/);
+    await expect(
+      page.getByRole("button", { name: "В бой", exact: true }),
+    ).toBeVisible();
   });
 
-  test("стол на двоих: админ накрывает, гость садится по ссылке, партия начинается", async ({
+  test("гость видит колоду на /board, но стол на двоих не накрывает", async ({
+    page,
+  }) => {
+    await open(page, "/board");
+    await expect(
+      page.locator(".game", { hasText: "Странствующая колода" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Стол на двоих" }),
+    ).toHaveCount(0);
+  });
+
+  test("стол на двоих: читатель накрывает, гость садится по ссылке, партия начинается", async ({
     page,
     browser,
   }) => {
-    await login(page, ADMIN);
+    await login(page, READER);
     await open(page, "/board");
     await page.getByRole("button", { name: "Стол на двоих" }).click();
     await expect(page).toHaveURL(/\/cards\/[A-Z0-9]{6}$/);
@@ -61,7 +75,7 @@ test.describe("Карты таверны", () => {
     const guest = await guestCtx.newPage();
     await open(guest, "/board");
     const listed = guest.locator(".room", { hasText: code });
-    await expect(listed).toContainText("Карты таверны");
+    await expect(listed).toContainText("Странствующая колода");
     await listed.getByRole("link", { name: "Сесть за стол" }).click();
     await expect(guest).toHaveURL(new RegExp(`/cards/${code}$`));
     await guest.getByPlaceholder("Имя").fill("Гостья за картами");
@@ -81,7 +95,9 @@ test.describe("Карты таверны", () => {
     await expect(guest.locator(".side--me .fighter-name").first()).toHaveText(
       "Релк",
     );
-    await expect(guest.locator(".side--foe .side-info")).toContainText("admin");
+    await expect(guest.locator(".side--foe .side-info")).toContainText(
+      READER.name,
+    );
 
     // Оба перебрасывают кубики — и у одного из них ход.
     await page.getByRole("button", { name: "Оставить как есть" }).click();

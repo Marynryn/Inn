@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * «Карты таверны» против компьютера. Правила и ход соперника — в
+ * «Странствующая колода» против компьютера. Правила и ход соперника — в
  * shared/utils/cards.ts, стол — CardsTable. Партия живёт в браузере: сервер
- * про неё не знает. Пока карты в разработке, страница только для админов;
- * стол на двоих накрывают в /board.
+ * про неё не знает, поэтому играть может любой, даже гость. Стол на двоих
+ * накрывают в /board.
  */
 import {
   newCardsGame,
@@ -15,12 +15,10 @@ import {
   type Action,
 } from "#shared/utils/cards";
 
-definePageMeta({ middleware: "admin" });
-
 const { data: settings } = await useFetch("/api/settings");
 
 useHead({
-  title: "Карты таверны · Странствующая Таверна",
+  title: "Странствующая колода · Странствующая Таверна",
   meta: [{ name: "robots", content: "noindex" }],
 });
 
@@ -72,7 +70,7 @@ watch(
     <main v-if="!game" class="lobby">
       <header class="intro">
         <div class="eyebrow">Карточная игра · The Wandering Inn</div>
-        <h1 class="page-title title">Карты таверны</h1>
+        <h1 class="page-title title">Странствующая колода</h1>
         <p class="lead">
           Собери отряд из трёх героев и сразись с компьютером. Кубики стихий —
           твой ресурс: ими платят за удары, навыки и карты. Стихии сталкиваются

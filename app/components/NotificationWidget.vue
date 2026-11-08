@@ -59,7 +59,7 @@ type BoardInvite = {
   max: number;
 };
 const board = ref<BoardInvite | null>(null);
-// Стол «Карт таверны», где ждут соперника, — так же, отдельной строкой.
+// Стол «Странствующей колоды», где ждут соперника, — так же, отдельной строкой.
 const cards = ref<BoardInvite | null>(null);
 const badge = computed(
   () =>
@@ -496,7 +496,7 @@ onUnmounted(() => {
               <span class="item-text">
                 <span class="item-top"><b>Ищут соперника</b></span>
                 <span class="item-body">
-                  Карты таверны<template v-if="cards.host"
+                  Странствующая колода<template v-if="cards.host"
                     >, за столом ждёт {{ cards.host }}</template
                   >.
                 </span>

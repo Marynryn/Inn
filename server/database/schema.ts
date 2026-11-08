@@ -333,7 +333,7 @@ export const boardGameDays = sqliteTable("board_game_days", {
   finished: integer("finished").notNull().default(0),
 });
 
-// «Карты таверны»: доигранные партии за день. mode — "computer" (против
+// «Странствующая колода»: доигранные партии за день. mode — "computer" (против
 // компьютера, присылает страница) или "online" (на двоих, считает сервер).
 // Партии одних админов сюда не попадают.
 export const cardGameDays = sqliteTable(
