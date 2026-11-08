@@ -27,9 +27,6 @@ const buildId = (
 const PRELOAD_FONTS = [
   "sDtdTUBYB7C2iFV5nHUtFXZXie8p_hMS6hAv5gIFKko-5E_xVTFw_PhkazLqZGxIEfOtHM9KVQh__wt8Wp-F3HM", // Alegreya, кириллица
   "H26g2x_Fd3LETlZ5WbzysVpCKn2OzrBWDx-iASuKOZ0-Tm0YSITo0bripBPVGT6Pw6JQXenlhrfJ48ZuLqjttaA", // Alegreya, латиница
-  // С ноября 2026 Google отдаёт полужирный и жирный Alegreya отдельными файлами.
-  "1ZTlEDqU4DtwDJiND8f6qaugUpa0RIDvQl-v7iM6l54-RfvW6143W2B0fp2dBkYUPDEB0grs6ARCN4QH1QaQMoY", // Alegreya 600–800, кириллица
-  "1ZTlEDqU4DtwDJiND8f6qaugUpa0RIDvQl-v7iM6l54-8sCn_h_jIjMJQLe5QEAha96CiFKwEEMnf1bY_3LB0kk", // Alegreya 600–800, латиница
   "UzhR3nAaijOxr33OombACPQO7z-6yxLefOdxL2qrdkM-a0beAYA6HgY0fQ5vpHiCL_P_ChfPRJkoN6xel0ZbT_M", // Inter, кириллица
   "HgJel4iAS5mDVqJaDUYKmxaMJg4zKHTGmyD1FQkOsTM-2hVuuQIZ4GSGMgNv6dvlqz7cfD6lr7xLohUph7OCgFg", // Inter, латиница
 ];
