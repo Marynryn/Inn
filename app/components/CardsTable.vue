@@ -24,6 +24,7 @@ import {
   type Cost,
   type Element,
   type Fighter,
+  type HeroId,
 } from "#shared/utils/cards";
 
 const props = defineProps<{ game: Game }>();
@@ -195,6 +196,8 @@ const roundsLeft = (n: number) =>
 
 // ─── Подписи ──────────────────────────────────────────────
 const elColor = (el: Element) => CARD_ELEMENTS[el].color;
+const fighterStyle = (id: HeroId) =>
+  heroCardStyle(id, elColor(CARD_HEROES[id].el));
 
 function costDots(cost: Cost, el: Element) {
   return [
@@ -338,7 +341,7 @@ const banner = computed(() => {
                 'fighter--down': f.hp <= 0,
                 'fighter--poisoned': f.poison > 0,
               }"
-              :style="{ '--el': elColor(CARD_HEROES[f.id].el) }"
+              :style="fighterStyle(f.id)"
             >
               <CardsHeroImg :id="f.id" class="fighter-img" />
               <span class="hp">{{ f.hp }}</span>
@@ -349,13 +352,17 @@ const banner = computed(() => {
                 :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`"
                 >{{ CARD_ELEMENTS[f.aura].symbol }}</span
               >
-              <span class="energy"
-                ><i
-                  v-for="n in CARD_HEROES[f.id].energy"
-                  :key="n"
-                  :class="{ on: n <= f.energy }"
-              /></span>
-              <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
+              <span class="plate">
+                <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
+                <span
+                  class="energy"
+                  :title="`Ульта: ${f.energy} из ${CARD_HEROES[f.id].energy}`"
+                  ><i
+                    v-for="n in CARD_HEROES[f.id].energy"
+                    :key="n"
+                    :class="{ on: n <= f.energy }"
+                /></span>
+              </span>
               <span class="pops" aria-hidden="true"
                 ><span
                   v-for="(x, k) in popsFor(1, i)"
@@ -430,7 +437,7 @@ const banner = computed(() => {
                     (doorCard !== null && i !== me.active)) &&
                   f.hp > 0,
               }"
-              :style="{ '--el': elColor(CARD_HEROES[f.id].el) }"
+              :style="fighterStyle(f.id)"
               :disabled="f.hp <= 0"
               @click="clickMine(i)"
             >
@@ -443,13 +450,17 @@ const banner = computed(() => {
                 :title="`Метка: ${CARD_ELEMENTS[f.aura].name}`"
                 >{{ CARD_ELEMENTS[f.aura].symbol }}</span
               >
-              <span class="energy"
-                ><i
-                  v-for="n in CARD_HEROES[f.id].energy"
-                  :key="n"
-                  :class="{ on: n <= f.energy }"
-              /></span>
-              <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
+              <span class="plate">
+                <span class="fighter-name">{{ CARD_HEROES[f.id].name }}</span>
+                <span
+                  class="energy"
+                  :title="`Ульта: ${f.energy} из ${CARD_HEROES[f.id].energy}`"
+                  ><i
+                    v-for="n in CARD_HEROES[f.id].energy"
+                    :key="n"
+                    :class="{ on: n <= f.energy }"
+                /></span>
+              </span>
               <span class="pops" aria-hidden="true"
                 ><span
                   v-for="(x, k) in popsFor(0, i)"
@@ -653,12 +664,6 @@ const banner = computed(() => {
           >{{ CARDS[c].cost }}</span
         >
         <span v-if="count > 1" class="card-count">×{{ count }}</span>
-        <span class="card-kind"
-          >{{ CARDS[c].kind
-          }}<template v-if="CARDS[c].rare">
-            · <b class="rare">редкая</b></template
-          ></span
-        >
         <span class="card-name">{{ CARDS[c].name }}</span>
         <span class="card-text">{{ CARDS[c].text }}</span>
       </button>
@@ -735,36 +740,57 @@ const banner = computed(() => {
 }
 
 .row {
+  --row-gap: 10px;
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: var(--row-gap);
   align-items: flex-end;
 }
 
+/* Карта героя целиком в рамке его стихии (холст 393×535, как в CardsHeroImg):
+   портрет в окне рамки, имя на плашке-пергаменте снизу. Всё в cqw — от
+   ширины карты, чтобы на узком экране карта сжималась целиком. */
 .fighter {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 132px;
-  max-width: calc((100% - 20px) / 3);
-  padding: 4px 4px 6px;
-  border-radius: var(--radius-md);
-  border: 2px solid transparent;
-  background: var(--fill);
-  color: inherit;
+  container-type: inline-size;
+  display: block;
+  width: 190px;
+  max-width: calc((100% - 2 * var(--row-gap)) / 3);
+  aspect-ratio: 393 / 535;
+  padding: 0;
+  border: none;
+  background: none;
+  isolation: isolate;
+  color: #2b1f14;
   font: inherit;
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease;
+  transition: transform 0.2s ease;
+}
+/* Подложка под рамкой: между окном и плашкой у рамок просветы, через них
+   не должен проглядывать стол. Кончается на середине плашки: ниже у рамок
+   разная высота (у ветра низ короче), и подложка торчала бы из-под неё. */
+.fighter::before {
+  content: "";
+  position: absolute;
+  inset: 14cqw 16cqw 29cqw;
+  z-index: -1;
+  background: #241a14;
+}
+.fighter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--frame) center / 100% 100% no-repeat;
+  pointer-events: none;
 }
 
 button.fighter {
   cursor: pointer;
 }
 
+/* Подсветка — тенью по контуру рамки, а не рамкой блока. */
 .fighter--active {
-  border-color: var(--el);
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--el) 80%, transparent));
 }
 .side--foe .fighter--active {
   transform: translateY(8px);
@@ -773,10 +799,10 @@ button.fighter {
   transform: translateY(-8px);
 }
 .fighter--sel {
-  box-shadow: 0 0 0 2px var(--ember-soft);
+  filter: drop-shadow(0 0 1.5px var(--ember-soft))
+    drop-shadow(0 0 6px var(--ember-soft));
 }
 .fighter--choose {
-  box-shadow: 0 0 0 2px var(--gold);
   animation: pulse 1.2s ease-in-out infinite;
 }
 .fighter--down {
@@ -785,75 +811,109 @@ button.fighter {
 }
 
 @keyframes pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 1.5px var(--gold)) drop-shadow(0 0 3px var(--gold));
+  }
   50% {
-    box-shadow: 0 0 0 4px var(--gold);
+    filter: drop-shadow(0 0 2px var(--gold)) drop-shadow(0 0 9px var(--gold));
   }
 }
 
-.fighter-img {
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
+/* Портрет и слой эффектов — ровно по окну рамки, края уходят под кромку. */
+.fighter > .fighter-img,
+.effects {
+  position: absolute;
+  left: 20.36cqw;
+  top: 16.03cqw;
+  width: 60.05cqw;
+  height: 76.34cqw;
 }
 
+/* Здоровье — цифрой в сердечке (то же сердечко в CardsPicker). Размер — от
+   ширины карты: на телефоне карта узкая, и сердце закрывало портрет. */
 .hp {
-  z-index: 1; /* поверх льда и яда на портрете */
+  z-index: 3; /* поверх рамки, льда и яда */
   position: absolute;
-  top: 8px;
-  left: 8px;
-  min-width: 28px;
-  padding: 2px 6px;
-  border-radius: var(--radius-pill);
-  background: #a34a3f;
+  top: 18cqw;
+  left: 22cqw;
+  width: 19cqw;
+  height: 17cqw;
+  display: grid;
+  place-items: center;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22'%3E%3Cpath d='M12 20.5S2.2 14.6 1.2 8.3C.5 4.2 3.3 1.3 6.6 1.3c2.4 0 4.2 1.4 5.4 3.2 1.2-1.8 3-3.2 5.4-3.2 3.3 0 6.1 2.9 5.4 7C21.8 14.6 12 20.5 12 20.5z' fill='%23c8344a'/%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
   color: #fff;
   font-weight: 700;
-  font-size: 14px;
-  text-align: center;
+  font-size: 6.2cqw;
+  letter-spacing: -0.03em; /* «10» и «11» — уже, чтобы на узкой карте влезали */
+  line-height: 1;
 }
 
 .aura {
-  z-index: 1; /* поверх льда и яда на портрете */
+  z-index: 3;
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 26px;
-  height: 26px;
+  top: 19cqw;
+  right: 23cqw;
+  width: 13cqw;
+  height: 13cqw;
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
   border: 2px solid var(--el);
   background: color-mix(in srgb, var(--el) 30%, rgba(20, 14, 10, 0.85));
   color: #fff;
-  font-size: 14px;
+  font-size: 7cqw;
   line-height: 1;
   box-shadow: 0 0 8px var(--el);
 }
 
-.energy {
+/* Плашка-пергамент: имя и под ним бусины ульты. Высота плашки у рамок
+   разная — середину берём из --plate (app/utils/cardFrames.ts). */
+.plate {
+  z-index: 3;
+  position: absolute;
+  top: var(--plate, 108cqw);
+  left: 20cqw;
+  right: 20cqw;
+  transform: translateY(-50%);
   display: flex;
-  gap: 3px;
-  margin-top: 4px;
-}
-
-.energy i {
-  width: 9px;
-  height: 9px;
-  border-radius: var(--radius-round);
-  border: 1px solid var(--gold);
-}
-
-.energy i.on {
-  background: var(--gold);
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5cqw;
 }
 
 .fighter-name {
-  font-size: 13px;
-  margin-top: 2px;
+  max-width: 100%;
+  font-family: var(--font-display);
+  font-size: 9.5cqw;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.energy {
+  display: flex;
+  gap: 1.5cqw;
+}
+
+.energy i {
+  width: 3.6cqw;
+  height: 3.6cqw;
+  border-radius: var(--radius-round);
+  border: 1px solid #6f4f1a;
+}
+
+.energy i.on {
+  background: #b8862b;
+  box-shadow: 0 0 3px #e0a93a;
 }
 
 .pops {
-  z-index: 2; /* поверх льда и яда на портрете */
+  z-index: 4; /* поверх льда и яда на портрете */
   position: absolute;
   top: 30%;
   left: 0;
@@ -912,13 +972,9 @@ button.fighter {
     transform: translateY(-14px);
   }
 }
-/* Эффекты поверх портрета — слой ровно по картинке (отступ карточки 4px). */
+/* Эффекты поверх портрета (место — вместе с .fighter-img). Без своего
+   z-index: лёд и яд ложатся под рамку, а значки — над ней. */
 .effects {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  right: 4px;
-  aspect-ratio: 3 / 4;
   border-radius: var(--radius-sm);
   overflow: hidden;
   pointer-events: none;
@@ -930,6 +986,7 @@ button.fighter {
 
 /* Заморозка — портрет под коркой льда. */
 .frost {
+  z-index: 1;
   position: absolute;
   inset: 0;
   display: grid;
@@ -960,9 +1017,10 @@ button.fighter {
 
 /* Значки с числами: щит и удар — слева внизу, яд — справа внизу. */
 .buffs {
+  z-index: 3; /* над льдом и рамкой */
   position: absolute;
-  left: 4px;
-  bottom: 4px;
+  left: 6px;
+  bottom: 8px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1001,7 +1059,6 @@ button.fighter {
   height: 13px;
 }
 
-/* Отравленный герой — зеленеет вся карточка: значок Яда и так вверху. */
 /* Отравленный герой — портрет слегка зеленеет; сколько раундов, — в подсказке. */
 .fighter--poisoned .fighter-img {
   filter: sepia(0.3) hue-rotate(40deg) saturate(1.3);
@@ -1009,6 +1066,7 @@ button.fighter {
 
 .fighter--poisoned .effects::before {
   content: "";
+  z-index: 1;
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -1184,40 +1242,62 @@ button.fighter {
 
 .hand {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
-  gap: 12px 8px;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  /* Кружки цены и количества выступают за край карты на 6px с обеих сторон —
+     промежуток шире, чтобы у соседних карт они не налезали друг на друга. */
+  gap: 14px 18px;
+  padding-inline: 6px;
   padding-top: 8px; /* место под кружок цены */
 }
 
+/* Карта — пергамент в деревянной рамке (public/cards/frames/common.webp,
+   у редкой rare.webp с золотыми углами; файлы 157×267). Рамка — border-image
+   с fill: углы с узором как есть, боковины и пергамент тянутся под текст.
+   Срез 34 из 157 — по углам с узором; толщина — та же доля ширины карты. */
 .card-act {
   position: relative;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 4px;
-  text-align: left;
-  padding: 10px 8px 8px;
-  min-height: 120px;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(201, 160, 46, 0.5);
-  background: linear-gradient(180deg, #3a2d22, #2b221c);
-  color: inherit;
+  text-align: center;
+  aspect-ratio: 4 / 5; /* ниже, чем в файле: рамка тянется, текст короткий */
+  padding: 14% 17% 13%;
+  border: none;
+  background: none;
+  isolation: isolate;
+  color: #2b1f14;
   font: inherit;
   cursor: pointer;
 }
+.card-act::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 21.66cqw solid transparent;
+  border-image: url(/cards/frames/common.webp) 34 fill stretch;
+  pointer-events: none;
+}
+.card-act--rare::before {
+  border-image-source: url(/cards/frames/rare.webp);
+}
 
 .card-act--sel {
-  border-color: var(--ember-soft);
   transform: translateY(-6px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+  filter: drop-shadow(0 0 1.5px var(--ember-soft))
+    drop-shadow(0 0 6px var(--ember-soft));
 }
 
 .card-cost {
+  z-index: 1; /* поверх рамки */
   position: absolute;
   top: -6px;
   left: -6px;
   width: 22px;
   height: 22px;
-  border-radius: var(--radius-round);
+  border-radius: 5px; /* квадратом, как кубик: цена — в кубиках */
   background: var(--gold);
   color: var(--ink);
   font-weight: 700;
@@ -1227,31 +1307,29 @@ button.fighter {
 }
 
 .card-act--rare {
-  border-color: var(--gold);
-  background: linear-gradient(180deg, #4a3a1e, #2b221c);
-  box-shadow: 0 0 10px rgba(201, 160, 46, 0.35);
+  filter: drop-shadow(0 0 5px rgba(201, 160, 46, 0.45));
 }
 
-.rare {
-  color: var(--gold);
-  font-weight: 700;
-}
-
+/* Сколько одинаковых карт — кружком в правом углу, напротив цены: на
+   пергаменте и узоре рамки светлая надпись терялась. */
 .card-count {
+  z-index: 1;
   position: absolute;
-  top: 6px;
-  right: 8px;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: #3a2414;
+  border: 1px solid var(--gold);
+  color: var(--gold);
   font-size: 12px;
   font-weight: 700;
-  color: var(--gold);
+  display: grid;
+  place-items: center;
 }
 
-.card-kind {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ember-soft);
-}
 .card-name {
   font-family: var(--font-display);
   font-size: 15px;
@@ -1259,7 +1337,7 @@ button.fighter {
 }
 .card-text {
   font-size: 11px;
-  color: var(--text-muted);
+  color: #4a3a2a;
   line-height: 1.35;
 }
 
@@ -1326,6 +1404,17 @@ button.fighter {
 }
 
 @media (max-width: 560px) {
+  /* На телефоне карты упираются в ширину экрана: каждый пиксель отступа —
+     в портрет. Шипы рамок можно чуть сомкнуть. */
+  .side {
+    padding: 6px 2px;
+  }
+  .row {
+    --row-gap: 2px;
+  }
+  .hand {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
   .win {
     padding: 10px 16px 12px;
   }

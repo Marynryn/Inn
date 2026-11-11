@@ -27,25 +27,45 @@ const el = computed(() => CARD_ELEMENTS[hero.value.el]);
 </script>
 
 <template>
-  <img
-    v-if="!broken"
-    ref="img"
-    :src="`/${hero.art ? 'cards' : 'characters'}/${id}.webp`"
-    :alt="hero.name"
-    :loading="lazy ? 'lazy' : undefined"
-    @error="broken = true"
-  />
-  <span
-    v-else
-    class="hero-ph"
-    role="img"
-    :aria-label="hero.name"
-    :style="{ '--ph': el.color }"
-    >{{ el.symbol }}</span
-  >
+  <span class="hero-img">
+    <img
+      v-if="!broken"
+      ref="img"
+      class="hero-pic"
+      :src="`/${hero.art ? 'cards' : 'characters'}/${id}.webp`"
+      :alt="hero.name"
+      :loading="lazy ? 'lazy' : undefined"
+      @error="broken = true"
+    />
+    <span
+      v-else
+      class="hero-pic hero-ph"
+      role="img"
+      :aria-label="hero.name"
+      :style="{ '--ph': el.color }"
+      >{{ el.symbol }}</span
+    >
+  </span>
 </template>
 
 <style scoped>
+/* Картинка заполняет блок, а не задаёт его высоту: портреты в файлах разных
+   пропорций, и иначе карты выходили разной высоты. Размер блоку задаёт тот,
+   кто вставляет портрет. */
+.hero-img {
+  display: block;
+  position: relative;
+}
+.hero-pic {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
+  border-radius: inherit;
+}
 .hero-ph {
   display: flex;
   align-items: center;
