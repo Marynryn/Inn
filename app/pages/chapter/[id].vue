@@ -2,6 +2,7 @@
 import type { ChapterMeta } from "#shared/utils/chapterMeta";
 import { READER_BOOT } from "#shared/utils/inlineScripts";
 import titleLeaf from "~/assets/leaves/maple-lime.svg";
+import titleFlake from "~/assets/winter/snowflake-ice.svg";
 
 const route = useRoute();
 const rawParam = route.params.id as string;
@@ -78,8 +79,11 @@ const { data: settings } = useFetch("/api/settings", {
     "tribute_url",
     "tg_cta_title",
     "tg_cta_text",
+    "season",
   ],
 });
+// Сезонное оформление: фон из листьев или снежинок и значок перед названием.
+const season = computed(() => seasonOf(settings.value));
 
 // Источник истины по id — ответ API (он резолвит слаг в реальный id главы),
 // а не сырой параметр роута, иначе локальный прогресс чтения/пометки
@@ -292,7 +296,8 @@ useHead(() => ({
       "
     />
 
-    <FaintLeaves />
+    <FaintSnow v-if="season === 'winter'" />
+    <FaintLeaves v-else />
 
     <!-- Значки в углах: полный экран сверху, настройки вида снизу над шаром
          уведомлений. Внутри .page-wrap — чтобы наследовать цвета темы. -->
@@ -309,7 +314,7 @@ useHead(() => ({
             <span class="reader-eyebrow">
               <img
                 class="eyebrow-leaf"
-                :src="titleLeaf"
+                :src="season === 'winter' ? titleFlake : titleLeaf"
                 alt=""
                 width="18"
                 height="18"
@@ -436,6 +441,7 @@ useHead(() => ({
       <SignupNudge :on-dark="!lightTheme" />
 
       <TelegramCta
+        :season="season"
         :url="settings?.telegram_url"
         :title="settings?.tg_cta_title"
         :text="settings?.tg_cta_text"

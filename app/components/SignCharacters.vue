@@ -5,7 +5,14 @@
  * справа от баннера игры, на узком, где поля нет, — по центру над ним. И там,
  * и там спускается из-под края hero и качается. Анимация повторяется всякий
  * раз, когда вывеска снова видна целиком, — ушла из виду, значит, спустится снова.
+ *
+ * Зимой на доске лежит снег — отдельной картинкой поверх вывески, в тех же
+ * координатах, и качается вместе с ней.
  */
+import signSnow from "~/assets/winter/sign-snow.svg";
+
+defineProps<{ snowy?: boolean }>();
+
 // Ссылка — компонент, а следим за её элементом: саму табличку смотреть
 // бесполезно, до выезда она спрятана за краем и «не видна» никогда.
 const link = ref<{ $el: HTMLElement } | null>(null);
@@ -87,18 +94,31 @@ onUnmounted(() => {
     aria-label="Карточки персонажей"
   >
     <span class="slide">
-      <!-- Вывеска выезжает с паузой, а в первом экране главное — картинка героя:
-           низкий приоритет пускает её вперёд по каналу. -->
-      <img
-        ref="img"
-        class="swing"
-        src="/sign-characters.webp"
-        alt=""
-        fetchpriority="low"
-        width="520"
-        height="650"
-        draggable="false"
-      />
+      <span class="swing">
+        <!-- Вывеска выезжает с паузой, а в первом экране главное — картинка
+             героя: низкий приоритет пускает её вперёд по каналу. -->
+        <img
+          ref="img"
+          class="board"
+          src="/sign-characters.webp"
+          alt=""
+          fetchpriority="low"
+          width="520"
+          height="650"
+          draggable="false"
+        />
+        <!-- Снег нарисован по верхнему краю доски на той же картинке 520×650
+             (scripts/winter-art.mjs), поэтому просто накрывает её целиком. -->
+        <img
+          v-if="snowy"
+          class="snow"
+          :src="signSnow"
+          alt=""
+          width="520"
+          height="650"
+          draggable="false"
+        />
+      </span>
     </span>
   </NuxtLink>
 </template>
@@ -151,13 +171,25 @@ onUnmounted(() => {
  * верха картинки, иначе видимый кусок цепи болтался бы целиком.
  */
 .swing {
+  position: relative;
   display: block;
-  width: 100%;
-  height: auto;
   margin-top: calc(-80 / 520 * 100%);
   transform-origin: 50% calc(80 / 650 * 100%);
   filter: drop-shadow(0 10px 12px rgba(40, 24, 12, 0.35));
   user-select: none;
+}
+
+.board {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.snow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .sign.shown .swing {

@@ -24,6 +24,7 @@ const ALLOWED_KEYS = [
   "tg_cta_text",
   "characters_title",
   "characters_subtitle",
+  "season",
 ];
 
 export default defineEventHandler(async (event) => {

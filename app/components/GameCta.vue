@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Season } from "~/utils/season";
+
 /**
  * Плашка про игру — стоит перед оглавлением и не спорит с главным действием
  * страницы: читать. Тексты редактируются в админке, значения тут — запасные.
@@ -7,6 +9,8 @@ const props = defineProps<{
   title?: string;
   text?: string;
   maxVolume?: string;
+  /** зимой вместо листьев в углу на кромке лежит снег */
+  season?: Season;
 }>();
 
 const heading = computed(() => props.title || "Кто из таверны?");
@@ -25,8 +29,9 @@ const body = computed(() => {
 </script>
 
 <template>
-  <aside class="game-cta">
-    <CornerLeaves />
+  <aside class="game-cta" :class="{ snowy: season === 'winter' }">
+    <SnowCap v-if="season === 'winter'" />
+    <CornerLeaves v-else />
 
     <span class="game-mark display" aria-hidden="true">!</span>
 
@@ -56,6 +61,11 @@ const body = computed(() => {
   border-left: 3px solid var(--ember);
   border-radius: var(--radius-md);
   background: rgba(214, 136, 62, 0.06);
+}
+
+/* Снег лежит поверх кромки и выступает за неё — резать его нельзя. */
+.game-cta.snowy {
+  overflow: visible;
 }
 
 /* Восклицательный знак заголовочным шрифтом: он тут вместо иконки, поэтому

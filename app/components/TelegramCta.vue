@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Season } from "~/utils/season";
+
 const props = defineProps<{
   url?: string;
   title?: string;
@@ -10,6 +12,8 @@ const props = defineProps<{
    * tg_click_<place> — так видно, какая из плашек вообще приводит людей.
    */
   place?: string;
+  /** зимой вместо листьев в углу на кромке лежит снег */
+  season?: Season;
 }>();
 
 // Тексты редактируются в админке; значения тут — запасные, если настройка пустая.
@@ -24,8 +28,13 @@ const track = () => useClarity().event(`tg_click_${props.place || "other"}`);
 </script>
 
 <template>
-  <aside v-if="url" class="tg-cta" :class="{ 'on-dark': onDark }">
-    <CornerLeaves :on-dark="onDark" />
+  <aside
+    v-if="url"
+    class="tg-cta"
+    :class="{ 'on-dark': onDark, snowy: season === 'winter' }"
+  >
+    <SnowCap v-if="season === 'winter'" />
+    <CornerLeaves v-else :on-dark="onDark" />
 
     <span class="tg-icon" aria-hidden="true">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -68,6 +77,11 @@ const track = () => useClarity().event(`tg_click_${props.place || "other"}`);
   border-left: 3px solid var(--ember);
   border-radius: var(--radius-md);
   background: rgba(214, 136, 62, 0.06);
+}
+
+/* Снег лежит поверх кромки и выступает за неё — резать его нельзя. */
+.tg-cta.snowy {
+  overflow: visible;
 }
 
 .tg-icon {

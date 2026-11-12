@@ -26,11 +26,12 @@ const form = reactive({
   tg_cta_text: "",
   characters_title: "",
   characters_subtitle: "",
+  season: "",
 });
 watch(
   settings,
   (s) => {
-    if (s) Object.assign(form, s);
+    if (s) Object.assign(form, s, { season: seasonOf(s) });
   },
   { immediate: true },
 );
@@ -68,6 +69,19 @@ const saveSettings = async () => {
 <template>
   <section class="card card--panel">
     <h2>Настройки сайта</h2>
+    <div class="field-row">
+      <label>Оформление</label>
+      <select v-model="form.season">
+        <option v-for="s in SEASONS" :key="s.value" :value="s.value">
+          {{ s.label }}
+        </option>
+      </select>
+      <span class="field-hint">
+        Осень — листья в углах плашек и на фоне главы. Зима — сосульки и
+        снегопад на картинке главной, снег на её нижнем краю, на вывеске и на
+        плашках, снежинки на фоне главы.
+      </span>
+    </div>
     <div class="field-row">
       <label>Заголовок hero</label>
       <input v-model="form.hero_title" type="text" />

@@ -82,6 +82,10 @@ export async function maintenance(client: Client) {
     characters_title: "Кто живёт в таверне",
     characters_subtitle:
       "Те, кого читатель встречал не раз в первых томах. Нажми на карточку — откроется подробнее, огонёк — чтобы отметить любимых.",
+    // Сезонное оформление (app/utils/season.ts): autumn — листья, winter —
+    // снег и сосульки. Записывается, только если настройки ещё нет, поэтому
+    // переключённое в админке не перетирается при перезапуске.
+    season: "winter",
   };
 
   for (const [key, value] of Object.entries(defaults)) {

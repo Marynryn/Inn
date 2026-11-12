@@ -3,6 +3,10 @@ import { formatHours } from "~/composables/useReadingStats";
 
 const { data: settings } = await useFetch("/api/settings");
 
+// Сезонное оформление из админки: осенью листья, зимой снег и сосульки.
+const season = computed(() => seasonOf(settings.value));
+const winter = computed(() => season.value === "winter");
+
 // Картинка героя — то, по чему меряют первую отрисовку. Ссылка на неё в <head>:
 // браузер начинает её качать, ещё не дочитав страницу до <img>.
 const heroSrc = "/hero.webp";
@@ -218,6 +222,13 @@ useSeoMeta({
         <img :src="heroSrc" alt="" fetchpriority="high" />
       </div>
 
+      <!-- Зима: снег падает поверх картинки, но под текстом; сверху, под
+           прозрачной шапкой, висят сосульки. -->
+      <template v-if="winter">
+        <SnowFall />
+        <HeroIcicles />
+      </template>
+
       <div class="hero-content">
         <div class="eyebrow">Фанатский перевод · The Wandering Inn</div>
         <h1
@@ -296,8 +307,11 @@ useSeoMeta({
          Обёртка держит систему координат для украшений, которые идут
          вдоль всей полосы, — сейчас отключённых. -->
     <div class="parchment-band">
+      <!-- Зимой на нижнем краю hero лежит снег, цепи вывески уходят под него. -->
+      <SnowLedge v-if="winter" />
+
       <!-- Вывеска на цепях — вход в карточки персонажей, свисает из-под hero. -->
-      <SignCharacters />
+      <SignCharacters :snowy="winter" />
 
       <div class="game-wrap">
         <ReelBanner
@@ -307,6 +321,7 @@ useSeoMeta({
         />
         <GameCta
           v-else
+          :season="season"
           :title="settings?.game_cta_title"
           :text="settings?.game_cta_text"
           :max-volume="settings?.game_volume_effective"
@@ -346,6 +361,7 @@ useSeoMeta({
 
       <div class="tg-wrap">
         <TelegramCta
+          :season="season"
           :url="settings?.telegram_url"
           :title="settings?.tg_cta_title"
           :text="settings?.tg_cta_text"
