@@ -563,16 +563,19 @@ html[data-reader-theme="sepia"] .page-wrap {
 }
 
 /*
-  Листья — часть стандартного облика таверны. В остальных темах их нет: читать
-  выбирают чистый фон, а осенний ворох поверх чёрного или белого — уже не та
-  страница, за которой шли.
+  Листья и снежинки — часть стандартного облика таверны. В остальных темах их
+  нет: читать выбирают чистый фон, а сезонный узор поверх чёрного или белого —
+  уже не та страница, за которой шли.
 
   Прячем правилом по атрибуту, а не условием в разметке: атрибут стоит на <html>
-  ещё до первой отрисовки, поэтому листья не успевают мелькнуть.
+  ещё до первой отрисовки, поэтому узор не успевает мелькнуть.
 */
 html[data-reader-theme="dark"] .faint-leaves,
 html[data-reader-theme="sepia"] .faint-leaves,
-html[data-reader-theme="light"] .faint-leaves {
+html[data-reader-theme="light"] .faint-leaves,
+html[data-reader-theme="dark"] .faint-snow,
+html[data-reader-theme="sepia"] .faint-snow,
+html[data-reader-theme="light"] .faint-snow {
   display: none;
 }
 
