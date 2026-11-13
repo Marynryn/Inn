@@ -25,6 +25,7 @@ const ALLOWED_KEYS = [
   "characters_title",
   "characters_subtitle",
   "season",
+  "winter_reader_bg",
 ];
 
 export default defineEventHandler(async (event) => {

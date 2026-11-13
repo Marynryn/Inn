@@ -27,6 +27,7 @@ const form = reactive({
   characters_title: "",
   characters_subtitle: "",
   season: "",
+  winter_reader_bg: "",
 });
 watch(
   settings,
@@ -35,6 +36,16 @@ watch(
   },
   { immediate: true },
 );
+
+// Фон главы зимой: образцы, своя палитра и превью куска главы. Палитре нужен
+// цвет всегда, поэтому пустая настройка показывает обычный фон.
+const readerBg = computed(() => safeHex(form.winter_reader_bg));
+const readerBgPick = computed({
+  get: () => readerBg.value ?? "#2b221c",
+  set: (v: string) => {
+    form.winter_reader_bg = v;
+  },
+});
 
 /*
   Настройки хранятся строками, а галочке нужно логическое значение — отсюда
@@ -80,6 +91,52 @@ const saveSettings = async () => {
         Осень — листья в углах плашек и на фоне главы. Зима — сосульки и
         снегопад на картинке главной, снег на её нижнем краю, на вывеске и на
         плашках, снежинки на фоне главы.
+      </span>
+    </div>
+    <div class="field-row">
+      <label for="winter-reader-bg">Фон главы зимой</label>
+      <div class="bg-picker">
+        <button
+          v-for="p in WINTER_READER_BG_PRESETS"
+          :key="p.hex"
+          type="button"
+          class="bg-swatch"
+          :class="{ active: readerBg === p.hex }"
+          :style="{ background: p.hex }"
+          :title="`${p.hex} — ${p.label}`"
+          @click="form.winter_reader_bg = p.hex"
+        >
+          <span>{{ p.label }}</span>
+        </button>
+        <input
+          id="winter-reader-bg"
+          v-model="readerBgPick"
+          type="color"
+          class="bg-color"
+          title="Свой цвет"
+        />
+        <button
+          v-if="form.winter_reader_bg"
+          type="button"
+          class="bg-reset"
+          @click="form.winter_reader_bg = ''"
+        >
+          Обычный
+        </button>
+      </div>
+      <div class="bg-preview" :style="{ background: readerBg || '#2b221c' }">
+        <span class="bg-preview-eyebrow">Странствующая Таверна · Том 1</span>
+        <b>Глава 1.55</b>
+        <p>
+          Даже облака над Кровавыми Полями, разделявшими север от юга, казались
+          окрашенными гнойной желчью. Красноватые — как сама земля — от крови.
+        </p>
+        <span class="bg-preview-code">{{ readerBg || "обычный фон" }}</span>
+      </div>
+      <span class="field-hint">
+        Цвет страницы главы. Работает, только когда выбрана «Зима», и только в
+        стандартной теме читалки: в тёмной, сепии и белой фон остаётся их
+        собственным. Можно выбрать заранее — включится вместе с зимой.
       </span>
     </div>
     <div class="field-row">
@@ -285,6 +342,104 @@ const saveSettings = async () => {
 <style scoped>
 .field-row textarea {
   resize: vertical;
+}
+
+/* Фон главы зимой: образцы, своя палитра и превью. */
+.bg-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.bg-swatch {
+  display: flex;
+  align-items: flex-end;
+  width: 96px;
+  height: 52px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  color: rgba(231, 217, 194, 0.8);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bg-swatch.active {
+  border-color: var(--ember-soft);
+  box-shadow: 0 0 0 1px var(--ember-soft);
+}
+
+.bg-swatch:focus-visible,
+.bg-reset:focus-visible {
+  outline: 2px solid var(--ember-soft);
+  outline-offset: 2px;
+}
+
+/* Общий стиль полей растягивает input на всю ширину — палитре нужен квадрат. */
+.field-row input.bg-color {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: none;
+  cursor: pointer;
+}
+
+.bg-reset {
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--parchment-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Превью — кусок главы теми же цветами текста, что в читалке. */
+.bg-preview {
+  margin-top: 4px;
+  padding: 18px 20px 14px;
+  border-radius: var(--radius-md);
+  color: #e7d9c2;
+  font-family: var(--font-reader);
+  font-weight: 300;
+  transition: background 0.2s;
+}
+
+.bg-preview b {
+  display: block;
+  margin: 6px 0 8px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--parchment);
+}
+
+.bg-preview p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.bg-preview-eyebrow {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ember-soft);
+}
+
+.bg-preview-code {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: rgba(231, 217, 194, 0.45);
 }
 
 /* Пояснение под полем настройки — там, где одного названия мало. */

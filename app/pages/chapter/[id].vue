@@ -80,10 +80,13 @@ const { data: settings } = useFetch("/api/settings", {
     "tg_cta_title",
     "tg_cta_text",
     "season",
+    "winter_reader_bg",
   ],
 });
 // Сезонное оформление: фон из листьев или снежинок и значок перед названием.
 const season = computed(() => seasonOf(settings.value));
+// Зимой страница может быть другого цвета — его выбирают в админке.
+const seasonBg = computed(() => winterReaderBg(settings.value));
 
 // Источник истины по id — ответ API (он резолвит слаг в реальный id главы),
 // а не сырой параметр роута, иначе локальный прогресс чтения/пометки
@@ -277,7 +280,12 @@ useHead(() => ({
 </script>
 
 <template>
-  <div v-if="chapter" class="page-wrap">
+  <div
+    v-if="chapter"
+    class="page-wrap"
+    :class="{ 'season-bg': seasonBg }"
+    :style="seasonBg ? { '--season-bg': seasonBg } : undefined"
+  >
     <ProgressModal
       v-if="showProgressModal && lastRead"
       :current-id="chapter.id"
@@ -560,6 +568,13 @@ html[data-reader-theme="sepia"] .page-wrap {
   --rd-accent: #b4652a;
   --rd-line: rgba(42, 30, 22, 0.14);
   --rd-border: rgba(42, 30, 22, 0.26);
+}
+
+/* Зимний фон из админки — только в стандартной теме. Цвет приходит
+   переменной, а не прямо в --rd-bg: правила тем ниже сильнее этого класса и
+   перебивают его, а встроенный стиль перебил бы всё, даже выбранную тему. */
+.page-wrap.season-bg {
+  --rd-bg: var(--season-bg);
 }
 
 /*
