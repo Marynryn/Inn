@@ -40,21 +40,44 @@ const moves = (id: HeroId) => {
   ];
 };
 
-// Описание всплывает при наведении. На телефоне наведения нет — там оно
-// открывается под картой, на которую нажали, и закрывается нажатием мимо.
+// Описание всплывает при наведении. На телефоне наведения нет, и его заменяет
+// удержание: держишь карту пальцем — описание видно, отпустил — пропало.
+// Короткое нажатие только выбирает героя или снимает выбор, описание не
+// открывает: раньше оно открывалось и оставалось висеть поверх кнопки «В бой».
+const HOLD_MS = 350;
 const shown = ref<HeroId | null>(null);
+/** Окошко над картой, а не под ней: под картой ему не хватает экрана. */
+const shownUp = ref(false);
+let holdTimer: ReturnType<typeof setTimeout> | undefined;
+/** Удержание закончилось — следующий click от того же касания не выбирает. */
+let skipClick = false;
+
+function onPress(e: PointerEvent, id: HeroId) {
+  if (e.pointerType === "mouse") return;
+  clearTimeout(holdTimer);
+  skipClick = false;
+  const card = e.currentTarget as HTMLElement;
+  holdTimer = setTimeout(() => {
+    const pop = card.querySelector<HTMLElement>(".pick-body--pop");
+    const rect = card.getBoundingClientRect();
+    const need = (pop?.offsetHeight ?? 220) + 8;
+    shownUp.value = rect.bottom + need > innerHeight && rect.top > need;
+    shown.value = id;
+    skipClick = true;
+  }, HOLD_MS);
+}
+function onRelease() {
+  clearTimeout(holdTimer);
+  shown.value = null;
+}
 function onPick(id: HeroId) {
-  shown.value = id;
+  if (skipClick) {
+    skipClick = false;
+    return;
+  }
   togglePick(id);
 }
-const roster = ref<HTMLElement | null>(null);
-function closeOutside(e: PointerEvent) {
-  if (!roster.value?.contains(e.target as Node)) shown.value = null;
-}
-onMounted(() => document.addEventListener("pointerdown", closeOutside));
-onBeforeUnmount(() =>
-  document.removeEventListener("pointerdown", closeOutside),
-);
+onBeforeUnmount(() => clearTimeout(holdTimer));
 </script>
 
 <template>
@@ -64,17 +87,24 @@ onBeforeUnmount(() =>
     </h2>
     <p class="order-hint">
       Первый выбранный выходит в бой, остальные ждут в запасе по порядку.
+      <span class="touch-hint">Удержи карту пальцем — покажет навыки.</span>
     </p>
-    <ul ref="roster" class="roster">
+    <ul class="roster">
       <li v-for="id in CARD_HERO_IDS" :key="id">
         <button
           class="pick"
           :class="{
             'pick--on': modelValue.includes(id),
             'pick--shown': shown === id,
+            'pick--up': shown === id && shownUp,
           }"
           :style="{ '--el': elColor(CARD_HEROES[id].el) }"
           :aria-pressed="modelValue.includes(id)"
+          @pointerdown="onPress($event, id)"
+          @pointerup="onRelease"
+          @pointercancel="onRelease"
+          @pointerleave="onRelease"
+          @contextmenu.prevent
           @click="onPick(id)"
         >
           <span
@@ -124,6 +154,14 @@ onBeforeUnmount(() =>
   font-size: 13px;
   color: var(--text-muted);
 }
+.touch-hint {
+  display: none;
+}
+@media (hover: none) {
+  .touch-hint {
+    display: inline;
+  }
+}
 
 /* ─── Выбор отряда ─── */
 .roster {
@@ -140,7 +178,8 @@ onBeforeUnmount(() =>
   justify-content: center;
 }
 .roster > li:hover,
-.roster > li:focus-within {
+.roster > li:focus-within,
+.roster > li:has(.pick--shown) {
   z-index: 5; /* описание — поверх соседних карт */
 }
 
@@ -158,6 +197,15 @@ onBeforeUnmount(() =>
   transition:
     transform 0.15s ease,
     filter 0.15s ease;
+  /* Удержание пальцем показывает навыки — без выделения текста и без
+     системного меню картинки. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.pick :deep(img) {
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 .pick:hover {
   transform: translateY(-3px);
@@ -249,8 +297,9 @@ onBeforeUnmount(() =>
   color: var(--el);
 }
 
-/* Описание героя — окошком под картой: на компьютере при наведении, на
-   телефоне — у карты, на которую нажали (см. shown). */
+/* Описание героя — окошком под картой (или над ней, если внизу не хватает
+   экрана): на компьютере при наведении, на телефоне — пока карту держат
+   пальцем (см. shown). */
 .pick-body {
   display: flex;
   flex-direction: column;
@@ -286,6 +335,10 @@ onBeforeUnmount(() =>
     opacity: 1;
     visibility: visible;
   }
+}
+.pick--up .pick-body--pop {
+  top: auto;
+  bottom: calc(100% - 6px);
 }
 /* На телефоне — две карты в ряд; окошко во всю ширину сетки, от края
    своей колонки, чтобы не уезжало за экран. */
