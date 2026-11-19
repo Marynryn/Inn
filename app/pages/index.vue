@@ -337,7 +337,10 @@ useSeoMeta({
         </div>
         <div class="ledger-rule-row">
           <div class="ledger-rule" />
-          <div class="ledger-bee"><BeeApista /></div>
+          <div v-if="winter" class="ledger-bee ledger-fae">
+            <FrostFaerie />
+          </div>
+          <div v-else class="ledger-bee"><BeeApista /></div>
         </div>
 
         <!-- Тома оживают, когда до них долистали: оглавление — почти весь HTML
@@ -765,6 +768,10 @@ useSeoMeta({
 
   .ledger-bee {
     --bee-w: 72px;
+  }
+
+  .ledger-fae {
+    --fae-w: 50px;
   }
 
   /* Подпись переносим раньше, чтобы строка не подлезала под пчелу справа. */
