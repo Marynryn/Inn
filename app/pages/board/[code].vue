@@ -375,7 +375,9 @@ function pawnStyle(slot: number) {
 
 function hunterStyle(i: number) {
   const cell = cells.value[shownHunters.value[i] ?? 0]!;
-  return { left: `${cell.x}%`, top: `${cell.y - 5.5}%` };
+  // Фигурка стоит на клетке, тень Скиннера висит над ней.
+  const lift = map.value.hunters[i]?.token ? 0 : 5.5;
+  return { left: `${cell.x}%`, top: `${cell.y - lift}%` };
 }
 
 const infoCell = computed(() => pickedCell.value ?? landedCell.value);
@@ -1572,6 +1574,8 @@ useHead({
   background: none;
   box-shadow: none;
   border-radius: 0;
+  /* Низ фигурки — у верхнего края клетки: номер под ней виден. */
+  transform: translate(-50%, calc(-100% - 6px));
 }
 .hunter-badge {
   display: block;
