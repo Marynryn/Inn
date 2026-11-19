@@ -4,7 +4,14 @@
  * предупреждение (R0003 на двойной слэш, R0004 на 404), и сотни запросов в
  * минуту упирались в лимит логов Railway — терялись настоящие записи.
  */
-const SCANNER_PATH = /\.php\d?(?:\/|$)|^\/\.(?:env|git|svn|aws|ht)|^\/\//i;
+const SCANNER_PATH = /\.php\d?(?:\/|$)|^\/\//i;
+
+/**
+ * Часть адреса, начинающаяся с точки (/.env, /admin/.env, /api/v1/.git/config),
+ * на любой глубине: у сайта таких адресов нет, а настоящая первая часть
+ * (admin, api) иначе пропустила бы их к рендеру.
+ */
+const DOT_SEGMENT = /\/\.[^/]/;
 
 /**
  * Список мусора всегда отстаёт от сканеров (/wp-admin/, /cgi-bin/, /backup.zip…),
@@ -47,6 +54,6 @@ export const KNOWN_ROOTS = new Set([
 
 /** Путь без query. true — отвечать коротким 404, не доводя до рендера. */
 export function isJunkPath(path: string): boolean {
-  if (SCANNER_PATH.test(path)) return true;
+  if (SCANNER_PATH.test(path) || DOT_SEGMENT.test(path)) return true;
   return !KNOWN_ROOTS.has(path.split("/")[1] ?? "");
 }

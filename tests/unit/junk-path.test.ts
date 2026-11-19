@@ -46,6 +46,11 @@ describe("мусорные пути", () => {
       "/backup.zip",
       "/.well-known/security.txt",
       "/admin.php",
+      "/admin/.env",
+      "/api/.env",
+      "/api/v1/.env",
+      "/api/staging/.git/config",
+      "/chapter/.htaccess",
     ])
       expect(isJunkPath(path), path).toBe(true);
   });

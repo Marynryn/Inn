@@ -9,7 +9,9 @@
  */
 const props = defineProps<{ id: string }>();
 
-const { data } = await useFetch(
+// Тип ответа — явно: по шаблонному адресу Nitro подмешивает сюда и общий
+// перехватчик server/api/[...].ts, и вывод типа теряет contentHtml.
+const { data } = await useFetch<{ contentHtml?: string }>(
   `/api/chapters/${encodeURIComponent(props.id)}`,
   {
     query: { text: 1 },
