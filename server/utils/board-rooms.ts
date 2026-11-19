@@ -3,7 +3,10 @@ import type {
   BoardAction,
   BoardChatMessage,
   BoardFx,
+  BoardHunter,
   BoardLogEntry,
+  BoardMap,
+  BoardMapId,
   BoardPlayer,
   BoardServerMessage,
   BoardSkill,
@@ -11,23 +14,25 @@ import type {
   BoardStatus,
 } from "#shared/utils/board";
 import {
-  BOARD_CELLS,
+  ARMY_STEP_MAX,
+  ARMY_STEP_MIN,
+  ARMY_WAVE_REST,
   BOARD_HAND_MAX,
+  BOARD_MAPS,
   BOARD_SKILLS,
-  BRAWL_THROW,
+  BOARD_STRIKES,
   DUEL_THROW,
-  SKINNER_STEP_MAX,
-  SKINNER_STEP_MIN,
-  SKINNER_START,
-  SKINNER_THROW,
-  SKINNER_WAKES_AT,
+  FARE_BONUS,
+  HUNTER_STEP_MAX,
+  HUNTER_STEP_MIN,
+  HUNTER_THROW,
   BOARD_CHAT_MAX,
   BOARD_CODE_ALPHABET,
   BOARD_CODE_LENGTH,
   BOARD_COLORS,
-  BOARD_LAST,
   BOARD_MAX_PLAYERS,
   BOARD_MIN_PLAYERS,
+  boardLast,
   effectLabel,
   isBoardSkill,
   jumpTarget,
@@ -44,13 +49,18 @@ type Seat = Omit<BoardPlayer, "wins"> & { userId: number; admin: boolean };
 
 type Room = {
   code: string;
+  /** Карта стола: выбирают, когда накрывают, и все партии идут по ней. */
+  map: BoardMap;
   status: BoardStatus;
   hostUserId: number;
   seats: Seat[];
   turn: number;
   winnerSlot: number | null;
-  /** Где Скиннер. null — ещё не вышел из руин. */
-  skinner: number | null;
+  /** Охотники карты, в том же порядке, что в её описании. */
+  hunters: BoardHunter[];
+  /** Ушедшие с карты охотники (армия дошла до конца пути): сколько кругов
+   *  до новой волны. */
+  away: Map<number, number>;
   lastAction: BoardAction | null;
   /** Навык уже сыгран в этот ход — второй нельзя. */
   skillUsed: boolean;
@@ -112,6 +122,7 @@ function stateOf(room: Room): BoardState {
   const host = room.seats.find((s) => s.userId === room.hostUserId);
   return {
     code: room.code,
+    map: room.map.id,
     status: room.status,
     hostSlot: host?.slot ?? -1,
     nextHostSlot:
@@ -124,7 +135,7 @@ function stateOf(room: Room): BoardState {
       online: isOnline(room, userId),
       wins: room.wins.get(userId) ?? 0,
     })),
-    skinner: room.skinner,
+    hunters: room.hunters,
     skillUsed: room.skillUsed,
     choice: room.status === "playing" ? room.choice : null,
     lastAction: room.lastAction,
@@ -158,16 +169,22 @@ function log(room: Room, text: string) {
   if (room.log.length > LOG_MAX) room.log.splice(0, room.log.length - LOG_MAX);
 }
 
-export function createRoom(host: BoardUser): string {
+const freshHunters = (map: BoardMap): BoardHunter[] =>
+  map.hunters.map((h) => ({ kind: h.kind, at: null }));
+
+export function createRoom(host: BoardUser, mapId: BoardMapId = "v1"): string {
   const code = newCode();
+  const map = BOARD_MAPS[mapId];
   rooms.set(code, {
     code,
+    map,
     status: "lobby",
     hostUserId: host.id,
     seats: [],
     turn: 0,
     winnerSlot: null,
-    skinner: null,
+    hunters: freshHunters(map),
+    away: new Map(),
     lastAction: null,
     skillUsed: false,
     choice: null,
@@ -196,6 +213,7 @@ export function openRooms() {
     )
     .map((r) => ({
       code: r.code,
+      map: r.map.title,
       host: r.seats.find((s) => s.userId === r.hostUserId)?.name ?? null,
       players: r.seats.length,
       max: BOARD_MAX_PLAYERS,
@@ -263,6 +281,7 @@ export function joinRoom(
       skip: 0,
       skills: [],
       doubleNext: false,
+      fareNext: false,
       bonus: 0,
       online: true,
       left: false,
@@ -332,14 +351,14 @@ export function startGame(peer: any) {
 }
 
 /** Передать ход следующему, пропуская ушедших и тех, кто пропускает ход.
- *  Круг замкнулся — Скиннер делает свой ход; его шаги дописываются в то
+ *  Круг замкнулся — охотники делают свой ход; их шаги дописываются в то
  *  действие, после которого круг кончился. */
 function nextTurn(room: Room, ctx: Ctx = newCtx(room, null)) {
   const n = room.seats.length;
   for (let tries = 0; tries < n * 4; tries++) {
     const prev = room.turn;
     room.turn = (room.turn + 1) % n;
-    if (room.turn <= prev) moveSkinner(ctx);
+    if (room.turn <= prev) moveHunters(ctx);
     const seat = room.seats[room.turn]!;
     if (seat.left) continue;
     if (seat.skip > 0) {
@@ -424,8 +443,8 @@ function throwBack(ctx: Ctx, seat: Seat, by: number, why: string) {
 
 /**
  * Фишка встала на клетку — чем бы ни привело: кубиком, стрелкой, встречей,
- * дракой или Скиннером. Срабатывает всё, что на клетке есть, одинаково:
- * пропуск хода, ещё бросок, навык, Скиннер, встреча, стрелка — а после
+ * дракой или охотником. Срабатывает всё, что на клетке есть, одинаково:
+ * пропуск хода, ещё бросок, навык, охотник, встреча, стрелка — а после
  * стрелки то же самое на клетке, куда она привела.
  *
  * byDice — сюда пришли по кубику: первую стрелку тогда видно по клетке у
@@ -433,13 +452,14 @@ function throwBack(ctx: Ctx, seat: Seat, by: number, why: string) {
  */
 function landOn(ctx: Ctx, seat: Seat, byDice: boolean) {
   const { room, notes } = ctx;
+  const last = boardLast(room.map);
   const seen = new Set<number>();
 
-  while (seat.pos < BOARD_LAST && ctx.hops < HOPS_MAX) {
+  while (seat.pos < last && ctx.hops < HOPS_MAX) {
     ctx.hops++;
     const at = seat.pos;
     seen.add(at);
-    const cell = BOARD_CELLS[at]!;
+    const cell = room.map.cells[at]!;
 
     if (cell.effect.kind === "skip") {
       seat.skip++;
@@ -462,9 +482,10 @@ function landOn(ctx: Ctx, seat: Seat, byDice: boolean) {
     if (cell.skill && cell.skill !== "danger")
       grantSkill(seat, cell.skill, notes);
 
-    // Пришёл на клетку Скиннера — сам к нему пришёл.
-    if (room.skinner !== null && at === room.skinner) {
-      throwBack(ctx, seat, SKINNER_THROW, "встреча со Скиннером");
+    // Пришёл на клетку охотника — сам к нему пришёл.
+    for (const [i, h] of room.hunters.entries()) {
+      if (h.at !== at) continue;
+      meetHunter(ctx, i, seat);
       if (seat.pos !== at) return;
     }
 
@@ -476,7 +497,7 @@ function landOn(ctx: Ctx, seat: Seat, byDice: boolean) {
       }
     }
 
-    const to = jumpTarget(at);
+    const to = jumpTarget(room.map, at);
     if (to === null || seen.has(to)) return;
     const shields =
       seat.skills.filter((s) => s === "danger").length - (fresh ? 1 : 0);
@@ -495,44 +516,167 @@ function landOn(ctx: Ctx, seat: Seat, byDice: boolean) {
   }
 }
 
-/** Скиннер вышел из руин, когда кто-то забрался достаточно далеко. */
-function wakeSkinner(ctx: Ctx) {
-  const { room } = ctx;
-  if (room.skinner !== null) return;
-  if (!activeSeats(room).some((s) => s.pos >= SKINNER_WAKES_AT)) return;
-  room.skinner = SKINNER_START;
-  ctx.fx.push({ kind: "skinner", to: room.skinner });
-  ctx.notes.push("Скиннер выходит из руин и идёт к таверне!");
+/** Охотник и игрок на одной клетке — что бы ни свело их вместе: игрок
+ *  пришёл или охотник дошёл. У каждого охотника своё. */
+function meetHunter(ctx: Ctx, index: number, seat: Seat) {
+  const def = ctx.room.map.hunters[index]!;
+  if (def.kind === "fae") return faePrank(ctx, seat);
+  if (def.kind === "toren") return torenRobs(ctx, seat);
+  throwBack(
+    ctx,
+    seat,
+    HUNTER_THROW,
+    def.kind === "army" ? "под ноги армии Гоблинов" : "встреча со Скиннером",
+  );
 }
 
-/** Скиннер охотится до конца партии: бросает свой кубик и проходит ровно
- *  столько к ближайшему игроку — вперёд или назад, смотря где тот стоит.
- *  Может и проскочить: ловит, только если закончил ход на клетке игрока.
- *  Останавливайся он ровно на жертве, увернуться было бы нельзя — он будто
- *  угадывал ход. На старт он не ступает: там таверна. */
-function moveSkinner(ctx: Ctx) {
+/** Торен обирает пойманного: [Чутьё опасности] спасает, а нет его —
+ *  забирает любую карточку. С пустыми руками — отбрасывает. */
+function torenRobs(ctx: Ctx, seat: Seat) {
+  if (useShield(seat)) {
+    ctx.notes.push(
+      `${seat.name}: Торен тянется к поясу, но ${BOARD_SKILLS.danger.name} спасает`,
+    );
+    return;
+  }
+  if (seat.skills.length) {
+    const [stolen] = seat.skills.splice(randomInt(seat.skills.length), 1);
+    ctx.notes.push(`${seat.name}: Торен крадёт ${BOARD_SKILLS[stolen!].name}`);
+    return;
+  }
+  throwBack(ctx, seat, HUNTER_THROW, "Торену нечего украсть, и он бьёт мечом");
+}
+
+/** Феи: подарок, цветы вместо навыка или лавина — как повезёт. */
+function faePrank(ctx: Ctx, seat: Seat) {
+  const roll = randomInt(3);
+  if (roll === 0) {
+    const pool = ctx.room.map.skills;
+    const gift = pool[randomInt(pool.length)]!;
+    ctx.notes.push(`${seat.name}: феям весело — они дарят навык`);
+    grantSkill(seat, gift, ctx.notes);
+  } else if (roll === 1) {
+    if (!seat.skills.length) {
+      ctx.notes.push(
+        `${seat.name}: феи ищут, что бы превратить в цветы, — но в руке пусто`,
+      );
+      return;
+    }
+    const [gone] = seat.skills.splice(randomInt(seat.skills.length), 1);
+    ctx.notes.push(
+      `${seat.name}: феи превращают ${BOARD_SKILLS[gone!].name} в увядшие цветы`,
+    );
+  } else if (useShield(seat)) {
+    ctx.notes.push(
+      `${seat.name}: феи сбрасывают лавину, но ${BOARD_SKILLS.danger.name} спасает`,
+    );
+  } else {
+    seat.skip++;
+    ctx.notes.push(
+      `${seat.name}: феи сбрасывают лавину — пропустит следующий ход`,
+    );
+  }
+}
+
+/** Охотники выходят, когда кто-то из игроков забрался достаточно далеко.
+ *  Ушедший с карты (армия, дошедшая до конца пути) возвращается сам, своей
+ *  новой волной, — здесь его не будят. */
+function wakeHunters(ctx: Ctx) {
   const { room } = ctx;
-  if (room.skinner === null || room.status !== "playing") return;
-  const from = room.skinner;
+  const far = Math.max(0, ...activeSeats(room).map((s) => s.pos));
+  for (const [i, def] of room.map.hunters.entries()) {
+    const h = room.hunters[i]!;
+    if (h.at !== null || room.away.has(i) || far < def.wakesAt) continue;
+    h.at = def.start;
+    ctx.fx.push({ kind: "hunter", hunter: i, to: h.at });
+    ctx.notes.push(def.wakeNote);
+  }
+}
 
-  const prey = activeSeats(room);
-  if (!prey.length) return;
+/** Круг замкнулся — каждый вышедший охотник делает свой ход. */
+function moveHunters(ctx: Ctx) {
+  const { room } = ctx;
+  if (room.status !== "playing") return;
+  for (const [i, def] of room.map.hunters.entries()) {
+    const h = room.hunters[i]!;
+    // Ушёл с карты — копит силы на новую волну.
+    const away = room.away.get(i);
+    if (away !== undefined) {
+      if (away > 1) room.away.set(i, away - 1);
+      else {
+        room.away.delete(i);
+        h.at = def.start;
+        ctx.fx.push({ kind: "hunter", hunter: i, to: h.at });
+        ctx.notes.push(`${def.name}: новая волна выступает в поход!`);
+      }
+      continue;
+    }
+    if (h.at === null) continue;
+    if (def.kind === "army") {
+      marchArmy(ctx, i);
+      continue;
+    }
 
-  const target = prey.reduce((a, b) =>
-    Math.abs(b.pos - from) < Math.abs(a.pos - from) ? b : a,
+    const [lo, hi] = def.zone;
+    const prey = activeSeats(room).filter((s) => s.pos >= lo && s.pos <= hi);
+    // Охотиться не на кого — стоит, где стоял.
+    if (!prey.length) continue;
+
+    const from = h.at;
+    let to: number;
+    if (def.kind === "fae") {
+      // Феи садятся то к кому-нибудь, то просто так — угадать нельзя.
+      to =
+        randomInt(2) === 0
+          ? prey[randomInt(prey.length)]!.pos
+          : randomInt(lo, hi + 1);
+    } else {
+      // Скиннер и Торен бросают свой кубик и проходят ровно столько к
+      // ближайшему игроку — вперёд или назад. Могут и проскочить: ловят,
+      // только если закончили ход на клетке игрока. Останавливайся они
+      // ровно на жертве, увернуться было бы нельзя — будто угадывали ход.
+      const target = prey.reduce((a, b) =>
+        Math.abs(b.pos - from) < Math.abs(a.pos - from) ? b : a,
+      );
+      const dir = Math.sign(target.pos - from) || 1;
+      const step = randomInt(HUNTER_STEP_MIN, HUNTER_STEP_MAX + 1);
+      to = Math.min(Math.max(from + dir * step, lo), hi);
+    }
+
+    if (to !== from) {
+      h.at = to;
+      ctx.fx.push({ kind: "hunter", hunter: i, to });
+    }
+    for (const seat of activeSeats(room))
+      if (seat.pos === to) meetHunter(ctx, i, seat);
+  }
+}
+
+/** Армия идёт только вперёд: кого обогнала или на кого наступила — тот
+ *  отброшен. Дошла до конца участка — уходит с карты, а через несколько
+ *  кругов у начала участка собирается новая волна. */
+function marchArmy(ctx: Ctx, index: number) {
+  const { room } = ctx;
+  const h = room.hunters[index]!;
+  const def = room.map.hunters[index]!;
+  const from = h.at!;
+  if (from >= def.zone[1]) {
+    h.at = null;
+    room.away.set(index, ARMY_WAVE_REST);
+    ctx.fx.push({ kind: "hunter", hunter: index, to: null });
+    ctx.notes.push(
+      `${def.name} уходит с тропы — Лорд Гоблинов собирает новую волну`,
+    );
+    return;
+  }
+  const to = Math.min(
+    from + randomInt(ARMY_STEP_MIN, ARMY_STEP_MAX + 1),
+    def.zone[1],
   );
-  const dir = Math.sign(target.pos - from) || 1;
-  const step = randomInt(SKINNER_STEP_MIN, SKINNER_STEP_MAX + 1);
-  const to = Math.min(Math.max(from + dir * step, 1), BOARD_LAST - 1);
-
-  if (to !== from) {
-    room.skinner = to;
-    ctx.fx.push({ kind: "skinner", to });
-  }
-  for (const seat of prey) {
-    if (seat.pos === to)
-      throwBack(ctx, seat, SKINNER_THROW, "встреча со Скиннером");
-  }
+  h.at = to;
+  ctx.fx.push({ kind: "hunter", hunter: index, to });
+  for (const seat of activeSeats(room))
+    if (seat.pos > from && seat.pos <= to) meetHunter(ctx, index, seat);
 }
 
 /** Встали на одну клетку: оба бросают, меньший отступает. На старте не
@@ -568,7 +712,9 @@ function duel(ctx: Ctx, seat: Seat, other: Seat) {
 /** Кто дошёл до финиша. По стрелке вперёд туда может занести и не того, чей
  *  ход, — тогда побеждает он. Если дошли двое, первым считается ходивший. */
 function finisher(ctx: Ctx): Seat | null {
-  const done = activeSeats(ctx.room).filter((s) => s.pos >= BOARD_LAST);
+  const done = activeSeats(ctx.room).filter(
+    (s) => s.pos >= boardLast(ctx.room.map),
+  );
   return done.find((s) => s === ctx.mover) ?? done[0] ?? null;
 }
 
@@ -642,26 +788,34 @@ function move(
   const ctx = newCtx(room, seat);
   if (shownDice) ctx.fx.push({ kind: "dice", values: shownDice });
 
+  // [Чудесное угощение] прибавляет шаги к любому броску — и к выбранному из двух.
+  const fare = seat.fareNext ? FARE_BONUS : 0;
+  seat.fareNext = false;
+  const walk = dice + fare;
+
+  const last = boardLast(room.map);
   const from = seat.pos;
   const steps: number[] = [];
-  for (let i = 1; i <= dice && from + i <= BOARD_LAST; i++)
-    steps.push(from + i);
+  for (let i = 1; i <= walk && from + i <= last; i++) steps.push(from + i);
   seat.pos = steps.at(-1) ?? from;
   ctx.fx.push({ kind: "walk", slot: seat.slot, cells: steps });
 
   const landedAt = seat.pos;
-  const landed = BOARD_CELLS[landedAt]!;
+  const landed = room.map.cells[landedAt]!;
   const who = auto
     ? `${seat.name} (не на связи, кубик бросил стол)`
     : seat.name;
   const effect = effectLabel(landed.effect);
-  log(room, `${who}: ${dice} — ${landed.text}${effect ? ` · ${effect}` : ""}`);
+  log(
+    room,
+    `${who}: ${fare ? `${dice} + ${fare}` : dice} — ${landed.text}${effect ? ` · ${effect}` : ""}`,
+  );
 
   landOn(ctx, seat, true);
-  wakeSkinner(ctx);
+  wakeHunters(ctx);
 
   // «Ещё бросок», заработанный в чужой ход, — сейчас, после своего.
-  if (!ctx.again && seat.bonus > 0 && seat.pos < BOARD_LAST) {
+  if (!ctx.again && seat.bonus > 0 && seat.pos < last) {
     seat.bonus--;
     ctx.again = true;
     ctx.notes.push(`${seat.name} бросает ещё раз — бросок из запаса`);
@@ -696,11 +850,13 @@ export function playSkill(peer: any, skill: unknown, target: unknown) {
   const at = seat.skills.indexOf(skill);
   if (at < 0) return fail(peer, "Такого навыка у тебя нет");
 
-  const victim =
-    skill === "brawl"
-      ? activeSeats(room).find((s) => s.slot === target && s !== seat)
-      : null;
-  if (skill === "brawl" && !victim) return fail(peer, "Выбери, с кем драться");
+  // Навыки на соперника — [Трактирная драка] и [Удар минотавра] — с целью.
+  const strike = BOARD_STRIKES[skill];
+  const victim = strike
+    ? activeSeats(room).find((s) => s.slot === target && s !== seat)
+    : null;
+  if (strike && !victim) return fail(peer, "Выбери, с кем драться");
+  if (skill === "fare" && seat.fareNext) return;
 
   seat.skills.splice(at, 1);
   room.skillUsed = true;
@@ -711,11 +867,21 @@ export function playSkill(peer: any, skill: unknown, target: unknown) {
     ctx.notes.push(
       `${seat.name} играет ${BOARD_SKILLS.double.name}: бросит два кубика и выберет`,
     );
+  } else if (skill === "fare") {
+    seat.fareNext = true;
+    ctx.notes.push(
+      `${seat.name} играет ${BOARD_SKILLS.fare.name}: к броску прибавится ${FARE_BONUS}`,
+    );
   } else {
     ctx.notes.push(
-      `${seat.name} играет ${BOARD_SKILLS.brawl.name} против игрока ${victim!.name}`,
+      `${seat.name} играет ${BOARD_SKILLS[skill].name} против игрока ${victim!.name}`,
     );
-    throwBack(ctx, victim!, BRAWL_THROW, "удар в трактирной драке");
+    throwBack(
+      ctx,
+      victim!,
+      strike!,
+      skill === "minotaur" ? "[Удар минотавра]" : "удар в трактирной драке",
+    );
   }
 
   // Ход после навыка не переходит: бросок ещё впереди.
@@ -783,13 +949,15 @@ export function rematch(peer: any) {
     s.skip = 0;
     s.skills = [];
     s.doubleNext = false;
+    s.fareNext = false;
     s.bonus = 0;
   }
   room.choice = null;
   room.status = "lobby";
   room.turn = 0;
   room.winnerSlot = null;
-  room.skinner = null;
+  room.hunters = freshHunters(room.map);
+  room.away = new Map();
   room.lastAction = null;
   room.skillUsed = false;
   room.log = [];

@@ -2,15 +2,17 @@
 // Импортируем явно, а не через автоимпорт: новый экспорт из shared/ попадает в
 // сгенерированный список не сразу, и в шаблоне он оказывается undefined.
 import {
-  BOARD_CELLS,
   BOARD_CHAT_MAX,
-  BOARD_LAST,
-  BOARD_MAP_RATIO,
+  BOARD_MAP_IDS,
+  BOARD_MAPS,
   BOARD_SKILLS,
+  BOARD_STRIKES,
+  boardLast,
   effectLabel,
   jumpTarget,
   type BoardAction,
   type BoardEffect,
+  type BoardMap,
   type BoardSkill,
 } from "#shared/utils/board";
 import { boardArrows } from "~/utils/boardArrows";
@@ -39,6 +41,11 @@ const {
 } = useBoardRoom(code);
 const guestNameInput = ref("");
 
+/** Карта стола — приходит с состоянием; до него рисовать нечего. */
+const map = computed(() => BOARD_MAPS[state.value?.map ?? "v1"]);
+const cells = computed(() => map.value.cells);
+const last = computed(() => boardLast(map.value));
+
 const players = computed(() => state.value?.players ?? []);
 const me = computed(
   () => players.value.find((p) => p.slot === you.value) ?? null,
@@ -64,7 +71,8 @@ const score = computed(() =>
 // На экране фишки стоят не там, где их держит сервер, а там, куда успела
 // доехать анимация: ход приходит сразу целиком, а показать его надо по шагам.
 const shown = reactive<Record<number, number>>({});
-const shownSkinner = ref<number | null>(null);
+/** Где охотники на экране — по номеру в списке охотников карты. */
+const shownHunters = ref<(number | null)[]>([]);
 const animating = ref(false);
 const diceFace = ref(1);
 /** Второй кубик — когда сыгран [Безупречный бросок]. */
@@ -103,7 +111,7 @@ let queue: Promise<void> = Promise.resolve();
 
 function syncPositions() {
   for (const p of players.value) shown[p.slot] = p.pos;
-  shownSkinner.value = state.value?.skinner ?? null;
+  shownHunters.value = state.value?.hunters.map((h) => h.at) ?? [];
 }
 
 /** Отброс или прыжок — фишка летит одним махом, медленнее обычного шага. */
@@ -144,15 +152,17 @@ async function play(action: BoardAction) {
     } else if (fx.kind === "jump" || fx.kind === "push") {
       await wait(fx.kind === "jump" ? 700 : 500);
       await fly(fx.slot, fx.to);
-    } else if (fx.kind === "skinner") {
+    } else if (fx.kind === "hunter") {
       await wait(400);
-      shownSkinner.value = fx.to;
+      const next = [...shownHunters.value];
+      next[fx.hunter] = fx.to;
+      shownHunters.value = next;
       await wait(650);
     } else if (fx.kind === "duel") {
       await wait(400);
       // Плашка встаёт у того края карты, что дальше от места встречи, — иначе
       // закрыла бы сами фишки.
-      const where = BOARD_CELLS[shown[fx.a] ?? 0]!;
+      const where = cells.value[shown[fx.a] ?? 0]!;
       const d: Duel = {
         a: fx.a,
         b: fx.b,
@@ -275,59 +285,98 @@ const pickDice = (index: number) => {
 const canPlaySkill = computed(
   () => myTurn.value && !state.value?.skillUsed && !choice.value,
 );
-/** Выбираем, с кем драться: [Трактирная драка] нужна цель. */
-const pickingBrawl = ref(false);
+/** Навык на соперника ждёт цели: [Трактирная драка], [Удар минотавра]. */
+const pickingStrike = ref<BoardSkill | null>(null);
 const rivals = computed(() =>
   players.value.filter((p) => p.slot !== you.value && !p.left),
 );
 
 function onSkill(skill: BoardSkill) {
-  if (skill === "brawl") {
+  if (BOARD_STRIKES[skill]) {
     // Соперник один — выбирать не из кого.
     if (rivals.value.length === 1)
-      ask(() => playSkill("brawl", rivals.value[0]!.slot));
-    else pickingBrawl.value = !pickingBrawl.value;
+      ask(() => playSkill(skill, rivals.value[0]!.slot));
+    else pickingStrike.value = pickingStrike.value === skill ? null : skill;
     return;
   }
   ask(() => playSkill(skill));
 }
 
-function brawlWith(slot: number) {
-  pickingBrawl.value = false;
-  ask(() => playSkill("brawl", slot));
+function strikeAt(slot: number) {
+  const skill = pickingStrike.value;
+  pickingStrike.value = null;
+  if (skill) ask(() => playSkill(skill, slot));
 }
 
 watch(canPlaySkill, (can) => {
-  if (!can) pickingBrawl.value = false;
+  if (!can) pickingStrike.value = null;
 });
+
+/** Навык сейчас не сыграть: не твой ход, уже заряжен или не на кого. */
+const skillOff = (s: BoardSkill) =>
+  !canPlaySkill.value ||
+  (s === "double" && !!me.value?.doubleNext) ||
+  (s === "fare" && !!me.value?.fareNext) ||
+  (!!BOARD_STRIKES[s] && !rivals.value.length);
 
 // ── Карта ───────────────────────────────────────────────
 // Стрелки рисуются в координатах шириной 160 — и в пропорциях рисунка карты.
 // Тогда SVG тянется без искажений, и наконечники стрелок не плющит.
 const SX = 1.6;
-const SY = SX / BOARD_MAP_RATIO;
-const VIEW_H = 100 * SY;
+const sy = (m: BoardMap) => SX / m.ratio;
+const SY = computed(() => sy(map.value));
+const VIEW_H = computed(() => 100 * SY.value);
 
 /** Стрелки прыжков в обход чужих клеток. Подбор изгиба — работа для слабого
- *  телефона заметная, поэтому считает сервер при отрисовке страницы. */
-const arrows = useState("board-arrows", () =>
-  boardArrows(BOARD_CELLS, jumpTarget, SX, SY),
+ *  телефона заметная, поэтому считает сервер при отрисовке страницы — для
+ *  всех карт сразу: какая у стола, станет известно, только когда придёт
+ *  состояние по сокету. */
+const allArrows = useState("board-arrows", () =>
+  Object.fromEntries(
+    BOARD_MAP_IDS.map((id) => {
+      const m = BOARD_MAPS[id];
+      return [id, boardArrows(m.cells, (i) => jumpTarget(m, i), SX, sy(m))];
+    }),
+  ),
+);
+const arrows = computed(() => allArrows.value[map.value.id] ?? []);
+
+/** Карта без рисунка — схема: тропа по клеткам и полосы участков охотников. */
+const trail = computed(() =>
+  cells.value
+    .map((c) => `${(c.x * SX).toFixed(2)},${(c.y * SY.value).toFixed(2)}`)
+    .join(" "),
+);
+const zones = computed(() =>
+  map.value.hunters.map((h) => {
+    const ys = cells.value
+      .slice(h.zone[0], h.zone[1] + 1)
+      .map((c) => c.y * SY.value);
+    // Сверху место под подпись участка — над клетками, а не на них.
+    const top = Math.min(...ys) - 8.5;
+    return {
+      kind: h.kind,
+      name: h.name,
+      y: top,
+      h: Math.max(...ys) + 5.5 - top,
+    };
+  }),
 );
 
 const effectClass = (e: BoardEffect) => `cell--${e.kind}`;
 
 /** Несколько фишек на одной клетке расходятся по углам, чтобы не прятать друг друга. */
 function pawnStyle(slot: number) {
-  const cell = BOARD_CELLS[shown[slot] ?? 0]!;
+  const cell = cells.value[shown[slot] ?? 0]!;
   const dx = slot % 2 ? 1.8 : -1.8;
   const dy = slot < 2 ? -2.6 : 2.6;
   return { left: `${cell.x + dx}%`, top: `${cell.y + dy}%` };
 }
 
-const skinnerStyle = computed(() => {
-  const cell = BOARD_CELLS[shownSkinner.value ?? 0]!;
+function hunterStyle(i: number) {
+  const cell = cells.value[shownHunters.value[i] ?? 0]!;
   return { left: `${cell.x}%`, top: `${cell.y - 5.5}%` };
-});
+}
 
 const infoCell = computed(() => pickedCell.value ?? landedCell.value);
 const infoWho = computed(() =>
@@ -503,8 +552,10 @@ useHead({
         <div class="board-col">
           <div
             class="map"
+            :class="{ 'map--plan': !map.art, 'map--dense': cells.length > 40 }"
             role="img"
-            :aria-label="`Карта: ${BOARD_CELLS.length} клеток`"
+            :aria-label="`Карта «${map.title}»: ${cells.length} клеток`"
+            :style="{ aspectRatio: String(map.ratio) }"
           >
             <!-- Розыгрыш встречи — поверх карты сверху: в панели справа он
                  сдвигал чат вниз. Итог остаётся строчкой у кубика и в журнале. -->
@@ -570,17 +621,36 @@ useHead({
             <!-- Рисунок карты: сцены и тропа с камнями. Кружки клеток, стрелки и
                  фишки сайт кладёт поверх, по координатам камней. -->
             <img
+              v-if="map.art"
               class="map-art"
-              src="/board/map.webp"
-              srcset="/board/map-900.webp 900w, /board/map.webp 1503w"
+              :src="map.art.src"
+              :srcset="map.art.srcset"
               sizes="(max-width: 900px) 100vw, 860px"
               alt=""
-              width="1503"
-              height="1046"
+              :width="map.art.width"
+              :height="map.art.height"
               decoding="async"
               fetchpriority="high"
             />
             <svg class="path" :viewBox="`0 0 160 ${VIEW_H}`" aria-hidden="true">
+              <!-- Рисунка нет — схема: полосы участков охотников и тропа. -->
+              <template v-if="!map.art">
+                <g v-for="z in zones" :key="z.kind">
+                  <rect
+                    x="1"
+                    :y="z.y"
+                    width="158"
+                    :height="z.h"
+                    rx="3"
+                    class="zone"
+                    :class="`zone--${z.kind}`"
+                  />
+                  <text x="157" :y="z.y + 2.9" class="zone-name">
+                    {{ z.name }}
+                  </text>
+                </g>
+                <polyline :points="trail" class="trail" />
+              </template>
               <defs>
                 <marker
                   id="arrow-fwd"
@@ -643,14 +713,14 @@ useHead({
             </svg>
 
             <button
-              v-for="(cell, i) in BOARD_CELLS"
+              v-for="(cell, i) in cells"
               :key="i"
               class="cell"
               :class="[
                 effectClass(cell.effect),
                 {
                   'cell--start': i === 0,
-                  'cell--finish': i === BOARD_LAST,
+                  'cell--finish': i === last,
                   'cell--picked': i === infoCell,
                 },
               ]"
@@ -658,18 +728,26 @@ useHead({
               :title="cell.text"
               @click="pickedCell = i"
             >
-              {{ i === BOARD_LAST ? "★" : i || "" }}
+              {{ i === last ? "★" : i || "" }}
               <span v-if="cell.skill" class="cell-skill" aria-hidden="true" />
             </button>
 
-            <div
-              v-if="shownSkinner !== null"
-              class="skinner"
-              :style="skinnerStyle"
-              title="Скиннер: идёт к таверне, кого встретит — отбросит на 3 назад"
-            >
-              <span class="skinner-eye" /><span class="skinner-eye" />
-            </div>
+            <template v-for="(h, i) in map.hunters" :key="h.kind">
+              <div
+                v-if="shownHunters[i] != null"
+                class="hunter"
+                :class="[`hunter--${h.kind}`, { 'hunter--figure': h.token }]"
+                :style="hunterStyle(i)"
+                :title="h.legend"
+              >
+                <span v-if="h.token" class="hunter-badge"
+                  ><img :src="h.token" alt="" class="hunter-img"
+                /></span>
+                <template v-else>
+                  <span class="hunter-eye" /><span class="hunter-eye" />
+                </template>
+              </div>
+            </template>
 
             <div
               v-for="p in players"
@@ -698,11 +776,17 @@ useHead({
               <span class="legend-cell"><span class="cell-skill" /></span> даёт
               навык
             </li>
-            <li>
-              <span class="skinner legend-skinner"
-                ><span class="skinner-eye" /><span class="skinner-eye"
-              /></span>
-              Скиннер — отбросит на 3
+            <li v-for="h in map.hunters" :key="h.kind">
+              <span
+                class="hunter legend-hunter"
+                :class="[`hunter--${h.kind}`, { 'hunter--figure': h.token }]"
+                ><span v-if="h.token" class="hunter-badge"
+                  ><img :src="h.token" alt="" class="hunter-img" /></span
+                ><template v-else
+                  ><span class="hunter-eye" /><span
+                    class="hunter-eye" /></template
+              ></span>
+              {{ h.legend }}
             </li>
           </ul>
 
@@ -721,6 +805,7 @@ useHead({
           <section class="card card--panel turn">
             <template v-if="state.status === 'lobby'">
               <p class="turn-title">Ждём игроков</p>
+              <p class="muted">Карта: {{ map.title }}. {{ map.lead }}</p>
               <p class="muted">
                 За столом {{ players.length }} из 4. Позови друзей по ссылке, а
                 хозяин стола начнёт партию.
@@ -778,6 +863,9 @@ useHead({
                   <p v-if="me?.doubleNext" class="muted">
                     Следующий бросок — двумя кубиками
                   </p>
+                  <p v-if="me?.fareNext" class="muted">
+                    К следующему броску прибавится 2
+                  </p>
                 </div>
               </div>
             </template>
@@ -800,16 +888,16 @@ useHead({
                   · ход игрока {{ infoWho.name }}</template
                 >
                 <span
-                  v-if="effectLabel(BOARD_CELLS[infoCell]!.effect)"
+                  v-if="effectLabel(cells[infoCell]!.effect)"
                   class="effect-chip"
                 >
-                  {{ effectLabel(BOARD_CELLS[infoCell]!.effect) }}
+                  {{ effectLabel(cells[infoCell]!.effect) }}
                 </span>
               </div>
-              <p class="cell-info-text">{{ BOARD_CELLS[infoCell]!.text }}</p>
-              <p v-if="BOARD_CELLS[infoCell]!.skill" class="cell-info-skill">
+              <p class="cell-info-text">{{ cells[infoCell]!.text }}</p>
+              <p v-if="cells[infoCell]!.skill" class="cell-info-skill">
                 Даёт навык
-                {{ BOARD_SKILLS[BOARD_CELLS[infoCell]!.skill!].name }}
+                {{ BOARD_SKILLS[cells[infoCell]!.skill!].name }}
               </p>
             </div>
 
@@ -856,23 +944,19 @@ useHead({
                 <button
                   v-if="s !== 'danger'"
                   class="btn btn--ghost btn--sm"
-                  :disabled="
-                    !canPlaySkill ||
-                    (s === 'double' && me.doubleNext) ||
-                    (s === 'brawl' && !rivals.length)
-                  "
+                  :disabled="skillOff(s)"
                   @click="onSkill(s)"
                 >
                   Сыграть
                 </button>
               </div>
-              <div v-if="pickingBrawl" class="brawl-pick">
+              <div v-if="pickingStrike" class="brawl-pick">
                 <span class="skill-hint">С кем драться?</span>
                 <button
                   v-for="r in rivals"
                   :key="r.slot"
                   class="btn btn--ghost btn--sm"
-                  @click="brawlWith(r.slot)"
+                  @click="strikeAt(r.slot)"
                 >
                   <span class="dot" :style="{ background: r.color }" />
                   {{ r.name }}
@@ -1120,7 +1204,7 @@ useHead({
 /* ── Карта ─────────────────────────────── */
 .map {
   position: relative;
-  /* Пропорции рисунка карты — те же, что BOARD_MAP_RATIO. */
+  /* Пропорции — у каждой карты свои, приходят в style. */
   aspect-ratio: 1503 / 1046;
   border-radius: var(--radius-lg);
   background: var(--bg-dark-2);
@@ -1133,6 +1217,41 @@ useHead({
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+/* Схема вместо рисунка: зимняя ночь, тропа и участки охотников. */
+.map--plan {
+  background: radial-gradient(ellipse at 50% 30%, #2a3346, #171c27 75%);
+}
+.trail {
+  fill: none;
+  stroke: #c9b48a;
+  stroke-opacity: 0.35;
+  stroke-width: 3.2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.zone {
+  stroke-width: 0.3;
+}
+.zone--fae {
+  fill: rgba(150, 200, 255, 0.08);
+  stroke: rgba(150, 200, 255, 0.35);
+}
+.zone--toren {
+  fill: rgba(230, 220, 190, 0.06);
+  stroke: rgba(230, 220, 190, 0.3);
+}
+.zone--army {
+  fill: rgba(150, 60, 40, 0.1);
+  stroke: rgba(200, 90, 60, 0.35);
+}
+/* Подпись — в правом верхнем углу полосы: слева старт и начало рядов. */
+.zone-name {
+  text-anchor: end;
+  font: 600 2.6px var(--font-body);
+  fill: var(--text-muted);
+  letter-spacing: 0.05em;
 }
 
 .map-art {
@@ -1271,7 +1390,7 @@ useHead({
   right: -4px;
 }
 
-.legend .legend-skinner {
+.legend .legend-hunter {
   position: static;
   transform: none;
   width: 18px;
@@ -1280,7 +1399,21 @@ useHead({
   flex: none;
 }
 
-.legend .legend-skinner .skinner-eye {
+.legend .legend-hunter.hunter--figure {
+  width: 18px;
+  height: 24px;
+}
+.legend .legend-hunter.hunter--army::before {
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  height: 2px;
+}
+.legend .legend-hunter.hunter--army .hunter-badge {
+  padding: 2px 2px 7px;
+}
+
+.legend .legend-hunter .hunter-eye {
   width: 3px;
   height: 3px;
 }
@@ -1401,8 +1534,9 @@ useHead({
   box-shadow: 0 0 0 2px var(--bg-dark);
 }
 
-/* Скиннер — тёмная тень с красными глазами над клеткой, где он сейчас. */
-.skinner {
+/* Охотник над клеткой, где он сейчас. Скиннер — тёмная тень с красными
+   глазами; у остальных — фигурки, см. .hunter--figure ниже. */
+.hunter {
   position: absolute;
   transform: translate(-50%, -50%);
   width: 30px;
@@ -1423,7 +1557,7 @@ useHead({
     top 0.6s ease-in-out;
 }
 
-.skinner-eye {
+.hunter-eye {
   width: 5px;
   height: 5px;
   border-radius: var(--radius-round);
@@ -1431,9 +1565,121 @@ useHead({
   box-shadow: 0 0 6px 2px #ff5a3c;
 }
 
+/* Охотники-фигурки — из портретов персонажей сайта. Торен — один череп с
+   фиолетовым пламенем, армия Гоблинов — на боевом знамени, феи парят над
+   клеткой. Подсветка — фильтром: у вырезанной формы box-shadow не видно. */
+.hunter--figure {
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+.hunter-badge {
+  display: block;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+.hunter-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hunter--toren {
+  width: 32px;
+  height: 39px;
+  filter: drop-shadow(0 0 5px rgba(176, 124, 255, 0.8))
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+}
+.hunter--toren .hunter-img {
+  object-fit: contain;
+}
+
+.hunter--army {
+  width: 32px;
+  height: 42px;
+  filter: drop-shadow(0 0 4px rgba(230, 120, 40, 0.75))
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+}
+/* Древко знамени — перекладина сверху. */
+.hunter--army::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -4px;
+  right: -4px;
+  height: 3px;
+  border-radius: 2px;
+  background: #6b4a2a;
+}
+.hunter--army .hunter-badge {
+  padding: 3px 3px 12px;
+  background: linear-gradient(#a8301f, #5a140d);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+}
+.hunter--army .hunter-img {
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: var(--radius-round);
+}
+
+.hunter--fae {
+  width: 36px;
+  height: 49px;
+  filter: drop-shadow(0 0 6px rgba(160, 210, 255, 0.9));
+}
+.hunter--fae .hunter-img {
+  object-fit: contain;
+}
+/* Фея покачивается в воздухе: двигается только картинка внутри, сама
+   фишка ездит по карте своим переходом. */
+.hunter--fae .hunter-badge {
+  animation: fae-hover 2.4s ease-in-out infinite alternate;
+}
+@keyframes fae-hover {
+  from {
+    transform: translateY(1px);
+  }
+  to {
+    transform: translateY(-3px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .skinner {
+  .hunter {
     transition: none;
+  }
+  .hunter--fae .hunter-badge {
+    animation: none;
+  }
+}
+
+/* Карта на 60 клеток — клетки, фишки и охотники мельче: на телефоне иначе
+   они лезут друг на друга. */
+.map--dense .cell {
+  width: clamp(20px, 3.6vw, 34px);
+  height: clamp(20px, 3.6vw, 34px);
+  font-size: clamp(9px, 1.1vw, 12px);
+}
+@media (max-width: 600px) {
+  .map--dense .hunter--toren {
+    width: 22px;
+    height: 27px;
+  }
+  .map--dense .hunter--army {
+    width: 21px;
+    height: 28px;
+  }
+  .map--dense .hunter--army .hunter-badge {
+    padding: 2px 2px 8px;
+  }
+  .map--dense .hunter--fae {
+    width: 21px;
+    height: 29px;
+  }
+  .map--dense .pawn :deep(.ua) {
+    --ua-size: 18px !important;
   }
 }
 

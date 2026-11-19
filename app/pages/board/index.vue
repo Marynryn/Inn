@@ -17,10 +17,14 @@ type RoomsReply = {
     players: number;
     max: number;
     game: "board" | "cards";
+    /** Карта стола настольной игры. */
+    map?: string;
   }[];
   mine: string | null;
   /** Создавать стол может только вошедший; гость садится за чужой. */
   canCreate: boolean;
+  /** Карты, на которых можно накрыть стол. */
+  maps: { id: string; title: string; lead: string }[];
 };
 
 const { data: settings } = await useFetch("/api/settings");
@@ -31,12 +35,13 @@ const creating = ref(false);
 const error = ref("");
 const codeInput = ref("");
 
-async function create() {
+async function create(map: string) {
   creating.value = true;
   error.value = "";
   try {
     const { code } = await $fetch<{ code: string }>("/api/board/rooms", {
       method: "POST",
+      body: { map },
     });
     await navigateTo(`/board/${code}`);
   } catch (e: any) {
@@ -124,18 +129,31 @@ useHead({
         <section class="card card--panel game">
           <h2 class="game-title display">Дорога через таверну</h2>
           <p class="game-lead">
-            Бросай кубик и веди фишку по событиям первого тома. Кто первым
-            дойдёт до финиша, тот и победил. За одним столом до четырёх игроков.
+            Бросай кубик и веди фишку по событиям книги. Кто первым дойдёт до
+            финиша, тот и победил. За одним столом до четырёх игроков.
           </p>
+          <ul v-if="data?.canCreate && data.maps.length > 1" class="maps">
+            <li v-for="m in data.maps" :key="m.id">
+              <b>{{ m.title }}.</b> {{ m.lead }}
+            </li>
+          </ul>
           <div class="actions">
-            <button
-              v-if="data?.canCreate"
-              class="btn btn--primary"
-              :disabled="creating"
-              @click="create"
-            >
-              {{ creating ? "Накрываем стол…" : "Новый стол" }}
-            </button>
+            <template v-if="data?.canCreate">
+              <button
+                v-for="(m, i) in data.maps"
+                :key="m.id"
+                class="btn"
+                :class="i ? 'btn--ghost' : 'btn--primary'"
+                :disabled="creating"
+                @click="create(m.id)"
+              >
+                {{
+                  data.maps.length > 1
+                    ? `Новый стол · ${m.title}`
+                    : "Новый стол"
+                }}
+              </button>
+            </template>
             <NuxtLink
               v-else
               :to="`/login?next=${encodeURIComponent('/board')}`"
@@ -198,7 +216,7 @@ useHead({
               <span class="room-game">{{
                 r.game === "cards"
                   ? "Странствующая колода"
-                  : "Дорога через таверну"
+                  : `Дорога через таверну${r.map ? ` · ${r.map}` : ""}`
               }}</span>
             </div>
             <div class="room-meta">
@@ -309,6 +327,14 @@ useHead({
   flex-direction: column;
   gap: 10px;
 }
+.maps {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .game-title {
   margin: 0;
   font-size: 22px;
