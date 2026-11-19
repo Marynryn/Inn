@@ -670,8 +670,8 @@ useHead({
                   viewBox="0 0 10 10"
                   refX="5"
                   refY="5"
-                  markerWidth="4.1"
-                  markerHeight="4.1"
+                  markerWidth="4.4"
+                  markerHeight="4.4"
                   markerUnits="userSpaceOnUse"
                   orient="auto-start-reverse"
                 >
@@ -682,8 +682,8 @@ useHead({
                   viewBox="0 0 10 10"
                   refX="5"
                   refY="5"
-                  markerWidth="4.1"
-                  markerHeight="4.1"
+                  markerWidth="4.4"
+                  markerHeight="4.4"
                   markerUnits="userSpaceOnUse"
                   orient="auto-start-reverse"
                 >
@@ -706,12 +706,12 @@ useHead({
                   <stop
                     offset="0"
                     :class="a.forward ? 'grad-fwd' : 'grad-back'"
-                    stop-opacity="0.45"
+                    stop-opacity="0.75"
                   />
                   <stop
                     offset="1"
                     :class="a.forward ? 'grad-fwd' : 'grad-back'"
-                    stop-opacity="0.9"
+                    stop-opacity="1"
                   />
                 </linearGradient>
               </defs>
@@ -1300,33 +1300,39 @@ useHead({
 
 /* Стрелки прыжков — тонкой бледной волной: карта читается сквозь них. */
 /* Стрелки прыжков — прямые, с градиентом от бледного хвоста к наконечнику. */
+/* Цвета стрелок — ярче палитры сайта: на пёстром рисунке приглушённые
+   зелёный и красный терялись. */
+.map {
+  --arrow-fwd: #8cf06a;
+  --arrow-back: #ff5544;
+}
 .arrow {
   fill: none;
-  stroke-width: 2.6;
+  stroke-width: 3.4;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
   transition: opacity 0.2s;
 }
 .arrow-case {
   fill: none;
-  stroke: rgba(20, 14, 10, 0.7);
-  stroke-width: 5;
+  stroke: rgba(15, 10, 6, 0.85);
+  stroke-width: 6.6;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
   transition: opacity 0.2s;
 }
 .arrow--focus {
-  stroke-width: 3.6;
+  stroke-width: 4.4;
 }
 .arrow--dim {
-  opacity: 0.25;
+  opacity: 0.3;
 }
 
 .grad-fwd {
-  stop-color: var(--success);
+  stop-color: var(--arrow-fwd);
 }
 .grad-back {
-  stop-color: var(--danger);
+  stop-color: var(--arrow-back);
 }
 .head--fwd,
 .head--back {
@@ -1335,10 +1341,10 @@ useHead({
   paint-order: stroke;
 }
 .head--fwd {
-  fill: var(--success);
+  fill: var(--arrow-fwd);
 }
 .head--back {
-  fill: var(--danger);
+  fill: var(--arrow-back);
 }
 
 .log-card--desk {
