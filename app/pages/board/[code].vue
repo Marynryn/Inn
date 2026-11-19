@@ -381,6 +381,17 @@ function hunterStyle(i: number) {
 }
 
 const infoCell = computed(() => pickedCell.value ?? landedCell.value);
+/** Стрелка выбранной клетки (или той, куда пришли по кубику): она ярче,
+ *  остальные бледнее, а клетка, куда она ведёт, — в кольце. */
+const focusFrom = computed(() =>
+  infoCell.value !== null && jumpTarget(map.value, infoCell.value) !== null
+    ? infoCell.value
+    : null,
+);
+const focusTo = computed(() =>
+  focusFrom.value === null ? null : jumpTarget(map.value, focusFrom.value),
+);
+
 const infoWho = computed(() =>
   pickedCell.value === null ? playerBySlot(landedSlot.value) : null,
 );
@@ -659,8 +670,8 @@ useHead({
                   viewBox="0 0 10 10"
                   refX="5"
                   refY="5"
-                  markerWidth="3.5"
-                  markerHeight="3.5"
+                  markerWidth="4.1"
+                  markerHeight="4.1"
                   markerUnits="userSpaceOnUse"
                   orient="auto-start-reverse"
                 >
@@ -671,8 +682,8 @@ useHead({
                   viewBox="0 0 10 10"
                   refX="5"
                   refY="5"
-                  markerWidth="3.5"
-                  markerHeight="3.5"
+                  markerWidth="4.1"
+                  markerHeight="4.1"
                   markerUnits="userSpaceOnUse"
                   orient="auto-start-reverse"
                 >
@@ -704,11 +715,26 @@ useHead({
                   />
                 </linearGradient>
               </defs>
+              <!-- Тёмная подложка под стрелкой — чтобы она читалась поверх
+                   пёстрого рисунка. -->
+              <path
+                v-for="a in arrows"
+                :key="`case-${a.from}`"
+                :d="a.d"
+                class="arrow-case"
+                :class="{
+                  'arrow--dim': focusFrom !== null && a.from !== focusFrom,
+                }"
+              />
               <path
                 v-for="a in arrows"
                 :key="`line-${a.from}`"
                 :d="a.d"
                 class="arrow"
+                :class="{
+                  'arrow--focus': a.from === focusFrom,
+                  'arrow--dim': focusFrom !== null && a.from !== focusFrom,
+                }"
                 :stroke="`url(#arrow-grad-${a.from})`"
                 :marker-end="a.forward ? 'url(#arrow-fwd)' : 'url(#arrow-back)'"
               />
@@ -724,6 +750,9 @@ useHead({
                   'cell--start': i === 0,
                   'cell--finish': i === last,
                   'cell--picked': i === infoCell,
+                  'cell--target': i === focusTo,
+                  'cell--target-back':
+                    i === focusTo && focusTo !== null && focusTo < infoCell!,
                 },
               ]"
               :style="{ left: `${cell.x}%`, top: `${cell.y}%` }"
@@ -893,7 +922,10 @@ useHead({
                   v-if="effectLabel(cells[infoCell]!.effect)"
                   class="effect-chip"
                 >
-                  {{ effectLabel(cells[infoCell]!.effect) }}
+                  {{ effectLabel(cells[infoCell]!.effect)
+                  }}<template v-if="focusTo !== null">
+                    → {{ focusTo ? `клетка ${focusTo}` : "старт" }}</template
+                  >
                 </span>
               </div>
               <p class="cell-info-text">{{ cells[infoCell]!.text }}</p>
@@ -1270,9 +1302,24 @@ useHead({
 /* Стрелки прыжков — прямые, с градиентом от бледного хвоста к наконечнику. */
 .arrow {
   fill: none;
-  stroke-width: 2.4;
+  stroke-width: 2.6;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
+  transition: opacity 0.2s;
+}
+.arrow-case {
+  fill: none;
+  stroke: rgba(20, 14, 10, 0.7);
+  stroke-width: 5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  transition: opacity 0.2s;
+}
+.arrow--focus {
+  stroke-width: 3.6;
+}
+.arrow--dim {
+  opacity: 0.25;
 }
 
 .grad-fwd {
@@ -1281,13 +1328,17 @@ useHead({
 .grad-back {
   stop-color: var(--danger);
 }
+.head--fwd,
+.head--back {
+  stroke: rgba(20, 14, 10, 0.75);
+  stroke-width: 1.4;
+  paint-order: stroke;
+}
 .head--fwd {
   fill: var(--success);
-  opacity: 0.9;
 }
 .head--back {
   fill: var(--danger);
-  opacity: 0.9;
 }
 
 .log-card--desk {
@@ -1470,6 +1521,17 @@ useHead({
 }
 .cell--picked {
   box-shadow: 0 0 0 3px var(--ember-soft);
+}
+/* Клетка, куда ведёт стрелка выбранной клетки. */
+.cell--target {
+  box-shadow:
+    0 0 0 3px var(--success),
+    0 0 12px 3px var(--success);
+}
+.cell--target-back {
+  box-shadow:
+    0 0 0 3px var(--danger),
+    0 0 12px 3px var(--danger);
 }
 
 .pawn {

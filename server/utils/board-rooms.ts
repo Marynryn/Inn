@@ -14,9 +14,6 @@ import type {
   BoardStatus,
 } from "#shared/utils/board";
 import {
-  ARMY_STEP_MAX,
-  ARMY_STEP_MIN,
-  ARMY_WAVE_REST,
   BOARD_HAND_MAX,
   BOARD_MAPS,
   BOARD_SKILLS,
@@ -58,9 +55,6 @@ type Room = {
   winnerSlot: number | null;
   /** Охотники карты, в том же порядке, что в её описании. */
   hunters: BoardHunter[];
-  /** Ушедшие с карты охотники (армия дошла до конца пути): сколько кругов
-   *  до новой волны. */
-  away: Map<number, number>;
   lastAction: BoardAction | null;
   /** Навык уже сыгран в этот ход — второй нельзя. */
   skillUsed: boolean;
@@ -184,7 +178,6 @@ export function createRoom(host: BoardUser, mapId: BoardMapId = "v1"): string {
     turn: 0,
     winnerSlot: null,
     hunters: freshHunters(map),
-    away: new Map(),
     lastAction: null,
     skillUsed: false,
     choice: null,
@@ -578,15 +571,13 @@ function faePrank(ctx: Ctx, seat: Seat) {
   }
 }
 
-/** Охотники выходят, когда кто-то из игроков забрался достаточно далеко.
- *  Ушедший с карты (армия, дошедшая до конца пути) возвращается сам, своей
- *  новой волной, — здесь его не будят. */
+/** Охотники выходят, когда кто-то из игроков забрался достаточно далеко. */
 function wakeHunters(ctx: Ctx) {
   const { room } = ctx;
   const far = Math.max(0, ...activeSeats(room).map((s) => s.pos));
   for (const [i, def] of room.map.hunters.entries()) {
     const h = room.hunters[i]!;
-    if (h.at !== null || room.away.has(i) || far < def.wakesAt) continue;
+    if (h.at !== null || far < def.wakesAt) continue;
     h.at = def.start;
     ctx.fx.push({ kind: "hunter", hunter: i, to: h.at });
     ctx.notes.push(def.wakeNote);
@@ -599,23 +590,7 @@ function moveHunters(ctx: Ctx) {
   if (room.status !== "playing") return;
   for (const [i, def] of room.map.hunters.entries()) {
     const h = room.hunters[i]!;
-    // Ушёл с карты — копит силы на новую волну.
-    const away = room.away.get(i);
-    if (away !== undefined) {
-      if (away > 1) room.away.set(i, away - 1);
-      else {
-        room.away.delete(i);
-        h.at = def.start;
-        ctx.fx.push({ kind: "hunter", hunter: i, to: h.at });
-        ctx.notes.push(`${def.name}: новая волна выступает в поход!`);
-      }
-      continue;
-    }
     if (h.at === null) continue;
-    if (def.kind === "army") {
-      marchArmy(ctx, i);
-      continue;
-    }
 
     const [lo, hi] = def.zone;
     const prey = activeSeats(room).filter((s) => s.pos >= lo && s.pos <= hi);
@@ -631,7 +606,7 @@ function moveHunters(ctx: Ctx) {
           ? prey[randomInt(prey.length)]!.pos
           : randomInt(lo, hi + 1);
     } else {
-      // Скиннер и Торен бросают свой кубик и проходят ровно столько к
+      // Скиннер, Торен и армия бросают свой кубик и проходят ровно столько к
       // ближайшему игроку — вперёд или назад. Могут и проскочить: ловят,
       // только если закончили ход на клетке игрока. Останавливайся они
       // ровно на жертве, увернуться было бы нельзя — будто угадывали ход.
@@ -650,33 +625,6 @@ function moveHunters(ctx: Ctx) {
     for (const seat of activeSeats(room))
       if (seat.pos === to) meetHunter(ctx, i, seat);
   }
-}
-
-/** Армия идёт только вперёд: кого обогнала или на кого наступила — тот
- *  отброшен. Дошла до конца участка — уходит с карты, а через несколько
- *  кругов у начала участка собирается новая волна. */
-function marchArmy(ctx: Ctx, index: number) {
-  const { room } = ctx;
-  const h = room.hunters[index]!;
-  const def = room.map.hunters[index]!;
-  const from = h.at!;
-  if (from >= def.zone[1]) {
-    h.at = null;
-    room.away.set(index, ARMY_WAVE_REST);
-    ctx.fx.push({ kind: "hunter", hunter: index, to: null });
-    ctx.notes.push(
-      `${def.name} уходит с тропы — Лорд Гоблинов собирает новую волну`,
-    );
-    return;
-  }
-  const to = Math.min(
-    from + randomInt(ARMY_STEP_MIN, ARMY_STEP_MAX + 1),
-    def.zone[1],
-  );
-  h.at = to;
-  ctx.fx.push({ kind: "hunter", hunter: index, to });
-  for (const seat of activeSeats(room))
-    if (seat.pos > from && seat.pos <= to) meetHunter(ctx, index, seat);
 }
 
 /** Встали на одну клетку: оба бросают, меньший отступает. На старте не
@@ -957,7 +905,6 @@ export function rematch(peer: any) {
   room.turn = 0;
   room.winnerSlot = null;
   room.hunters = freshHunters(room.map);
-  room.away = new Map();
   room.lastAction = null;
   room.skillUsed = false;
   room.log = [];

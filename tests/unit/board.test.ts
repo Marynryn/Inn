@@ -43,25 +43,20 @@ function playGame(mapId: (typeof BOARD_MAP_IDS)[number], seats: number) {
   startGame(peers[0]);
 
   const woke = new Set<string>();
-  /** Сколько раз охотник вернулся на карту, уже раз уйдя с неё. */
-  let waves = 0;
+  /** Охотник, раз выйдя, с карты не уходит. */
+  let left = false;
   let prevAt: (number | null)[] = [];
-  let left = new Set<number>();
   const host = peers[0]!;
   for (let step = 0; step < 4000; step++) {
     const st = host.state!;
     for (const [i, h] of st.hunters.entries()) {
       if (h.at !== null) woke.add(BOARD_MAPS[mapId].hunters[i]!.kind);
-      if (h.at === null && prevAt[i] != null) left.add(i);
-      if (h.at !== null && prevAt[i] == null && left.has(i)) {
-        waves++;
-        left.delete(i);
-      }
+      if (h.at === null && prevAt[i] != null) left = true;
     }
     prevAt = st.hunters.map((h) => h.at);
     if (st.status === "finished") {
       for (const p of peers) leaveRoom(p);
-      return { st, woke, waves, steps: step };
+      return { st, woke, left, steps: step };
     }
     const seat = st.players.findIndex((p) => p.slot === st.turnSlot);
     const peer = peers[seat]!;
@@ -125,7 +120,6 @@ describe("настольная игра: партии ботов", () => {
   for (const id of BOARD_MAP_IDS) {
     it(`карта ${id}: партии доходят до финиша, охотники выходят`, () => {
       const woke = new Set<string>();
-      let waves = 0;
       for (let g = 0; g < 150; g++) {
         const r = playGame(id, 1 + (g % 4));
         expect(r.st.winnerSlot).not.toBeNull();
@@ -143,11 +137,8 @@ describe("настольная игра: партии ботов", () => {
           expect(h.at).toBeLessThanOrEqual(hi);
         }
         for (const k of r.woke) woke.add(k);
-        waves += r.waves;
+        expect(r.left).toBe(false);
       }
-      // Армия, дойдя до конца пути, возвращается новой волной.
-      if (BOARD_MAPS[id].hunters.some((h) => h.kind === "army"))
-        expect(waves).toBeGreaterThan(0);
       expect([...woke].sort()).toEqual(
         BOARD_MAPS[id].hunters.map((h) => h.kind).sort(),
       );
