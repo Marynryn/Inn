@@ -1,5 +1,5 @@
-import { test, expect, open } from "./helpers";
-import { CHAPTERS, chapterUrl } from "./fixtures";
+import { test, expect, open, apiLogin } from "./helpers";
+import { ADMIN, CHAPTERS, chapterUrl } from "./fixtures";
 
 test.describe("Главная", () => {
   test("оглавление показывает тома и ведёт к главе", async ({ page }) => {
@@ -96,5 +96,42 @@ test.describe("Главная", () => {
     }));
     expect(used.length).toBeGreaterThan(0);
     expect([...new Set(preloaded)].sort()).toEqual([...new Set(used)].sort());
+  });
+
+  test("у оглавления зимой фея Айволет, в остальное время пчела Аписта", async ({
+    page,
+    request,
+  }) => {
+    await apiLogin(request, ADMIN);
+    const season = async (value: string) => {
+      const res = await request.put("/api/admin/settings", {
+        data: { season: value },
+      });
+      expect(res.ok()).toBeTruthy();
+    };
+    const rule = page.locator(".ledger-rule-row");
+    const fae = rule.getByRole("img", { name: "Айволет" });
+    const bee = rule.getByRole("img", { name: "Аписта" });
+
+    try {
+      await season("winter");
+      await open(page, "/");
+      await rule.scrollIntoViewIfNeeded();
+      await expect(fae).toBeVisible();
+      await expect(bee).toHaveCount(0);
+      // Картинка не битая: файл есть и браузер его разобрал.
+      await expect
+        .poll(() => fae.evaluate((img: HTMLImageElement) => img.naturalWidth))
+        .toBeGreaterThan(0);
+
+      await season("autumn");
+      await open(page, "/");
+      await rule.scrollIntoViewIfNeeded();
+      await expect(bee).toBeVisible();
+      await expect(fae).toHaveCount(0);
+    } finally {
+      // Зима — то, что стоит на стенде по умолчанию.
+      await season("winter");
+    }
   });
 });
