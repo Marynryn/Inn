@@ -656,8 +656,8 @@ useHead({
                       viewBox="0 0 10 10"
                       refX="5"
                       refY="5"
-                      markerWidth="4.4"
-                      markerHeight="4.4"
+                      markerWidth="3.5"
+                      markerHeight="3.5"
                       markerUnits="userSpaceOnUse"
                       orient="auto-start-reverse"
                     >
@@ -668,8 +668,8 @@ useHead({
                       viewBox="0 0 10 10"
                       refX="5"
                       refY="5"
-                      markerWidth="4.4"
-                      markerHeight="4.4"
+                      markerWidth="3.5"
+                      markerHeight="3.5"
                       markerUnits="userSpaceOnUse"
                       orient="auto-start-reverse"
                     >
@@ -692,26 +692,15 @@ useHead({
                       <stop
                         offset="0"
                         :class="a.forward ? 'grad-fwd' : 'grad-back'"
-                        stop-opacity="0.75"
+                        stop-opacity="0.45"
                       />
                       <stop
                         offset="1"
                         :class="a.forward ? 'grad-fwd' : 'grad-back'"
-                        stop-opacity="1"
+                        stop-opacity="0.9"
                       />
                     </linearGradient>
                   </defs>
-                  <!-- Тёмная подложка под стрелкой — чтобы она читалась поверх
-                   пёстрого рисунка. -->
-                  <path
-                    v-for="a in arrows"
-                    :key="`case-${a.from}`"
-                    :d="a.d"
-                    class="arrow-case"
-                    :class="{
-                      'arrow--dim': focusFrom !== null && a.from !== focusFrom,
-                    }"
-                  />
                   <path
                     v-for="a in arrows"
                     :key="`line-${a.from}`"
@@ -1373,53 +1362,36 @@ useHead({
   pointer-events: none;
 }
 
-/* Стрелки прыжков — тонкой бледной волной: карта читается сквозь них. */
-/* Стрелки прыжков — прямые, с градиентом от бледного хвоста к наконечнику. */
-/* Цвета стрелок — ярче палитры сайта: на пёстром рисунке приглушённые
-   зелёный и красный терялись. */
-.map {
-  --arrow-fwd: #8cf06a;
-  --arrow-back: #ff5544;
-}
+/* Стрелки прыжков — тонкие, с градиентом от бледного хвоста к наконечнику,
+   цветами сайта: карта читается сквозь них. Выбранная клетка выводит свою
+   стрелку вперёд, остальные бледнеют. */
 .arrow {
   fill: none;
-  stroke-width: 3.4;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-  transition: opacity 0.2s;
-}
-.arrow-case {
-  fill: none;
-  stroke: rgba(15, 10, 6, 0.85);
-  stroke-width: 6.6;
+  stroke-width: 2.4;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
   transition: opacity 0.2s;
 }
 .arrow--focus {
-  stroke-width: 4.4;
+  stroke-width: 3.4;
 }
 .arrow--dim {
-  opacity: 0.3;
+  opacity: 0.25;
 }
 
 .grad-fwd {
-  stop-color: var(--arrow-fwd);
+  stop-color: var(--success);
 }
 .grad-back {
-  stop-color: var(--arrow-back);
-}
-.head--fwd,
-.head--back {
-  stroke: rgba(20, 14, 10, 0.75);
-  stroke-width: 1.4;
-  paint-order: stroke;
+  stop-color: var(--danger);
 }
 .head--fwd {
-  fill: var(--arrow-fwd);
+  fill: var(--success);
+  opacity: 0.9;
 }
 .head--back {
-  fill: var(--arrow-back);
+  fill: var(--danger);
+  opacity: 0.9;
 }
 
 .log-card--desk {
