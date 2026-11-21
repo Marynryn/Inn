@@ -13,6 +13,7 @@ import { wsBroadcast, wsToUser } from "../../utils/ws-rooms";
 import { readerName } from "../../utils/identity";
 import { frameById } from "../../utils/frames";
 import { figureById } from "#shared/utils/nameFigures";
+import { titleById } from "../../utils/tree";
 
 export default defineEventHandler(async (event) => {
   const ip = clientIp(event);
@@ -150,6 +151,7 @@ export default defineEventHandler(async (event) => {
             avatarFrameId: users.avatarFrameId,
             publicId: users.publicId,
             figure: users.figure,
+            titleId: users.titleId,
           })
           .from(users)
           .where(eq(users.id, userId))
@@ -159,6 +161,7 @@ export default defineEventHandler(async (event) => {
   const avatarUrl = author?.avatarUrl ?? null;
   const avatarFrame = await frameById(author?.avatarFrameId);
   const authorFigure = figureById(author?.figure);
+  const authorTitle = await titleById(author?.titleId);
 
   // Номер автора наружу не уходит — вместо него публичный код, как и в списке.
   const { userId: _author, ...shown } = created!;
@@ -172,6 +175,7 @@ export default defineEventHandler(async (event) => {
       avatarUrl,
       avatarFrame,
       authorFigure,
+      authorTitle,
       likes: 0,
       dislikes: 0,
     },

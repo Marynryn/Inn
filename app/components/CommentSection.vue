@@ -489,6 +489,11 @@ onMounted(() => {
             >{{ c.authorName }}</component
           >
           <NameFigure v-if="c.authorFigure" :figure="c.authorFigure" />
+          <NameTitle
+            v-if="c.authorTitle"
+            class="comment-title"
+            :title="c.authorTitle"
+          />
           <span v-if="answeredName(c)" class="in-reply"
             >в ответ {{ answeredName(c) }}</span
           >
@@ -834,6 +839,11 @@ a.comment-name:hover {
   font-size: 13px;
   font-weight: 600;
   color: var(--parchment);
+}
+
+.comment-title {
+  font-size: 12.5px;
+  margin-left: 6px;
 }
 
 .spoiler-badge {

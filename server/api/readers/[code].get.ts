@@ -6,6 +6,7 @@ import { frameById, ownedFrames } from "../../utils/frames";
 import { readerName } from "../../utils/identity";
 import { skinById } from "../../utils/skins";
 import { figureById } from "#shared/utils/nameFigures";
+import { ownedTitles, titleById } from "../../utils/tree";
 
 /**
  * Публичная страница читателя. Отдаём только то, что и так видно под его
@@ -61,5 +62,7 @@ export default defineEventHandler(async (event): Promise<PublicReader> => {
     frames,
     skin,
     figure: figureById(user.figure),
+    title: await titleById(user.titleId),
+    titles: await ownedTitles(user.id),
   };
 });

@@ -3,6 +3,7 @@ import type { AvatarFrame, OwnedFrame } from "#shared/utils/avatarFrames";
 import { ABOUT_MAX } from "#shared/utils/readerProfile";
 import type { OwnedSkin, ProfileSkin } from "#shared/utils/profileSkins";
 import type { NameFigure, OwnedFigure } from "#shared/utils/nameFigures";
+import type { NameTitle, OwnedTitle } from "#shared/utils/tree";
 
 const auth = useAuthStore();
 const { data: settings } = await useFetch("/api/settings");
@@ -22,6 +23,10 @@ type Profile = {
   skins: OwnedSkin[];
   figure: NameFigure | null;
   figures: OwnedFigure[];
+  title: NameTitle | null;
+  titles: OwnedTitle[];
+  /** Титул, выигранный сегодня: до полуночи его не снять и не сменить. */
+  titleLockedId: number | null;
   hasPassword: boolean;
   providers: ("google" | "telegram")[];
 };
@@ -194,6 +199,30 @@ const grantFigureToSelf = async () => {
     return;
   }
   await wearFigure(figure.id);
+};
+
+// ── Титул с ёлки ───────────────────────────────
+// Здесь его только снимают — насовсем: прежний назад не надеть, новые берут
+// у ёлки. Взятый сегодня держится до полуночи, кнопка тогда неактивна.
+const titles = computed(() => profile.value?.titles ?? []);
+const titleLocked = computed(() => profile.value?.titleLockedId ?? null);
+const titleBusy = ref(false);
+const titleError = ref("");
+
+const removeTitle = async () => {
+  if (!confirm("Снять титул насовсем? Назад его не вернуть.")) return;
+  titleBusy.value = true;
+  titleError.value = "";
+  try {
+    const form = new FormData();
+    form.append("titleId", "");
+    await $fetch("/api/profile", { method: "PUT", body: form });
+    await refresh();
+  } catch (e: any) {
+    titleError.value = e.data?.message || "Не получилось";
+  } finally {
+    titleBusy.value = false;
+  }
 };
 
 const avatarSrc = computed(
@@ -549,6 +578,35 @@ useHead({
           <p v-if="figureError" class="err-msg">{{ figureError }}</p>
         </template>
 
+        <!-- Титулов ни одного — и раздела нет: ёлка бывает только на Новый год. -->
+        <template v-if="titles.length">
+          <hr class="divider" />
+
+          <h2 class="section-title">Титул</h2>
+          <p class="section-note">
+            Стоит рядом с именем в комментариях и на твоей странице. Выпадает на
+            новогодней ёлке — раз в день, и новый можно взять вместо этого.
+            Снятый или сменённый титул пропадает насовсем.
+          </p>
+
+          <div v-if="profile.title" class="title-now">
+            <span class="title-pick"><NameTitle :title="profile.title" /></span>
+            <button
+              class="btn btn--ghost btn--sm"
+              type="button"
+              :disabled="titleBusy || Boolean(titleLocked)"
+              @click="removeTitle"
+            >
+              Снять насовсем
+            </button>
+          </div>
+          <p v-else class="section-note">Сейчас ты без титула.</p>
+          <p v-if="titleLocked" class="section-note">
+            Свежий титул носится до полуночи — снять его можно завтра.
+          </p>
+          <p v-if="titleError" class="err-msg">{{ titleError }}</p>
+        </template>
+
         <hr class="divider" />
 
         <h2 class="section-title">Способы входа</h2>
@@ -852,6 +910,22 @@ useHead({
 .skin-pick:disabled {
   cursor: default;
   opacity: 0.7;
+}
+
+.title-now {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/* Надетый титул — в рамке, как выбранная фигурка. */
+.title-pick {
+  padding: 7px 12px;
+  border: 1px solid var(--ember-soft);
+  border-radius: var(--radius-md);
+  background: rgba(241, 230, 210, 0.05);
+  font-size: 14px;
 }
 
 .skin-thumb {

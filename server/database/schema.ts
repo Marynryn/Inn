@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { TitleWords } from "../../shared/utils/tree";
 import {
   integer,
   primaryKey,
@@ -54,6 +55,8 @@ export const users = sqliteTable("users", {
   skinId: integer("skin_id"),
   // Надетая фигурка у имени — id из каталога в коде. NULL = без фигурки.
   figure: text("figure"),
+  // Надетый титул с ёлки — строка user_titles. NULL = без титула.
+  titleId: integer("title_id"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
@@ -220,6 +223,43 @@ export const reelGuestTries = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.reelId, t.visitor] })],
 );
+
+// Новогодняя ёлка: слова для титулов. Прилагательное — в мужском роде, прочие
+// роды угадываются (shared/utils/tree), а не вышло — вписаны руками. У
+// существительного — его род. Золотые (rare) выпадают редко и делают титул
+// редким. Снятое с раздачи (active = false) больше не выпадает, но уже
+// выигранные титулы не меняются: они хранятся готовым текстом.
+export const treeWords = sqliteTable("tree_words", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  kind: text("kind", { enum: ["adj", "noun", "tail"] }).notNull(),
+  word: text("word").notNull(),
+  wordF: text("word_f"),
+  wordN: text("word_n"),
+  gender: text("gender", { enum: ["m", "f", "n"] }),
+  rare: integer("rare", { mode: "boolean" }).notNull().default(false),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// Выигранные титулы — и коллекция, и журнал встрясок. Одна строка на человека
+// в день держится уникальным индексом (user_id, day); у админа попытки после
+// первой пишутся с днём «2026-12-20#…» — индекс их не держит, доска не видит.
+export const userTitles = sqliteTable("user_titles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
+  text: text("text").notNull(), // без скобок: «Ворчливый Табурет из Лискора»
+  rarity: text("rarity", { enum: ["common", "uncommon", "rare"] }).notNull(),
+  gifts: integer("gifts").notNull(), // сколько выпало подарков: 2 или 3
+  day: text("day").notNull(), // '2026-12-20' по Москве
+  // Из каких слов собран: {"adj":3,"noun":17,"tail":40}. Пусто — не известно,
+  // и слово в таком титуле не заменить.
+  words: text("words", { mode: "json" }).$type<TitleWords>(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
 
 export const comments = sqliteTable("comments", {
   id: integer("id").primaryKey({ autoIncrement: true }),

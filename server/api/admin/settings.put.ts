@@ -26,6 +26,14 @@ const ALLOWED_KEYS = [
   "characters_subtitle",
   "season",
   "winter_reader_bg",
+  // Новогодняя ёлка: режим, шансы и тексты (вкладка «Ёлка»).
+  "tree_mode",
+  "tree_three_chance",
+  "tree_rare_chance",
+  "tree_title",
+  "tree_text",
+  "tree_button",
+  "tree_board_title",
 ];
 
 export default defineEventHandler(async (event) => {

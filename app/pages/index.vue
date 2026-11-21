@@ -29,11 +29,35 @@ const { data: reelBanner } = await useFetch("/api/reel/banner", {
   default: () => null,
 });
 
+// Новогодняя ёлка с доской титулов — тоже вместо плашки игры. Сбой — так же
+// не беда.
+const { data: treeBanner, refresh: refreshTree } = await useFetch(
+  "/api/tree/banner",
+  { default: () => null },
+);
+const treeOpen = ref(false);
+
 const reelOpen = ref(false);
 const route = useRoute();
 // Гость нажал «Войти и крутить» и вернулся с ?reel=1 — открываем барабан сами,
 // как только станет ясно, что он вошёл. Метку из адреса убираем, чтобы
 // обновление страницы не открывало окно снова.
+// Гость дотряс ёлку и нажал «Войти и потрясти» — после входа вернулся с
+// ?tree=1, и окно открываем сами, как с барабаном.
+onMounted(() => {
+  if (route.query.tree === undefined) return;
+  navigateTo({ query: { ...route.query, tree: undefined } }, { replace: true });
+  const stop = watch(
+    () => auth.ready,
+    (ready) => {
+      if (!ready) return;
+      queueMicrotask(() => stop());
+      if (auth.isAuthed && treeBanner.value) treeOpen.value = true;
+    },
+    { immediate: true },
+  );
+});
+
 onMounted(() => {
   if (route.query.reel === undefined) return;
   navigateTo({ query: { ...route.query, reel: undefined } }, { replace: true });
@@ -319,8 +343,15 @@ useSeoMeta({
           :banner="reelBanner"
           @open="reelOpen = true"
         />
+        <TreeBanner
+          v-if="treeBanner"
+          :class="{ 'tree-below-reel': reelBanner }"
+          :texts="treeBanner.texts"
+          :board="treeBanner.board"
+          @open="treeOpen = true"
+        />
         <GameCta
-          v-else
+          v-if="!reelBanner && !treeBanner"
           :season="season"
           :title="settings?.game_cta_title"
           :text="settings?.game_cta_text"
@@ -328,6 +359,11 @@ useSeoMeta({
         />
       </div>
       <ReelModal v-if="reelOpen" @close="reelOpen = false" />
+      <TreeModal
+        v-if="treeOpen"
+        @close="treeOpen = false"
+        @shaken="refreshTree()"
+      />
 
       <!-- ОГЛАВЛЕНИЕ -->
       <div class="ledger" id="ledger">
@@ -720,6 +756,11 @@ useSeoMeta({
   max-width: 760px;
   margin: 0 auto;
   padding: 40px 20px 0;
+}
+
+/* Барабан и ёлка разом — ёлка под баннером барабана. */
+.tree-below-reel {
+  margin-top: 16px;
 }
 
 .tg-wrap {

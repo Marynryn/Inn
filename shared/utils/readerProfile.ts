@@ -1,6 +1,7 @@
 import type { AvatarFrame } from "./avatarFrames";
 import type { NameFigure } from "./nameFigures";
 import type { ProfileSkin } from "./profileSkins";
+import type { NameTitle, OwnedTitle } from "./tree";
 
 /**
  * Публичная страница читателя — то, что о нём видно всем. Почта, способы
@@ -24,6 +25,10 @@ export type PublicReader = {
   skin: ProfileSkin | null;
   /** Фигурка у имени. */
   figure: NameFigure | null;
+  /** Надетый титул с ёлки. */
+  title: NameTitle | null;
+  /** Коллекция титулов, свежие сверху. */
+  titles: OwnedTitle[];
 };
 
 export const ABOUT_MAX = 300;

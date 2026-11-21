@@ -2,6 +2,8 @@ import { baseline } from "./0001-baseline";
 import { commentReactionsUnique } from "./0002-comment-reactions-unique";
 import { commentReactionsAnon } from "./0003-comment-reactions-anon";
 import { cardGameDays } from "./0004-card-game-days";
+import { treeTitles } from "./0005-tree-titles";
+import { treeTitleWords } from "./0006-tree-title-words";
 import type { Migration } from "./helpers";
 
 /**
@@ -18,4 +20,6 @@ export const MIGRATIONS: Migration[] = [
   commentReactionsUnique,
   commentReactionsAnon,
   cardGameDays,
+  treeTitles,
+  treeTitleWords,
 ];

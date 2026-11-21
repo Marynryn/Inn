@@ -1,0 +1,13 @@
+Новогодняя ёлка: откуда картинки.
+
+tree-shake.webp, tree-banner.webp, gift-*-closed.webp, gift-*-open.webp —
+  вырезаны из одного листа, который дала Marynryn 21.11.2026. Источник и
+  лицензия не записаны — дописать сюда.
+  tree-shake.webp повёрнута на 4° против часовой — на листе ёлка стояла с наклоном.
+
+cat-peek.webp, cat-run.webp, cat-fall.webp — кот, вырезан из второго листа, который
+  дала Marynryn 21.11.2026. Источник и лицензия не записаны — дописать сюда.
+
+cat-meow.wav — «Meow», IgnasD, OpenGameArt, https://opengameart.org/content/meow,
+  лицензия CC0. Перекодирован из ogg в wav (моно, 22 кГц) и выровнен по громкости:
+  ogg не играют старые iPhone.

@@ -14,6 +14,7 @@ import { ownsSkin } from "../utils/skins";
 import { ownsFigure } from "../utils/figures";
 import { isFigureId } from "#shared/utils/nameFigures";
 import { toSessionUser } from "../utils/identity";
+import { titleWearError } from "../utils/tree";
 
 /**
  * Ник, аватарка и «О себе» читателя. Почта и пароль сюда не входят: у аккаунтов из
@@ -129,6 +130,19 @@ export default defineEventHandler(async (event) => {
       });
     }
     updates.figure = figure;
+  }
+
+  // Титул с ёлки. Отсюда его только снимают (пусто) — насовсем; надеть
+  // прежний нельзя. Взятый сегодня держится до полуночи.
+  const titlePart = form.find((f) => f.name === "titleId");
+  if (titlePart) {
+    const raw = titlePart.data.toString("utf8").trim();
+    const titleId = raw ? Number(raw) : 0;
+    if (!Number.isInteger(titleId) || titleId < 0)
+      throw createError({ statusCode: 400, message: "Неизвестный титул" });
+    const why = await titleWearError(sessionUser.id, titleId || null);
+    if (why) throw createError({ statusCode: 403, message: why });
+    updates.titleId = titleId || null;
   }
 
   if (!Object.keys(updates).length) {

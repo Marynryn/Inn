@@ -145,8 +145,11 @@ useHead(() => ({
                 {{ reader.name
                 }}<NameFigure v-if="reader.figure" :figure="reader.figure" />
               </h1>
-              <!-- Здесь встанет титул, когда их начнут разыгрывать. Пустой строки
-                 под именем быть не должно — поэтому пока ничего. -->
+              <!-- Титул с ёлки. Нет титула — нет и строки: пустого места под
+                 именем быть не должно. -->
+              <p v-if="reader.title" class="big-title">
+                <NameTitle :title="reader.title" />
+              </p>
 
               <ul class="meta">
                 <li>
@@ -204,6 +207,23 @@ useHead(() => ({
                 </span>
                 <span class="frame-name">{{ f.name }}</span>
                 <span class="frame-when">{{ grantedOn(f.grantedAt) }}</span>
+              </li>
+            </ul>
+          </section>
+
+          <!-- Титулы с ёлки. Ни одного — и раздела нет: в коллекции рамок
+               пустая полка зовёт на ивенты, а ёлка бывает только на Новый год. -->
+          <section v-if="reader.titles.length" class="frames titles">
+            <h2 class="display frames-title">
+              Титулы<span class="frames-count">{{ reader.titles.length }}</span>
+            </h2>
+            <ul class="title-list">
+              <li v-for="t in reader.titles" :key="t.id" class="title-row">
+                <NameTitle :title="t" />
+                <span v-if="reader.title?.text === t.text" class="worn-tag"
+                  >носит</span
+                >
+                <span class="frame-when">{{ grantedOn(t.wonAt) }}</span>
               </li>
             </ul>
           </section>
@@ -337,6 +357,12 @@ useHead(() => ({
   height: 1.15em;
 }
 
+.big-title {
+  margin: 8px 0 0;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
 .meta {
   display: flex;
   flex-wrap: wrap;
@@ -375,6 +401,33 @@ useHead(() => ({
 .frames {
   padding: 24px 36px 32px;
   border-top: 1px solid var(--line);
+}
+
+.title-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-size: 15px;
+}
+
+.title-row .frame-when {
+  margin-left: auto;
+}
+
+.worn-tag {
+  font-size: 11px;
+  color: var(--ember-soft);
+  letter-spacing: 0.04em;
 }
 
 .frames-title {

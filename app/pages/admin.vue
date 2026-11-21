@@ -7,6 +7,7 @@ import AdminFrames from "~/components/AdminFrames.vue";
 import AdminNotify from "~/components/AdminNotify.vue";
 import AdminSettings from "~/components/AdminSettings.vue";
 import AdminStats from "~/components/AdminStats.vue";
+import AdminTree from "~/components/AdminTree.vue";
 import AdminUpload from "~/components/AdminUpload.vue";
 
 // Чужих отсеивает middleware ещё на сервере: каркас панели не рендерится никому,
@@ -37,6 +38,7 @@ const TAB_VIEWS: Partial<Record<AdminTab, Component>> = {
   notify: AdminNotify,
   stats: AdminStats,
   frames: AdminFrames,
+  tree: AdminTree,
   profile: AdminAccount,
 };
 

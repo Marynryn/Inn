@@ -5,6 +5,7 @@ import { frameById, wearableFrames } from "../utils/frames";
 import { skinById, wearableSkins } from "../utils/skins";
 import { wearableFigures } from "../utils/figures";
 import { figureById } from "#shared/utils/nameFigures";
+import { isFreshTitle, ownedTitles, titleById } from "../utils/tree";
 
 /** Профиль читателя вместе со списком привязанных способов входа. */
 export default defineEventHandler(async (event) => {
@@ -49,6 +50,11 @@ export default defineEventHandler(async (event) => {
     // Фигурка у имени — так же: надетая и из чего выбирать.
     figure: figureById(user.figure),
     figures: await wearableFigures(user.id, user.role === "admin"),
+    // Титул с ёлки: надетый, всё выпадавшее (только чтобы знать, показывать
+    // ли раздел) и привязан ли надетый — взятый сегодня снимается завтра.
+    title: await titleById(user.titleId),
+    titles: await ownedTitles(user.id),
+    titleLockedId: (await isFreshTitle(user.titleId)) ? user.titleId : null,
     hasPassword: Boolean(user.passwordHash),
     providers: links.map((l) => l.provider),
   };

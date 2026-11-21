@@ -3,6 +3,7 @@ import { comments, users, commentReactions } from "../../database/schema";
 import { eq, isNull, desc, inArray } from "drizzle-orm";
 import { framesByIds } from "../../utils/frames";
 import { figureById } from "#shared/utils/nameFigures";
+import { titlesByIds } from "../../utils/tree";
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
@@ -38,6 +39,7 @@ export default defineEventHandler(async (event) => {
   const frameIdMap = new Map<number, number | null>();
   const codeMap = new Map<number, string | null>();
   const figureMap = new Map<number, string | null>();
+  const titleIdMap = new Map<number, number | null>();
 
   if (userIds.length) {
     const userRows = await db
@@ -47,6 +49,7 @@ export default defineEventHandler(async (event) => {
         avatarFrameId: users.avatarFrameId,
         publicId: users.publicId,
         figure: users.figure,
+        titleId: users.titleId,
       })
       .from(users)
       .where(inArray(users.id, userIds));
@@ -55,6 +58,7 @@ export default defineEventHandler(async (event) => {
       frameIdMap.set(u.id, u.avatarFrameId ?? null);
       codeMap.set(u.id, u.publicId ?? null);
       figureMap.set(u.id, u.figure ?? null);
+      titleIdMap.set(u.id, u.titleId ?? null);
     }
   }
 
@@ -62,6 +66,10 @@ export default defineEventHandler(async (event) => {
   // картинку заново под каждым комментарием ни к чему.
   const frames = await framesByIds(
     userIds.map((id) => frameIdMap.get(id) ?? null),
+  );
+
+  const titles = await titlesByIds(
+    userIds.map((id) => titleIdMap.get(id) ?? null),
   );
 
   const commentIds = rows.map((r) => r.id);
@@ -98,6 +106,9 @@ export default defineEventHandler(async (event) => {
       ? (frames.get(frameIdMap.get(userId) ?? 0) ?? null)
       : null,
     authorFigure: userId ? figureById(figureMap.get(userId)) : null,
+    authorTitle: userId
+      ? (titles.get(titleIdMap.get(userId) ?? 0) ?? null)
+      : null,
     likes: counts.get(r.id)!.likes,
     dislikes: counts.get(r.id)!.dislikes,
   }));
