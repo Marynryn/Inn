@@ -26,21 +26,16 @@ defineProps<{ title: NameTitle }>();
   font-style: normal;
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: rgba(241, 230, 210, 0.78);
+  /* Оранжевый — как титулы в самой книге: «[Title – … Obtained!]». */
+  color: #ff9900;
   overflow-wrap: anywhere;
 }
 
-.is-uncommon {
-  color: #a9d3ef;
-}
-
-/* Золото — заливкой текста: ровный цвет на мелком шрифте выглядит горчицей,
-   а с переливом читается как металл. Без анимации: титулов на странице много. */
+/* Редкий — тот же цвет, но с золотым свечением вокруг букв. Без анимации:
+   титулов на странице много. */
 .is-rare {
-  color: #e9c766;
-  background: linear-gradient(100deg, #f6e3a1 0%, #d9a93a 45%, #f8e7a8 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 0 6px rgba(255, 200, 70, 0.75),
+    0 0 14px rgba(255, 170, 40, 0.4);
 }
 </style>

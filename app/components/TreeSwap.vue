@@ -92,19 +92,16 @@ const SLOT_AT: Record<TreeWordKind, number> = { adj: 0, noun: 1, tail: 2 };
   font-weight: 700;
   font-size: 16px;
   line-height: 1.3;
-  color: rgba(241, 230, 210, 0.85);
+  /* Оранжевый, как титулы в книге. */
+  color: #ff9900;
   cursor: pointer;
   transition:
     background 0.15s,
     border-color 0.15s;
 }
 
-.swap-opt.is-uncommon {
-  color: #a9d3ef;
-}
-
 .swap-opt.is-rare {
-  color: #f3d77e;
+  text-shadow: 0 0 8px rgba(255, 200, 70, 0.6);
 }
 
 .swap-opt:hover:not(:disabled) {

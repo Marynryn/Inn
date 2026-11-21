@@ -23,7 +23,6 @@ defineProps<{ title: NameTitle; kicker: string }>();
 .plaque {
   --glow: 255, 214, 150;
   --edge: rgba(255, 228, 180, 0.55);
-  --ink: #fff3dc;
   position: relative;
   overflow: hidden;
   padding: 16px 18px 14px;
@@ -46,13 +45,11 @@ defineProps<{ title: NameTitle; kicker: string }>();
 .plaque.is-uncommon {
   --glow: 150, 205, 245;
   --edge: rgba(180, 222, 250, 0.6);
-  --ink: #e4f4ff;
 }
 
 .plaque.is-rare {
   --glow: 255, 205, 90;
   --edge: rgba(250, 215, 120, 0.85);
-  --ink: #ffe9a8;
 }
 
 /* Блик, что один раз проходит по карточке, — у редкого титула. */
@@ -90,10 +87,11 @@ defineProps<{ title: NameTitle; kicker: string }>();
   font-size: 27px;
   font-weight: 700;
   line-height: 1.2;
-  color: var(--ink);
+  /* Оранжевый, как титулы в книге; свечение — по редкости карточки. */
+  color: #ff9900;
   text-shadow:
-    0 0 14px rgba(var(--glow), 0.75),
-    0 0 30px rgba(var(--glow), 0.35);
+    0 0 14px rgba(255, 160, 40, 0.6),
+    0 0 30px rgba(255, 140, 20, 0.3);
   text-wrap: balance;
   overflow-wrap: anywhere;
 }
