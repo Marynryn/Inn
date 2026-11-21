@@ -9,15 +9,9 @@ import type { BoardEntry, TreeBoard, TreeTexts } from "#shared/utils/tree";
 const props = defineProps<{ texts: TreeTexts; board: TreeBoard }>();
 const emit = defineEmits<{ open: [] }>();
 
-const RECENT_SHORT = 6;
-const showAll = ref(false);
-
 // Золотые уже наверху — в ленте свежих их не повторяем.
 const recent = computed(() =>
   props.board.recent.filter((e) => e.rarity !== "rare"),
-);
-const recentShown = computed(() =>
-  showAll.value ? recent.value : recent.value.slice(0, RECENT_SHORT),
 );
 const empty = computed(() => !props.board.rare.length && !recent.value.length);
 
@@ -61,47 +55,49 @@ const readerHref = (e: BoardEntry) =>
         Пока пусто — первый титул ещё никто не вытряс.
       </p>
 
-      <ul v-if="board.rare.length" class="board-list is-rare">
-        <li v-for="e in board.rare" :key="e.id" class="board-row">
-          <UserAvatar
-            class="board-face"
-            :src="e.avatarUrl"
-            :name="e.name"
-            :frame="e.avatarFrame"
-            :size="26"
-            alt=""
-          />
-          <component :is="nameTag(e)" :to="readerHref(e)" class="board-name">{{
-            e.name
-          }}</component>
-          <NameTitle :title="e" class="board-title-text" />
-        </li>
-      </ul>
+      <!-- Доска прокручивается в своей рамке: строк за сезон наберётся много,
+           и раскрытый список растянул бы главную на километр. -->
+      <div v-if="!empty" class="board-scroll thin-scroll">
+        <ul v-if="board.rare.length" class="board-list is-rare">
+          <li v-for="e in board.rare" :key="e.id" class="board-row">
+            <UserAvatar
+              class="board-face"
+              :src="e.avatarUrl"
+              :name="e.name"
+              :frame="e.avatarFrame"
+              :size="26"
+              alt=""
+            />
+            <component
+              :is="nameTag(e)"
+              :to="readerHref(e)"
+              class="board-name"
+              >{{ e.name }}</component
+            >
+            <NameTitle :title="e" class="board-title-text" />
+          </li>
+        </ul>
 
-      <ul v-if="recentShown.length" class="board-list">
-        <li v-for="e in recentShown" :key="e.id" class="board-row">
-          <UserAvatar
-            class="board-face"
-            :src="e.avatarUrl"
-            :name="e.name"
-            :frame="e.avatarFrame"
-            :size="26"
-            alt=""
-          />
-          <component :is="nameTag(e)" :to="readerHref(e)" class="board-name">{{
-            e.name
-          }}</component>
-          <NameTitle :title="e" class="board-title-text" />
-        </li>
-      </ul>
-      <button
-        v-if="recent.length > RECENT_SHORT"
-        class="board-more"
-        type="button"
-        @click="showAll = !showAll"
-      >
-        {{ showAll ? "Свернуть" : "Показать ещё" }}
-      </button>
+        <ul v-if="recent.length" class="board-list">
+          <li v-for="e in recent" :key="e.id" class="board-row">
+            <UserAvatar
+              class="board-face"
+              :src="e.avatarUrl"
+              :name="e.name"
+              :frame="e.avatarFrame"
+              :size="26"
+              alt=""
+            />
+            <component
+              :is="nameTag(e)"
+              :to="readerHref(e)"
+              class="board-name"
+              >{{ e.name }}</component
+            >
+            <NameTitle :title="e" class="board-title-text" />
+          </li>
+        </ul>
+      </div>
     </div>
   </section>
 </template>
@@ -234,19 +230,12 @@ a.board-name:hover {
   font-size: 13.5px;
 }
 
-.board-more {
-  margin-top: 8px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: #8fd4a8;
-  font-family: var(--font-body);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.board-more:hover {
-  text-decoration: underline;
+.board-scroll {
+  max-height: 232px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Место под тонкую полосу прокрутки, чтобы она не легла на титулы. */
+  padding-right: 6px;
 }
 
 @media (max-width: 760px) {

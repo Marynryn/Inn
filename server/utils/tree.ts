@@ -319,7 +319,8 @@ export async function titleWearError(
 }
 
 /**
- * Доска титулов: золотые — весь сезон, ниже — свежие. Заблокированных на
+ * Доска титулов: золотые — весь сезон (30 последних), ниже — 40 свежих;
+ * на главной она прокручивается в своей рамке. Заблокированных на
  * доске нет. Пока ёлка для всех, пробные встряски админа («…#…») не видны;
  * пока она только для админов — видно всё, иначе пробовать было бы нечего.
  */
@@ -339,8 +340,8 @@ export async function treeBoard(mode: TreeMode): Promise<TreeBoard> {
     select()
       .where(and(where, eq(userTitles.rarity, "rare")))
       .orderBy(desc(userTitles.id))
-      .limit(12),
-    select().where(where).orderBy(desc(userTitles.id)).limit(15),
+      .limit(30),
+    select().where(where).orderBy(desc(userTitles.id)).limit(40),
   ]);
 
   const frames = await framesByIds(
