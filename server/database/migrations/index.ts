@@ -5,6 +5,9 @@ import { cardGameDays } from "./0004-card-game-days";
 import { treeTitles } from "./0005-tree-titles";
 import { treeTitleWords } from "./0006-tree-title-words";
 import { treeTitleHidden } from "./0007-tree-title-hidden";
+import { treeTiers } from "./0008-tree-tiers";
+import { treeTierGlow } from "./0009-tree-tier-glow";
+import { treeDropUncommonTier } from "./0010-tree-drop-uncommon-tier";
 import type { Migration } from "./helpers";
 
 /**
@@ -24,4 +27,7 @@ export const MIGRATIONS: Migration[] = [
   treeTitles,
   treeTitleWords,
   treeTitleHidden,
+  treeTiers,
+  treeTierGlow,
+  treeDropUncommonTier,
 ];

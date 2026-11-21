@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { NameTitle, TitleSwap, TreeWordKind } from "#shared/utils/tree";
+import { tierTextStyle } from "#shared/utils/tree";
 
 /**
  * Надетый титул рядом с выпавшим — приглушённо: это то, что пропадёт. Под ним
@@ -10,6 +11,19 @@ defineProps<{ current: NameTitle; swaps: TitleSwap[]; busy: boolean }>();
 const emit = defineEmits<{ pick: [slot: TreeWordKind] }>();
 
 const SLOT_AT: Record<TreeWordKind, number> = { adj: 0, noun: 1, tail: 2 };
+
+/** Новое слово светится: с редкостью — её стилем и ярче, обычное — снежным. */
+const glow = (tier: TitleSwap["tier"]) =>
+  tier
+    ? {
+        ...tierTextStyle(tier),
+        textShadow: `0 0 8px ${tier.color}, 0 0 18px ${tier.color}aa`,
+      }
+    : {
+        color: "#ffffff",
+        textShadow:
+          "0 0 8px rgba(200, 230, 255, 0.95), 0 0 18px rgba(150, 205, 245, 0.6)",
+      };
 </script>
 
 <template>
@@ -25,21 +39,20 @@ const SLOT_AT: Record<TreeWordKind, number> = { adj: 0, noun: 1, tail: 2 };
         v-for="s in swaps"
         :key="s.slot"
         class="swap-opt"
-        :class="`is-${s.title.rarity}`"
         type="button"
         :disabled="busy"
         :aria-label="`Поставить «${s.word}»: ${s.title.text}`"
         @click="emit('pick', s.slot)"
       >
-        [<template v-for="(p, i) in s.parts" :key="i"
+        <span :style="tierTextStyle(s.title.tier)">[</span
+        ><template v-for="(p, i) in s.parts" :key="i"
           ><span
-            v-if="i === SLOT_AT[s.slot]"
-            class="swap-new"
-            :class="{ 'is-gold': s.rare }"
-            >{{ p }}</span
-          ><template v-else>{{ p }}</template
+            :style="
+              i === SLOT_AT[s.slot] ? glow(p.tier) : tierTextStyle(p.tier)
+            "
+            >{{ p.text }}</span
           >{{ i < s.parts.length - 1 ? " " : "" }}</template
-        >]
+        ><span :style="tierTextStyle(s.title.tier)">]</span>
       </button>
     </template>
 
@@ -79,8 +92,8 @@ const SLOT_AT: Record<TreeWordKind, number> = { adj: 0, noun: 1, tail: 2 };
   font-size: 16px;
 }
 
-/* Вариант — готовый титул кнопкой. Цвет — по редкости итога, как у титулов
-   везде; новое слово поверх светится. */
+/* Вариант — готовый титул кнопкой. Слова — цветами своих редкостей, скобки —
+   цветом самого сильного, новое слово светится. */
 .swap-opt {
   width: 100%;
   min-height: 44px;
@@ -92,16 +105,11 @@ const SLOT_AT: Record<TreeWordKind, number> = { adj: 0, noun: 1, tail: 2 };
   font-weight: 700;
   font-size: 16px;
   line-height: 1.3;
-  /* Оранжевый, как титулы в книге. */
-  color: #ff9900;
+  color: rgba(241, 230, 210, 0.85);
   cursor: pointer;
   transition:
     background 0.15s,
     border-color 0.15s;
-}
-
-.swap-opt.is-rare {
-  text-shadow: 0 0 8px rgba(255, 200, 70, 0.6);
 }
 
 .swap-opt:hover:not(:disabled) {
@@ -117,22 +125,6 @@ const SLOT_AT: Record<TreeWordKind, number> = { adj: 0, noun: 1, tail: 2 };
 .swap-opt:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-}
-
-/* Новое слово: снежное — обычное, золотое — редкое. Те же цвета, что у
-   ярлыков над подарками. */
-.swap-new {
-  color: #ffffff;
-  text-shadow:
-    0 0 8px rgba(200, 230, 255, 0.95),
-    0 0 18px rgba(150, 205, 245, 0.6);
-}
-
-.swap-new.is-gold {
-  color: #ffe58a;
-  text-shadow:
-    0 0 8px rgba(255, 210, 80, 1),
-    0 0 20px rgba(255, 180, 40, 0.7);
 }
 
 .swap-warn {

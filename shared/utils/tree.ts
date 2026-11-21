@@ -12,26 +12,136 @@ import type { AvatarFrame } from "./avatarFrames";
 export type TreeWordKind = "adj" | "noun" | "tail";
 export type Gender = "m" | "f" | "n";
 
-/** Обычный — два подарка, необычный — три, редкий — есть золотое слово. */
+/** Старая отметка редкости в базе (user_titles.rarity). Показывается теперь
+ *  редкость слов — TreeTier; это поле только пишется для истории. */
 export type TitleRarity = "common" | "uncommon" | "rare";
+
+/**
+ * Редкость слова. Свои у ивента, заводятся в админке: «Необычное», «Редкое»,
+ * «Эпическое»… Шанс — сколько процентов титулов получат слово этой
+ * редкости; чем шанс меньше, тем редкость сильнее. pinned — такие титулы
+ * стоят на доске сверху.
+ */
+export type TreeTier = {
+  id: number;
+  name: string;
+  color: string;
+  chance: number;
+  pinned: boolean;
+  /** Ореол вокруг слова — для тёмных цветов, как у карточек персонажей. */
+  glow: boolean;
+};
+
+/** Как редкость показывается рядом со словом или титулом. null — обычное. */
+export type TierMark = {
+  id: number;
+  name: string;
+  color: string;
+  glow: boolean;
+};
+
+export const tierMark = (t: TreeTier | null | undefined): TierMark | null =>
+  t ? { id: t.id, name: t.name, color: t.color, glow: t.glow } : null;
+
+/** Стиль слова этой редкости: цвет, а со свечением — светлее и с ореолом её
+ *  цвета. Обычное слово — без стиля. */
+export const tierTextStyle = (
+  t: TierMark | null | undefined,
+): Record<string, string> | undefined =>
+  !t
+    ? undefined
+    : t.glow
+      ? {
+          color: `color-mix(in srgb, ${t.color} 45%, white)`,
+          textShadow: `0 0 6px ${t.color}, 0 0 14px ${t.color}, 0 0 26px ${t.color}aa`,
+        }
+      : { color: t.color };
+
+/** Подпись редкости: имя или «обычный». */
+export const tierLabel = (t: TierMark | null | undefined): string =>
+  t?.name ?? "обычный";
+
+/** Из нескольких редкостей — самая сильная: с самым маленьким шансом. */
+export function bestTier(
+  tiers: (TreeTier | null | undefined)[],
+): TreeTier | null {
+  let best: TreeTier | null = null;
+  for (const t of tiers) if (t && (!best || t.chance < best.chance)) best = t;
+  return best;
+}
+
+export const TIER_COLOR_RE = /^#[0-9a-f]{6}$/i;
+
+/**
+ * «Необычное» — не заводится в админке, а выходит само: слово из подарка,
+ * в котором два слова и больше, не считая предлогов («Почти Героический»,
+ * «после третьей кружки»). «из Лискора» — одно: «из» — предлог. Своя
+ * редкость у слова важнее. Самое слабое из особых: шанс — 100.
+ */
+export const UNCOMMON_TIER: TreeTier = {
+  id: 0,
+  name: "Необычное",
+  color: "#a9d3ef",
+  chance: 100,
+  pinned: false,
+  glow: false,
+};
+
+const PREPOSITIONS = new Set(
+  (
+    "в во на из изо с со к ко у о об обо от ото до по за под подо над надо " +
+    "при про без безо для через перед пред меж между сквозь вокруг около " +
+    "после среди ради возле вдоль кроме вместо внутри вне из-за из-под"
+  ).split(" "),
+);
+
+/** Два слова и больше, не считая предлогов. */
+export const isMultiWord = (word: string): boolean =>
+  word
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && !PREPOSITIONS.has(w.toLowerCase())).length >= 2;
+
+/** Редкость слова: своя из админки, а нет её — «Необычное», если слово
+ *  составное, иначе обычное (null). */
+export function tierOfWord(
+  w: { word: string; tierId: number | null },
+  tiers: Map<number, TreeTier>,
+): TreeTier | null {
+  const own = w.tierId == null ? null : (tiers.get(w.tierId) ?? null);
+  if (own) return own;
+  return isMultiWord(w.word) ? UNCOMMON_TIER : null;
+}
+
+/** Шанс редкости в процентах: от 0 до 100, до сотых. Мусор — null. */
+export const tierChanceOf = (v: unknown): number | null => {
+  const n = Number(v);
+  if (v === "" || v == null || !Number.isFinite(n)) return null;
+  return Math.round(Math.min(100, Math.max(0, n)) * 100) / 100;
+};
 
 /** off — ёлки нет и титулов не видно; admins — проба; on — ивент идёт;
  *  ended — ивент закончился: ёлки нет, а надетые титулы остаются у имён. */
 export type TreeMode = "off" | "admins" | "on" | "ended";
 
-/** Титул, каким его видят у имени. */
+/** Слово титула — как оно стоит в титуле (прилагательное уже в роде) и его
+ *  редкость. */
+export type TitlePart = { text: string; tier: TierMark | null };
+
+/** Титул, каким его видят у имени. tier — самая сильная редкость слов в нём. */
 export type NameTitle = {
   id: number;
   text: string;
-  rarity: TitleRarity;
+  tier: TierMark | null;
+  /** По словам — чтобы редкие подчеркнуть. Нет — титул старый, без слов. */
+  parts?: TitlePart[];
 };
 
-/** Титул из коллекции. */
 /** Слово из подарка — что показать в открытой коробке. */
 export type TreeGift = {
   kind: TreeWordKind;
   word: string;
-  rare: boolean;
+  tier: TierMark | null;
 };
 
 /** Из каких слов собран титул — номера слов ёлки по местам. */
@@ -46,11 +156,11 @@ export type TitleSwap = {
   /** Слово, как оно встанет в титул. */
   word: string;
   /** Что получится. */
-  title: { text: string; rarity: TitleRarity };
+  title: { text: string; tier: TierMark | null };
   /** Тот же титул по словам — чтобы подсветить новое (оно на месте slot). */
-  parts: string[];
-  /** Золотое ли новое слово. */
-  rare: boolean;
+  parts: TitlePart[];
+  /** Редкость нового слова. */
+  tier: TierMark | null;
 };
 
 export type ShakeResult = {
@@ -64,10 +174,7 @@ export type ShakeResult = {
 };
 
 /** Строка доски титулов. */
-export type BoardEntry = {
-  id: number;
-  text: string;
-  rarity: TitleRarity;
+export type BoardEntry = NameTitle & {
   wonAt: string;
   name: string;
   code: string | null;
@@ -130,9 +237,8 @@ export const fullTreeTexts = (
     ]),
   ) as TreeTexts;
 
-/** Шанс третьего подарка и золотого слова, в процентах. */
+/** Шанс третьего подарка, в процентах. Шансы редкостей — у самих редкостей. */
 export const TREE_THREE_CHANCE_DEFAULT = 40;
-export const TREE_RARE_CHANCE_DEFAULT = 3;
 
 export const percentOf = (v: unknown, fallback: number): number => {
   const n = Number(v);
@@ -210,17 +316,24 @@ export function composeTitle(
     .join(" ");
 }
 
-/** Слово из базы — то, из чего тянется жребий. */
+/** Слово из базы — то, из чего тянется жребий. tierId — редкость; null —
+ *  обычное. */
 export type DrawWord = AdjForms & {
   id: number;
   kind: TreeWordKind;
   gender: Gender | null;
-  rare: boolean;
+  tierId: number | null;
+};
+
+/** Слова и редкости ёлки по номерам — чтобы собирать титулы. */
+export type WordBook = {
+  words: Map<number, DrawWord>;
+  tiers: Map<number, TreeTier>;
 };
 
 export type Draw = {
   text: string;
-  rarity: TitleRarity;
+  tier: TreeTier | null;
   gifts: TreeGift[];
   words: TitleWords;
 };
@@ -229,19 +342,21 @@ export type Draw = {
  * Жребий титула. rand(n) — целое от 0 до n−1: на сервере криптостойкое, в
  * тестах — заданное.
  *
- * Сначала — сколько подарков (третий — с шансом threeChance %), потом —
- * будет ли среди слов золотое (rareChance %). Золотое достаётся одному
- * случайному месту из тех, где золотые слова есть. Нет прилагательных или
+ * Сначала — сколько подарков (третий — с шансом threeChance %). Потом один
+ * бросок на весь титул: от самой редкой редкости к самой частой, каждая
+ * занимает свои проценты — 1 % у «Эпического», 3 % у «Редкого» и т.д. Выпала
+ * редкость — её слово встаёт на одно случайное место из тех, где такие слова
+ * есть; остальные места — обычные слова. Нет прилагательных или
  * существительных вовсе — null: собрать титул не из чего.
  */
 export function drawTitle(
   words: DrawWord[],
+  tiers: TreeTier[],
   threeChance: number,
-  rareChance: number,
   rand: (n: number) => number,
 ): Draw | null {
-  const pool = (kind: TreeWordKind, rare: boolean) =>
-    words.filter((w) => w.kind === kind && w.rare === rare);
+  const pool = (kind: TreeWordKind, tierId: number | null) =>
+    words.filter((w) => w.kind === kind && (w.tierId ?? null) === tierId);
   const any = (kind: TreeWordKind) => words.some((w) => w.kind === kind);
   if (!any("adj") || !any("noun")) return null;
 
@@ -250,58 +365,109 @@ export function drawTitle(
     ? ["adj", "noun", "tail"]
     : ["adj", "noun"];
 
-  const rareSlots = slots.filter((k) => pool(k, true).length);
-  const rareSlot =
-    rareSlots.length && rand(100) < rareChance
-      ? rareSlots[rand(rareSlots.length)]!
-      : null;
+  // Бросок — в сотых долях процента, чтобы работали шансы вроде 0,5 %.
+  const roll = rand(10000);
+  let edge = 0;
+  let special: { tier: TreeTier; slot: TreeWordKind } | null = null;
+  for (const t of [...tiers].sort((x, y) => x.chance - y.chance)) {
+    edge += Math.round(t.chance * 100);
+    if (roll >= edge) continue;
+    const places = slots.filter((k) => pool(k, t.id).length);
+    if (places.length)
+      special = { tier: t, slot: places[rand(places.length)]! };
+    break;
+  }
 
   const picked = slots.map((kind) => {
-    const want = pool(kind, kind === rareSlot);
-    // Обычных слов этого вида нет — берём золотое: подарок пустым не бывает.
-    const from = want.length ? want : pool(kind, !(kind === rareSlot));
+    if (special?.slot === kind) {
+      const from = pool(kind, special.tier.id);
+      return from[rand(from.length)]!;
+    }
+    // Обычных слов этого вида нет — берём любое: подарок пустым не бывает.
+    const common = pool(kind, null);
+    const from = common.length ? common : words.filter((w) => w.kind === kind);
     return from[rand(from.length)]!;
   });
 
+  const tierMap = new Map(tiers.map((t) => [t.id, t]));
+  const tierOf = (w: DrawWord) => tierOfWord(w, tierMap);
   const [adj, noun, tail] = picked as [DrawWord, DrawWord, DrawWord?];
   const gender = noun.gender ?? "m";
   return {
     text: composeTitle(adj, { word: noun.word, gender }, tail),
-    rarity: rarityOf(
-      slots.length,
-      picked.some((w) => w.rare),
-    ),
+    tier: bestTier(picked.map(tierOf)),
     words: { adj: adj.id, noun: noun.id, ...(tail ? { tail: tail.id } : {}) },
     gifts: [
-      { kind: "adj", word: adjFor(adj, gender), rare: adj.rare },
-      { kind: "noun", word: noun.word, rare: noun.rare },
+      { kind: "adj", word: adjFor(adj, gender), tier: tierMark(tierOf(adj)) },
+      { kind: "noun", word: noun.word, tier: tierMark(tierOf(noun)) },
       ...(tail
-        ? [{ kind: "tail" as const, word: tail.word, rare: tail.rare }]
+        ? [
+            {
+              kind: "tail" as const,
+              word: tail.word,
+              tier: tierMark(tierOf(tail)),
+            },
+          ]
         : []),
     ],
   };
 }
 
-export const rarityOf = (gifts: number, hasRare: boolean): TitleRarity =>
-  hasRare ? "rare" : gifts >= 3 ? "uncommon" : "common";
+/** Старая отметка для базы: есть особое слово — rare, три слова — uncommon. */
+export const legacyRarity = (
+  tier: TreeTier | null,
+  gifts: number,
+): TitleRarity =>
+  tier && tier.id > 0 ? "rare" : tier || gifts >= 3 ? "uncommon" : "common";
 
-/** Титул из слов по номерам. Какого-то слова нет (удалили) — null. */
-export function buildTitle(
-  byId: Map<number, DrawWord>,
-  words: TitleWords,
-): { text: string; rarity: TitleRarity } | null {
-  const adj = byId.get(words.adj);
-  const noun = byId.get(words.noun);
-  const tail = words.tail ? byId.get(words.tail) : undefined;
+/** Номер редкости для базы: «Необычное» само выходит из слов — не хранится. */
+export const tierIdOf = (tier: TreeTier | null): number | null =>
+  tier && tier.id > 0 ? tier.id : null;
+
+const wordTier = (book: WordBook, w: DrawWord): TreeTier | null =>
+  tierOfWord(w, book.tiers);
+
+/** Слова титула по номерам. Какого-то слова нет (удалили) — null. */
+function titleWordsOf(book: WordBook, words: TitleWords) {
+  const adj = book.words.get(words.adj);
+  const noun = book.words.get(words.noun);
+  const tail = words.tail ? book.words.get(words.tail) : undefined;
   if (!adj || !noun || (words.tail && !tail)) return null;
-  const gender = noun.gender ?? "m";
-  const picked = [adj, noun, ...(tail ? [tail] : [])];
+  return { adj, noun, tail };
+}
+
+/** Титул по словам: прилагательное в роде существительного, у каждого слова
+ *  — его редкость. */
+export function titleParts(
+  book: WordBook,
+  words: TitleWords,
+): TitlePart[] | null {
+  const w = titleWordsOf(book, words);
+  if (!w) return null;
+  return [
+    {
+      text: adjFor(w.adj, w.noun.gender ?? "m"),
+      tier: tierMark(wordTier(book, w.adj)),
+    },
+    { text: w.noun.word, tier: tierMark(wordTier(book, w.noun)) },
+    ...(w.tail
+      ? [{ text: w.tail.word, tier: tierMark(wordTier(book, w.tail)) }]
+      : []),
+  ];
+}
+
+/** Титул из слов по номерам и его редкость — самая сильная из слов. */
+export function buildTitle(
+  book: WordBook,
+  words: TitleWords,
+): { text: string; tier: TreeTier | null } | null {
+  const w = titleWordsOf(book, words);
+  if (!w) return null;
+  const gender = w.noun.gender ?? "m";
+  const picked = [w.adj, w.noun, ...(w.tail ? [w.tail] : [])];
   return {
-    text: composeTitle(adj, { word: noun.word, gender }, tail),
-    rarity: rarityOf(
-      picked.length,
-      picked.some((w) => w.rare),
-    ),
+    text: composeTitle(w.adj, { word: w.noun.word, gender }, w.tail),
+    tier: bestTier(picked.map((x) => wordTier(book, x))),
   };
 }
 
@@ -311,35 +477,29 @@ export function buildTitle(
  * новый титул, — для этого есть «взять целиком».
  */
 export function titleSwaps(
-  byId: Map<number, DrawWord>,
+  book: WordBook,
   mine: TitleWords,
   fresh: TitleWords,
 ): TitleSwap[] {
-  const now = buildTitle(byId, mine);
-  const whole = buildTitle(byId, fresh);
+  const now = buildTitle(book, mine);
+  const whole = buildTitle(book, fresh);
   if (!now || !whole) return [];
   const out: TitleSwap[] = [];
   for (const slot of ["adj", "noun", "tail"] as const) {
     const id = fresh[slot];
     if (!id || id === mine[slot]) continue;
     const next = { ...mine, [slot]: id };
-    const title = buildTitle(byId, next);
+    const title = buildTitle(book, next);
     if (!title || title.text === now.text || title.text === whole.text)
       continue;
-    const noun = byId.get(next.noun)!;
-    const gender = noun.gender ?? "m";
-    const w = byId.get(id)!;
-    const tail = next.tail ? byId.get(next.tail) : undefined;
+    const gender = book.words.get(next.noun)!.gender ?? "m";
+    const w = book.words.get(id)!;
     out.push({
       slot,
       word: slot === "adj" ? adjFor(w, gender) : w.word,
-      title,
-      parts: [
-        adjFor(byId.get(next.adj)!, gender),
-        noun.word,
-        ...(tail ? [tail.word] : []),
-      ],
-      rare: w.rare,
+      title: { text: title.text, tier: tierMark(title.tier) },
+      parts: titleParts(book, next)!,
+      tier: tierMark(wordTier(book, w)),
     });
   }
   return out;
@@ -354,12 +514,6 @@ export function swapWords(
   const id = fresh[slot];
   return id ? { ...mine, [slot]: id } : null;
 }
-
-export const RARITY_LABEL: Record<TitleRarity, string> = {
-  common: "обычный",
-  uncommon: "необычный",
-  rare: "редкий",
-};
 
 export const GENDER_LABEL: Record<Gender, string> = {
   m: "он",

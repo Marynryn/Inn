@@ -2,17 +2,28 @@
 /**
  * Подарок из-под ёлки — картинки из public/tree. Закрытый ждёт, пока по нему
  * нажмут; открытый подпрыгивает, а слово показывает окно над коробкой.
- * Золотой — подарок с редким словом: виден ещё до того, как его открыли.
+ * Золотой — подарок со словом редкости из админки, синий — с голубым
+ * (составным) словом: видно ещё до того, как открыли. Обычные — красные и
+ * зелёные, синий для них не берётся, чтобы цвет что-то значил.
  *
  * Обе картинки стоят друг на друге с самого начала: открытая уже загружена,
  * и при нажатии коробка не мигает пустым местом.
  */
-const props = defineProps<{ tone: number; rare: boolean; open: boolean }>();
+const props = defineProps<{
+  tone: number;
+  rare: boolean;
+  uncommon?: boolean;
+  open: boolean;
+}>();
 
-const TONES = ["red", "green", "blue"] as const;
+const TONES = ["red", "green"] as const;
 
 const tone = computed(() =>
-  props.rare ? "gold" : TONES[props.tone % TONES.length]!,
+  props.rare
+    ? "gold"
+    : props.uncommon
+      ? "blue"
+      : TONES[props.tone % TONES.length]!,
 );
 </script>
 

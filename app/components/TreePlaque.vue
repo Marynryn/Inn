@@ -1,69 +1,73 @@
 <script setup lang="ts">
 import type { NameTitle } from "#shared/utils/tree";
-import { RARITY_LABEL } from "#shared/utils/tree";
+import { tierLabel, tierTextStyle } from "#shared/utils/tree";
 
 /**
  * Титул с ёлки крупно — карточка в окне ёлки. Сверху подпись в квадратных
  * скобках, как системная строка из книги, посередине сам титул, снизу
- * редкость. Цвет свечения — по редкости: тёплое, ледяное или золотое.
+ * редкость. Каждое слово — цветом своей редкости, скобки и свечение
+ * карточки — цветом самого сильного слова; у обычного — тёплое.
  */
-defineProps<{ title: NameTitle; kicker: string }>();
+const props = defineProps<{ title: NameTitle; kicker: string }>();
+
+const WARM = "#ffd9a0";
+const cardTone = computed(() => ({
+  "--tier": props.title.tier?.color ?? WARM,
+}));
 </script>
 
 <template>
-  <div class="plaque" :class="`is-${title.rarity}`">
+  <div class="plaque" :class="{ 'has-tier': title.tier }" :style="cardTone">
     <span class="plaque-glow" aria-hidden="true" />
     <p class="plaque-kicker">[{{ kicker }}]</p>
-    <p class="plaque-title">{{ title.text }}</p>
-    <p class="plaque-rarity">{{ RARITY_LABEL[title.rarity] }}</p>
+    <p class="plaque-title">
+      <span :style="tierTextStyle(title.tier)">[</span
+      ><template v-if="title.parts"
+        ><template v-for="(p, i) in title.parts" :key="i"
+          ><span :style="tierTextStyle(p.tier)">{{ p.text }}</span
+          >{{ i < title.parts.length - 1 ? " " : "" }}</template
+        ></template
+      ><span v-else :style="tierTextStyle(title.tier)">{{ title.text }}</span
+      ><span :style="tierTextStyle(title.tier)">]</span>
+    </p>
+    <p class="plaque-rarity">{{ tierLabel(title.tier) }}</p>
   </div>
 </template>
 
 <style scoped>
+/* Все оттенки карточки — из одного цвета редкости (--tier). */
 .plaque {
-  --glow: 255, 214, 150;
-  --edge: rgba(255, 228, 180, 0.55);
   position: relative;
   overflow: hidden;
   padding: 16px 18px 14px;
-  border: 1px solid var(--edge);
+  border: 1px solid color-mix(in srgb, var(--tier) 70%, transparent);
   border-radius: var(--radius-lg);
   background:
     radial-gradient(
       120% 90% at 50% 0%,
-      rgba(var(--glow), 0.22),
+      color-mix(in srgb, var(--tier) 22%, transparent),
       transparent 70%
     ),
     rgba(40, 8, 14, 0.45);
   box-shadow:
-    0 0 0 3px rgba(var(--glow), 0.08),
-    0 0 26px rgba(var(--glow), 0.28),
+    0 0 0 3px color-mix(in srgb, var(--tier) 8%, transparent),
+    0 0 26px color-mix(in srgb, var(--tier) 30%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
   animation: plaque-in 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
-.plaque.is-uncommon {
-  --glow: 150, 205, 245;
-  --edge: rgba(180, 222, 250, 0.6);
-}
-
-.plaque.is-rare {
-  --glow: 255, 205, 90;
-  --edge: rgba(250, 215, 120, 0.85);
-}
-
-/* Блик, что один раз проходит по карточке, — у редкого титула. */
+/* Блик, что один раз проходит по карточке, — у титула с редким словом. */
 .plaque-glow {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-.is-rare .plaque-glow {
+.has-tier .plaque-glow {
   background: linear-gradient(
     105deg,
     transparent 30%,
-    rgba(255, 240, 190, 0.35) 50%,
+    rgba(255, 240, 190, 0.3) 50%,
     transparent 70%
   );
   transform: translateX(-100%);
@@ -77,7 +81,7 @@ defineProps<{ title: NameTitle; kicker: string }>();
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: rgba(var(--glow), 0.95);
+  color: var(--tier);
 }
 
 .plaque-title {
@@ -87,21 +91,12 @@ defineProps<{ title: NameTitle; kicker: string }>();
   font-size: 27px;
   font-weight: 700;
   line-height: 1.2;
-  /* Оранжевый, как титулы в книге; свечение — по редкости карточки. */
-  color: #ff9900;
+  color: #fff3dc;
   text-shadow:
-    0 0 14px rgba(255, 160, 40, 0.6),
-    0 0 30px rgba(255, 140, 20, 0.3);
+    0 0 14px color-mix(in srgb, var(--tier) 60%, transparent),
+    0 0 30px color-mix(in srgb, var(--tier) 25%, transparent);
   text-wrap: balance;
   overflow-wrap: anywhere;
-}
-
-.plaque-title::before {
-  content: "[";
-}
-
-.plaque-title::after {
-  content: "]";
 }
 
 .plaque-rarity {
@@ -109,13 +104,13 @@ defineProps<{ title: NameTitle; kicker: string }>();
   display: inline-block;
   margin: 10px 0 0;
   padding: 2px 10px;
-  border: 1px solid var(--edge);
+  border: 1px solid color-mix(in srgb, var(--tier) 70%, transparent);
   border-radius: var(--radius-pill);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(var(--glow), 1);
+  color: var(--tier);
 }
 
 @keyframes plaque-in {
@@ -133,7 +128,7 @@ defineProps<{ title: NameTitle; kicker: string }>();
 
 @media (prefers-reduced-motion: reduce) {
   .plaque,
-  .is-rare .plaque-glow {
+  .has-tier .plaque-glow {
     animation: none;
   }
 }

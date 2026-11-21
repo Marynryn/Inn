@@ -16,9 +16,11 @@ const open = () => {
   emit("open");
 };
 
-// Золотые уже наверху — в ленте свежих их не повторяем.
+// Титулы с редкостями «сверху доски» уже наверху — в ленте свежих их не
+// повторяем.
+const pinnedIds = computed(() => new Set(props.board.rare.map((e) => e.id)));
 const recent = computed(() =>
-  props.board.recent.filter((e) => e.rarity !== "rare"),
+  props.board.recent.filter((e) => !pinnedIds.value.has(e.id)),
 );
 const empty = computed(() => !props.board.rare.length && !recent.value.length);
 
@@ -197,12 +199,9 @@ const readerHref = (e: BoardEntry) =>
   list-style: none;
 }
 
+/* Золотые — сверху, без отдельной рамки: их и так видно по цвету. */
 .board-list.is-rare {
-  margin-bottom: 10px;
-  padding: 8px 10px;
-  border: 1px solid rgba(233, 199, 102, 0.3);
-  border-radius: var(--radius-md);
-  background: rgba(233, 199, 102, 0.06);
+  margin-bottom: 7px;
 }
 
 .board-row {

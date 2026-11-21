@@ -1,5 +1,12 @@
 import type { TreeState } from "#shared/utils/tree";
-import { todaysTitle, toNameTitle, treeFor, wornTitle } from "../../utils/tree";
+import {
+  swapsFor,
+  todaysTitle,
+  toNameTitle,
+  treeFor,
+  wordBook,
+  wornTitle,
+} from "../../utils/tree";
 
 /**
  * Окно ёлки: тексты и что знать о вошедшем — тряс ли он сегодня и что выпало.
@@ -18,7 +25,7 @@ export default defineEventHandler(async (event): Promise<TreeState> => {
     texts: tree.texts,
     me: {
       canShake: user.role === "admin" || !today,
-      today: today ? toNameTitle(today) : null,
+      today: today ? toNameTitle(today, await wordBook()) : null,
       current: await wornTitle(user.id),
       swaps: today ? await swapsFor(user.id, today) : [],
     },

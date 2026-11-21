@@ -39,7 +39,6 @@ const phase = ref<Phase>("loading");
 const state = ref<TreeState | null>(null);
 const error = ref("");
 const t = computed(() => state.value?.texts ?? fullTreeTexts(null));
-const isAdmin = computed(() => auth.isAdmin);
 
 const hits = ref(0);
 const result = ref<ShakeResult | null>(null);
@@ -47,6 +46,7 @@ const opened = ref<boolean[]>([]);
 const today = ref<NameTitle | null>(null);
 const current = ref<NameTitle | null>(null);
 const swaps = ref<TitleSwap[]>([]);
+const isAdmin = computed(() => auth.isAdmin);
 const taking = ref(false);
 const takeError = ref("");
 
@@ -548,14 +548,22 @@ const hint = computed(() => {
                 v-if="opened[i]"
                 class="gift-word"
                 :class="{
-                  'is-rare': g.rare,
+                  'is-rare': g.tier,
                   'is-high': i % 2 === 1,
                   'is-small': result.gifts.length === 3,
                 }"
+                :style="g.tier ? { '--tier': g.tier.color } : undefined"
                 >{{ g.word
-                }}<span v-if="g.rare" class="gift-word-tag">редкое</span></span
+                }}<span v-if="g.tier" class="gift-word-tag">{{
+                  g.tier.name
+                }}</span></span
               >
-              <TreeGift :tone="i" :rare="g.rare" :open="opened[i]!" />
+              <TreeGift
+                :tone="i"
+                :rare="Boolean(g.tier && g.tier.id > 0)"
+                :uncommon="g.tier?.id === 0"
+                :open="opened[i]!"
+              />
             </button>
           </template>
         </div>
@@ -924,19 +932,44 @@ const hint = computed(() => {
   }
 }
 
-/* Сугроб под ёлкой — на нём и стоят подарки. */
+/* Сугроб под ёлкой — на нём и стоят подарки. Не ровный овал, а несколько
+   мягких холмиков разной высоты: светлые макушки, голубоватая тень у
+   основания и редкие искорки инея. */
 .scene-ground {
-  left: 8%;
-  right: 8%;
-  bottom: 0;
-  height: 46px;
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse 50% 60% at 50% 70%,
-    rgba(250, 252, 255, 0.95),
-    rgba(214, 228, 242, 0.75) 55%,
-    transparent 75%
-  );
+  left: 4%;
+  right: 4%;
+  bottom: -4px;
+  height: 64px;
+  background:
+    radial-gradient(1.5px 1.5px at 22% 48%, #fff 60%, transparent),
+    radial-gradient(1.5px 1.5px at 61% 40%, #fff 60%, transparent),
+    radial-gradient(1.2px 1.2px at 78% 58%, #fff 60%, transparent),
+    radial-gradient(1.2px 1.2px at 40% 62%, #fff 60%, transparent),
+    radial-gradient(
+      ellipse 30% 46% at 24% 74%,
+      rgba(255, 255, 255, 0.95) 40%,
+      rgba(225, 236, 248, 0.85) 62%,
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 34% 58% at 56% 70%,
+      rgba(255, 255, 255, 0.97) 38%,
+      rgba(225, 236, 248, 0.85) 62%,
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 26% 40% at 82% 78%,
+      rgba(250, 252, 255, 0.92) 40%,
+      rgba(220, 233, 246, 0.8) 62%,
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 52% 34% at 50% 92%,
+      rgba(206, 222, 240, 0.85),
+      rgba(170, 196, 226, 0.45) 60%,
+      transparent 75%
+    );
+  filter: drop-shadow(0 -2px 6px rgba(255, 255, 255, 0.25));
 }
 
 .tree-hit {
@@ -1069,8 +1102,9 @@ const hint = computed(() => {
   white-space: nowrap;
 }
 
+/* Слово с редкостью — ярлык её цвета (--tier) с сильным сиянием и бликом. */
 .gift-word.is-rare {
-  border-color: #fff1b0;
+  border-color: color-mix(in srgb, var(--tier) 40%, white);
   background:
     linear-gradient(
         105deg,
@@ -1079,15 +1113,19 @@ const hint = computed(() => {
         transparent 65%
       ) -160%
       0 / 250% 100% no-repeat,
-    linear-gradient(180deg, #fff3b8 0%, #f0b93a 100%);
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--tier) 30%, white) 0%,
+      var(--tier) 100%
+    );
   box-shadow:
-    0 0 14px rgba(255, 210, 80, 1),
-    0 0 40px rgba(255, 180, 40, 0.7),
-    inset 0 -2px 0 rgba(160, 100, 10, 0.35);
-  color: #5a2a00;
+    0 0 14px var(--tier),
+    0 0 40px color-mix(in srgb, var(--tier) 70%, transparent),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+  color: #3a1406;
 }
 
-/* Подпись над золотым словом: цвет одним не все отличат. */
+/* Подпись редкости над словом: цвет одним не все отличат. */
 .gift-word-tag {
   position: absolute;
   left: 50%;
@@ -1099,7 +1137,7 @@ const hint = computed(() => {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #ffe58a;
+  color: color-mix(in srgb, var(--tier) 60%, white);
   text-shadow:
     0 0 6px rgba(255, 200, 60, 0.9),
     0 1px 2px rgba(0, 0, 0, 0.6);

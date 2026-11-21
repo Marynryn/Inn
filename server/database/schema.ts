@@ -233,6 +233,19 @@ export const reelGuestTries = sqliteTable(
 // существительного — его род. Золотые (rare) выпадают редко и делают титул
 // редким. Снятое с раздачи (active = false) больше не выпадает, но уже
 // выигранные титулы не меняются: они хранятся готовым текстом.
+// Редкости слов ёлки: свои у ивента, правятся в админке (см. миграцию 8).
+export const treeTiers = sqliteTable("tree_tiers", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  color: text("color").notNull(),
+  chance: real("chance").notNull(), // % титулов со словом этой редкости
+  pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
+  glow: integer("glow", { mode: "boolean" }).notNull().default(false), // ореол вокруг слова
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const treeWords = sqliteTable("tree_words", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   kind: text("kind", { enum: ["adj", "noun", "tail"] }).notNull(),
@@ -240,7 +253,8 @@ export const treeWords = sqliteTable("tree_words", {
   wordF: text("word_f"),
   wordN: text("word_n"),
   gender: text("gender", { enum: ["m", "f", "n"] }),
-  rare: integer("rare", { mode: "boolean" }).notNull().default(false),
+  rare: integer("rare", { mode: "boolean" }).notNull().default(false), // старое, не читается
+  tierId: integer("tier_id"), // редкость (tree_tiers); пусто — обычное
   active: integer("active", { mode: "boolean" }).notNull().default(true),
   createdAt: text("created_at")
     .notNull()
@@ -256,6 +270,7 @@ export const userTitles = sqliteTable("user_titles", {
   text: text("text").notNull(), // без скобок: «Ворчливый Табурет из Лискора»
   rarity: text("rarity", { enum: ["common", "uncommon", "rare"] }).notNull(),
   gifts: integer("gifts").notNull(), // сколько выпало подарков: 2 или 3
+  tierId: integer("tier_id"), // самая сильная редкость слов (tree_tiers)
   day: text("day").notNull(), // '2026-12-20' по Москве
   // Из каких слов собран: {"adj":3,"noun":17,"tail":40}. Пусто — не известно,
   // и слово в таком титуле не заменить.

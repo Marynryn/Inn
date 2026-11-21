@@ -2,23 +2,28 @@
 import type {
   DrawWord,
   Gender,
-  TitleRarity,
+  NameTitle,
+  TierMark,
   TreeMode,
   TreeTextKey,
+  TreeTier,
   TreeWordKind,
 } from "#shared/utils/tree";
 import {
   GENDER_LABEL,
-  RARITY_LABEL,
   TREE_MODES,
   TREE_TEXTS,
   agreeAdjective,
   drawTitle,
+  isMultiWord,
+  tierLabel,
+  tierMark,
+  tierOfWord,
 } from "#shared/utils/tree";
 
 /**
  * Вкладка «Ёлка»: включить её (сначала — только для админов), шансы, тексты,
- * слова для титулов и что уже выпало. Неудачный титул отсюда можно убрать —
+ * редкости слов, сами слова и что уже выпало. Неудачный титул отсюда можно убрать —
  * он пропадёт и с доски, и у того, кто его носит.
  */
 
@@ -26,7 +31,7 @@ type Word = DrawWord & { active: boolean };
 type TitleRow = {
   id: number;
   text: string;
-  rarity: TitleRarity;
+  tier: TierMark | null;
   gifts: number;
   wonAt: string;
   trial: boolean;
@@ -37,9 +42,9 @@ type AdminTree = {
   settings: {
     mode: TreeMode;
     threeChance: number;
-    rareChance: number;
     texts: Record<TreeTextKey, string>;
   };
+  tiers: TreeTier[];
   words: Word[];
   titles: TitleRow[];
   stats: { shakes: number; people: number; today: number };
@@ -50,7 +55,6 @@ const { data, refresh } = await useFetch<AdminTree>("/api/admin/tree");
 // ── Настройки ─────────────────────────────────
 const mode = ref<TreeMode>("off");
 const threeChance = ref(40);
-const rareChance = ref(3);
 const texts = reactive<Record<TreeTextKey, string>>({ ...TREE_TEXTS });
 const TEXT_FIELDS: { key: TreeTextKey; label: string; long?: boolean }[] = [
   { key: "tree_title", label: "Заголовок" },
@@ -65,7 +69,6 @@ watch(
     if (!s) return;
     mode.value = s.mode;
     threeChance.value = s.threeChance;
-    rareChance.value = s.rareChance;
     Object.assign(texts, s.texts);
   },
   { immediate: true },
@@ -85,7 +88,6 @@ const saveSettings = async () => {
     const body: Record<string, string> = {
       tree_mode: mode.value,
       tree_three_chance: String(threeChance.value),
-      tree_rare_chance: String(rareChance.value),
     };
     for (const f of TEXT_FIELDS) {
       const v = texts[f.key].trim();
@@ -102,6 +104,83 @@ const saveSettings = async () => {
 };
 
 const treeOpen = ref(false);
+
+// ── Редкости ──────────────────────────────────
+// Свои у ивента: название, цвет, шанс на титул. Чем шанс меньше, тем
+// редкость сильнее — её цвет у скобок титула. Сумма шансов — сколько
+// процентов титулов вообще получат особое слово.
+const tiers = computed(() => data.value?.tiers ?? []);
+const tierById = computed(() => new Map(tiers.value.map((t) => [t.id, t])));
+const tierSum = computed(
+  () => Math.round(tiers.value.reduce((n, t) => n + t.chance, 0) * 100) / 100,
+);
+const tierError = ref("");
+const busyTier = ref<number | null>(null);
+
+const updateTier = async (t: TreeTier, patch: Record<string, unknown>) => {
+  busyTier.value = t.id;
+  tierError.value = "";
+  try {
+    await $fetch(`/api/admin/tree/tiers/${t.id}`, {
+      method: "PUT",
+      body: patch,
+    });
+    await refresh();
+  } catch (e: any) {
+    tierError.value = e.data?.message || "Не сохранилось";
+    await refresh();
+  } finally {
+    busyTier.value = null;
+  }
+};
+
+const removeTier = async (t: TreeTier) => {
+  if (
+    !confirm(
+      `Удалить редкость «${t.name}»? Её слова станут обычными, выпавшие с ней титулы — без цвета.`,
+    )
+  )
+    return;
+  busyTier.value = t.id;
+  try {
+    await $fetch(`/api/admin/tree/tiers/${t.id}`, { method: "DELETE" });
+    await refresh();
+  } catch (e: any) {
+    tierError.value = e.data?.message || "Не удалилось";
+  } finally {
+    busyTier.value = null;
+  }
+};
+
+const freshTier = reactive({ name: "", color: "#8e44ad", chance: 1 });
+const addTier = async () => {
+  if (!freshTier.name.trim()) return;
+  tierError.value = "";
+  try {
+    await $fetch("/api/admin/tree/tiers", {
+      method: "POST",
+      body: { ...freshTier, glow: true },
+    });
+    freshTier.name = "";
+    await refresh();
+  } catch (e: any) {
+    tierError.value = e.data?.message || "Не добавилась";
+  }
+};
+
+/** Полоска у слова — цвет его редкости, у составного без своей — голубая. */
+const wordTone = (w: Word) => {
+  const t = tierOfWord(w, tierById.value);
+  return t ? { "--tier": t.color } : undefined;
+};
+
+/** Пример слова этой редкости — как оно будет выглядеть в титуле. */
+const tierSample = (t: TreeTier): NameTitle => ({
+  id: -t.id,
+  text: t.name,
+  tier: tierMark(t),
+  parts: [{ text: t.name, tier: tierMark(t) }],
+});
 
 // ── Слова ─────────────────────────────────────
 const KINDS: { kind: TreeWordKind; title: string; note: string }[] = [
@@ -201,13 +280,24 @@ const formN = (w: Word) => w.wordN || agreeAdjective(w.word, "n");
 // ── Примеры ───────────────────────────────────
 // Тот же жребий, что на сервере, но здесь, из текущих слов: послушать, как
 // звучат сочетания, не тряся ёлку. Ничего не записывается.
-const samples = ref<{ text: string; rarity: TitleRarity }[]>([]);
+const samples = ref<NameTitle[]>([]);
 const makeSamples = () => {
   const pool = words.value.filter((w) => w.active);
   const rand = (n: number) => Math.floor(Math.random() * n);
   samples.value = Array.from({ length: 8 }, () =>
-    drawTitle(pool, threeChance.value, rareChance.value, rand),
-  ).flatMap((d) => (d ? [{ text: d.text, rarity: d.rarity }] : []));
+    drawTitle(pool, tiers.value, threeChance.value, rand),
+  ).flatMap((d, i) =>
+    d
+      ? [
+          {
+            id: i,
+            text: d.text,
+            tier: tierMark(d.tier),
+            parts: d.gifts.map((g) => ({ text: g.word, tier: g.tier })),
+          },
+        ]
+      : [],
+  );
 };
 
 // ── Выпавшие титулы ───────────────────────────
@@ -246,9 +336,10 @@ const when = (raw: string) =>
 
     <p class="tree-note">
       Ёлку трясут на главной: выпадают два или три подарка, из слов в них
-      складывается титул. Он сразу встаёт у имени и держится до полуночи по
-      Москве, потом его можно снять или сменить на любой из коллекции. Трясти —
-      раз в день; админ трясёт без ограничений.
+      складывается титул. Его берут целиком, ставят одно его слово в свой титул
+      или оставляют свой; взятый держится до полуночи по Москве, а снятый
+      пропадает. Трясти — раз в день; админ трясёт без счёта. «Ивент закончен»
+      прячет ёлку, а надетые титулы оставляет у имён.
     </p>
 
     <p v-if="data" class="tree-stats">
@@ -274,16 +365,6 @@ const when = (raw: string) =>
         <input
           id="tree-three"
           v-model.number="threeChance"
-          type="number"
-          min="0"
-          max="100"
-        />
-      </div>
-      <div class="field-row">
-        <label for="tree-rare">Золотое слово, %</label>
-        <input
-          id="tree-rare"
-          v-model.number="rareChance"
           type="number"
           min="0"
           max="100"
@@ -334,6 +415,124 @@ const when = (raw: string) =>
 
     <hr class="section-divider" />
 
+    <!-- Редкости -->
+    <h3 class="tree-sub">Редкости слов</h3>
+    <p class="tree-note">
+      Шанс — сколько процентов титулов получат слово этой редкости; чем он
+      меньше, тем редкость сильнее, и её цвет — у скобок титула. Слова
+      отмечаются ниже. «Свечение» — ореол вокруг слова, для тёмных цветов.
+      Голубое «Необычное» заводить не нужно: им само становится слово из двух
+      слов и больше (предлоги не в счёт) — «Почти Героический», «после третьей
+      кружки»; своя редкость у слова важнее. Сейчас особое слово будет у
+      <b>{{ tierSum }}%</b> титулов.
+    </p>
+    <p v-if="tierSum > 100" class="err-msg">
+      Шансы в сумме больше 100% — самые частые редкости выпадать не будут.
+    </p>
+    <p v-if="tierError" class="err-msg">{{ tierError }}</p>
+    <ul class="tier-list">
+      <li v-for="t in tiers" :key="t.id" class="tier-row">
+        <input
+          class="tier-color"
+          type="color"
+          :value="t.color"
+          :disabled="busyTier === t.id"
+          :aria-label="`Цвет «${t.name}»`"
+          @change="
+            updateTier(t, { color: ($event.target as HTMLInputElement).value })
+          "
+        />
+        <input
+          class="tier-name"
+          type="text"
+          maxlength="30"
+          :value="t.name"
+          :disabled="busyTier === t.id"
+          aria-label="Название"
+          @change="
+            updateTier(t, { name: ($event.target as HTMLInputElement).value })
+          "
+        />
+        <label class="tier-chance">
+          <input
+            type="number"
+            min="0"
+            max="100"
+            step="0.1"
+            :value="t.chance"
+            :disabled="busyTier === t.id"
+            :aria-label="`Шанс «${t.name}», %`"
+            @change="
+              updateTier(t, {
+                chance: ($event.target as HTMLInputElement).value,
+              })
+            "
+          />%
+        </label>
+        <label class="tick" title="Титулы с такими словами — сверху доски">
+          <input
+            type="checkbox"
+            :checked="t.pinned"
+            @change="
+              updateTier(t, {
+                pinned: ($event.target as HTMLInputElement).checked,
+              })
+            "
+          />
+          сверху доски
+        </label>
+        <label class="tick" title="Ореол вокруг слова — для тёмных цветов">
+          <input
+            type="checkbox"
+            :checked="t.glow"
+            @change="
+              updateTier(t, {
+                glow: ($event.target as HTMLInputElement).checked,
+              })
+            "
+          />
+          свечение
+        </label>
+        <span class="tier-sample"><NameTitle :title="tierSample(t)" /></span>
+        <button
+          class="word-del"
+          type="button"
+          :aria-label="`Удалить редкость «${t.name}»`"
+          @click="removeTier(t)"
+        >
+          ×
+        </button>
+      </li>
+    </ul>
+    <form class="add-row" @submit.prevent="addTier">
+      <input
+        v-model="freshTier.color"
+        class="tier-color"
+        type="color"
+        aria-label="Цвет новой редкости"
+      />
+      <input
+        v-model="freshTier.name"
+        type="text"
+        maxlength="30"
+        placeholder="Эпическое"
+        aria-label="Название новой редкости"
+      />
+      <label class="tier-chance">
+        <input
+          v-model.number="freshTier.chance"
+          type="number"
+          min="0"
+          max="100"
+          step="0.1"
+          aria-label="Шанс новой редкости, %"
+        />%
+      </label>
+      <button class="btn btn--sm btn--primary" type="submit">Добавить</button>
+    </form>
+
+    <hr class="section-divider" />
+
     <!-- Примеры -->
     <h3 class="tree-sub">Как звучит</h3>
     <p class="tree-note">
@@ -345,7 +544,7 @@ const when = (raw: string) =>
     </button>
     <ul v-if="samples.length" class="sample-list">
       <li v-for="(s, i) in samples" :key="i">
-        <NameTitle :title="{ id: i, text: s.text, rarity: s.rarity }" />
+        <NameTitle :title="s" />
       </li>
     </ul>
 
@@ -387,7 +586,13 @@ const when = (raw: string) =>
           v-for="w in wordsOf(k.kind)"
           :key="w.id"
           class="word-row"
-          :class="{ off: !w.active, gold: w.rare }"
+          :class="{ off: !w.active }"
+          :style="wordTone(w)"
+          :title="
+            !w.tierId && isMultiWord(w.word)
+              ? 'Из двух слов и больше — само выпадает необычным (голубым)'
+              : undefined
+          "
         >
           <div class="word-line">
             <input
@@ -417,18 +622,21 @@ const when = (raw: string) =>
                 {{ label }}
               </option>
             </select>
-            <label class="tick" title="Выпадает редко и делает титул редким">
-              <input
-                type="checkbox"
-                :checked="w.rare"
-                @change="
-                  updateWord(w, {
-                    rare: ($event.target as HTMLInputElement).checked,
-                  })
-                "
-              />
-              золотое
-            </label>
+            <select
+              class="word-tier"
+              :value="w.tierId ?? ''"
+              aria-label="Редкость"
+              @change="
+                updateWord(w, {
+                  tierId: ($event.target as HTMLSelectElement).value || null,
+                })
+              "
+            >
+              <option value="">обычное</option>
+              <option v-for="t in tiers" :key="t.id" :value="t.id">
+                {{ t.name.toLowerCase() }}
+              </option>
+            </select>
             <label class="tick" title="Снятое с раздачи больше не выпадает">
               <input
                 type="checkbox"
@@ -510,7 +718,7 @@ const when = (raw: string) =>
         </span>
         <NameTitle :title="t" />
         <span class="title-meta">
-          {{ RARITY_LABEL[t.rarity] }} · {{ when(t.wonAt) }}
+          {{ tierLabel(t.tier) }} · {{ when(t.wonAt) }}
           <span v-if="t.trial" class="trial">проба</span>
         </span>
         <button class="word-del" type="button" @click="removeTitle(t)">
@@ -623,9 +831,65 @@ const when = (raw: string) =>
   background: var(--fill-faint);
 }
 
-.word-row.gold {
-  background: rgba(233, 199, 102, 0.07);
-  box-shadow: inset 2px 0 0 rgba(233, 199, 102, 0.6);
+/* Слово с редкостью — полоска и лёгкий фон её цвета (--tier). */
+.word-row[style*="--tier"] {
+  background: color-mix(in srgb, var(--tier) 8%, transparent);
+  box-shadow: inset 2px 0 0 var(--tier);
+}
+
+.word-tier {
+  max-width: 130px;
+}
+
+/* ── Редкости ─────────────────────────────── */
+.tier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.tier-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background: var(--fill-faint);
+}
+
+.tier-color {
+  flex: none;
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 4px);
+  background: none;
+  cursor: pointer;
+}
+
+.tier-name {
+  width: 150px;
+}
+
+.tier-chance {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.tier-chance input {
+  width: 72px;
+}
+
+.tier-sample {
+  font-size: 15px;
 }
 
 .word-row.off {

@@ -6,23 +6,34 @@ import type {
   NameTitle,
   ShakeResult,
   TitleSwap,
-  TreeWordKind,
   TreeBoard,
   TreeMode,
   TreeTexts,
+  TreeTier,
+  TreeWordKind,
+  WordBook,
 } from "#shared/utils/tree";
 import {
-  TREE_RARE_CHANCE_DEFAULT,
   TREE_THREE_CHANCE_DEFAULT,
   buildTitle,
   drawTitle,
   fullTreeTexts,
+  legacyRarity,
+  tierIdOf,
   percentOf,
   swapWords,
+  tierMark,
+  titleParts,
   titleSwaps,
   treeModeOf,
 } from "#shared/utils/tree";
-import { siteSettings, treeWords, userTitles, users } from "../database/schema";
+import {
+  siteSettings,
+  treeTiers,
+  treeWords,
+  userTitles,
+  users,
+} from "../database/schema";
 import { useDb } from "./db";
 import { framesByIds } from "./frames";
 import { readerName } from "./identity";
@@ -33,7 +44,6 @@ type TitleRow = typeof userTitles.$inferSelect;
 export type TreeSettings = {
   mode: TreeMode;
   threeChance: number;
-  rareChance: number;
   texts: TreeTexts;
 };
 
@@ -47,7 +57,6 @@ export async function treeSettings(): Promise<TreeSettings> {
   return {
     mode: treeModeOf(s.tree_mode),
     threeChance: percentOf(s.tree_three_chance, TREE_THREE_CHANCE_DEFAULT),
-    rareChance: percentOf(s.tree_rare_chance, TREE_RARE_CHANCE_DEFAULT),
     texts: fullTreeTexts(s),
   };
 }
@@ -92,11 +101,27 @@ export async function treeFor(
   return null;
 }
 
-export const toNameTitle = (r: TitleRow): NameTitle => ({
-  id: r.id,
-  text: r.text,
-  rarity: r.rarity,
-});
+/** Титул для показа: редкость — по записанной у титула, слова — с их
+ *  редкостями, чтобы подчеркнуть. Слов нет (старый титул) — целиком. */
+export const toNameTitle = (r: TitleRow, book: WordBook): NameTitle => {
+  const parts = r.words ? titleParts(book, r.words) : null;
+  // Редкость — по словам, как они сейчас (в ней и «Необычное», которое не
+  // хранится); слов нет — какая записана.
+  const built = r.words ? buildTitle(book, r.words) : null;
+  return {
+    id: r.id,
+    text: r.text,
+    tier: tierMark(
+      built ? built.tier : r.tierId ? book.tiers.get(r.tierId) : null,
+    ),
+    ...(parts ? { parts } : {}),
+  };
+};
+
+/** Редкости ёлки — как их завели в админке. */
+export async function treeTiersList(): Promise<TreeTier[]> {
+  return useDb().select().from(treeTiers).orderBy(treeTiers.chance);
+}
 
 /** Последний титул, выигранный сегодня, — или null. У админа их за день
  *  бывает несколько: день у них «2026-12-20#…». */
@@ -140,8 +165,8 @@ export async function shake(
     .where(eq(treeWords.active, true))) as DrawWord[];
   const draw = drawTitle(
     words,
+    await treeTiersList(),
     settings.threeChance,
-    settings.rareChance,
     randomInt,
   );
   if (!draw)
@@ -157,7 +182,8 @@ export async function shake(
       .values({
         userId,
         text: draw.text,
-        rarity: draw.rarity,
+        rarity: legacyRarity(draw.tier, draw.gifts.length),
+        tierId: tierIdOf(draw.tier),
         gifts: draw.gifts.length,
         words: draw.words,
         day: d,
@@ -181,17 +207,23 @@ export async function shake(
 
   return {
     gifts: draw.gifts,
-    title: toNameTitle(row),
+    title: toNameTitle(row, await wordBook()),
     current: await wornTitle(userId),
     swaps: await swapsFor(userId, row),
   };
 }
 
 /** Все слова ёлки по номерам — и убранные из раздачи: из них собраны
- *  уже выпавшие титулы. */
-async function wordsById(): Promise<Map<number, DrawWord>> {
-  const rows = (await useDb().select().from(treeWords)) as DrawWord[];
-  return new Map(rows.map((w) => [w.id, w]));
+ *  уже выпавшие титулы, — и все редкости. */
+export async function wordBook(): Promise<WordBook> {
+  const [rows, tiers] = await Promise.all([
+    useDb().select().from(treeWords) as Promise<DrawWord[]>,
+    treeTiersList(),
+  ]);
+  return {
+    words: new Map(rows.map((w) => [w.id, w])),
+    tiers: new Map(tiers.map((t) => [t.id, t])),
+  };
 }
 
 async function wornRow(userId: number): Promise<TitleRow | null> {
@@ -215,7 +247,7 @@ export async function swapsFor(
 ): Promise<TitleSwap[]> {
   const worn = await wornRow(userId);
   if (!worn?.words || !fresh.words || worn.id === fresh.id) return [];
-  return titleSwaps(await wordsById(), worn.words, fresh.words);
+  return titleSwaps(await wordBook(), worn.words, fresh.words);
 }
 
 /** Что человек носит сейчас. */
@@ -245,7 +277,8 @@ export async function takeTitle(
   if (!fresh || fresh.id !== titleId)
     throw createError({
       statusCode: 403,
-      message: "Этот титул уже не взять — ёлка дарит новый раз в день",
+      message:
+        "Этот титул уже не взять — взять можно только последний выпавший",
     });
   if (slot) {
     const swap = (await swapsFor(userId, fresh)).find((s) => s.slot === slot);
@@ -254,7 +287,7 @@ export async function takeTitle(
       swap && worn?.words && fresh.words
         ? swapWords(worn.words, fresh.words, slot)
         : null;
-    const built = words ? buildTitle(await wordsById(), words) : null;
+    const built = words ? buildTitle(await wordBook(), words) : null;
     if (!words || !built)
       throw createError({
         statusCode: 409,
@@ -264,7 +297,8 @@ export async function takeTitle(
       .update(userTitles)
       .set({
         text: built.text,
-        rarity: built.rarity,
+        rarity: legacyRarity(built.tier, words.tail ? 3 : 2),
+        tierId: tierIdOf(built.tier),
         gifts: words.tail ? 3 : 2,
         words,
       })
@@ -275,7 +309,7 @@ export async function takeTitle(
     .update(users)
     .set({ titleId: fresh.id })
     .where(eq(users.id, userId));
-  return toNameTitle(fresh);
+  return toNameTitle(fresh, await wordBook());
 }
 
 /** Надет ли титул, выпавший сегодня, — тогда его не снять до полуночи. */
@@ -300,7 +334,8 @@ export async function titlesByIds(
     .select()
     .from(userTitles)
     .where(inArray(userTitles.id, want));
-  return new Map(rows.map((r) => [r.id, toNameTitle(r)]));
+  const book = await wordBook();
+  return new Map(rows.map((r) => [r.id, toNameTitle(r, book)]));
 }
 
 export async function titleById(
@@ -332,7 +367,8 @@ export async function titleWearError(
 }
 
 /**
- * Доска титулов: золотые — весь сезон (30 последних), ниже — 40 свежих;
+ * Доска титулов: с редкостями «сверху доски» — весь сезон (30 последних),
+ * ниже — 40 свежих;
  * на главной она прокручивается в своей рамке. Заблокированных на
  * доске нет. Пока ёлка для всех, пробные встряски админа («…#…») не видны;
  * пока она только для админов — видно всё, иначе пробовать было бы нечего.
@@ -349,11 +385,17 @@ export async function treeBoard(mode: TreeMode): Promise<TreeBoard> {
       .from(userTitles)
       .innerJoin(users, eq(users.id, userTitles.userId));
 
+  const book = await wordBook();
+  const pinned = [...book.tiers.values()]
+    .filter((t) => t.pinned)
+    .map((t) => t.id);
   const [rare, recent] = await Promise.all([
-    select()
-      .where(and(where, eq(userTitles.rarity, "rare")))
-      .orderBy(desc(userTitles.id))
-      .limit(30),
+    pinned.length
+      ? select()
+          .where(and(where, inArray(userTitles.tierId, pinned)))
+          .orderBy(desc(userTitles.id))
+          .limit(30)
+      : Promise.resolve([]),
     select().where(where).orderBy(desc(userTitles.id)).limit(40),
   ]);
 
@@ -361,9 +403,7 @@ export async function treeBoard(mode: TreeMode): Promise<TreeBoard> {
     [...rare, ...recent].map((r) => r.u.avatarFrameId),
   );
   const toEntry = ({ t, u }: (typeof recent)[number]): BoardEntry => ({
-    id: t.id,
-    text: t.text,
-    rarity: t.rarity,
+    ...toNameTitle(t, book),
     wonAt: t.createdAt,
     name: readerName(u),
     code: u.publicId,

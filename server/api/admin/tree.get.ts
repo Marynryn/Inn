@@ -4,9 +4,11 @@ import { requireAdmin } from "../../utils/admin-access";
 import { useDb } from "../../utils/db";
 import { readerName } from "../../utils/identity";
 import { mskDay } from "../../utils/msk";
-import { treeSettings } from "../../utils/tree";
+import { tierMark } from "#shared/utils/tree";
+import { treeSettings, treeTiersList } from "../../utils/tree";
 
-/** Вкладка «Ёлка»: настройки, слова, последние титулы и сколько трясли. */
+/** Вкладка «Ёлка»: настройки, редкости, слова, последние титулы и сколько
+ *  трясли. */
 export default defineEventHandler(async (event) => {
   await requireAdmin(event);
   const db = useDb();
@@ -28,13 +30,16 @@ export default defineEventHandler(async (event) => {
       .where(like(userTitles.day, `${mskDay()}%`)),
   ]);
 
+  const tiers = await treeTiersList();
+  const tierById = new Map(tiers.map((t) => [t.id, t]));
   return {
     settings: await treeSettings(),
+    tiers,
     words,
     titles: recent.map(({ t, u }) => ({
       id: t.id,
       text: t.text,
-      rarity: t.rarity,
+      tier: tierMark(t.tierId ? tierById.get(t.tierId) : null),
       gifts: t.gifts,
       wonAt: t.createdAt,
       trial: t.day.includes("#"),

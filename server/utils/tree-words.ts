@@ -31,7 +31,16 @@ export function wordFromBody(
       throw createError({ statusCode: 400, message: "Укажи род" });
     out.gender = body.gender;
   }
-  if ("rare" in body) out.rare = Boolean(body.rare);
+  // Редкость: номер из tree_tiers или пусто — обычное. Есть ли такая
+  // редкость, проверяет вызывающий: здесь базы нет.
+  if ("tierId" in body) {
+    const t = body.tierId;
+    if (t === null || t === "" || t === undefined) out.tierId = null;
+    else if (Number.isInteger(Number(t)) && Number(t) > 0)
+      out.tierId = Number(t);
+    else
+      throw createError({ statusCode: 400, message: "Неизвестная редкость" });
+  }
   if ("active" in body) out.active = Boolean(body.active);
   return out;
 }

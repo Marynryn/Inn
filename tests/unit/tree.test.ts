@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
-import type { DrawWord } from "../../shared/utils/tree";
+import type { DrawWord, TreeTier, WordBook } from "../../shared/utils/tree";
 import {
   adjFor,
   agreeAdjective,
+  bestTier,
   buildTitle,
   composeTitle,
   drawTitle,
+  tierChanceOf,
+  tierMark,
+  tierTextStyle,
+  titleParts,
   titleSwaps,
 } from "../../shared/utils/tree";
 
@@ -49,6 +54,33 @@ describe("ёлка: согласование прилагательного", ()
   });
 });
 
+const UNCOMMON: TreeTier = {
+  id: 10,
+  name: "Необычное",
+  color: "#a9d3ef",
+  chance: 15,
+  pinned: false,
+  glow: false,
+};
+const RARE: TreeTier = {
+  id: 20,
+  name: "Редкое",
+  color: "#f2c14e",
+  chance: 3,
+  pinned: true,
+  glow: false,
+};
+const EPIC: TreeTier = {
+  id: 30,
+  name: "Эпическое",
+  color: "#8e44ad",
+  chance: 1,
+  pinned: true,
+  glow: true,
+};
+const TIERS = [UNCOMMON, RARE, EPIC];
+const mark = tierMark;
+
 const w = (
   id: number,
   kind: DrawWord["kind"],
@@ -61,17 +93,17 @@ const w = (
   wordF: null,
   wordN: null,
   gender: kind === "noun" ? "m" : null,
-  rare: false,
+  tierId: null,
   ...extra,
 });
 
 const WORDS: DrawWord[] = [
   w(1, "adj", "Сонный"),
-  w(2, "adj", "Великий", { rare: true }),
+  w(2, "adj", "Великий", { tierId: RARE.id }),
   w(3, "noun", "Варежка", { gender: "f" }),
-  w(4, "noun", "Дракон", { rare: true }),
+  w(4, "noun", "Дракон", { tierId: EPIC.id }),
   w(5, "tail", "по средам"),
-  w(6, "tail", "всея Изрила", { rare: true }),
+  w(6, "tail", "всея Изрила", { tierId: UNCOMMON.id }),
 ];
 
 /** rand по списку ответов: что выпадет, задаёт тест. */
@@ -85,31 +117,50 @@ const scripted = (answers: number[]) => {
 };
 
 describe("ёлка: жребий титула", () => {
-  it("два подарка — обычный титул", () => {
-    // третий: 99 ≥ 40 — нет; золото: 99 ≥ 3 — нет; слова — первые.
-    const d = drawTitle(WORDS, 40, 3, scripted([99, 99, 0, 0]))!;
+  // Бросок редкости — в сотых долях процента: эпическое [0, 100),
+  // редкое [100, 400), необычное [400, 1900), дальше — без особого слова.
+  it("без особого слова — обычный титул", () => {
+    // третий: 99 ≥ 40 — нет; редкость: 9999 — нет; слова — первые обычные.
+    const d = drawTitle(WORDS, TIERS, 40, scripted([99, 9999, 0, 0]))!;
     expect(d.text).toBe("Сонная Варежка");
-    expect(d.rarity).toBe("common");
+    expect(d.tier).toBeNull();
     expect(d.gifts.map((g) => g.word)).toEqual(["Сонная", "Варежка"]);
   });
 
-  it("три подарка — необычный", () => {
-    const d = drawTitle(WORDS, 40, 3, scripted([0, 99, 0, 0, 0]))!;
-    expect(d.text).toBe("Сонная Варежка по средам");
-    expect(d.rarity).toBe("uncommon");
+  it("эпическое слово с шансом 1% и согласование с ним", () => {
+    // третьего нет; бросок 50 — эпическое; место одно — существительное.
+    const d = drawTitle(WORDS, TIERS, 40, scripted([99, 50, 0, 0]))!;
+    expect(d.text).toBe("Сонный Дракон");
+    expect(d.tier).toEqual(EPIC);
+    expect(d.gifts[1]).toEqual({
+      kind: "noun",
+      word: "Дракон",
+      tier: mark(EPIC),
+    });
   });
 
-  it("золотое слово делает титул редким и согласуется с ним", () => {
-    // третьего нет, золото есть, золотое место — второе (существительное).
-    const d = drawTitle(WORDS, 40, 3, scripted([99, 0, 1, 0, 0]))!;
-    expect(d.text).toBe("Сонный Дракон");
-    expect(d.rarity).toBe("rare");
-    expect(d.gifts[1]).toEqual({ kind: "noun", word: "Дракон", rare: true });
+  it("редкое — следующее окно броска", () => {
+    const d = drawTitle(WORDS, TIERS, 40, scripted([99, 250, 0, 0]))!;
+    expect(d.text).toBe("Великая Варежка");
+    expect(d.tier).toEqual(RARE);
+  });
+
+  it("необычное хвостиком — на третьем подарке", () => {
+    // третий есть; бросок 1000 — необычное; место — хвост.
+    const d = drawTitle(WORDS, TIERS, 40, scripted([0, 1000, 0, 0, 0]))!;
+    expect(d.text).toBe("Сонная Варежка всея Изрила");
+    expect(d.tier).toEqual(UNCOMMON);
+  });
+
+  it("выпала редкость без слов для этих мест — титул обычный", () => {
+    // необычные слова есть только в хвостах, а подарка три нет.
+    const d = drawTitle(WORDS, TIERS, 40, scripted([99, 1000, 0, 0]))!;
+    expect(d.tier).toBeNull();
   });
 
   it("без хвостиков третьего подарка не бывает", () => {
     const noTails = WORDS.filter((x) => x.kind !== "tail");
-    const d = drawTitle(noTails, 100, 0, scripted([0, 0]))!;
+    const d = drawTitle(noTails, TIERS, 100, scripted([9999, 0, 0]))!;
     expect(d.gifts).toHaveLength(2);
   });
 
@@ -117,108 +168,109 @@ describe("ёлка: жребий титула", () => {
     expect(
       drawTitle(
         WORDS.filter((x) => x.kind !== "noun"),
+        TIERS,
         40,
-        3,
         () => 0,
       ),
     ).toBeNull();
   });
 });
 
-describe("ёлка: одно слово в свой титул", () => {
-  const w = (
-    id: number,
-    kind: DrawWord["kind"],
-    word: string,
-    extra: Partial<DrawWord> = {},
-  ): DrawWord => ({
-    id,
-    kind,
-    word,
-    wordF: null,
-    wordN: null,
-    gender: null,
-    rare: false,
-    ...extra,
-  });
-  const byId = new Map(
-    [
-      w(1, "adj", "Ворчливый"),
-      w(2, "adj", "Великий", { rare: true }),
-      w(3, "noun", "Половник", { gender: "m" }),
-      w(4, "noun", "Сковородка", { gender: "f" }),
-      w(5, "tail", "из Лискора"),
-      w(6, "tail", "по средам"),
-    ].map((x) => [x.id, x]),
-  );
+describe("ёлка: титул по номерам и одно слово в свой", () => {
+  const book: WordBook = {
+    words: new Map(
+      [
+        w(1, "adj", "Ворчливый"),
+        w(2, "adj", "Великий", { tierId: RARE.id }),
+        w(3, "noun", "Половник", { gender: "m" }),
+        w(4, "noun", "Сковородка", { gender: "f", tierId: UNCOMMON.id }),
+        w(5, "tail", "из Лискора"),
+        w(6, "tail", "по средам"),
+      ].map((x) => [x.id, x]),
+    ),
+    tiers: new Map(TIERS.map((t) => [t.id, t])),
+  };
 
-  it("собирает титул по номерам и считает редкость", () => {
-    expect(buildTitle(byId, { adj: 1, noun: 4 })).toEqual({
-      text: "Ворчливая Сковородка",
-      rarity: "common",
+  it("редкость титула — самая сильная из слов", () => {
+    expect(buildTitle(book, { adj: 1, noun: 3 })).toEqual({
+      text: "Ворчливый Половник",
+      tier: null,
     });
-    expect(buildTitle(byId, { adj: 2, noun: 3, tail: 5 })).toEqual({
-      text: "Великий Половник из Лискора",
-      rarity: "rare",
+    expect(buildTitle(book, { adj: 2, noun: 4 })).toEqual({
+      text: "Великая Сковородка",
+      tier: RARE,
     });
-    expect(buildTitle(byId, { adj: 1, noun: 99 })).toBeNull();
+    expect(buildTitle(book, { adj: 1, noun: 99 })).toBeNull();
+  });
+
+  it("слова титула — в роде и со своей редкостью", () => {
+    expect(titleParts(book, { adj: 2, noun: 4, tail: 5 })).toEqual([
+      { text: "Великая", tier: mark(RARE) },
+      { text: "Сковородка", tier: mark(UNCOMMON) },
+      { text: "из Лискора", tier: null },
+    ]);
   });
 
   it("новое существительное перестраивает прилагательное под род", () => {
-    const swaps = titleSwaps(byId, { adj: 1, noun: 3 }, { adj: 2, noun: 4 });
+    const swaps = titleSwaps(book, { adj: 1, noun: 3 }, { adj: 2, noun: 4 });
     expect(swaps).toMatchObject([
       {
         slot: "adj",
         word: "Великий",
-        title: { text: "Великий Половник", rarity: "rare" },
-        parts: ["Великий", "Половник"],
-        rare: true,
+        title: { text: "Великий Половник", tier: mark(RARE) },
+        tier: mark(RARE),
       },
       {
         slot: "noun",
         word: "Сковородка",
-        title: { text: "Ворчливая Сковородка", rarity: "common" },
-        parts: ["Ворчливая", "Сковородка"],
-        rare: false,
+        title: { text: "Ворчливая Сковородка", tier: mark(UNCOMMON) },
+        parts: [
+          { text: "Ворчливая", tier: null },
+          { text: "Сковородка", tier: mark(UNCOMMON) },
+        ],
+        tier: mark(UNCOMMON),
       },
     ]);
   });
 
-  it("прилагательное приходит в роде своего существительного", () => {
+  it("хвост можно дописать", () => {
     const swaps = titleSwaps(
-      byId,
-      { adj: 1, noun: 4 },
-      { adj: 2, noun: 4, tail: 5 },
-    );
-    // Сковородка совпала — замены существительного нет, а «Великий» в
-    // её роде.
-    expect(swaps.find((s) => s.slot === "adj")).toMatchObject({
-      slot: "adj",
-      word: "Великая",
-      title: { text: "Великая Сковородка", rarity: "rare" },
-    });
-  });
-
-  it("хвост можно дописать, и титул становится необычным", () => {
-    const swaps = titleSwaps(
-      byId,
+      book,
       { adj: 1, noun: 3 },
       { adj: 2, noun: 4, tail: 6 },
     );
     expect(swaps.find((s) => s.slot === "tail")).toMatchObject({
-      slot: "tail",
       word: "по средам",
-      title: { text: "Ворчливый Половник по средам", rarity: "uncommon" },
+      title: { text: "Ворчливый Половник по средам", tier: null },
     });
   });
 
   it("не предлагает того, что ничего не меняет или равно новому целиком", () => {
-    // Отличается одно слово — замена дала бы ровно новый титул.
-    expect(titleSwaps(byId, { adj: 1, noun: 3 }, { adj: 2, noun: 3 })).toEqual(
+    expect(titleSwaps(book, { adj: 1, noun: 3 }, { adj: 2, noun: 3 })).toEqual(
       [],
     );
-    expect(titleSwaps(byId, { adj: 1, noun: 3 }, { adj: 1, noun: 3 })).toEqual(
+    expect(titleSwaps(book, { adj: 1, noun: 3 }, { adj: 1, noun: 3 })).toEqual(
       [],
     );
+  });
+});
+
+describe("ёлка: редкости", () => {
+  it("самая сильная — с меньшим шансом", () => {
+    expect(bestTier([UNCOMMON, null, EPIC, RARE])).toEqual(EPIC);
+    expect(bestTier([null, undefined])).toBeNull();
+  });
+
+  it("шанс — от 0 до 100, до сотых", () => {
+    expect(tierChanceOf("0.5")).toBe(0.5);
+    expect(tierChanceOf("1.234")).toBe(1.23);
+    expect(tierChanceOf("150")).toBe(100);
+    expect(tierChanceOf("")).toBeNull();
+  });
+
+  it("свечение — светлее и с ореолом её цвета", () => {
+    expect(tierTextStyle(mark(RARE))).toEqual({ color: "#f2c14e" });
+    expect(tierTextStyle(mark(EPIC))!.textShadow).toContain("#8e44ad");
+    expect(tierTextStyle(null)).toBeUndefined();
   });
 });
