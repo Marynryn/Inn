@@ -124,7 +124,7 @@ test.describe("Лабиринт", () => {
 
     const { id, maze } = await lastRun("practice");
     await play(page, maze);
-    await expect(page.getByText(/Выход найден за \d+:\d\d\.\d/)).toBeVisible();
+    await expect(page.getByText(/В тепле! Время — \d+:\d\d\.\d/)).toBeVisible();
 
     const db = testDb();
     const row = (

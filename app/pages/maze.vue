@@ -159,9 +159,9 @@ const runTitle = (r: MazeRunView) =>
           <div v-if="state" class="eyebrow">Проба для админов</div>
           <h1 class="page-title title">Лабиринт</h1>
           <p v-if="!loadError" class="lead">
-            Найди выход, пока светит фонарь. Видно только то, что рядом, —
-            пройденное остаётся на карте. Где выход, известно сразу, как до него
-            дойти — нет.
+            Ночь, метель, в руке фонарь. Видно только то, что рядом, —
+            пройденное остаётся на карте. Где светится окошко таверны, известно
+            сразу, как до него дойти — нет.
           </p>
         </header>
 
@@ -178,6 +178,7 @@ const runTitle = (r: MazeRunView) =>
 
         <div v-else-if="state" class="cards">
           <section class="card card--panel option">
+            <SnowCap />
             <h2 class="option-title display">Лабиринт дня</h2>
             <p class="option-lead">
               Сегодня — {{ state.dailySize }}×{{ state.dailySize }}. Один на
@@ -224,6 +225,7 @@ const runTitle = (r: MazeRunView) =>
           </section>
 
           <section class="card card--panel option">
+            <SnowCap />
             <h2 class="option-title display">Тренировка</h2>
             <p class="option-lead">
               Новый лабиринт на каждый раз — подобрать размер, на котором
@@ -261,9 +263,15 @@ const runTitle = (r: MazeRunView) =>
 </template>
 
 <style scoped>
+/* Зимняя ночь сверху переходит в обычный фон сайта к подвалу. */
 .page {
   min-height: 100vh;
-  background: var(--bg-dark);
+  background: linear-gradient(
+    180deg,
+    #0f1828 0%,
+    #141c29 55%,
+    var(--bg-dark) 100%
+  );
   color: var(--parchment);
   display: flex;
   flex-direction: column;
@@ -307,6 +315,7 @@ const runTitle = (r: MazeRunView) =>
 }
 
 .option {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 10px;

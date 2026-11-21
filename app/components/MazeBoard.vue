@@ -19,6 +19,22 @@ import {
   neighbor,
   walk,
 } from "#shared/utils/maze";
+import snowflakeUrl from "~/assets/winter/snowflake.svg";
+import type { Burst } from "~/utils/mazeWinter";
+import {
+  drawBurst,
+  drawDrifts,
+  drawFrostSparks,
+  drawGround,
+  drawInnWindow,
+  drawLantern,
+  drawNight,
+  drawSnow,
+  drawToken,
+  makeBurst,
+  makeSnow,
+  stepSnow,
+} from "~/utils/mazeWinter";
 
 /**
  * Поле лабиринта. Целиком лабиринт знает только сервер: здесь — клетки, которые
@@ -28,6 +44,9 @@ import {
  *
  * Видно то, что вокруг пройденного, на радиус фонаря. Открытое сервером чуть
  * дальше фонаря не рисуется: оно нужно, чтобы не ждать сети на каждом шаге.
+ *
+ * Оформление — «ночная метель» (utils/mazeWinter): идёшь с фонарём сквозь
+ * снег к окошку таверны. На финише прилетает Айволет.
  */
 const props = defineProps<{ run: MazeRunView }>();
 const emit = defineEmits<{ finished: [ms: number]; resync: [] }>();
@@ -43,8 +62,10 @@ const exit = props.run.exit;
 const bits = new Array<number>(n * n).fill(0);
 const known = new Uint8Array(n * n);
 // Пол видимых клеток рисуется одним контуром; он пересобирается, когда
-// клеток стало больше — и видимых, и пришедших с сервера.
+// клеток стало больше — и видимых, и пришедших с сервера. Снег со следами —
+// отдельным слоем, его пересобирает и каждый шаг.
 let seenDirty = true;
+let groundDirty = true;
 const merge = (cells: MazeCell[]) => {
   for (const [i, b] of cells) {
     bits[i] = b;
@@ -101,6 +122,7 @@ function step(d: MazeDir, t0: number): boolean {
   pos = to;
   path.push(to);
   moves += d;
+  groundDirty = true;
   flush();
   return true;
 }
@@ -112,6 +134,7 @@ function arrive(came: MazeDir, t0: number) {
     reachedExit.value = true;
     localDoneMs = t0 - startPerf;
     queued = null;
+    groundDirty = true;
     return;
   }
   const here = bits[pos]!;
@@ -161,6 +184,7 @@ async function flush() {
     if (waiting) step(waiting, performance.now());
     if (res.finishedMs !== null && serverMs.value === null) {
       serverMs.value = res.finishedMs;
+      celebrate();
       emit("finished", res.finishedMs);
     }
   } catch (e: any) {
@@ -230,7 +254,15 @@ const wrap = ref<HTMLDivElement | null>(null);
 const canvas = ref<HTMLCanvasElement | null>(null);
 let side = 0;
 let dpr = 1;
-let seenPath: Path2D | null = null;
+let floor: Path2D | null = null;
+let ground: HTMLCanvasElement | null = null;
+
+// «Уменьшить движение» в системе: снег стоит, искры не мерцают, фея не
+// летит, снежинки на финише не разлетаются.
+const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const snow = makeSnow(140);
+let burst: Burst | null = null;
+const flakeImg = Object.assign(new Image(), { src: snowflakeUrl });
 
 function resize() {
   const el = wrap.value;
@@ -245,36 +277,59 @@ function resize() {
   seenDirty = true;
 }
 
-const COLORS = {
-  void: "#0f0b08",
-  floor: "#2a2019",
-  light: "255, 196, 128",
-  wallNear: "rgba(241, 230, 210, 0.92)",
-  wallFar: "rgba(241, 230, 210, 0.3)",
-  trail: "rgba(214, 136, 62, 0.4)",
-  token: "#e8a15a",
-  exit: "242, 193, 78",
+const exitCenter = () => {
+  const cs = side / n;
+  const [x, y] = xy(exit);
+  return [(x + 0.5) * cs, (y + 0.5) * cs] as const;
 };
 
-function draw(now: number) {
-  const ctx = canvas.value?.getContext("2d");
-  if (!ctx || !side) return;
-  const cs = side / n;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = COLORS.void;
-  ctx.fillRect(0, 0, side, side);
+/** Дошли — от окошка разлетаются снежинки. */
+function celebrate() {
+  if (calm || !side) return;
+  const [x, y] = exitCenter();
+  burst = makeBurst(x, y, side, side / n, performance.now());
+}
 
-  if (seenDirty || !seenPath) {
-    seenPath = new Path2D();
-    for (const c of seen) {
-      if (!known[c]) continue;
-      const [x, y] = xy(c);
-      seenPath.rect(x * cs, y * cs, cs + 0.5, cs + 0.5);
+/** Фея садится в верхний угол подальше от окошка, чтобы его не закрыть. */
+const faeSide = xy(exit)[0] < n / 2 ? "right" : "left";
+
+function draw(now: number) {
+  const c = canvas.value;
+  const ctx = c?.getContext("2d");
+  if (!c || !ctx || !side) return;
+  const cs = side / n;
+  const done = reachedExit.value;
+
+  if (seenDirty || !floor) {
+    floor = new Path2D();
+    for (const i of seen) {
+      if (!known[i]) continue;
+      const [x, y] = xy(i);
+      floor.rect(x * cs, y * cs, cs + 0.5, cs + 0.5);
     }
     seenDirty = false;
+    groundDirty = true;
   }
-  ctx.fillStyle = COLORS.floor;
-  ctx.fill(seenPath);
+  if (groundDirty || !ground) {
+    ground ??= document.createElement("canvas");
+    ground.width = c.width;
+    ground.height = c.height;
+    const g = ground.getContext("2d")!;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawNight(g, side);
+    drawGround(g, {
+      cs,
+      floor,
+      cells: [...seen].filter((i) => known[i]),
+      path,
+      xy,
+      done,
+    });
+    groundDirty = false;
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(ground, 0, 0);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   // Где фишка сейчас — в клетках, может быть и между ними.
   let tx: number, ty: number;
@@ -299,53 +354,27 @@ function draw(now: number) {
   const px = (tx + 0.5) * cs;
   const py = (ty + 0.5) * cs;
 
-  // Фонарь.
-  const lr = (MAZE_LIGHT + 0.8) * cs;
-  const glow = ctx.createRadialGradient(px, py, 0, px, py, lr);
-  glow.addColorStop(0, `rgba(${COLORS.light}, 0.34)`);
-  glow.addColorStop(0.6, `rgba(${COLORS.light}, 0.12)`);
-  glow.addColorStop(1, `rgba(${COLORS.light}, 0)`);
-  ctx.save();
-  ctx.clip(seenPath);
-  ctx.fillStyle = glow;
-  ctx.fillRect(px - lr, py - lr, lr * 2, lr * 2);
-  ctx.restore();
-
-  // Пройденный путь.
-  if (path.length > 1) {
-    ctx.beginPath();
-    path.forEach((c, i) => {
-      const [x, y] = xy(c);
-      const cx = (x + 0.5) * cs;
-      const cy = (y + 0.5) * cs;
-      if (i) ctx.lineTo(cx, cy);
-      else ctx.moveTo(cx, cy);
-    });
-    ctx.strokeStyle = COLORS.trail;
-    ctx.lineWidth = Math.max(1.5, cs * 0.12);
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    ctx.stroke();
-  }
+  if (!done) drawLantern(ctx, floor, px, py, (MAZE_LIGHT + 0.9) * cs);
 
   // Стены. Каждую рисует одна клетка: общая стена двух видимых — нижняя
-  // или правая у верхней/левой, иначе полупрозрачные легли бы дважды.
+  // или правая у верхней/левой, иначе полупрозрачные легли бы дважды. У
+  // фонаря — яркие, дальше — бледные; на финише все ровные.
   const near = new Path2D();
   const far = new Path2D();
-  const shown = (c: number | null) => c !== null && known[c] && seen.has(c);
-  const reach = MAZE_LIGHT + 0.5;
-  for (const c of seen) {
-    if (!known[c]) continue;
-    const b = bits[c]!;
-    const [x, y] = xy(c);
+  const shown = (i: number | null) => i !== null && known[i] && seen.has(i);
+  const reach = done ? -1 : MAZE_LIGHT + 0.5;
+  for (const i of seen) {
+    if (!known[i]) continue;
+    const b = bits[i]!;
+    const [x, y] = xy(i);
     const p = Math.hypot(x - tx, y - ty) <= reach ? near : far;
     const x0 = x * cs;
     const y0 = y * cs;
-    if (!isOpen(b, "U") && !shown(neighbor(n, c, "U"))) {
+    if (!isOpen(b, "U") && !shown(neighbor(n, i, "U"))) {
       p.moveTo(x0, y0);
       p.lineTo(x0 + cs, y0);
     }
-    if (!isOpen(b, "L") && !shown(neighbor(n, c, "L"))) {
+    if (!isOpen(b, "L") && !shown(neighbor(n, i, "L"))) {
       p.moveTo(x0, y0);
       p.lineTo(x0, y0 + cs);
     }
@@ -358,53 +387,36 @@ function draw(now: number) {
       p.lineTo(x0 + cs, y0 + cs);
     }
   }
-  ctx.lineCap = "round";
-  ctx.lineWidth = Math.max(1.5, cs * 0.1);
-  ctx.strokeStyle = COLORS.wallFar;
-  ctx.stroke(far);
-  ctx.strokeStyle = COLORS.wallNear;
-  ctx.stroke(near);
+  drawDrifts(ctx, near, far, cs, done);
+  if (!done) drawFrostSparks(ctx, px, py, cs, calm ? 0 : now);
 
   // Граница лабиринта — чтобы было видно, сколько его ещё впереди.
-  ctx.strokeStyle = "rgba(241, 230, 210, 0.08)";
+  ctx.strokeStyle = "rgba(200, 220, 240, 0.08)";
   ctx.lineWidth = 1;
   ctx.strokeRect(0.5, 0.5, side - 1, side - 1);
 
-  // Выход видно всегда: куда идти, известно, — как, нет.
-  const [ex, ey] = xy(exit);
-  const ecx = (ex + 0.5) * cs;
-  const ecy = (ey + 0.5) * cs;
-  const pulse = 0.5 + 0.5 * Math.sin(now / 380);
-  const er = cs * (1.1 + 0.35 * pulse);
-  const eg = ctx.createRadialGradient(ecx, ecy, 0, ecx, ecy, er);
-  eg.addColorStop(0, `rgba(${COLORS.exit}, 0.75)`);
-  eg.addColorStop(1, `rgba(${COLORS.exit}, 0)`);
-  ctx.fillStyle = eg;
-  ctx.fillRect(ecx - er, ecy - er, er * 2, er * 2);
-  ctx.fillStyle = `rgb(${COLORS.exit})`;
-  ctx.beginPath();
-  const s = cs * 0.22;
-  ctx.moveTo(ecx, ecy - s);
-  ctx.lineTo(ecx + s, ecy);
-  ctx.lineTo(ecx, ecy + s);
-  ctx.lineTo(ecx - s, ecy);
-  ctx.closePath();
-  ctx.fill();
+  // Окошко видно всегда: куда идти, известно, — как, нет.
+  const [ex, ey] = exitCenter();
+  drawInnWindow(ctx, ex, ey, cs, calm ? 0 : now);
 
-  // Фишка.
-  ctx.save();
-  ctx.shadowColor = "rgba(232, 161, 90, 0.9)";
-  ctx.shadowBlur = cs * 0.6;
-  ctx.fillStyle = COLORS.token;
-  ctx.beginPath();
-  ctx.arc(px, py, Math.max(3, cs * 0.3), 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  if (!done) drawToken(ctx, px, py, cs);
+
+  drawSnow(ctx, snow, side, (fx, fy) => {
+    const i = Math.floor(fy * n) * n + Math.floor(fx * n);
+    return seen.has(i) && known[i] === 1;
+  });
+
+  if (burst && flakeImg.complete && !drawBurst(ctx, burst, now, flakeImg))
+    burst = null;
 }
 
 let raf = 0;
 let lastTimeText = 0;
+let lastFrame = 0;
 function frame(now: number) {
+  const dt = lastFrame ? Math.min(0.05, (now - lastFrame) / 1000) : 0;
+  lastFrame = now;
+  if (!calm) stepSnow(snow, dt, now);
   // Пройденные за кадр клетки отсчитываются от того, когда шаг должен был
   // закончиться, а не от кадра: медленный телефон не идёт медленнее.
   while (anim && now - anim.t0 >= STEP_MS) {
@@ -450,9 +462,9 @@ const dirs: { d: MazeDir; label: string }[] = [
 
 const status = computed(() => {
   if (serverMs.value !== null)
-    return `Выход найден за ${formatMazeTime(serverMs.value)}`;
-  if (reachedExit.value) return "Выход! Сверяем время…";
-  return "";
+    return `В тепле! Время — ${formatMazeTime(serverMs.value)}`;
+  if (reachedExit.value) return "Окошко рядом… сверяем время";
+  return "Иди на огонёк таверны";
 });
 </script>
 
@@ -465,18 +477,38 @@ const status = computed(() => {
       <span v-if="offline" class="offline">Нет связи — ходы дойдут позже</span>
     </div>
 
-    <div
-      ref="wrap"
-      class="field"
-      @pointerdown="onPointerDown"
-      @pointermove="onPointerMove"
-      @pointerup="onPointerUp"
-      @pointercancel="onPointerUp"
-    >
-      <canvas ref="canvas" role="img" :aria-label="`Лабиринт ${n}×${n}`" />
+    <div class="field-wrap">
+      <div
+        ref="wrap"
+        class="field"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
+      >
+        <canvas ref="canvas" role="img" :aria-label="`Лабиринт ${n}×${n}`" />
+      </div>
+      <SnowCap />
+      <NuxtImg
+        v-if="serverMs !== null"
+        src="/faerie.webp"
+        alt=""
+        aria-hidden="true"
+        width="180"
+        height="246"
+        class="fae"
+        :class="`fae--${faeSide}`"
+      />
     </div>
 
-    <p class="status" role="status" aria-live="polite">{{ status }}</p>
+    <p
+      class="status"
+      :class="{ done: serverMs !== null }"
+      role="status"
+      aria-live="polite"
+    >
+      {{ status }}
+    </p>
 
     <div v-if="!reachedExit" class="pad">
       <button
@@ -520,7 +552,7 @@ const status = computed(() => {
 }
 
 .time.done {
-  color: var(--gold);
+  color: #ffcf7a;
 }
 
 .offline {
@@ -528,18 +560,76 @@ const status = computed(() => {
   color: var(--danger);
 }
 
-.field {
+/* Обёртка держит снежную шапку и фею: они выступают за край поля, а
+   само поле обрезано по скруглению. */
+.field-wrap {
+  position: relative;
   width: min(100%, calc(100svh - 300px), 640px);
   min-width: 240px;
   aspect-ratio: 1;
+  margin-top: 6px;
+}
+
+.field {
+  width: 100%;
+  height: 100%;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   border-radius: var(--radius-sm);
   overflow: hidden;
   box-shadow:
-    0 0 0 1px var(--line),
-    var(--shadow-card-lift);
+    0 0 0 1px rgba(200, 220, 240, 0.14),
+    0 18px 40px -18px rgba(0, 0, 0, 0.9);
+}
+
+/* Айволет прилетает на финише и садится в угол подальше от окошка. */
+.fae {
+  position: absolute;
+  top: -9%;
+  width: clamp(64px, 18%, 104px);
+  height: auto;
+  pointer-events: none;
+  filter: drop-shadow(0 0 12px rgba(170, 220, 255, 0.8));
+  animation:
+    fae-in 1.4s ease-out both,
+    fae-hover 4.8s ease-in-out 1.4s infinite;
+}
+
+.fae--right {
+  right: -6%;
+}
+
+.fae--left {
+  left: -6%;
+}
+
+@keyframes fae-in {
+  from {
+    opacity: 0;
+    transform: translate(70%, -15%) rotate(14deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(-6deg);
+  }
+}
+
+@keyframes fae-hover {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-6deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(-3deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fae {
+    animation: none;
+    transform: rotate(-6deg);
+  }
 }
 
 .field canvas {
@@ -550,7 +640,12 @@ const status = computed(() => {
   margin: 0;
   min-height: 20px;
   font-size: 15px;
-  color: var(--gold);
+  color: #ffcf7a;
+}
+
+.status.done {
+  font-family: var(--font-display);
+  font-size: 18px;
 }
 
 .pad {
