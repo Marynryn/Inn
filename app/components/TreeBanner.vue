@@ -9,6 +9,13 @@ import type { BoardEntry, TreeBoard, TreeTexts } from "#shared/utils/tree";
 const props = defineProps<{ texts: TreeTexts; board: TreeBoard }>();
 const emit = defineEmits<{ open: [] }>();
 
+// На телефоне разрешение на датчик движения спрашиваем прямо на нажатии:
+// иначе часть браузеров не даст трясти ёлку, пока по ней не тапнут.
+const open = () => {
+  if (matchMedia("(pointer: coarse)").matches) requestMotion();
+  emit("open");
+};
+
 // Золотые уже наверху — в ленте свежих их не повторяем.
 const recent = computed(() =>
   props.board.recent.filter((e) => e.rarity !== "rare"),
@@ -30,7 +37,7 @@ const readerHref = (e: BoardEntry) =>
         type="button"
         tabindex="-1"
         aria-hidden="true"
-        @click="emit('open')"
+        @click="open"
       >
         <TreeArt presents />
       </button>
@@ -39,11 +46,7 @@ const readerHref = (e: BoardEntry) =>
           {{ texts.tree_title }}
         </h2>
         <p class="invite-text">{{ texts.tree_text }}</p>
-        <button
-          class="btn btn--primary btn--lg"
-          type="button"
-          @click="emit('open')"
-        >
+        <button class="btn btn--primary btn--lg" type="button" @click="open">
           {{ texts.tree_button }}
         </button>
       </div>

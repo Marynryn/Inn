@@ -296,6 +296,7 @@ const todayOpen = computed(
 /** Админ трясёт сколько угодно — «Ещё раз» возвращает ёлку в начало. */
 const again = () => {
   cat.value = false;
+  askMotion();
   hits.value = 0;
   swayAmp.value = 0;
   result.value = null;
@@ -348,6 +349,8 @@ const joltOf = (e: DeviceMotionEvent): number | null => {
 const onMotion = (e: DeviceMotionEvent) => {
   const jolt = joltOf(e);
   if (jolt == null) return;
+  // Пришли данные — датчик точно работает: подсказка зовёт трясти.
+  motionOn.value = true;
   if (!armed) {
     if (jolt < SHAKE_LOW) armed = true;
     return;
@@ -360,8 +363,12 @@ const onMotion = (e: DeviceMotionEvent) => {
   }
 };
 
+// На телефоне датчик слушаем всегда: работает ли он, видно только по
+// пришедшим данным — по браузеру не угадать (Chrome, например, теперь тоже
+// умеет спрашивать разрешение, но и без ответа шлёт данные).
 const startMotion = () => {
-  if (!motionOn.value || phase.value !== "ready") return;
+  if (!coarse.value || phase.value !== "ready") return;
+  window.removeEventListener("devicemotion", onMotion);
   armed = true;
   grav = null;
   window.addEventListener("devicemotion", onMotion);
@@ -371,22 +378,15 @@ const stopMotion = () => {
   window.removeEventListener("devicemotion", onMotion);
 };
 
-const askMotion = async () => {
-  if (asked || !coarse.value || typeof DeviceMotionEvent === "undefined")
-    return;
+/** Спросить разрешение там, где его спрашивают (iPhone). Звать из
+ *  обработчика касания — см. utils/motionPermission. Сам датчик уже слушается:
+ *  дадут разрешение — данные просто начнут приходить. */
+const askMotion = () => {
+  if (asked || !coarse.value) return;
   asked = true;
-  const DM = DeviceMotionEvent as unknown as {
-    requestPermission?: () => Promise<"granted" | "denied">;
-  };
-  if (typeof DM.requestPermission === "function") {
-    try {
-      if ((await DM.requestPermission()) !== "granted") return;
-    } catch {
-      return;
-    }
-  }
-  motionOn.value = true;
-  startMotion();
+  requestMotion().then((ok) => {
+    if (!ok) asked = false;
+  });
 };
 
 const onTreeTap = () => {
@@ -409,12 +409,10 @@ onMounted(() => {
   for (const p of ["peek", "fall", "run"])
     new Image().src = `/tree/cat-${p}.webp`;
   coarse.value = matchMedia("(pointer: coarse)").matches;
-  // Android даёт датчик без спроса — сразу и слушаем. iPhone спросим при тапе.
-  const DM = (globalThis as any).DeviceMotionEvent;
-  if (coarse.value && DM && typeof DM.requestPermission !== "function") {
-    asked = true;
-    motionOn.value = true;
-  }
+  // Разрешение на датчик (где его спрашивают) уже попросила кнопка
+  // «Потрясти ёлку»; окно открылось само, после входа, — попросим на первом
+  // тапе по ёлке. Слушать датчик начинаем сразу, см. startMotion.
+  if (motionAsked()) asked = true;
   document.addEventListener("keydown", onKeydown);
   load().then(startMotion);
 });
