@@ -1509,14 +1509,9 @@ useHead({
   width: 18px;
   height: 24px;
 }
-.legend .legend-hunter.hunter--army::before {
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  height: 2px;
-}
-.legend .legend-hunter.hunter--army .hunter-badge {
-  padding: 2px 2px 7px;
+.legend .legend-hunter.hunter--army {
+  width: 18px;
+  height: 18px;
 }
 
 .legend .legend-hunter .hunter-eye {
@@ -1683,8 +1678,9 @@ useHead({
 }
 
 /* Охотники-фигурки — из портретов персонажей сайта. Торен — один череп с
-   фиолетовым пламенем, армия Гоблинов — на боевом знамени, феи парят над
-   клеткой. Подсветка — фильтром: у вырезанной формы box-shadow не видно. */
+   фиолетовым пламенем, армия Гоблинов — лицо в тёмно-красном медальоне, как
+   тень Скиннера, феи парят над клеткой. Подсветка фигурок — фильтром: у
+   вырезанной формы box-shadow не видно. */
 .hunter--figure {
   background: none;
   box-shadow: none;
@@ -1716,30 +1712,17 @@ useHead({
 }
 
 .hunter--army {
-  width: 32px;
-  height: 42px;
-  filter: drop-shadow(0 0 4px rgba(230, 120, 40, 0.75))
-    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
-}
-/* Древко знамени — перекладина сверху. */
-.hunter--army::before {
-  content: "";
-  position: absolute;
-  top: -3px;
-  left: -4px;
-  right: -4px;
-  height: 3px;
-  border-radius: 2px;
-  background: #6b4a2a;
+  width: 30px;
+  height: 30px;
 }
 .hunter--army .hunter-badge {
-  padding: 3px 3px 12px;
-  background: linear-gradient(#a8301f, #5a140d);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  border-radius: var(--radius-round);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 2px #7a2a22,
+    0 0 14px 4px rgba(160, 40, 30, 0.55);
 }
 .hunter--army .hunter-img {
-  height: auto;
-  aspect-ratio: 1;
   border-radius: var(--radius-round);
 }
 
@@ -1787,11 +1770,8 @@ useHead({
     height: 27px;
   }
   .map--dense .hunter--army {
-    width: 21px;
-    height: 28px;
-  }
-  .map--dense .hunter--army .hunter-badge {
-    padding: 2px 2px 8px;
+    width: 22px;
+    height: 22px;
   }
   .map--dense .hunter--fae {
     width: 21px;
