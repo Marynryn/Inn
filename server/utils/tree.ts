@@ -53,6 +53,15 @@ export async function treeSettings(): Promise<TreeSettings> {
   };
 }
 
+/** Видны ли этому человеку титулы у имён. Там же, где видна ёлка: пока она
+ *  «только для админов», читатели не видят и пробных титулов админа — ни в
+ *  комментариях, ни на странице читателя. */
+export async function titlesShownTo(
+  role: string | undefined,
+): Promise<boolean> {
+  return (await treeFor(role)) !== null;
+}
+
 /** Ёлка, если этому человеку её видно: «только для админов» — проба на
  *  проде, и читателю ёлки будто нет. */
 export async function treeFor(

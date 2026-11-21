@@ -13,7 +13,7 @@ import { wsBroadcast, wsToUser } from "../../utils/ws-rooms";
 import { readerName } from "../../utils/identity";
 import { frameById } from "../../utils/frames";
 import { figureById } from "#shared/utils/nameFigures";
-import { titleById } from "../../utils/tree";
+import { titleById, titlesShownTo } from "../../utils/tree";
 
 export default defineEventHandler(async (event) => {
   const ip = clientIp(event);
@@ -161,7 +161,12 @@ export default defineEventHandler(async (event) => {
   const avatarUrl = author?.avatarUrl ?? null;
   const avatarFrame = await frameById(author?.avatarFrameId);
   const authorFigure = figureById(author?.figure);
-  const authorTitle = await titleById(author?.titleId);
+  // Новый комментарий рассылается всем, кто сейчас на странице, — значит,
+  // и титул в нём такой, какой видит любой читатель: пока ёлка «только для
+  // админов», без титула (свой админ увидит после обновления страницы).
+  const authorTitle = (await titlesShownTo(undefined))
+    ? await titleById(author?.titleId)
+    : null;
 
   // Номер автора наружу не уходит — вместо него публичный код, как и в списке.
   const { userId: _author, ...shown } = created!;

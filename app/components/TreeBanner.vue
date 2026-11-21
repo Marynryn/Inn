@@ -231,11 +231,14 @@ a.board-name:hover {
 }
 
 .board-scroll {
-  max-height: 232px;
+  max-height: 244px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* Место под тонкую полосу прокрутки, чтобы она не легла на титулы. */
-  padding-right: 6px;
+  /* Рамка аватарки выступает за кружок, а прокрутка обрезает всё, что за
+     её краем: поля дают рамке место, отрицательные отступы возвращают
+     строки на прежнее место. Справа — ещё и под полосу прокрутки. */
+  margin: -6px -14px -6px -8px;
+  padding: 6px 14px 6px 8px;
 }
 
 @media (max-width: 760px) {

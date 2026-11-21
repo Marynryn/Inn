@@ -3,7 +3,7 @@ import { comments, users, commentReactions } from "../../database/schema";
 import { eq, isNull, desc, inArray } from "drizzle-orm";
 import { framesByIds } from "../../utils/frames";
 import { figureById } from "#shared/utils/nameFigures";
-import { titlesByIds } from "../../utils/tree";
+import { titlesByIds, titlesShownTo } from "../../utils/tree";
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
@@ -68,9 +68,13 @@ export default defineEventHandler(async (event) => {
     userIds.map((id) => frameIdMap.get(id) ?? null),
   );
 
-  const titles = await titlesByIds(
-    userIds.map((id) => titleIdMap.get(id) ?? null),
-  );
+  // Титулы — только тем, кому видна ёлка (см. titlesShownTo).
+  const viewer = (await getUserSession(event)).user as
+    | { role?: string }
+    | undefined;
+  const titles = (await titlesShownTo(viewer?.role))
+    ? await titlesByIds(userIds.map((id) => titleIdMap.get(id) ?? null))
+    : new Map();
 
   const commentIds = rows.map((r) => r.id);
   // Только реакции этих комментариев: раньше читалась вся таблица и
