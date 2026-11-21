@@ -8,6 +8,7 @@ import { treeTitleHidden } from "./0007-tree-title-hidden";
 import { treeTiers } from "./0008-tree-tiers";
 import { treeTierGlow } from "./0009-tree-tier-glow";
 import { treeDropUncommonTier } from "./0010-tree-drop-uncommon-tier";
+import { maze } from "./0011-maze";
 import type { Migration } from "./helpers";
 
 /**
@@ -30,4 +31,5 @@ export const MIGRATIONS: Migration[] = [
   treeTiers,
   treeTierGlow,
   treeDropUncommonTier,
+  maze,
 ];

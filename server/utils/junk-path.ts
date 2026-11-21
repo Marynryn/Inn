@@ -35,6 +35,7 @@ export const KNOWN_ROOTS = new Set([
   "characters",
   "game",
   "login",
+  "maze",
   "profile",
   "progress",
   "reader",
