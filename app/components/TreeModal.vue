@@ -319,30 +319,51 @@ const giftSpots = computed(() =>
 const coarse = ref(false);
 const motionOn = ref(false);
 let asked = false;
-let last: { x: number; y: number; z: number } | null = null;
+// Рывок — насколько ускорение отличается от силы тяжести. Удар засчитывается
+// на пике рывка (сильнее SHAKE_HIGH), а следующий — только когда рывок спал
+// (слабее SHAKE_LOW): одно движение рукой — один удар. Соседние замеры идут
+// 60 раз в секунду и почти не отличаются, поэтому сравнивать их друг с другом
+// нельзя — так встряску не поймать.
+let grav: { x: number; y: number; z: number } | null = null;
+const SHAKE_HIGH = 11;
+const SHAKE_LOW = 4;
+let armed = true;
 let lastHit = 0;
 
-const onMotion = (e: DeviceMotionEvent) => {
+const joltOf = (e: DeviceMotionEvent): number | null => {
+  const lin = e.acceleration;
+  if (lin && lin.x != null && lin.y != null && lin.z != null)
+    return Math.hypot(lin.x, lin.y, lin.z);
+  // Без «чистого» ускорения — сила тяжести по каждой оси отслеживается
+  // плавно (она меняется медленно), а рывок — то, что сверх неё.
   const a = e.accelerationIncludingGravity;
-  if (!a || a.x == null || a.y == null || a.z == null) return;
-  const cur = { x: a.x, y: a.y, z: a.z };
-  if (last) {
-    const jolt =
-      Math.abs(cur.x - last.x) +
-      Math.abs(cur.y - last.y) +
-      Math.abs(cur.z - last.z);
-    const now = performance.now();
-    if (jolt > 24 && now - lastHit > 300) {
-      lastHit = now;
-      hit();
-    }
+  if (!a || a.x == null || a.y == null || a.z == null) return null;
+  if (!grav) grav = { x: a.x, y: a.y, z: a.z };
+  grav.x += (a.x - grav.x) * 0.1;
+  grav.y += (a.y - grav.y) * 0.1;
+  grav.z += (a.z - grav.z) * 0.1;
+  return Math.hypot(a.x - grav.x, a.y - grav.y, a.z - grav.z);
+};
+
+const onMotion = (e: DeviceMotionEvent) => {
+  const jolt = joltOf(e);
+  if (jolt == null) return;
+  if (!armed) {
+    if (jolt < SHAKE_LOW) armed = true;
+    return;
   }
-  last = cur;
+  const now = performance.now();
+  if (jolt > SHAKE_HIGH && now - lastHit > 250) {
+    armed = false;
+    lastHit = now;
+    hit();
+  }
 };
 
 const startMotion = () => {
   if (!motionOn.value || phase.value !== "ready") return;
-  last = null;
+  armed = true;
+  grav = null;
   window.addEventListener("devicemotion", onMotion);
 };
 
