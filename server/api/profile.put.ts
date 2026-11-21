@@ -14,7 +14,7 @@ import { ownsSkin } from "../utils/skins";
 import { ownsFigure } from "../utils/figures";
 import { isFigureId } from "#shared/utils/nameFigures";
 import { toSessionUser } from "../utils/identity";
-import { titleWearError } from "../utils/tree";
+import { titleSeason, titleWearError } from "../utils/tree";
 
 /**
  * Ник, аватарка и «О себе» читателя. Почта и пароль сюда не входят: у аккаунтов из
@@ -132,10 +132,17 @@ export default defineEventHandler(async (event) => {
     updates.figure = figure;
   }
 
-  // Титул с ёлки. Отсюда его только снимают (пусто) — насовсем; надеть
-  // прежний нельзя. Взятый сегодня держится до полуночи.
+  // Титул с ёлки. Пока ивент идёт, отсюда его только снимают (пусто) —
+  // насовсем; надеть прежний нельзя, взятый сегодня держится до полуночи.
+  // После ивента не снимают, а скрывают и возвращают (titleHidden).
+  const season = await titleSeason(me.role);
   const titlePart = form.find((f) => f.name === "titleId");
   if (titlePart) {
+    if (season !== "event")
+      throw createError({
+        statusCode: 403,
+        message: "Ивент закончился — титул можно скрыть, но не снять",
+      });
     const raw = titlePart.data.toString("utf8").trim();
     const titleId = raw ? Number(raw) : 0;
     if (!Number.isInteger(titleId) || titleId < 0)
@@ -143,6 +150,16 @@ export default defineEventHandler(async (event) => {
     const why = await titleWearError(sessionUser.id, titleId || null);
     if (why) throw createError({ statusCode: 403, message: why });
     updates.titleId = titleId || null;
+  }
+
+  const hiddenPart = form.find((f) => f.name === "titleHidden");
+  if (hiddenPart) {
+    if (season !== "ended")
+      throw createError({
+        statusCode: 403,
+        message: "Скрыть титул можно, когда ивент закончится",
+      });
+    updates.titleHidden = hiddenPart.data.toString("utf8").trim() === "1";
   }
 
   if (!Object.keys(updates).length) {

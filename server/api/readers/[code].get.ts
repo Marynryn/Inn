@@ -6,7 +6,7 @@ import { frameById, ownedFrames } from "../../utils/frames";
 import { readerName } from "../../utils/identity";
 import { skinById } from "../../utils/skins";
 import { figureById } from "#shared/utils/nameFigures";
-import { ownedTitles, titleById, titlesShownTo } from "../../utils/tree";
+import { shownTitleId, titleById, titlesShownTo } from "../../utils/tree";
 
 /**
  * Публичная страница читателя. Отдаём только то, что и так видно под его
@@ -62,12 +62,10 @@ export default defineEventHandler(async (event): Promise<PublicReader> => {
     frames,
     skin,
     figure: figureById(user.figure),
-    // Титулы — только тем, кому видна ёлка (см. titlesShownTo).
-    ...((await titlesShownTo(viewer?.role))
-      ? {
-          title: await titleById(user.titleId),
-          titles: await ownedTitles(user.id),
-        }
-      : { title: null, titles: [] }),
+    // Титул у имени — только тем, кому видны титулы (см. titlesShownTo), и
+    // если сам человек его не скрыл.
+    title: (await titlesShownTo(viewer?.role))
+      ? await titleById(shownTitleId(user))
+      : null,
   };
 });

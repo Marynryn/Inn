@@ -4,7 +4,6 @@ import type {
   BoardEntry,
   DrawWord,
   NameTitle,
-  OwnedTitle,
   ShakeResult,
   TitleSwap,
   TreeWordKind,
@@ -53,13 +52,34 @@ export async function treeSettings(): Promise<TreeSettings> {
   };
 }
 
-/** Видны ли этому человеку титулы у имён. Там же, где видна ёлка: пока она
- *  «только для админов», читатели не видят и пробных титулов админа — ни в
- *  комментариях, ни на странице читателя. */
+/** Видны ли этому человеку титулы у имён. Пока ивент идёт — там же, где
+ *  видна ёлка: в пробе «только для админов» читатели не видят пробных
+ *  титулов админа. Ивент закончился — титулы видны всем. */
 export async function titlesShownTo(
   role: string | undefined,
 ): Promise<boolean> {
-  return (await treeFor(role)) !== null;
+  const { mode } = await treeSettings();
+  return (
+    mode === "on" || mode === "ended" || (mode === "admins" && role === "admin")
+  );
+}
+
+/** Какой титул показать у имени: надетый, если его не скрыли. */
+export const shownTitleId = (u: {
+  titleId: number | null;
+  titleHidden: boolean;
+}): number | null => (u.titleHidden ? null : u.titleId);
+
+/** Что сейчас с титулами у этого человека: идёт ивент (снятый титул
+ *  пропадает), ивент закончился (титул можно скрыть и вернуть) или ни то
+ *  ни другое. */
+export async function titleSeason(
+  role: string | undefined,
+): Promise<"event" | "ended" | null> {
+  const { mode } = await treeSettings();
+  if (mode === "on" || (mode === "admins" && role === "admin")) return "event";
+  if (mode === "ended") return "ended";
+  return null;
 }
 
 /** Ёлка, если этому человеку её видно: «только для админов» — проба на
@@ -287,22 +307,6 @@ export async function titleById(
   id: number | null | undefined,
 ): Promise<NameTitle | null> {
   return id ? ((await titlesByIds([id])).get(id) ?? null) : null;
-}
-
-/** Всё, что выпадало с ёлки, свежее сверху. Одинаковые титулы — один раз.
- *  Это память, а не гардероб: надеть отсюда ничего нельзя. */
-export async function ownedTitles(userId: number): Promise<OwnedTitle[]> {
-  const rows = await useDb()
-    .select()
-    .from(userTitles)
-    .where(eq(userTitles.userId, userId))
-    .orderBy(desc(userTitles.id));
-  const seen = new Set<string>();
-  return rows.flatMap((r) => {
-    if (seen.has(r.text)) return [];
-    seen.add(r.text);
-    return [{ ...toNameTitle(r), wonAt: r.createdAt }];
-  });
 }
 
 /**

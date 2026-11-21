@@ -57,6 +57,10 @@ export const users = sqliteTable("users", {
   figure: text("figure"),
   // Надетый титул с ёлки — строка user_titles. NULL = без титула.
   titleId: integer("title_id"),
+  // После ивента титул можно скрыть и вернуть, не теряя (см. миграцию 7).
+  titleHidden: integer("title_hidden", { mode: "boolean" })
+    .notNull()
+    .default(false),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

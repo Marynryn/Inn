@@ -15,7 +15,9 @@ export type Gender = "m" | "f" | "n";
 /** Обычный — два подарка, необычный — три, редкий — есть золотое слово. */
 export type TitleRarity = "common" | "uncommon" | "rare";
 
-export type TreeMode = "off" | "admins" | "on";
+/** off — ёлки нет и титулов не видно; admins — проба; on — ивент идёт;
+ *  ended — ивент закончился: ёлки нет, а надетые титулы остаются у имён. */
+export type TreeMode = "off" | "admins" | "on" | "ended";
 
 /** Титул, каким его видят у имени. */
 export type NameTitle = {
@@ -25,8 +27,6 @@ export type NameTitle = {
 };
 
 /** Титул из коллекции. */
-export type OwnedTitle = NameTitle & { wonAt: string };
-
 /** Слово из подарка — что показать в открытой коробке. */
 export type TreeGift = {
   kind: TreeWordKind;
@@ -102,10 +102,11 @@ export const TREE_MODES: { value: TreeMode; label: string }[] = [
   { value: "off", label: "Выключена" },
   { value: "admins", label: "Только для админов" },
   { value: "on", label: "Для всех" },
+  { value: "ended", label: "Ивент закончен — титулы остаются" },
 ];
 
 export const treeModeOf = (v: unknown): TreeMode =>
-  v === "admins" || v === "on" ? v : "off";
+  v === "admins" || v === "on" || v === "ended" ? v : "off";
 
 /** Тексты баннера и окна. Правятся в админке; пустое поле — значит, по умолчанию. */
 export const TREE_TEXTS = {

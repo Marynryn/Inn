@@ -165,9 +165,9 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // ── Кот ───────────────────────────────────────
 // Пока сыплются подарки, из ёлки выглядывает кот, срывается с «[Мяу!]» и
 // молнией удирает. Первый раз — всегда, дальше — сюрпризом, в одной встряске
-// из четырёх: иначе приестся. При «меньше движения» кота нет.
+// из десяти: иначе приестся. При «меньше движения» кота нет.
 const CAT_KEY = "tree-cat-seen";
-const CAT_CHANCE = 0.25;
+const CAT_CHANCE = 0.1;
 const cat = ref(false);
 let catTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -462,6 +462,16 @@ const hint = computed(() => {
           class="stage"
           :class="{ 'is-dim': phase === 'gifts' }"
         >
+          <!-- Фон: свет, огоньки, снег и сугроб — чтобы ёлка не висела в
+               пустоте. Весь фон неподвижен, кроме снега. -->
+          <div class="scene" aria-hidden="true">
+            <span class="scene-glow" />
+            <span class="scene-bokeh" />
+            <span class="scene-snow scene-snow--far" />
+            <span class="scene-snow scene-snow--near" />
+            <span class="scene-ground" />
+          </div>
+
           <button
             class="tree-hit"
             type="button"
@@ -779,7 +789,159 @@ const hint = computed(() => {
   padding-bottom: 8px;
 }
 
+/* ── Фон за ёлкой ─────────────────────────── */
+.scene {
+  position: absolute;
+  z-index: 0;
+  inset: -10px -60px -6px;
+  overflow: hidden;
+  pointer-events: none;
+  /* Края растворяются в окне — без рамки. */
+  -webkit-mask-image: radial-gradient(
+    ellipse 60% 62% at 50% 55%,
+    #000 55%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 60% 62% at 50% 55%,
+    #000 55%,
+    transparent 100%
+  );
+}
+
+.scene > * {
+  position: absolute;
+  display: block;
+}
+
+/* Тёплый свет за ёлкой, как от камина в таверне. */
+.scene-glow {
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 42% 50% at 50% 52%,
+      rgba(255, 196, 120, 0.3),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 70% 40% at 50% 100%,
+      rgba(255, 235, 210, 0.12),
+      transparent 70%
+    );
+}
+
+/* Огоньки гирлянды не в фокусе — размытые цветные круги. Неподвижны. */
+.scene-bokeh {
+  inset: 0;
+  opacity: 0.55;
+  background:
+    radial-gradient(
+      circle at 14% 22%,
+      rgba(255, 214, 120, 0.7) 0 6px,
+      transparent 13px
+    ),
+    radial-gradient(
+      circle at 86% 18%,
+      rgba(255, 140, 120, 0.6) 0 5px,
+      transparent 12px
+    ),
+    radial-gradient(
+      circle at 9% 58%,
+      rgba(150, 220, 170, 0.55) 0 7px,
+      transparent 15px
+    ),
+    radial-gradient(
+      circle at 92% 50%,
+      rgba(255, 214, 120, 0.65) 0 6px,
+      transparent 14px
+    ),
+    radial-gradient(
+      circle at 20% 82%,
+      rgba(169, 211, 239, 0.55) 0 5px,
+      transparent 12px
+    ),
+    radial-gradient(
+      circle at 80% 78%,
+      rgba(255, 170, 110, 0.6) 0 7px,
+      transparent 15px
+    ),
+    radial-gradient(
+      circle at 30% 8%,
+      rgba(169, 211, 239, 0.5) 0 4px,
+      transparent 10px
+    ),
+    radial-gradient(
+      circle at 70% 6%,
+      rgba(255, 214, 120, 0.55) 0 4px,
+      transparent 10px
+    );
+  filter: blur(2px);
+}
+
+/* Снег: плитка точек, слой длиннее сцены на одну плитку и едет вниз ровно
+   на неё — шов не виден. Два слоя с разной скоростью дают глубину. */
+.scene-snow {
+  left: 0;
+  right: 0;
+  top: -120px;
+  bottom: 0;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.85) 1.1px, transparent 1.8px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.6) 0.9px, transparent 1.5px);
+  background-size:
+    70px 120px,
+    110px 120px;
+  background-position:
+    10px 14px,
+    46px 72px;
+  will-change: transform;
+  animation: scene-snow 9s linear infinite;
+}
+
+.scene-snow--near {
+  top: -160px;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 1.8px, transparent 2.6px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.75) 1.4px, transparent 2.2px);
+  background-size:
+    130px 160px,
+    170px 160px;
+  background-position:
+    30px 40px,
+    100px 118px;
+  animation: scene-snow-near 6s linear infinite;
+}
+
+@keyframes scene-snow {
+  to {
+    transform: translateY(120px);
+  }
+}
+
+@keyframes scene-snow-near {
+  to {
+    transform: translateY(160px);
+  }
+}
+
+/* Сугроб под ёлкой — на нём и стоят подарки. */
+.scene-ground {
+  left: 8%;
+  right: 8%;
+  bottom: 0;
+  height: 46px;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse 50% 60% at 50% 70%,
+    rgba(250, 252, 255, 0.95),
+    rgba(214, 228, 242, 0.75) 55%,
+    transparent 75%
+  );
+}
+
 .tree-hit {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   padding: 0;
@@ -1272,6 +1434,10 @@ const hint = computed(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .scene-snow {
+    animation: none;
+  }
+
   .tree-sway {
     animation-duration: 0.01s;
   }

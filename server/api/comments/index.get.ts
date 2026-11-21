@@ -3,7 +3,7 @@ import { comments, users, commentReactions } from "../../database/schema";
 import { eq, isNull, desc, inArray } from "drizzle-orm";
 import { framesByIds } from "../../utils/frames";
 import { figureById } from "#shared/utils/nameFigures";
-import { titlesByIds, titlesShownTo } from "../../utils/tree";
+import { shownTitleId, titlesByIds, titlesShownTo } from "../../utils/tree";
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
@@ -50,6 +50,7 @@ export default defineEventHandler(async (event) => {
         publicId: users.publicId,
         figure: users.figure,
         titleId: users.titleId,
+        titleHidden: users.titleHidden,
       })
       .from(users)
       .where(inArray(users.id, userIds));
@@ -58,7 +59,7 @@ export default defineEventHandler(async (event) => {
       frameIdMap.set(u.id, u.avatarFrameId ?? null);
       codeMap.set(u.id, u.publicId ?? null);
       figureMap.set(u.id, u.figure ?? null);
-      titleIdMap.set(u.id, u.titleId ?? null);
+      titleIdMap.set(u.id, shownTitleId(u));
     }
   }
 

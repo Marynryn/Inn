@@ -210,23 +210,6 @@ useHead(() => ({
               </li>
             </ul>
           </section>
-
-          <!-- Титулы с ёлки. Ни одного — и раздела нет: в коллекции рамок
-               пустая полка зовёт на ивенты, а ёлка бывает только на Новый год. -->
-          <section v-if="reader.titles.length" class="frames titles">
-            <h2 class="display frames-title">
-              Титулы<span class="frames-count">{{ reader.titles.length }}</span>
-            </h2>
-            <ul class="title-list">
-              <li v-for="t in reader.titles" :key="t.id" class="title-row">
-                <NameTitle :title="t" />
-                <span v-if="reader.title?.text === t.text" class="worn-tag"
-                  >носит</span
-                >
-                <span class="frame-when">{{ grantedOn(t.wonAt) }}</span>
-              </li>
-            </ul>
-          </section>
         </article>
       </template>
     </div>
@@ -401,33 +384,6 @@ useHead(() => ({
 .frames {
   padding: 24px 36px 32px;
   border-top: 1px solid var(--line);
-}
-
-.title-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
-  font-size: 15px;
-}
-
-.title-row .frame-when {
-  margin-left: auto;
-}
-
-.worn-tag {
-  font-size: 11px;
-  color: var(--ember-soft);
-  letter-spacing: 0.04em;
 }
 
 .frames-title {

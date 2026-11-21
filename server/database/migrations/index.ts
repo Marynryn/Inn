@@ -4,6 +4,7 @@ import { commentReactionsAnon } from "./0003-comment-reactions-anon";
 import { cardGameDays } from "./0004-card-game-days";
 import { treeTitles } from "./0005-tree-titles";
 import { treeTitleWords } from "./0006-tree-title-words";
+import { treeTitleHidden } from "./0007-tree-title-hidden";
 import type { Migration } from "./helpers";
 
 /**
@@ -22,4 +23,5 @@ export const MIGRATIONS: Migration[] = [
   cardGameDays,
   treeTitles,
   treeTitleWords,
+  treeTitleHidden,
 ];
