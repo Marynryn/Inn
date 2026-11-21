@@ -22,9 +22,9 @@ defineProps<{ title: NameTitle }>();
 
 <style scoped>
 .name-title {
-  font-family: var(--font-display);
-  font-style: italic;
-  font-weight: 500;
+  font-family: var(--font-title);
+  font-style: normal;
+  font-weight: 700;
   letter-spacing: 0.01em;
   color: rgba(241, 230, 210, 0.78);
   overflow-wrap: anywhere;
@@ -37,7 +37,6 @@ defineProps<{ title: NameTitle }>();
 /* Золото — заливкой текста: ровный цвет на мелком шрифте выглядит горчицей,
    а с переливом читается как металл. Без анимации: титулов на странице много. */
 .is-rare {
-  font-weight: 600;
   color: #e9c766;
   background: linear-gradient(100deg, #f6e3a1 0%, #d9a93a 45%, #f8e7a8 100%);
   -webkit-background-clip: text;

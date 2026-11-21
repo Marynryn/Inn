@@ -68,6 +68,14 @@ export default defineNuxtConfig({
         weights: [300, 400, 500, 600],
         global: true,
       },
+      // Титулы с ёлки — фэнтезийный, с острыми засечками, как в играх.
+      // Только жирный: титулы набраны им одним.
+      {
+        name: "Philosopher",
+        provider: "google",
+        weights: [700],
+        global: true,
+      },
     ],
   },
 

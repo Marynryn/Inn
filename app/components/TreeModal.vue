@@ -1062,8 +1062,7 @@ const hint = computed(() => {
     0 0 10px rgba(200, 230, 255, 0.9),
     0 0 26px rgba(150, 205, 245, 0.45),
     inset 0 -2px 0 rgba(90, 130, 170, 0.25);
-  font-family: var(--font-display);
-  font-style: italic;
+  font-family: var(--font-title);
   font-weight: 700;
   font-size: 15px;
   color: #6d1a26;

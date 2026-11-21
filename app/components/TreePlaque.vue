@@ -86,9 +86,8 @@ defineProps<{ title: NameTitle; kicker: string }>();
 .plaque-title {
   position: relative;
   margin: 0;
-  font-family: var(--font-display);
+  font-family: var(--font-title);
   font-size: 27px;
-  font-style: italic;
   font-weight: 700;
   line-height: 1.2;
   color: var(--ink);

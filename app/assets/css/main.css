@@ -47,6 +47,8 @@
   /* Typography: оба с кириллицей, подключены @nuxt/fonts (nuxt.config.ts) */
   --font-display: "Alegreya", "Alegreya Fallback", Georgia, serif;
   --font-body: "Inter", "Inter Fallback", system-ui, sans-serif;
+  /* Титулы с ёлки: [Ворчливая Сковородка из Лискора]. */
+  --font-title: "Philosopher", "Alegreya", Georgia, serif;
   --font-reader: var(--font-body); /* текст главы — тот же Inter, но вес 300 */
 
   /* Radius */
