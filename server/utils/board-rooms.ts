@@ -599,30 +599,14 @@ function moveHunters(ctx: Ctx) {
 
     const from = h.at;
     let to: number;
-    /** Клетки, по которым охотник прошёл за ход: армия топчет всех на них. */
-    let path: number[] | null = null;
-    if (def.kind === "army") {
-      // Армия ни за кем не гонится: марширует по своему участку то вперёд, то
-      // назад на свой кубик от 1 до 6, у края разворачивается — и всех, кто
-      // попался на пути, сметает. Не угадать, далеко ли она шагнёт.
-      let dir = h.dir ?? 1;
-      let at = from;
-      path = [];
-      for (let n = randomInt(1, 7); n > 0; n--) {
-        if (at + dir > hi || at + dir < lo) dir = dir === 1 ? -1 : 1;
-        at += dir;
-        path.push(at);
-      }
-      h.dir = dir;
-      to = at;
-    } else if (def.kind === "fae") {
+    if (def.kind === "fae") {
       // Феи садятся то к кому-нибудь, то просто так — угадать нельзя.
       to =
         randomInt(2) === 0
           ? prey[randomInt(prey.length)]!.pos
           : randomInt(lo, hi + 1);
     } else {
-      // Скиннер и Торен бросают свой кубик и проходят ровно столько к
+      // Скиннер, Торен и армия бросают свой кубик и проходят ровно столько к
       // ближайшему игроку — вперёд или назад. Могут и проскочить: ловят,
       // только если закончили ход на клетке игрока. Останавливайся они
       // ровно на жертве, увернуться было бы нельзя — будто угадывали ход.
@@ -638,12 +622,8 @@ function moveHunters(ctx: Ctx) {
       h.at = to;
       ctx.fx.push({ kind: "hunter", hunter: i, to });
     }
-    // Кого задеть — решаем до встреч: отброшенный мог бы упасть на клетку,
-    // которую армия прошла, и попасть под неё второй раз.
-    const hit = activeSeats(room).filter((seat) =>
-      path ? path.includes(seat.pos) : seat.pos === to,
-    );
-    for (const seat of hit) meetHunter(ctx, i, seat);
+    for (const seat of activeSeats(room))
+      if (seat.pos === to) meetHunter(ctx, i, seat);
   }
 }
 

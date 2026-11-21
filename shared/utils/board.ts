@@ -121,12 +121,7 @@ export type BoardHunterDef = {
 };
 
 /** Где охотник сейчас; null — ещё не вышел или уже ушёл. */
-export type BoardHunter = {
-  kind: BoardHunterKind;
-  at: number | null;
-  /** Куда марширует армия Гоблинов: 1 — к финишу, −1 — назад. */
-  dir?: 1 | -1;
-};
+export type BoardHunter = { kind: BoardHunterKind; at: number | null };
 
 /** Скиннер и армия Гоблинов отбрасывают на 3, Торен — если нечего украсть. */
 export const HUNTER_THROW = 3;
@@ -518,7 +513,7 @@ export const BOARD_MAPS: Record<BoardMapId, BoardMap> = {
         wakesAt: 44,
         start: 41,
         wakeNote: "Армия Лорда Гоблинов выступает в поход!",
-        legend: "Армия Гоблинов — марширует и топчет всех на пути",
+        legend: "Армия Гоблинов — отбросит на 3",
         token: "/board/hunter-army.webp",
       },
     ],
