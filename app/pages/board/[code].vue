@@ -114,10 +114,36 @@ function syncPositions() {
   shownHunters.value = state.value?.hunters.map((h) => h.at) ?? [];
 }
 
+// ── Камера ──────────────────────────────────────────────
+// Высокая карта (томов 2–3) не помещается в экран и прокручивается в своей
+// рамке. Когда фишка уходит из виду, рамка плавно едет за ней.
+const mapScroll = ref<HTMLElement | null>(null);
+function follow(cell: number | undefined) {
+  const box = mapScroll.value;
+  const c = cell === undefined ? undefined : cells.value[cell];
+  if (!box || !c || box.scrollHeight <= box.clientHeight + 4) return;
+  const y = (c.y / 100) * box.scrollHeight;
+  const top = box.scrollTop;
+  const margin = box.clientHeight * 0.18;
+  if (y > top + margin && y < top + box.clientHeight - margin) return;
+  box.scrollTo({
+    top: Math.max(0, y - box.clientHeight / 2),
+    behavior: reducedMotion ? "auto" : "smooth",
+  });
+}
+
+/** Где клетка в видимой части рамки: 0 — у верхнего края, 1 — у нижнего. */
+function shownAt(y: number) {
+  const box = mapScroll.value;
+  if (!box) return y / 100;
+  return ((y / 100) * box.scrollHeight - box.scrollTop) / box.clientHeight;
+}
+
 /** Отброс или прыжок — фишка летит одним махом, медленнее обычного шага. */
 async function fly(slot: number, to: number) {
   jumpingSlot.value = slot;
   shown[slot] = to;
+  follow(to);
   await wait(750);
   jumpingSlot.value = null;
 }
@@ -142,6 +168,7 @@ async function play(action: BoardAction) {
       diceRolling.value = false;
       await wait(250);
     } else if (fx.kind === "walk") {
+      follow(fx.cells.at(-1));
       for (const cell of fx.cells) {
         shown[fx.slot] = cell;
         await wait(230);
@@ -169,7 +196,7 @@ async function play(action: BoardAction) {
         va: 1,
         vb: 1,
         rolling: true,
-        low: where.y < 50,
+        low: shownAt(where.y) < 0.5,
       };
       duelShown.value = d;
       for (let i = 0; i < 10; i++) {
@@ -198,6 +225,17 @@ async function play(action: BoardAction) {
     showWinner(winner.value.slot);
   }
 }
+
+watch(
+  () => state.value?.turnSlot,
+  (slot) => {
+    if (slot === null || slot === undefined || animating.value) return;
+    nextTick(() => follow(shown[slot]));
+  },
+);
+watch(mapScroll, (el) => {
+  if (el) nextTick(() => follow(shown[you.value ?? -1] ?? 0));
+});
 
 /** Плашка с победителем поверх карты — пока не закроют или не пройдёт время. */
 const winnerShown = ref<number | null>(null);
@@ -563,13 +601,203 @@ useHead({
 
       <div v-else class="layout">
         <div class="board-col">
-          <div
-            class="map"
-            :class="{ 'map--plan': !map.art, 'map--dense': cells.length > 40 }"
-            role="img"
-            :aria-label="`Карта «${map.title}»: ${cells.length} клеток`"
-            :style="{ aspectRatio: String(map.ratio) }"
-          >
+          <div class="map-frame">
+            <div ref="mapScroll" class="map-scroll thin-scroll">
+              <div
+                class="map"
+                :class="{
+                  'map--plan': !map.art,
+                  'map--dense': cells.length > 40 && map.ratio > 1,
+                }"
+                role="img"
+                :aria-label="`Карта «${map.title}»: ${cells.length} клеток`"
+                :style="{ aspectRatio: String(map.ratio) }"
+              >
+                <!-- Рисунок карты: сцены и тропа с камнями. Кружки клеток, стрелки и
+                 фишки сайт кладёт поверх, по координатам камней. -->
+                <img
+                  v-if="map.art"
+                  class="map-art"
+                  :src="map.art.src"
+                  :srcset="map.art.srcset"
+                  sizes="(max-width: 900px) 100vw, 860px"
+                  alt=""
+                  :width="map.art.width"
+                  :height="map.art.height"
+                  decoding="async"
+                  fetchpriority="high"
+                />
+                <svg
+                  class="path"
+                  :viewBox="`0 0 160 ${VIEW_H}`"
+                  aria-hidden="true"
+                >
+                  <!-- Рисунка нет — схема: полосы участков охотников и тропа. -->
+                  <template v-if="!map.art">
+                    <g v-for="z in zones" :key="z.kind">
+                      <rect
+                        x="1"
+                        :y="z.y"
+                        width="158"
+                        :height="z.h"
+                        rx="3"
+                        class="zone"
+                        :class="`zone--${z.kind}`"
+                      />
+                      <text x="157" :y="z.y + 2.9" class="zone-name">
+                        {{ z.name }}
+                      </text>
+                    </g>
+                    <polyline :points="trail" class="trail" />
+                  </template>
+                  <defs>
+                    <marker
+                      id="arrow-fwd"
+                      viewBox="0 0 10 10"
+                      refX="5"
+                      refY="5"
+                      markerWidth="4.4"
+                      markerHeight="4.4"
+                      markerUnits="userSpaceOnUse"
+                      orient="auto-start-reverse"
+                    >
+                      <path d="M0,0 L10,5 L0,10 z" class="head head--fwd" />
+                    </marker>
+                    <marker
+                      id="arrow-back"
+                      viewBox="0 0 10 10"
+                      refX="5"
+                      refY="5"
+                      markerWidth="4.4"
+                      markerHeight="4.4"
+                      markerUnits="userSpaceOnUse"
+                      orient="auto-start-reverse"
+                    >
+                      <path d="M0,0 L10,5 L0,10 z" class="head head--back" />
+                    </marker>
+                  </defs>
+                  <!-- У каждой стрелки свой градиент вдоль неё: бледный хвост у клетки,
+                   откуда прыгают, и яркий наконечник у той, куда. -->
+                  <defs>
+                    <linearGradient
+                      v-for="a in arrows"
+                      :id="`arrow-grad-${a.from}`"
+                      :key="a.from"
+                      gradientUnits="userSpaceOnUse"
+                      :x1="a.x1"
+                      :y1="a.y1"
+                      :x2="a.x2"
+                      :y2="a.y2"
+                    >
+                      <stop
+                        offset="0"
+                        :class="a.forward ? 'grad-fwd' : 'grad-back'"
+                        stop-opacity="0.75"
+                      />
+                      <stop
+                        offset="1"
+                        :class="a.forward ? 'grad-fwd' : 'grad-back'"
+                        stop-opacity="1"
+                      />
+                    </linearGradient>
+                  </defs>
+                  <!-- Тёмная подложка под стрелкой — чтобы она читалась поверх
+                   пёстрого рисунка. -->
+                  <path
+                    v-for="a in arrows"
+                    :key="`case-${a.from}`"
+                    :d="a.d"
+                    class="arrow-case"
+                    :class="{
+                      'arrow--dim': focusFrom !== null && a.from !== focusFrom,
+                    }"
+                  />
+                  <path
+                    v-for="a in arrows"
+                    :key="`line-${a.from}`"
+                    :d="a.d"
+                    class="arrow"
+                    :class="{
+                      'arrow--focus': a.from === focusFrom,
+                      'arrow--dim': focusFrom !== null && a.from !== focusFrom,
+                    }"
+                    :stroke="`url(#arrow-grad-${a.from})`"
+                    :marker-end="
+                      a.forward ? 'url(#arrow-fwd)' : 'url(#arrow-back)'
+                    "
+                  />
+                </svg>
+
+                <button
+                  v-for="(cell, i) in cells"
+                  :key="i"
+                  class="cell"
+                  :class="[
+                    effectClass(cell.effect),
+                    {
+                      'cell--start': i === 0,
+                      'cell--finish': i === last,
+                      'cell--picked': i === infoCell,
+                      'cell--target': i === focusTo,
+                      'cell--target-back':
+                        i === focusTo &&
+                        focusTo !== null &&
+                        focusTo < infoCell!,
+                    },
+                  ]"
+                  :style="{ left: `${cell.x}%`, top: `${cell.y}%` }"
+                  :title="cell.text"
+                  @click="pickedCell = i"
+                >
+                  {{ i === last ? "★" : i || "" }}
+                  <span
+                    v-if="cell.skill"
+                    class="cell-skill"
+                    aria-hidden="true"
+                  />
+                </button>
+
+                <template v-for="(h, i) in map.hunters" :key="h.kind">
+                  <div
+                    v-if="shownHunters[i] != null"
+                    class="hunter"
+                    :class="[
+                      `hunter--${h.kind}`,
+                      { 'hunter--figure': h.token },
+                    ]"
+                    :style="hunterStyle(i)"
+                    :title="h.legend"
+                  >
+                    <span v-if="h.token" class="hunter-badge"
+                      ><img :src="h.token" alt="" class="hunter-img"
+                    /></span>
+                    <template v-else>
+                      <span class="hunter-eye" /><span class="hunter-eye" />
+                    </template>
+                  </div>
+                </template>
+
+                <div
+                  v-for="p in players"
+                  :key="p.slot"
+                  class="pawn"
+                  :class="{
+                    'pawn--left': p.left,
+                    'pawn--turn': p.slot === state.turnSlot,
+                    'pawn--jump': p.slot === jumpingSlot,
+                  }"
+                  :style="{ ...pawnStyle(p.slot), '--pawn': p.color }"
+                  :title="p.name"
+                >
+                  <UserAvatar
+                    :src="p.avatarUrl"
+                    :name="p.name"
+                    :size="26"
+                    alt=""
+                  />
+                </div>
+              </div>
+            </div>
             <!-- Розыгрыш встречи — поверх карты сверху: в панели справа он
                  сдвигал чат вниз. Итог остаётся строчкой у кубика и в журнале. -->
             <button
@@ -630,169 +858,6 @@ useHead({
                   }}</span>
                 </div>
               </div>
-            </div>
-            <!-- Рисунок карты: сцены и тропа с камнями. Кружки клеток, стрелки и
-                 фишки сайт кладёт поверх, по координатам камней. -->
-            <img
-              v-if="map.art"
-              class="map-art"
-              :src="map.art.src"
-              :srcset="map.art.srcset"
-              sizes="(max-width: 900px) 100vw, 860px"
-              alt=""
-              :width="map.art.width"
-              :height="map.art.height"
-              decoding="async"
-              fetchpriority="high"
-            />
-            <svg class="path" :viewBox="`0 0 160 ${VIEW_H}`" aria-hidden="true">
-              <!-- Рисунка нет — схема: полосы участков охотников и тропа. -->
-              <template v-if="!map.art">
-                <g v-for="z in zones" :key="z.kind">
-                  <rect
-                    x="1"
-                    :y="z.y"
-                    width="158"
-                    :height="z.h"
-                    rx="3"
-                    class="zone"
-                    :class="`zone--${z.kind}`"
-                  />
-                  <text x="157" :y="z.y + 2.9" class="zone-name">
-                    {{ z.name }}
-                  </text>
-                </g>
-                <polyline :points="trail" class="trail" />
-              </template>
-              <defs>
-                <marker
-                  id="arrow-fwd"
-                  viewBox="0 0 10 10"
-                  refX="5"
-                  refY="5"
-                  markerWidth="4.4"
-                  markerHeight="4.4"
-                  markerUnits="userSpaceOnUse"
-                  orient="auto-start-reverse"
-                >
-                  <path d="M0,0 L10,5 L0,10 z" class="head head--fwd" />
-                </marker>
-                <marker
-                  id="arrow-back"
-                  viewBox="0 0 10 10"
-                  refX="5"
-                  refY="5"
-                  markerWidth="4.4"
-                  markerHeight="4.4"
-                  markerUnits="userSpaceOnUse"
-                  orient="auto-start-reverse"
-                >
-                  <path d="M0,0 L10,5 L0,10 z" class="head head--back" />
-                </marker>
-              </defs>
-              <!-- У каждой стрелки свой градиент вдоль неё: бледный хвост у клетки,
-                   откуда прыгают, и яркий наконечник у той, куда. -->
-              <defs>
-                <linearGradient
-                  v-for="a in arrows"
-                  :id="`arrow-grad-${a.from}`"
-                  :key="a.from"
-                  gradientUnits="userSpaceOnUse"
-                  :x1="a.x1"
-                  :y1="a.y1"
-                  :x2="a.x2"
-                  :y2="a.y2"
-                >
-                  <stop
-                    offset="0"
-                    :class="a.forward ? 'grad-fwd' : 'grad-back'"
-                    stop-opacity="0.75"
-                  />
-                  <stop
-                    offset="1"
-                    :class="a.forward ? 'grad-fwd' : 'grad-back'"
-                    stop-opacity="1"
-                  />
-                </linearGradient>
-              </defs>
-              <!-- Тёмная подложка под стрелкой — чтобы она читалась поверх
-                   пёстрого рисунка. -->
-              <path
-                v-for="a in arrows"
-                :key="`case-${a.from}`"
-                :d="a.d"
-                class="arrow-case"
-                :class="{
-                  'arrow--dim': focusFrom !== null && a.from !== focusFrom,
-                }"
-              />
-              <path
-                v-for="a in arrows"
-                :key="`line-${a.from}`"
-                :d="a.d"
-                class="arrow"
-                :class="{
-                  'arrow--focus': a.from === focusFrom,
-                  'arrow--dim': focusFrom !== null && a.from !== focusFrom,
-                }"
-                :stroke="`url(#arrow-grad-${a.from})`"
-                :marker-end="a.forward ? 'url(#arrow-fwd)' : 'url(#arrow-back)'"
-              />
-            </svg>
-
-            <button
-              v-for="(cell, i) in cells"
-              :key="i"
-              class="cell"
-              :class="[
-                effectClass(cell.effect),
-                {
-                  'cell--start': i === 0,
-                  'cell--finish': i === last,
-                  'cell--picked': i === infoCell,
-                  'cell--target': i === focusTo,
-                  'cell--target-back':
-                    i === focusTo && focusTo !== null && focusTo < infoCell!,
-                },
-              ]"
-              :style="{ left: `${cell.x}%`, top: `${cell.y}%` }"
-              :title="cell.text"
-              @click="pickedCell = i"
-            >
-              {{ i === last ? "★" : i || "" }}
-              <span v-if="cell.skill" class="cell-skill" aria-hidden="true" />
-            </button>
-
-            <template v-for="(h, i) in map.hunters" :key="h.kind">
-              <div
-                v-if="shownHunters[i] != null"
-                class="hunter"
-                :class="[`hunter--${h.kind}`, { 'hunter--figure': h.token }]"
-                :style="hunterStyle(i)"
-                :title="h.legend"
-              >
-                <span v-if="h.token" class="hunter-badge"
-                  ><img :src="h.token" alt="" class="hunter-img"
-                /></span>
-                <template v-else>
-                  <span class="hunter-eye" /><span class="hunter-eye" />
-                </template>
-              </div>
-            </template>
-
-            <div
-              v-for="p in players"
-              :key="p.slot"
-              class="pawn"
-              :class="{
-                'pawn--left': p.left,
-                'pawn--turn': p.slot === state.turnSlot,
-                'pawn--jump': p.slot === jumpingSlot,
-              }"
-              :style="{ ...pawnStyle(p.slot), '--pawn': p.color }"
-              :title="p.name"
-            >
-              <UserAvatar :src="p.avatarUrl" :name="p.name" :size="26" alt="" />
             </div>
           </div>
 
@@ -1236,13 +1301,23 @@ useHead({
 }
 
 /* ── Карта ─────────────────────────────── */
+/* Рамка карты: в ней плашки победы и встречи. Внутри — прокрутка: высокая
+   карта не помещается в экран, низкая помещается целиком. */
+.map-frame {
+  position: relative;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.map-scroll {
+  max-height: min(80vh, 920px);
+  overflow-y: auto;
+}
 .map {
   position: relative;
   /* Пропорции — у каждой карты свои, приходят в style. */
   aspect-ratio: 1503 / 1046;
-  border-radius: var(--radius-lg);
   background: var(--bg-dark-2);
-  border: 1px solid var(--line);
   overflow: hidden;
 }
 
