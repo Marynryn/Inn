@@ -597,7 +597,10 @@ export type BoardFx =
    *  номер в списке охотников карты. */
   | { kind: "hunter"; hunter: number; to: number | null }
   /** Встреча на клетке: оба бросили кубик, у кого меньше — отступает. */
-  | { kind: "duel"; a: number; b: number; va: number; vb: number };
+  | { kind: "duel"; a: number; b: number; va: number; vb: number }
+  /** Феи проказничают над игроком: good — к добру ли. Текст — для плашки
+   *  поверх карты, без имени: имя плашка ставит сама, его цветом. */
+  | { kind: "prank"; slot: number; text: string; good: boolean };
 
 /** Что случилось последним: бросок или сыгранный навык. */
 export type BoardAction = {

@@ -542,32 +542,50 @@ function torenRobs(ctx: Ctx, seat: Seat) {
 
 /** Феи: подарок, цветы вместо навыка или лавина — как повезёт. */
 function faePrank(ctx: Ctx, seat: Seat) {
+  // Каждая проказа — и строчкой в журнал, и плашкой поверх карты: журнал под
+  // картой во время хода никто не читает.
+  const prank = (text: string, good: boolean) => {
+    ctx.notes.push(`${seat.name}: ${text}`);
+    ctx.fx.push({ kind: "prank", slot: seat.slot, text, good });
+  };
   const roll = randomInt(3);
   if (roll === 0) {
     const pool = ctx.room.map.skills;
     const gift = pool[randomInt(pool.length)]!;
+    const name = BOARD_SKILLS[gift].name;
+    // Что получилось с подарком, журналу допишет grantSkill.
     ctx.notes.push(`${seat.name}: феям весело — они дарят навык`);
+    ctx.fx.push(
+      seat.skills.length < BOARD_HAND_MAX
+        ? {
+            kind: "prank",
+            slot: seat.slot,
+            text: `феям весело — они дарят ${name}`,
+            good: true,
+          }
+        : {
+            kind: "prank",
+            slot: seat.slot,
+            text: `феи дарят ${name}, но в руке уже ${BOARD_HAND_MAX} навыка — подарок тает`,
+            good: false,
+          },
+    );
     grantSkill(seat, gift, ctx.notes);
   } else if (roll === 1) {
     if (!seat.skills.length) {
-      ctx.notes.push(
-        `${seat.name}: феи ищут, что бы превратить в цветы, — но в руке пусто`,
-      );
+      prank("феи ищут, что бы превратить в цветы, — но в руке пусто", true);
       return;
     }
     const [gone] = seat.skills.splice(randomInt(seat.skills.length), 1);
-    ctx.notes.push(
-      `${seat.name}: феи превращают ${BOARD_SKILLS[gone!].name} в увядшие цветы`,
-    );
+    prank(`феи превращают ${BOARD_SKILLS[gone!].name} в увядшие цветы`, false);
   } else if (useShield(seat)) {
-    ctx.notes.push(
-      `${seat.name}: феи сбрасывают лавину, но ${BOARD_SKILLS.danger.name} спасает`,
+    prank(
+      `феи сбрасывают лавину, но ${BOARD_SKILLS.danger.name} спасает`,
+      true,
     );
   } else {
     seat.skip++;
-    ctx.notes.push(
-      `${seat.name}: феи сбрасывают лавину — пропустит следующий ход`,
-    );
+    prank("феи сбрасывают лавину — пропустит следующий ход", false);
   }
 }
 

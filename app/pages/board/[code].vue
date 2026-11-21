@@ -93,6 +93,17 @@ let duelTimer: ReturnType<typeof setTimeout> | null = null;
 onBeforeUnmount(() => {
   if (duelTimer) clearTimeout(duelTimer);
 });
+/** Проказа фей — плашкой поверх карты: журнал под картой во время хода никто
+ *  не читает, а без плашки навык пропадал молча. */
+type Prank = { slot: number; text: string; good: boolean; low: boolean };
+const prankShown = ref<Prank | null>(null);
+let prankTimer: ReturnType<typeof setTimeout> | null = null;
+onBeforeUnmount(() => {
+  if (prankTimer) clearTimeout(prankTimer);
+});
+const faeToken = computed(
+  () => map.value.hunters.find((h) => h.kind === "fae")?.token ?? null,
+);
 /** Клетка, на которую пришли по кубику последней, — её текст у кубика. */
 const landedCell = ref<number | null>(null);
 const landedSlot = ref<number | null>(null);
@@ -153,6 +164,8 @@ async function play(action: BoardAction) {
   animating.value = true;
   duelShown.value = null;
   if (duelTimer) clearTimeout(duelTimer);
+  prankShown.value = null;
+  if (prankTimer) clearTimeout(prankTimer);
 
   for (const fx of action.fx) {
     if (fx.kind === "dice") {
@@ -211,6 +224,21 @@ async function play(action: BoardAction) {
         duelShown.value = null;
       }, 4000);
       await wait(1100);
+    } else if (fx.kind === "prank") {
+      // Встреча могла ещё висеть — феи важнее, плашка одна.
+      duelShown.value = null;
+      const where = cells.value[shown[fx.slot] ?? 0]!;
+      prankShown.value = {
+        slot: fx.slot,
+        text: fx.text,
+        good: fx.good,
+        low: shownAt(where.y) < 0.5,
+      };
+      if (prankTimer) clearTimeout(prankTimer);
+      prankTimer = setTimeout(() => {
+        prankShown.value = null;
+      }, 5000);
+      await wait(1400);
     }
   }
 
@@ -277,6 +305,7 @@ watch(state, (s) => {
     landedSlot.value = null;
     pickedCell.value = null;
     duelShown.value = null;
+    prankShown.value = null;
     diceFace2.value = null;
     showWinner(null);
   }
@@ -812,6 +841,24 @@ useHead({
               </span>
               <span class="win-hint">первым доходит до финиша</span>
             </button>
+            <div
+              v-if="prankShown && state.status !== 'lobby'"
+              class="duel prank"
+              :class="{
+                'duel--low': prankShown.low,
+                'prank--bad': !prankShown.good,
+              }"
+              role="status"
+            >
+              <img v-if="faeToken" :src="faeToken" alt="" class="prank-fae" />
+              <p class="prank-text">
+                <span
+                  class="prank-name"
+                  :style="{ color: playerBySlot(prankShown.slot)?.color }"
+                  >{{ playerBySlot(prankShown.slot)?.name }}</span
+                >: {{ prankShown.text }}
+              </p>
+            </div>
             <div
               v-if="duelShown && state.status !== 'lobby'"
               class="duel"
@@ -1866,6 +1913,61 @@ useHead({
 .duel--low {
   top: auto;
   bottom: 10px;
+}
+
+/* Проказа фей — в той же рамке, что встреча: феи слева, текст справа.
+   Добрая — в морозно-голубом, злая — в красном. */
+.prank {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(420px, calc(100% - 24px));
+  border-color: #8fc3e8;
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.45),
+    0 0 16px rgba(143, 195, 232, 0.35);
+  animation: prank-in 0.35s ease-out;
+}
+.prank--bad {
+  border-color: var(--danger);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.45),
+    0 0 16px rgba(200, 70, 60, 0.35);
+}
+.prank-fae {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.prank-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--parchment);
+}
+.prank-name {
+  font-weight: 600;
+}
+@keyframes prank-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+}
+@media (max-width: 600px) {
+  .prank-fae {
+    width: 32px;
+    height: 32px;
+  }
+  .prank-text {
+    font-size: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .prank {
+    animation: none;
+  }
 }
 
 /* Победитель — по центру карты, крупно; нажатие закрывает. */
