@@ -429,6 +429,12 @@ const focusFrom = computed(() =>
 const focusTo = computed(() =>
   focusFrom.value === null ? null : jumpTarget(map.value, focusFrom.value),
 );
+/** Остальные стрелки бледнеют, только когда клетку выбрали сами. Клетка, куда
+ *  пришли по кубику, держится до следующего броска — гаси она всё, на своём
+ *  ходу игрок видел бы почти пустую карту. */
+const dimOthers = computed(
+  () => pickedCell.value !== null && focusFrom.value === pickedCell.value,
+);
 
 const infoWho = computed(() =>
   pickedCell.value === null ? playerBySlot(landedSlot.value) : null,
@@ -708,7 +714,7 @@ useHead({
                     class="arrow"
                     :class="{
                       'arrow--focus': a.from === focusFrom,
-                      'arrow--dim': focusFrom !== null && a.from !== focusFrom,
+                      'arrow--dim': dimOthers && a.from !== focusFrom,
                     }"
                     :stroke="`url(#arrow-grad-${a.from})`"
                     :marker-end="
@@ -1364,7 +1370,7 @@ useHead({
 
 /* Стрелки прыжков — тонкие, с градиентом от бледного хвоста к наконечнику,
    цветами сайта: карта читается сквозь них. Выбранная клетка выводит свою
-   стрелку вперёд, остальные бледнеют. */
+   стрелку вперёд; выбранная своей рукой — ещё и гасит остальные. */
 .arrow {
   fill: none;
   stroke-width: 2.4;
