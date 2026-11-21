@@ -801,7 +801,9 @@ const when = (raw: string) =>
 .add-row select,
 .word-line input[type="text"],
 .word-line select,
-.forms-edit input {
+.forms-edit input,
+.tier-row input[type="text"],
+.tier-row input[type="number"] {
   min-width: 0;
   padding: 6px 10px;
   border: 1px solid var(--line-strong);
@@ -814,6 +816,11 @@ const when = (raw: string) =>
 
 .add-row input {
   flex: 1;
+}
+
+.add-row .tier-color,
+.add-row .tier-chance input {
+  flex: none;
 }
 
 .word-list {
