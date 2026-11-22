@@ -37,6 +37,11 @@ const { data: treeBanner, refresh: refreshTree } = await useFetch(
 );
 const treeOpen = ref(false);
 
+// Лабиринт — тоже вместо плашки игры, под ёлкой. Сбой — так же не беда.
+const { data: mazeBanner } = await useFetch("/api/maze/banner", {
+  default: () => null,
+});
+
 const reelOpen = ref(false);
 const route = useRoute();
 // Гость нажал «Войти и крутить» и вернулся с ?reel=1 — открываем барабан сами,
@@ -334,8 +339,10 @@ useSeoMeta({
       <!-- Зимой на нижнем краю hero лежит снег, цепи вывески уходят под него. -->
       <SnowLedge v-if="winter" />
 
-      <!-- Вывеска на цепях — вход в карточки персонажей, свисает из-под hero. -->
-      <SignCharacters :snowy="winter" />
+      <!-- Вывеска на цепях — вход в карточки персонажей, свисает из-под hero.
+           Пока идут и ёлка, и лабиринт, её нет: плашек и так две, а к
+           персонажам ведёт меню. -->
+      <SignCharacters v-if="!(treeBanner && mazeBanner)" :snowy="winter" />
 
       <div class="game-wrap">
         <ReelBanner
@@ -350,8 +357,13 @@ useSeoMeta({
           :board="treeBanner.board"
           @open="treeOpen = true"
         />
+        <MazeBanner
+          v-if="mazeBanner"
+          :class="{ 'tree-below-reel': reelBanner || treeBanner }"
+          :banner="mazeBanner"
+        />
         <GameCta
-          v-if="!reelBanner && !treeBanner"
+          v-if="!reelBanner && !treeBanner && !mazeBanner"
           :season="season"
           :title="settings?.game_cta_title"
           :text="settings?.game_cta_text"
@@ -758,7 +770,7 @@ useSeoMeta({
   padding: 40px 20px 0;
 }
 
-/* Барабан и ёлка разом — ёлка под баннером барабана. */
+/* Барабан и ёлка разом — ёлка под баннером барабана; лабиринт — под ними. */
 .tree-below-reel {
   margin-top: 16px;
 }

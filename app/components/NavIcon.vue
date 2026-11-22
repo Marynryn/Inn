@@ -32,6 +32,7 @@ const PATHS: Record<string, string> = {
   spark: "M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z",
   map: "M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3zM9 3v15M15 6v15",
   tree: "M12 2 7 9h3l-5 7h5l-3 4h10l-3-4h5l-5-7h3zM12 20v2",
+  maze: "M10 3H3v18h18V3h-7M7 7v10h10V7h-3M11 11v2h2",
   wheel:
     "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9 4.9 19.1",
 };

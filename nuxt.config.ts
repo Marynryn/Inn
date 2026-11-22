@@ -173,7 +173,9 @@ export default defineNuxtConfig({
     // опознают по одноразовому билету. Поэтому плагин выкидываем.
     "nitro:config": (nitro) => {
       nitro.plugins = (nitro.plugins ?? []).filter(
-        (p) => !/nuxt-auth-utils[\\/].*[\\/]server[\\/]plugins[\\/]ws/.test(p),
+        (p) =>
+          typeof p !== "string" ||
+          !/nuxt-auth-utils[\\/].*[\\/]server[\\/]plugins[\\/]ws/.test(p),
       );
     },
   },
