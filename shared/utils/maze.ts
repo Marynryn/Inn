@@ -11,6 +11,8 @@
  * которым дошли до выхода.
  */
 
+import type { MazeMode, MazeTeam, MazeTournamentView } from "./mazeTournament";
+
 export type MazeDir = "U" | "R" | "D" | "L";
 export const MAZE_DIRS: readonly MazeDir[] = ["U", "R", "D", "L"];
 
@@ -44,9 +46,6 @@ export const MAZE_LIGHT = 2.3;
  *  чтобы фишка шла, не дожидаясь ответа на каждый шаг. */
 export const MAZE_REVEAL = MAZE_LIGHT + 1;
 
-/** Размер лабиринта дня — пока один на всё время пробы. В турнирах он будет
- *  расти от дня к дню. */
-export const MAZE_DAILY_SIZE = 15;
 /** Размеры тренировки, из которых выбирает админ. */
 export const MAZE_PRACTICE_SIZES = [9, 11, 13, 15, 17, 19, 21, 25] as const;
 export const isPracticeSize = (v: unknown): v is number =>
@@ -316,7 +315,8 @@ export type MazeCell = [index: number, bits: number];
 /** Забег глазами игрока — уже в его повороте. */
 export type MazeRunView = {
   id: number;
-  kind: "daily" | "practice";
+  /** Забег дня турнира или тренировка. */
+  kind: "round" | "practice";
   size: number;
   start: number;
   exit: number;
@@ -329,14 +329,24 @@ export type MazeRunView = {
   finishedMs: number | null;
 };
 
+/** Страница лабиринта. */
 export type MazeState = {
-  day: string;
-  dailySize: number;
-  practiceSizes: readonly number[];
-  daily: MazeRunView | null;
+  mode: MazeMode;
+  /** Вошедший; гостю — null. */
+  me: {
+    /** Команда в показанном турнире; не вступал — null. */
+    team: MazeTeam | null;
+    /** Можно ли вступать и проходить: зависит от режима ивента. */
+    canPlay: boolean;
+    isAdmin: boolean;
+  } | null;
+  /** Идущий турнир или последний окончившийся. Турниров не было — null. */
+  tournament: MazeTournamentView | null;
+  /** Свой забег сегодняшнего дня турнира. */
+  run: MazeRunView | null;
+  /** Последняя тренировка — только у админа. */
   practice: MazeRunView | null;
-  /** Админ проходит лабиринт дня сколько угодно раз. */
-  canRestart: boolean;
+  practiceSizes: readonly number[];
 };
 
 export type MazeMoveResult = {
@@ -346,10 +356,15 @@ export type MazeMoveResult = {
   finishedMs: number | null;
 };
 
-/** 83 456 мс → «1:23.4». */
-export function formatMazeTime(ms: number): string {
-  const tenths = Math.floor(Math.max(0, ms) / 100);
-  const m = Math.floor(tenths / 600);
-  const s = Math.floor((tenths % 600) / 10);
-  return `${m}:${String(s).padStart(2, "0")}.${tenths % 10}`;
+/** 83 456 мс → «1:23.45». Итоги — до сотых: два забега в один день бывает
+ *  трудно различить по десятым, а очко получает только один. Бегущий таймер —
+ *  до десятых (digits = 1): сотые на ходу только мельтешат. */
+export function formatMazeTime(ms: number, digits: 1 | 2 = 2): string {
+  const unit = digits === 2 ? 10 : 100;
+  const parts = Math.floor(Math.max(0, ms) / unit);
+  const perSecond = 1000 / unit;
+  const m = Math.floor(parts / (60 * perSecond));
+  const s = Math.floor((parts % (60 * perSecond)) / perSecond);
+  const frac = String(parts % perSecond).padStart(digits, "0");
+  return `${m}:${String(s).padStart(2, "0")}.${frac}`;
 }

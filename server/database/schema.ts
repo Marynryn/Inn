@@ -531,12 +531,14 @@ export const mazeDays = sqliteTable("maze_days", {
     .default(sql`(datetime('now'))`),
 });
 
-// Забеги по лабиринту. Зачётный забег дня — один на человека (уникальный
-// индекс по user_id, day для kind = 'daily'); тренировка — только у админа.
+// Забеги по лабиринту. Забег дня турнира (kind = 'round') — один на человека
+// в день (уникальный индекс по user_id, round_id); тренировка — только у
+// админа. 'daily' — лабиринт дня из пробы до турниров, больше не заводится.
 export const mazeRuns = sqliteTable("maze_runs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
-  kind: text("kind", { enum: ["daily", "practice"] }).notNull(),
+  kind: text("kind", { enum: ["daily", "practice", "round"] }).notNull(),
+  roundId: integer("round_id"), // день турнира (maze_rounds) у kind = 'round'
   day: text("day").notNull(),
   size: integer("size").notNull(),
   seed: text("seed").notNull(),
@@ -548,3 +550,41 @@ export const mazeRuns = sqliteTable("maze_runs", {
     .notNull()
     .default(sql`(datetime('now'))`),
 });
+
+// Турниры лабиринта, см. миграцию 12.
+export const mazeTournaments = sqliteTable("maze_tournaments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  days: integer("days").notNull(),
+  finishedAt: integer("finished_at"), // мс; NULL — турнир идёт
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// Дни турнира: у каждого свой лабиринт. closed_at — когда подведены итоги.
+export const mazeRounds = sqliteTable("maze_rounds", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tournamentId: integer("tournament_id").notNull(),
+  round: integer("round").notNull(), // 1…days
+  day: text("day").notNull(), // '2026-12-20' по Москве
+  seed: text("seed").notNull(),
+  size: integer("size").notNull(),
+  closedAt: integer("closed_at"), // мс; NULL — день идёт
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// Кто в турнире и за какую команду.
+export const mazeMembers = sqliteTable(
+  "maze_members",
+  {
+    tournamentId: integer("tournament_id").notNull(),
+    userId: integer("user_id").notNull(),
+    team: text("team", { enum: ["goblins", "antinium"] }).notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (t) => [primaryKey({ columns: [t.tournamentId, t.userId] })],
+);

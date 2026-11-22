@@ -4,6 +4,7 @@ import type { AdminTab } from "~/utils/adminTabs";
 import AdminAccount from "~/components/AdminAccount.vue";
 import AdminChapters from "~/components/AdminChapters.vue";
 import AdminFrames from "~/components/AdminFrames.vue";
+import AdminMaze from "~/components/AdminMaze.vue";
 import AdminNotify from "~/components/AdminNotify.vue";
 import AdminSettings from "~/components/AdminSettings.vue";
 import AdminStats from "~/components/AdminStats.vue";
@@ -39,6 +40,7 @@ const TAB_VIEWS: Partial<Record<AdminTab, Component>> = {
   stats: AdminStats,
   frames: AdminFrames,
   tree: AdminTree,
+  maze: AdminMaze,
   profile: AdminAccount,
 };
 

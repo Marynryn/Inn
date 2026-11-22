@@ -1,17 +1,14 @@
 import type { MazeMoveResult } from "#shared/utils/maze";
 import { MAZE_MOVES_PER_REQUEST } from "#shared/utils/maze";
-import { applyMoves, mazeOpenTo } from "../../utils/maze";
+import { applyMoves } from "../../utils/maze";
+import { mazePlayer } from "../../utils/maze-access";
 
 const MOVES_RE = new RegExp(`^[URDL]{1,${MAZE_MOVES_PER_REQUEST}}$`);
 
 /** Ходы забега пачкой. Что за стенами и дошли ли до выхода, решает сервер:
  *  в ответ — клетки, которые эти ходы открыли, и время. */
 export default defineEventHandler(async (event): Promise<MazeMoveResult> => {
-  const session = await getUserSession(event);
-  const user = session.user as { id?: number; role?: string } | undefined;
-  if (!user?.id || !mazeOpenTo(user.role))
-    throw createError({ statusCode: 404, message: "Лабиринта сейчас нет" });
-
+  const user = await mazePlayer(event);
   const body = await readBody<{
     runId?: unknown;
     at?: unknown;
@@ -27,5 +24,5 @@ export default defineEventHandler(async (event): Promise<MazeMoveResult> => {
   )
     throw createError({ statusCode: 400, message: "Непонятные ходы" });
 
-  return applyMoves(user.id, runId as number, at as number, moves);
+  return applyMoves(user, runId as number, at as number, moves);
 });

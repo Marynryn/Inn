@@ -88,6 +88,16 @@ const loadOpenTables = () =>
     })
     .catch(() => {});
 
+/** Лабиринт в меню — пока идёт ивент (на пробе — только у админов). Тоже
+ *  спрашиваем при открытии шторки. */
+const mazeOpen = ref(false);
+const loadMaze = () =>
+  $fetch<unknown>("/api/maze/banner")
+    .then((r) => {
+      mazeOpen.value = r !== null;
+    })
+    .catch(() => {});
+
 watch(
   () => props.open,
   (open) => {
@@ -95,6 +105,7 @@ watch(
     lockScroll(open);
     if (open) {
       loadOpenTables();
+      loadMaze();
       document.addEventListener("keydown", onKey);
       nextTick(() => closeBtn.value?.focus({ preventScroll: true }));
     } else {
@@ -235,6 +246,14 @@ const onTouchEnd = (e: TouchEvent) => {
           :active="
             route.path.startsWith('/board') || route.path.startsWith('/cards')
           "
+          @click="close"
+        />
+        <SideNavLink
+          v-if="mazeOpen"
+          to="/maze"
+          icon="maze"
+          label="Лабиринт"
+          :active="route.path === '/maze'"
           @click="close"
         />
 

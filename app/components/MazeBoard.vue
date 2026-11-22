@@ -95,7 +95,11 @@ const offline = ref(false);
 const startPerf = performance.now() - props.run.elapsedMs;
 let localDoneMs: number | null =
   props.run.finishedMs ?? (reachedExit.value ? props.run.elapsedMs : null);
-const timeText = ref(formatMazeTime(localDoneMs ?? props.run.elapsedMs));
+const timeText = ref(
+  props.run.finishedMs !== null
+    ? formatMazeTime(props.run.finishedMs)
+    : formatMazeTime(localDoneMs ?? props.run.elapsedMs, 1),
+);
 
 const xy = (i: number) => [i % n, Math.floor(i / n)] as const;
 
@@ -427,9 +431,10 @@ function frame(now: number) {
   }
   if (now - lastTimeText > 90) {
     lastTimeText = now;
-    timeText.value = formatMazeTime(
-      serverMs.value ?? localDoneMs ?? now - startPerf,
-    );
+    timeText.value =
+      serverMs.value !== null
+        ? formatMazeTime(serverMs.value)
+        : formatMazeTime(localDoneMs ?? now - startPerf, 1);
   }
   draw(now);
   // Стоит ли фишка — для сценариев: ход, нажатый на ходу, ждёт развилки.

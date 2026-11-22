@@ -34,6 +34,9 @@ const ALLOWED_KEYS = [
   "tree_text",
   "tree_button",
   "tree_board_title",
+  // Лабиринт: режим ивента и размеры по дням турнира (вкладка «Лабиринт»).
+  "maze_mode",
+  "maze_sizes",
 ];
 
 export default defineEventHandler(async (event) => {

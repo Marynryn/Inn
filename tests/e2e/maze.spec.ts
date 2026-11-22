@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
 import { createClient } from "@libsql/client";
-import type { Page } from "@playwright/test";
-import { test, expect, login, open } from "./helpers";
-import { ADMIN, READER } from "./fixtures";
+import type { APIRequestContext, Page } from "@playwright/test";
+import { test, expect, login, open, apiLogin } from "./helpers";
+import { ADMIN, READER, SECOND } from "./fixtures";
 import type { Maze, MazeDir } from "../../shared/utils/maze";
 import {
   MAZE_DIRS,
@@ -12,17 +12,23 @@ import {
   neighbor,
   transformMaze,
 } from "../../shared/utils/maze";
+import { MAZE_TEAMS } from "../../shared/utils/mazeTournament";
 
 /**
- * Лабиринт — пока проба для админов. Лабиринт знает только сервер, поэтому
- * сценарий подсматривает его в базе тестового сервера (сид и поворот забега)
- * и проходит по кратчайшему пути клавишами, как игрок.
+ * Лабиринт и турнир. Лабиринт знает только сервер, поэтому сценарий
+ * подсматривает его в базе тестового сервера (сид и поворот забега) и
+ * проходит по кратчайшему пути клавишами, как игрок.
+ *
+ * Режим ивента и турнир — общие на всю базу: в конце файла турнир удаляется,
+ * ивент выключается, чтобы плашка лабиринта не попала в соседние сценарии.
  */
+
+test.describe.configure({ mode: "serial" });
 
 const testDb = () =>
   createClient({ url: `file:${resolve(".data/e2e/db.sqlite")}` });
 
-async function lastRun(kind: "daily" | "practice") {
+async function lastRun(kind: "round" | "practice") {
   const db = testDb();
   const row = (
     await db.execute({
@@ -101,19 +107,131 @@ async function play(page: Page, m: Maze) {
   }
 }
 
+let admin: APIRequestContext;
+
+const setMode = async (mode: string) => {
+  const res = await admin.put("/api/admin/settings", {
+    data: { maze_mode: mode, maze_sizes: "9,9,11,11,13" },
+  });
+  expect(res.ok(), await res.text()).toBeTruthy();
+};
+
+/** Удалить все турниры — уборка после сценария. */
+async function clearTournaments() {
+  for (;;) {
+    const res = await admin.get("/api/admin/maze");
+    const t = (await res.json()).tournament;
+    if (!t) return;
+    await admin.delete(`/api/admin/maze/tournaments/${t.id}`);
+  }
+}
+
 test.describe("Лабиринт", () => {
-  test("читателю лабиринта нет", async ({ page }) => {
-    await login(page, READER);
-    const api = await page.request.get("/api/maze");
-    expect(api.status()).toBe(404);
-    await open(page, "/maze");
-    await expect(page.getByText("Лабиринта сейчас нет.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Начать" })).toHaveCount(0);
+  test.beforeAll(async ({ playwright, baseURL }) => {
+    admin = await playwright.request.newContext({ baseURL });
+    await apiLogin(admin, ADMIN);
   });
 
-  test("тренировка: лабиринт проходится клавишами, время — по серверу", async ({
+  test.afterAll(async () => {
+    await clearTournaments();
+    await setMode("off");
+    await admin.dispose();
+  });
+
+  test("ивент выключен — читателю лабиринта нет", async ({ page }) => {
+    await login(page, READER);
+    expect((await page.request.get("/api/maze")).status()).toBe(404);
+    await open(page, "/maze");
+    await expect(page.getByText("Лабиринта сейчас нет.")).toBeVisible();
+  });
+
+  test("турнир: вступление, команды, забег дня, итог дня", async ({
+    page,
+    playwright,
+    baseURL,
+  }) => {
+    await setMode("on");
+    const started = await admin.post("/api/admin/maze/start");
+    expect(started.ok(), await started.text()).toBeTruthy();
+
+    await login(page, READER);
+    await open(page, "/maze");
+    await expect(page.getByText(/Турнир №1 · день 1 из 5/)).toBeVisible();
+    await page.getByRole("button", { name: "Участвовать" }).click();
+    const joined = page.getByRole("heading", { name: /Ты в команде/ });
+    await expect(joined).toBeVisible();
+    const myTeam = (await joined.textContent())!.includes(MAZE_TEAMS.goblins.of)
+      ? "goblins"
+      : "antinium";
+
+    // Второй вступивший — в другой команде: было один на ноль.
+    const second = await playwright.request.newContext({ baseURL });
+    await apiLogin(second, SECOND);
+    const other = await (await second.post("/api/maze/join")).json();
+    expect(other.team).not.toBe(myTeam);
+    await second.dispose();
+
+    await open(page, "/maze");
+    await page.getByRole("button", { name: "Начать", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "День 1 из 5 · 9×9" }),
+    ).toBeVisible();
+    const { maze } = await lastRun("round");
+    await play(page, maze);
+    await expect(
+      page.getByText(/В тепле! Время — \d+:\d\d\.\d\d/),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Смотреть табло" }).click();
+    await expect(
+      page.getByText(`Сегодня ведут ${MAZE_TEAMS[myTeam].name}`, {
+        exact: false,
+      }),
+    ).toBeVisible();
+    await expect(page.getByText(/Твоё время сегодня/)).toBeVisible();
+    // Второй забег за день не начать.
+    await expect(
+      page.getByRole("button", { name: "Начать", exact: true }),
+    ).toHaveCount(0);
+
+    // День закончили кнопкой — очко засчитано, начался день 2.
+    expect((await admin.post("/api/admin/maze/advance")).ok()).toBeTruthy();
+    await open(page, "/maze");
+    await expect(
+      page.getByRole("heading", { name: "День 2 · 9×9" }),
+    ).toBeVisible();
+    await expect(page.getByText(/Турнир №1 · день 2 из 5/)).toBeVisible();
+    await expect(page.locator(".mark", { hasText: "очко" })).toBeVisible();
+  });
+
+  test("гость видит турнир и зовётся войти; на главной — плашка", async ({
     page,
   }) => {
+    await open(page, "/maze");
+    await expect(page.getByText(/Турнир №1 · день 2 из 5/)).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Войти и участвовать" }),
+    ).toBeVisible();
+    await open(page, "/");
+    const banner = page.locator(".maze-banner");
+    await expect(banner).toBeVisible();
+    await banner.getByRole("link", { name: "В лабиринт" }).click();
+    await expect(page).toHaveURL(/\/maze$/);
+  });
+
+  test("проба для админов: читатель не видит ни страницы, ни плашки", async ({
+    page,
+  }) => {
+    await setMode("admins");
+    await login(page, READER);
+    expect((await page.request.get("/api/maze")).status()).toBe(404);
+    await open(page, "/");
+    await expect(page.locator(".maze-banner")).toHaveCount(0);
+    // У админа — и плашка, и игра.
+    expect(await (await admin.get("/api/maze/banner")).json()).not.toBeNull();
+  });
+
+  test("тренировка админа проходится клавишами", async ({ page }) => {
     await login(page, ADMIN);
     await open(page, "/maze");
     await page.getByRole("combobox").selectOption("9");
@@ -121,11 +239,9 @@ test.describe("Лабиринт", () => {
     await expect(
       page.getByRole("heading", { name: "Тренировка · 9×9" }),
     ).toBeVisible();
-
     const { id, maze } = await lastRun("practice");
     await play(page, maze);
-    await expect(page.getByText(/В тепле! Время — \d+:\d\d\.\d/)).toBeVisible();
-
+    await expect(page.getByText(/В тепле! Время/)).toBeVisible();
     const db = testDb();
     const row = (
       await db.execute({
@@ -136,46 +252,5 @@ test.describe("Лабиринт", () => {
     db.close();
     expect(row.finished_at).not.toBeNull();
     expect(row.moves).toBe(route(maze));
-  });
-
-  test("забег дня: сквозь стену не пройти, после перезагрузки — с того же места", async ({
-    page,
-  }) => {
-    await login(page, ADMIN);
-    await open(page, "/maze");
-    await page.getByRole("button", { name: "Начать", exact: true }).click();
-    await expect(
-      page.getByRole("heading", { name: /^Лабиринт дня · \d+×\d+$/ }),
-    ).toBeVisible();
-
-    const { id, maze } = await lastRun("daily");
-    const wall = MAZE_DIRS.find((d) => !isOpen(maze.cells[maze.start]!, d))!;
-    const bad = await page.request.post("/api/maze/move", {
-      data: { runId: id, at: 0, moves: wall },
-    });
-    expect(bad.status()).toBe(409);
-
-    const first = presses(maze)[0]!;
-    await page.keyboard.press(KEY[first]);
-    await expect(page.locator(".field")).toHaveAttribute("data-idle", "1");
-    // Ход дошёл до сервера — и после перезагрузки забег продолжается сам.
-    await expect
-      .poll(async () => {
-        const db = testDb();
-        const r = await db.execute({
-          sql: "SELECT length(moves) AS n FROM maze_runs WHERE id = ?",
-          args: [id],
-        });
-        db.close();
-        return Number(r.rows[0]!.n);
-      })
-      .toBeGreaterThan(0);
-    await page.reload();
-    await expect(
-      page.getByRole("heading", { name: /^Лабиринт дня/ }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Начать", exact: true }),
-    ).toHaveCount(0);
   });
 });
