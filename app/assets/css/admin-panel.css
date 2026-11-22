@@ -48,6 +48,13 @@
   width: 100%;
 }
 
+/* Раскрытый список Windows рисует сам — без своего фона он белый под светлым
+   текстом. */
+.field-row select option {
+  background: var(--bg-dark-2);
+  color: var(--parchment);
+}
+
 .field-row input:focus-visible,
 .field-row select:focus-visible,
 .field-row textarea:focus-visible {
