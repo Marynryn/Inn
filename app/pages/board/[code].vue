@@ -432,12 +432,17 @@ const zones = computed(() =>
 
 const effectClass = (e: BoardEffect) => `cell--${e.kind}`;
 
-/** Несколько фишек на одной клетке расходятся по углам, чтобы не прятать друг друга. */
+/** Несколько фишек на одной клетке расходятся по углам, чтобы не прятать друг
+ *  друга. Отступ — в пикселях (--pawn-off в стилях): в процентах высокой карты
+ *  томов 2–3 фишка уезжала от своей клетки к соседней. */
 function pawnStyle(slot: number) {
   const cell = cells.value[shown[slot] ?? 0]!;
-  const dx = slot % 2 ? 1.8 : -1.8;
-  const dy = slot < 2 ? -2.6 : 2.6;
-  return { left: `${cell.x + dx}%`, top: `${cell.y + dy}%` };
+  return {
+    left: `${cell.x}%`,
+    top: `${cell.y}%`,
+    "--dx": slot % 2 ? 1 : -1,
+    "--dy": slot < 2 ? -1 : 1,
+  };
 }
 
 function hunterStyle(i: number) {
@@ -1636,12 +1641,18 @@ useHead({
 }
 
 .pawn {
+  --pawn-off: 15px;
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(
+    calc(-50% + var(--dx) * var(--pawn-off)),
+    calc(-50% + var(--dy) * var(--pawn-off))
+  );
   border-radius: var(--radius-round);
+  /* Светлое кольцо отделяет фишку от тёмной картины, цвет игрока — снаружи. */
   box-shadow:
-    0 0 0 3px var(--pawn),
-    0 3px 8px rgba(0, 0, 0, 0.5);
+    0 0 0 2px var(--parchment),
+    0 0 0 5px var(--pawn),
+    0 3px 10px 2px rgba(0, 0, 0, 0.75);
   transition:
     left 0.2s ease,
     top 0.2s ease;
@@ -1659,8 +1670,9 @@ useHead({
 .pawn--turn {
   z-index: 3;
   box-shadow:
-    0 0 0 3px var(--pawn),
-    0 0 14px 4px var(--pawn);
+    0 0 0 2px var(--parchment),
+    0 0 0 5px var(--pawn),
+    0 0 16px 6px var(--pawn);
 }
 /* Ушедший из-за стола: фишка остаётся, но серая — ход её пропускается. */
 .pawn--left {
@@ -1830,8 +1842,11 @@ useHead({
     width: 21px;
     height: 29px;
   }
+  .map--dense .pawn {
+    --pawn-off: 12px;
+  }
   .map--dense .pawn :deep(.ua) {
-    --ua-size: 18px !important;
+    --ua-size: 22px !important;
   }
 }
 
