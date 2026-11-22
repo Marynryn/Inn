@@ -94,7 +94,8 @@ const mazeOpen = ref(false);
 const loadMaze = () =>
   $fetch<unknown>("/api/maze/banner")
     .then((r) => {
-      mazeOpen.value = r !== null;
+      // null с сервера приходит пустым ответом 204, и $fetch отдаёт undefined.
+      mazeOpen.value = Boolean(r);
     })
     .catch(() => {});
 

@@ -438,8 +438,10 @@ function frame(now: number) {
   }
   draw(now);
   // Стоит ли фишка — для сценариев: ход, нажатый на ходу, ждёт развилки.
+  // Пишем, только когда меняется: на проде каждую правку DOM записывает Clarity.
   const el = wrap.value;
-  if (el) el.dataset.idle = anim || waiting || bump ? "0" : "1";
+  const idle = anim || waiting || bump ? "0" : "1";
+  if (el && el.dataset.idle !== idle) el.dataset.idle = idle;
   raf = requestAnimationFrame(frame);
 }
 

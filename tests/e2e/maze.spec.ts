@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { createClient } from "@libsql/client";
 import type { APIRequestContext, Page } from "@playwright/test";
-import { test, expect, login, open, apiLogin } from "./helpers";
+import { test, expect, login, logout, open, apiLogin } from "./helpers";
 import { ADMIN, READER, SECOND } from "./fixtures";
 import type { Maze, MazeDir } from "../../shared/utils/maze";
 import {
@@ -126,6 +126,21 @@ async function clearTournaments() {
   }
 }
 
+/** В шторке меню нет пункта «Лабиринт». Шторку спрашивают при открытии. */
+async function expectNoMazeInMenu(page: Page) {
+  await open(page, "/");
+  const asked = page.waitForResponse((r) =>
+    r.url().includes("/api/maze/banner"),
+  );
+  await page.getByRole("button", { name: /^Меню/ }).click();
+  const menu = page.getByRole("complementary", { name: "Меню" });
+  await expect(menu).toBeVisible();
+  await asked;
+  // Ответ пришёл — даём шторке перерисоваться: пункт появился бы сейчас.
+  await page.waitForTimeout(300);
+  await expect(menu.getByRole("link", { name: "Лабиринт" })).toHaveCount(0);
+}
+
 test.describe("Лабиринт", () => {
   test.beforeAll(async ({ playwright, baseURL }) => {
     admin = await playwright.request.newContext({ baseURL });
@@ -141,8 +156,12 @@ test.describe("Лабиринт", () => {
   test("ивент выключен — читателю лабиринта нет", async ({ page }) => {
     await login(page, READER);
     expect((await page.request.get("/api/maze")).status()).toBe(404);
-    await open(page, "/maze");
-    await expect(page.getByText("Лабиринта сейчас нет.")).toBeVisible();
+    // Страницы нет совсем — настоящая 404, не заглушка.
+    expect((await page.goto("/maze"))?.status()).toBe(404);
+    await expectNoMazeInMenu(page);
+    await logout(page);
+    expect((await page.goto("/maze"))?.status()).toBe(404);
+    await expectNoMazeInMenu(page);
   });
 
   test("турнир: вступление, команды, забег дня, итог дня", async ({
@@ -225,8 +244,10 @@ test.describe("Лабиринт", () => {
     await setMode("admins");
     await login(page, READER);
     expect((await page.request.get("/api/maze")).status()).toBe(404);
+    expect((await page.goto("/maze"))?.status()).toBe(404);
     await open(page, "/");
     await expect(page.locator(".maze-banner")).toHaveCount(0);
+    await expectNoMazeInMenu(page);
     // У админа — и плашка, и игра.
     expect(await (await admin.get("/api/maze/banner")).json()).not.toBeNull();
   });

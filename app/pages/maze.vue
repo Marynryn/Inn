@@ -21,6 +21,19 @@ useHead({
   meta: [{ name: "robots", content: "noindex, nofollow" }],
 });
 
+// Пока ивент закрыт для всех, страницы для читателей нет — настоящая 404, а
+// не заглушка с кодом 200. Спрашиваем ещё при отрисовке на сервере.
+const { error: closed } = await useFetch("/api/maze/access", {
+  key: "maze-access",
+});
+if (closed.value) {
+  throw createError({
+    statusCode: 404,
+    message: "Страница не найдена",
+    fatal: true,
+  });
+}
+
 const { data: settings } = await useFetch("/api/settings");
 // Только в браузере: время забега, которое отдаёт сервер, должно быть свежим
 // к той минуте, когда страница его покажет.
