@@ -15,6 +15,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
       // Прозрачность: как она попадает в текст — в epub-transparency.ts.
       opacity: [/^(0|1|0?\.\d+)$/],
       "--faint": [/^(0|1|0?\.\d+)$/],
+      "--op": [/^(0|1|0?\.\d+)$/],
       "font-style": [/italic/],
       "font-weight": [/bold/, /[6-9]\d\d/, /1000/],
       "font-size": [
@@ -22,6 +23,22 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
         /^([1-9]\d?|[1-4]\d\d|500)(\.\d+)?%$/,
         /^\d{1,3}px$/,
       ],
+    },
+  },
+  // Рядом с opacity кладём её копию в --op: тёмная тема читалки прибавляет к
+  // ней свои 4 %, а прочесть число из самой opacity стили не могут.
+  transformTags: {
+    span: (tagName, attribs) => {
+      if (!attribs.style) return { tagName, attribs };
+      const rest = attribs.style
+        .split(";")
+        .filter((decl) => decl.trim() && !/^\s*--op\s*:/.test(decl));
+      const opacity = rest
+        .map((decl) => decl.match(/^\s*opacity\s*:\s*([\d.]+)\s*$/)?.[1])
+        .filter(Boolean)
+        .pop();
+      if (opacity) rest.push(`--op:${opacity}`);
+      return { tagName, attribs: { ...attribs, style: rest.join(";") } };
     },
   },
 };

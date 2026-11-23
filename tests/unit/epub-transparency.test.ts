@@ -23,7 +23,7 @@ describe("прозрачность из epub", () => {
   it("opacity в style остаётся, и цвет рядом с ней тоже", async () => {
     expect(
       await epub('<p><span style="color:#8ae8ff; opacity: 0.5;">а</span></p>'),
-    ).toBe('<p><span style="color:#8ae8ff;opacity:0.5">а</span></p>');
+    ).toBe('<p><span style="color:#8ae8ff;opacity:0.5;--op:0.5">а</span></p>');
   });
 
   it("класс из css: запасная строка уступает color-mix, ::selection мимо", async () => {
@@ -61,13 +61,13 @@ describe("прозрачность из epub", () => {
 
   it("с абзаца, курсива и блока переезжает на span", async () => {
     expect(await epub('<p style="opacity:50%">а <em>б</em></p>')).toBe(
-      '<p><span style="opacity:0.5">а <em>б</em></span></p>',
+      '<p><span style="opacity:0.5;--op:0.5">а <em>б</em></span></p>',
     );
     expect(await epub('<p style="opacity:0.5">а</p>')).toBe(
-      '<p><span style="opacity:0.5">а</span></p>',
+      '<p><span style="opacity:0.5;--op:0.5">а</span></p>',
     );
     expect(await epub('<p>а <i style="opacity:.4">б</i></p>')).toBe(
-      '<p>а <span style="opacity:0.4">б</span></p>',
+      '<p>а <span style="opacity:0.4;--op:0.4">б</span></p>',
     );
     expect(
       await epub(
@@ -76,7 +76,7 @@ describe("прозрачность из epub", () => {
         "<style>.f{opacity:.5}</style>",
       ),
     ).toBe(
-      '<div><p><span style="opacity:0.5">а</span></p><p><span style="opacity:0.5">б<br />в</span></p></div><p>г &amp; д</p>',
+      '<div><p><span style="opacity:0.5;--op:0.5">а</span></p><p><span style="opacity:0.5;--op:0.5">б<br />в</span></p></div><p>г &amp; д</p>',
     );
   });
 
@@ -93,7 +93,7 @@ describe("прозрачность из epub", () => {
 
   it("скачанный epub при обратной загрузке даёт тот же текст", async () => {
     const html =
-      '<p><span class="invisible-text" style="--faint:0.12">а</span> <span style="opacity:0.5">б</span></p>';
+      '<p><span class="invisible-text" style="--faint:0.12">а</span> <span style="opacity:0.5;--op:0.5">б</span></p>';
     expect(sanitizeChapterHtml(html)).toBe(html);
     const file = await buildEpub({ id: "1", title: "т", contentHtml: html });
     expect((await parseEpub(file)).trim()).toBe(html);

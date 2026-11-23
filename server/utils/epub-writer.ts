@@ -13,13 +13,16 @@ const escapeXml = (s: string) =>
 const fillEmptyParagraphs = (html: string) =>
   html.replace(/<p([^>]*)>\s*<\/p>/g, "<p$1>&#160;</p>");
 
+// --op нужна только тёмной теме сайта, в книге её нет.
 // --faint понимает только сайт — в книге это обычный цвет. Первая строка для
 // читалок без color-mix; при обратной загрузке парсер возьмёт вторую.
 const faintToColor = (html: string) =>
-  html.replace(/(<span\b[^>]*?)--faint:\s*([\d.]+)/g, (_, before, share) => {
-    const percent = Number((Number(share) * 100).toFixed(1));
-    return `${before}color:rgba(128, 128, 128, ${share});color:color-mix(in srgb, currentColor ${percent}%, transparent)`;
-  });
+  html
+    .replace(/(<span\b[^>]*?);--op:[\d.]+/g, "$1")
+    .replace(/(<span\b[^>]*?)--faint:\s*([\d.]+)/g, (_, before, share) => {
+      const percent = Number((Number(share) * 100).toFixed(1));
+      return `${before}color:rgba(128, 128, 128, ${share});color:color-mix(in srgb, currentColor ${percent}%, transparent)`;
+    });
 
 export async function buildEpub({
   id,

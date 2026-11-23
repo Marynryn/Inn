@@ -749,11 +749,17 @@ html[data-reader-theme="light"] .page-wrap {
   color: rgba(var(--rd-text-rgb), var(--faint));
 }
 
-/* На чистом чёрном ниже 10 % экраны телефонов текст съедают — как --rd-hidden. */
+/* На чистом чёрном бледный текст теряется — там всё прозрачное на 4 % плотнее,
+   чем в epub: та же разница, что у --rd-hidden (6 % и 10 %). */
 html[data-reader-theme="dark"]
   .reader-content
   :deep(.invisible-text[style*="--faint"]) {
-  color: rgba(var(--rd-text-rgb), max(var(--faint), 0.1));
+  color: rgba(var(--rd-text-rgb), calc(var(--faint) + 0.04));
+}
+
+/* !important — сам opacity стоит в style у текста. */
+html[data-reader-theme="dark"] .reader-content :deep(span[style*="--op"]) {
+  opacity: calc(var(--op) + 0.04) !important;
 }
 
 /* Выделишь — проступит целиком, как в книге. */
