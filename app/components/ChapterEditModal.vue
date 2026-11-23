@@ -2,7 +2,13 @@
 // Mark и mergeAttributes берём из @tiptap/vue-3, а не из @tiptap/core: пакет
 // их реэкспортирует, а новая зависимость заставила бы Vite пересобирать
 // предзагруженные модули посреди работы dev-сервера.
-import { useEditor, EditorContent, Mark, mergeAttributes } from "@tiptap/vue-3";
+import {
+  useEditor,
+  EditorContent,
+  Extension,
+  Mark,
+  mergeAttributes,
+} from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { FontSize } from "@tiptap/extension-text-style/font-size";
@@ -19,11 +25,39 @@ import { Fragment } from "@tiptap/pm/model";
  */
 const InvisibleText = Mark.create({
   name: "invisibleText",
+  // Доля из epub. Без неё глава возьмёт общую, заданную темой читалки.
+  addAttributes: () => ({
+    faint: {
+      default: null,
+      parseHTML: (el: HTMLElement) =>
+        el.style.getPropertyValue("--faint").trim() || null,
+      renderHTML: ({ faint }: { faint?: string | null }) =>
+        faint ? { style: `--faint: ${faint}` } : {},
+    },
+  }),
   parseHTML: () => [{ tag: "span.invisible-text" }],
   renderHTML: ({ HTMLAttributes }) => [
     "span",
     mergeAttributes(HTMLAttributes, { class: "invisible-text" }),
     0,
+  ],
+});
+
+/** Прозрачность (opacity) из epub — чтобы сохранение главы её не стирало. */
+const Opacity = Extension.create({
+  name: "opacity",
+  addGlobalAttributes: () => [
+    {
+      types: ["textStyle"],
+      attributes: {
+        opacity: {
+          default: null,
+          parseHTML: (el: HTMLElement) => el.style.opacity || null,
+          renderHTML: ({ opacity }: { opacity?: string | null }) =>
+            opacity ? { style: `opacity: ${opacity}` } : {},
+        },
+      },
+    },
   ],
 });
 
@@ -79,6 +113,7 @@ const editor = useEditor({
     TextStyle,
     Color,
     FontSize,
+    Opacity,
     InvisibleText,
   ],
   editorProps: {
@@ -717,6 +752,11 @@ const save = async () => {
   color: var(--text-muted);
   text-decoration: underline dotted rgba(241, 230, 210, 0.35);
   text-underline-offset: 3px;
+}
+
+/* Прозрачность из epub видна и здесь, но не ниже читаемой. */
+.editor-body :deep(.invisible-text[style*="--faint"]) {
+  color: rgba(231, 217, 194, max(var(--faint), 0.45));
 }
 
 .form-error {

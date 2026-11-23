@@ -1,5 +1,7 @@
 import JSZip from "jszip";
 import sanitizeHtml from "sanitize-html";
+import { posix } from "node:path";
+import { inlineTransparency } from "./epub-transparency";
 
 const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: ["p", "br", "em", "strong", "span", "hr", "div"],
@@ -10,6 +12,9 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedStyles: {
     "*": {
       color: [/.*/],
+      // Прозрачность: как она попадает в текст — в epub-transparency.ts.
+      opacity: [/^(0|1|0?\.\d+)$/],
+      "--faint": [/^(0|1|0?\.\d+)$/],
       "font-style": [/italic/],
       "font-weight": [/bold/, /[6-9]\d\d/, /1000/],
       "font-size": [
@@ -23,6 +28,26 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
 
 export function sanitizeChapterHtml(raw: string): string {
   return sanitizeHtml(raw, SANITIZE_OPTIONS);
+}
+
+/** Стили одной главы epub: её <style> и подключённые css — по порядку в файле. */
+async function collectCss(zip: JSZip, filePath: string, content: string) {
+  let css = "";
+  for (const [tag, inline] of content.matchAll(
+    /<link\b[^>]*>|<style\b[^>]*>([\s\S]*?)<\/style>/gi,
+  )) {
+    if (inline !== undefined) {
+      css += inline + "\n";
+      continue;
+    }
+    const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1];
+    if (!href || !/stylesheet/i.test(tag)) continue;
+    const path = posix.join(posix.dirname(filePath), href);
+    // В ссылке пробел закодирован, а в архиве файл лежит под обычным именем.
+    const file = zip.file(path) ?? zip.file(path.replaceAll("%20", " "));
+    css += ((await file?.async("string")) ?? "") + "\n";
+  }
+  return css;
 }
 
 export async function parseEpub(buffer: Buffer): Promise<string> {
@@ -63,11 +88,12 @@ export async function parseEpub(buffer: Buffer): Promise<string> {
 
     // Вырезать содержимое <body>
     const bodyMatch = content.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    if (bodyMatch?.[1]) htmlParts.push(bodyMatch[1]);
+    if (!bodyMatch?.[1]) continue;
+
+    const body = bodyMatch[1].replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, "");
+    const css = await collectCss(zip, filePath, content);
+    htmlParts.push(inlineTransparency(body, css));
   }
 
-  const raw = htmlParts
-    .join("\n")
-    .replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, "");
-  return sanitizeHtml(raw, SANITIZE_OPTIONS);
+  return sanitizeHtml(htmlParts.join("\n"), SANITIZE_OPTIONS);
 }

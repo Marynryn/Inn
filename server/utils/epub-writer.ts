@@ -13,6 +13,14 @@ const escapeXml = (s: string) =>
 const fillEmptyParagraphs = (html: string) =>
   html.replace(/<p([^>]*)>\s*<\/p>/g, "<p$1>&#160;</p>");
 
+// --faint понимает только сайт — в книге это обычный цвет. Первая строка для
+// читалок без color-mix; при обратной загрузке парсер возьмёт вторую.
+const faintToColor = (html: string) =>
+  html.replace(/(<span\b[^>]*?)--faint:\s*([\d.]+)/g, (_, before, share) => {
+    const percent = Number((Number(share) * 100).toFixed(1));
+    return `${before}color:rgba(128, 128, 128, ${share});color:color-mix(in srgb, currentColor ${percent}%, transparent)`;
+  });
+
 export async function buildEpub({
   id,
   title,
@@ -96,7 +104,7 @@ export async function buildEpub({
 <head><title>${escapeXml(title)}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
 <body>
 <h1>${escapeXml(title)}</h1>
-${fillEmptyParagraphs(contentHtml)}
+${fillEmptyParagraphs(faintToColor(contentHtml))}
 </body>
 </html>`,
   );

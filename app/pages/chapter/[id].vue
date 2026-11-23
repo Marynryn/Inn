@@ -496,6 +496,7 @@ useHead(() => ({
 .page-wrap {
   --rd-bg: var(--bg-dark-2);
   --rd-text: #e7d9c2;
+  --rd-text-rgb: 231, 217, 194;
   --rd-hidden: rgba(231, 217, 194, 0.06);
   --rd-title: var(--parchment);
   --rd-muted: var(--parchment-2);
@@ -548,6 +549,7 @@ html:-webkit-full-screen .page-wrap {
 html[data-reader-theme="dark"] .page-wrap {
   --rd-bg: #000;
   --rd-text: #f8f8f8;
+  --rd-text-rgb: 248, 248, 248;
   /* Ярче, чем в других темах: почти чёрное на чистом чёрном экраны телефонов
      съедают, и при тех же 6 % текст пропадал совсем. */
   --rd-hidden: rgba(248, 248, 248, 0.1);
@@ -561,6 +563,7 @@ html[data-reader-theme="dark"] .page-wrap {
 html[data-reader-theme="sepia"] .page-wrap {
   --rd-bg: #f4ecd8;
   --rd-text: #111;
+  --rd-text-rgb: 17, 17, 17;
   --rd-hidden: rgba(17, 17, 17, 0.06);
   --rd-title: var(--ink);
   --rd-muted: var(--ink-soft);
@@ -597,6 +600,7 @@ html[data-reader-theme="light"] .faint-snow {
 html[data-reader-theme="light"] .page-wrap {
   --rd-bg: #fff;
   --rd-text: #111;
+  --rd-text-rgb: 17, 17, 17;
   --rd-hidden: rgba(17, 17, 17, 0.06);
   --rd-title: #111;
   --rd-muted: #444;
@@ -740,8 +744,21 @@ html[data-reader-theme="light"] .page-wrap {
   color: var(--rd-hidden);
 }
 
+/* Прозрачность задана в самом epub — берём её, а цвет остаётся от темы. */
+.reader-content :deep(.invisible-text[style*="--faint"]) {
+  color: rgba(var(--rd-text-rgb), var(--faint));
+}
+
+/* На чистом чёрном ниже 10 % экраны телефонов текст съедают — как --rd-hidden. */
+html[data-reader-theme="dark"]
+  .reader-content
+  :deep(.invisible-text[style*="--faint"]) {
+  color: rgba(var(--rd-text-rgb), max(var(--faint), 0.1));
+}
+
 /* Выделишь — проступит целиком, как в книге. */
-.reader-content :deep(.invisible-text)::selection {
+.reader-content :deep(.invisible-text)::selection,
+.reader-content :deep(.invisible-text[style*="--faint"])::selection {
   color: var(--rd-text);
 }
 
