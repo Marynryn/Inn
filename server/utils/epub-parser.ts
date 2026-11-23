@@ -26,7 +26,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     },
   },
   // Рядом с opacity кладём её копию в --op: тёмная тема читалки прибавляет к
-  // ней свои 4 %, а прочесть число из самой opacity стили не могут.
+  // ней свои 2 %, а прочесть число из самой opacity стили не могут.
   transformTags: {
     span: (tagName, attribs) => {
       if (!attribs.style) return { tagName, attribs };

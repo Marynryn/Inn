@@ -749,17 +749,17 @@ html[data-reader-theme="light"] .page-wrap {
   color: rgba(var(--rd-text-rgb), var(--faint));
 }
 
-/* На чистом чёрном бледный текст теряется — там всё прозрачное на 4 % плотнее,
-   чем в epub: та же разница, что у --rd-hidden (6 % и 10 %). */
+/* На чистом чёрном бледный текст теряется — там всё прозрачное на 2 % плотнее,
+   чем в epub. */
 html[data-reader-theme="dark"]
   .reader-content
   :deep(.invisible-text[style*="--faint"]) {
-  color: rgba(var(--rd-text-rgb), calc(var(--faint) + 0.04));
+  color: rgba(var(--rd-text-rgb), calc(var(--faint) + 0.02));
 }
 
 /* !important — сам opacity стоит в style у текста. */
 html[data-reader-theme="dark"] .reader-content :deep(span[style*="--op"]) {
-  opacity: calc(var(--op) + 0.04) !important;
+  opacity: calc(var(--op) + 0.02) !important;
 }
 
 /* Выделишь — проступит целиком, как в книге. */
