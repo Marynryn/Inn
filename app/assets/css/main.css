@@ -436,6 +436,14 @@ a {
   }
 }
 
+/* Окно поверх страницы открыто — анимации страницы под ним стоят, см.
+   composables/usePausePage. Само окно вынесено из #__nuxt и не встаёт. */
+.page-paused #__nuxt *,
+.page-paused #__nuxt *::before,
+.page-paused #__nuxt *::after {
+  animation-play-state: paused !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;

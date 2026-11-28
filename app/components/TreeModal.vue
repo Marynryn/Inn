@@ -23,6 +23,7 @@ const emit = defineEmits<{ close: []; shaken: [] }>();
 
 const auth = useAuthStore();
 useScrollLock();
+usePausePage();
 
 type Phase =
   | "loading"
@@ -72,19 +73,55 @@ const load = async () => {
 };
 
 // ── Встряска ──────────────────────────────────
-// Качается обёртка ёлки целиком: CSS-анимация с размахом от числа ударов.
-// Перезапуск — сменой имени анимации между двумя одинаковыми: иначе браузер
-// не начнёт заново ту, что уже идёт.
-const swayFlip = ref(false);
-const swayAmp = ref(0);
-const swayStyle = computed(() =>
-  swayAmp.value
-    ? {
-        "--amp": `${swayAmp.value}deg`,
-        animationName: swayFlip.value ? "tree-sway-a" : "tree-sway-b",
-      }
-    : {},
-);
+// Качается обёртка ёлки целиком, как на пружине: каждый удар толкает её в
+// свою сторону, и она раскачивается и затихает. Толчок добавляется к тому,
+// как она уже качается, а не начинает качание заново: при частых ударах
+// ёлка не дёргается обратно к середине. Кадры считаются только пока она
+// качается; стиль — прямо на элементе, мимо Vue.
+const swayEl = ref<HTMLElement | null>(null);
+/** Жёсткость и затухание пружины: колебание ~0,45 с, затихает за секунду. */
+const SWAY_K = 190;
+const SWAY_DAMP = 5;
+const SWAY_MAX = 12;
+let swayAngle = 0;
+let swayVel = 0;
+let swayFrame = 0;
+let swayLast = 0;
+let swayDir: 1 | -1 = 1;
+const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const swayStep = (now: number) => {
+  const dt = Math.min((now - swayLast) / 1000, 1 / 30);
+  swayLast = now;
+  swayVel += (-SWAY_K * swayAngle - SWAY_DAMP * swayVel) * dt;
+  swayAngle = Math.max(-SWAY_MAX, Math.min(SWAY_MAX, swayAngle + swayVel * dt));
+  const el = swayEl.value;
+  if (Math.abs(swayAngle) < 0.05 && Math.abs(swayVel) < 0.5) {
+    swayAngle = swayVel = 0;
+    swayFrame = 0;
+    if (el) el.style.transform = "";
+    return;
+  }
+  if (el) el.style.transform = `rotate(${swayAngle.toFixed(2)}deg)`;
+  swayFrame = requestAnimationFrame(swayStep);
+};
+
+/** Толкнуть ёлку: dir — куда качнётся макушка, deg — примерный размах. */
+const kick = (dir: 1 | -1, deg: number) => {
+  if (calm()) return;
+  swayVel += dir * deg * Math.sqrt(SWAY_K);
+  if (!swayFrame) {
+    swayLast = performance.now();
+    swayFrame = requestAnimationFrame(swayStep);
+  }
+};
+
+const stopSway = () => {
+  cancelAnimationFrame(swayFrame);
+  swayFrame = 0;
+  swayAngle = swayVel = 0;
+  if (swayEl.value) swayEl.value.style.transform = "";
+};
 
 // Снежинки, что слетают с лап при ударе. Живут секунду и убираются.
 type Flake = { id: number; x: number; y: number; d: number; s: number };
@@ -149,11 +186,13 @@ const jingle = (step: number) => {
   }
 };
 
-const hit = () => {
+/** Удар по ёлке. dir — куда качнуть; не знаем — в другую сторону, чем в
+ *  прошлый раз. */
+const hit = (dir?: 1 | -1) => {
   if (phase.value !== "ready") return;
   hits.value++;
-  swayAmp.value = Math.min(2 + hits.value * 1.6, 10);
-  swayFlip.value = !swayFlip.value;
+  swayDir = dir ?? (swayDir === 1 ? -1 : 1);
+  kick(swayDir, Math.min(2 + hits.value * 1.6, 10));
   dropFlakes();
   jingle(hits.value - 1);
   navigator.vibrate?.(18);
@@ -240,6 +279,11 @@ const finish = async () => {
       $fetch<ShakeResult>("/api/tree/shake", { method: "POST" }),
       // Дать ёлке докачаться: подарки падают, когда она ещё дрожит.
       wait(450),
+      // И падать они начинают уже целыми: картинки коробок обычно загрузила
+      // ещё главная (utils/treePreload). Если нет — коробки падали бы раньше
+      // своих картинок и проявлялись уже на земле. Сеть совсем плохая — не
+      // ждать вечно: коробка тогда догрузится на земле.
+      Promise.race([preloadTreeImages(), wait(2500)]),
     ]);
     result.value = res;
     current.value = res.current;
@@ -298,7 +342,7 @@ const again = () => {
   cat.value = false;
   askMotion();
   hits.value = 0;
-  swayAmp.value = 0;
+  stopSway();
   result.value = null;
   opened.value = [];
   error.value = "";
@@ -320,47 +364,67 @@ const giftSpots = computed(() =>
 const coarse = ref(false);
 const motionOn = ref(false);
 let asked = false;
-// Рывок — насколько ускорение отличается от силы тяжести. Удар засчитывается
-// на пике рывка (сильнее SHAKE_HIGH), а следующий — только когда рывок спал
-// (слабее SHAKE_LOW): одно движение рукой — один удар. Соседние замеры идут
-// 60 раз в секунду и почти не отличаются, поэтому сравнивать их друг с другом
-// нельзя — так встряску не поймать.
-let grav: { x: number; y: number; z: number } | null = null;
+// Рывок — ускорение сверх силы тяжести. Удар — на пике рывка (сильнее
+// SHAKE_HIGH), и каждый взмах — свой удар: вправо и влево, вперёд и назад.
+// Пока телефон трясут, рывок не успевает спасть, поэтому следующий удар
+// засчитывается, когда рывок развернулся в обратную сторону, — или когда
+// телефон замер (слабее SHAKE_LOW) и его дёрнули снова. Раньше ждали только
+// затишья и не чаще раза в 250 мс — и засчитывался лишь целый взмах
+// туда-обратно. Соседние замеры идут 60 раз в секунду и почти одинаковы:
+// один пик не должен дать два удара, отсюда и разворот, и SHAKE_GAP.
+type Vec = { x: number; y: number; z: number };
+let grav: Vec | null = null;
 const SHAKE_HIGH = 11;
 const SHAKE_LOW = 4;
+const SHAKE_GAP = 110;
 let armed = true;
 let lastHit = 0;
+let lastJolt: Vec | null = null;
 
-const joltOf = (e: DeviceMotionEvent): number | null => {
+const joltOf = (e: DeviceMotionEvent): Vec | null => {
   const lin = e.acceleration;
   if (lin && lin.x != null && lin.y != null && lin.z != null)
-    return Math.hypot(lin.x, lin.y, lin.z);
+    return { x: lin.x, y: lin.y, z: lin.z };
   // Без «чистого» ускорения — сила тяжести по каждой оси отслеживается
-  // плавно (она меняется медленно), а рывок — то, что сверх неё.
+  // плавно (она меняется медленно), а рывок — то, что сверх неё. Следить
+  // медленно: быстрый фильтр гнался бы за самой встряской и съедал её.
   const a = e.accelerationIncludingGravity;
   if (!a || a.x == null || a.y == null || a.z == null) return null;
   if (!grav) grav = { x: a.x, y: a.y, z: a.z };
-  grav.x += (a.x - grav.x) * 0.1;
-  grav.y += (a.y - grav.y) * 0.1;
-  grav.z += (a.z - grav.z) * 0.1;
-  return Math.hypot(a.x - grav.x, a.y - grav.y, a.z - grav.z);
+  grav.x += (a.x - grav.x) * 0.05;
+  grav.y += (a.y - grav.y) * 0.05;
+  grav.z += (a.z - grav.z) * 0.05;
+  return { x: a.x - grav.x, y: a.y - grav.y, z: a.z - grav.z };
 };
 
+const len = (v: Vec) => Math.hypot(v.x, v.y, v.z);
+
 const onMotion = (e: DeviceMotionEvent) => {
-  const jolt = joltOf(e);
-  if (jolt == null) return;
+  const v = joltOf(e);
+  if (!v) return;
   // Пришли данные — датчик точно работает: подсказка зовёт трясти.
   motionOn.value = true;
-  if (!armed) {
-    if (jolt < SHAKE_LOW) armed = true;
+  const jolt = len(v);
+  if (jolt < SHAKE_LOW) {
+    armed = true;
     return;
   }
   const now = performance.now();
-  if (jolt > SHAKE_HIGH && now - lastHit > 250) {
-    armed = false;
-    lastHit = now;
-    hit();
+  if (jolt < SHAKE_HIGH || now - lastHit < SHAKE_GAP) return;
+  if (!armed && lastJolt) {
+    const cos =
+      (v.x * lastJolt.x + v.y * lastJolt.y + v.z * lastJolt.z) /
+      (jolt * len(lastJolt));
+    // Тот же пик или рывок в ту же сторону — не новый взмах.
+    if (cos > -0.3) return;
   }
+  armed = false;
+  lastHit = now;
+  lastJolt = v;
+  // Телефон дёрнули вбок — макушка по инерции отстаёт в другую сторону.
+  // Трясут вперёд-назад или вверх-вниз — качается то туда, то сюда.
+  const sideways = Math.abs(v.x) >= Math.max(Math.abs(v.y), Math.abs(v.z));
+  hit(sideways ? (v.x > 0 ? -1 : 1) : undefined);
 };
 
 // На телефоне датчик слушаем всегда: работает ли он, видно только по
@@ -371,6 +435,7 @@ const startMotion = () => {
   window.removeEventListener("devicemotion", onMotion);
   armed = true;
   grav = null;
+  lastJolt = null;
   window.addEventListener("devicemotion", onMotion);
 };
 
@@ -389,10 +454,13 @@ const askMotion = () => {
   });
 };
 
-const onTreeTap = () => {
+/** Тап или клик: ёлку толкают с той стороны, где нажали, — макушка качается
+ *  от пальца. С клавиатуры места нет — тогда по очереди в разные стороны. */
+const onTreeTap = (e: MouseEvent) => {
   primeMeow();
   askMotion();
-  hit();
+  const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  hit(e.detail ? (e.clientX < box.left + box.width / 2 ? 1 : -1) : undefined);
 };
 
 const close = () => {
@@ -405,9 +473,9 @@ const onKeydown = (e: KeyboardEvent) => {
 };
 
 onMounted(() => {
-  // Картинки кота — заранее: он выскакивает на секунду, ждать загрузки некогда.
-  for (const p of ["peek", "fall", "run"])
-    new Image().src = `/tree/cat-${p}.webp`;
+  // Ёлка, коробки и кот — заранее, если главная ещё не успела: кот
+  // выскакивает на секунду, коробки падают сразу — ждать загрузки некогда.
+  preloadTreeImages();
   coarse.value = matchMedia("(pointer: coarse)").matches;
   // Разрешение на датчик (где его спрашивают) уже попросила кнопка
   // «Потрясти ёлку»; окно открылось само, после входа, — попросим на первом
@@ -418,6 +486,7 @@ onMounted(() => {
 });
 onUnmounted(() => {
   clearTimeout(catTimer);
+  cancelAnimationFrame(swayFrame);
   actx?.close().catch(() => {});
   document.removeEventListener("keydown", onKeydown);
   stopMotion();
@@ -479,7 +548,7 @@ const hint = computed(() => {
             :aria-label="`Потрясти ёлку (${hits} из ${TREE_HITS})`"
             @click="onTreeTap"
           >
-            <span class="tree-sway" :style="swayStyle">
+            <span ref="swayEl" class="tree-sway">
               <TreeArt :shaking="hits > 0" />
             </span>
           </button>
@@ -995,12 +1064,11 @@ const hint = computed(() => {
   border-radius: var(--radius-md);
 }
 
-/* Качается обёртка целиком — рисунок растрируется один раз. */
+/* Качается обёртка целиком — рисунок растрируется один раз. Наклон ставит
+   скрипт, см. kick. */
 .tree-sway {
   display: block;
   transform-origin: 50% 98%;
-  animation-duration: 0.9s;
-  animation-timing-function: ease-out;
   will-change: transform;
 }
 
@@ -1475,61 +1543,12 @@ const hint = computed(() => {
     animation: none;
   }
 
-  .tree-sway {
-    animation-duration: 0.01s;
-  }
-
   .gift-spot {
     animation-duration: 0.01s;
   }
 
   .gift-spot .gift-word.is-rare {
     animation: none;
-  }
-}
-</style>
-
-<!-- Ключевые кадры качания — без scoped: имя анимации приходит из style. -->
-<style>
-@keyframes tree-sway-a {
-  0% {
-    transform: rotate(0);
-  }
-  15% {
-    transform: rotate(calc(var(--amp) * -1));
-  }
-  35% {
-    transform: rotate(calc(var(--amp) * 0.75));
-  }
-  55% {
-    transform: rotate(calc(var(--amp) * -0.45));
-  }
-  75% {
-    transform: rotate(calc(var(--amp) * 0.2));
-  }
-  100% {
-    transform: rotate(0);
-  }
-}
-
-@keyframes tree-sway-b {
-  0% {
-    transform: rotate(0);
-  }
-  15% {
-    transform: rotate(calc(var(--amp) * -1));
-  }
-  35% {
-    transform: rotate(calc(var(--amp) * 0.75));
-  }
-  55% {
-    transform: rotate(calc(var(--amp) * -0.45));
-  }
-  75% {
-    transform: rotate(calc(var(--amp) * 0.2));
-  }
-  100% {
-    transform: rotate(0);
   }
 }
 </style>

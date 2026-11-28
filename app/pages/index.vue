@@ -36,6 +36,16 @@ const { data: treeBanner, refresh: refreshTree } = await useFetch(
   { default: () => null },
 );
 const treeOpen = ref(false);
+// Доску титулов под окном обновляем, когда его закрыли: обновление посреди
+// встряски шло вместе с падением подарков и тормозило его на телефоне, а
+// доску под окном всё равно не видно.
+const treeStale = ref(false);
+const closeTree = () => {
+  treeOpen.value = false;
+  if (!treeStale.value) return;
+  treeStale.value = false;
+  refreshTree();
+};
 
 // Лабиринт — тоже вместо плашки игры, под ёлкой. Сбой — так же не беда.
 const { data: mazeBanner } = await useFetch("/api/maze/banner", {
@@ -373,8 +383,8 @@ useSeoMeta({
       <ReelModal v-if="reelOpen" @close="reelOpen = false" />
       <TreeModal
         v-if="treeOpen"
-        @close="treeOpen = false"
-        @shaken="refreshTree()"
+        @close="closeTree"
+        @shaken="treeStale = true"
       />
 
       <!-- ОГЛАВЛЕНИЕ -->
