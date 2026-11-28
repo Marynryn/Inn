@@ -14,6 +14,7 @@ import type {
   BoardStatus,
 } from "#shared/utils/board";
 import {
+  ARMY_STEP,
   BOARD_HAND_MAX,
   BOARD_MAPS,
   BOARD_SKILLS,
@@ -428,10 +429,28 @@ function throwBack(ctx: Ctx, seat: Seat, by: number, why: string) {
     );
     return;
   }
+  const from = seat.pos;
   seat.pos = Math.max(0, seat.pos - by);
   ctx.fx.push({ kind: "push", slot: seat.slot, to: seat.pos });
   ctx.notes.push(`${seat.name}: ${why} — назад на ${by}`);
+  if (armyOvertakes(ctx, seat, from)) return;
   landOn(ctx, seat, false);
+}
+
+/** Отступил назад мимо армии Гоблинов — значит, она его обогнала, и он
+ *  отлетает ещё на 3. true — отбросила, и новую клетку уже разобрал
+ *  throwBack; false — армию не задел или спасло [Чутьё опасности]. */
+function armyOvertakes(ctx: Ctx, seat: Seat, from: number): boolean {
+  const { room } = ctx;
+  const passed = room.map.hunters.some((def, i) => {
+    const at = room.hunters[i]!.at;
+    return def.kind === "army" && at !== null && from > at && seat.pos < at;
+  });
+  // На старте отбрасывать уже некуда.
+  if (!passed || seat.pos === 0) return false;
+  const before = seat.pos;
+  throwBack(ctx, seat, HUNTER_THROW, "армия Гоблинов обгоняет");
+  return seat.pos !== before;
 }
 
 /**
@@ -506,6 +525,7 @@ function landOn(ctx: Ctx, seat: Seat, byDice: boolean) {
       );
     seat.pos = to;
     ctx.fx.push({ kind: "jump", slot: seat.slot, to });
+    if (to < at && armyOvertakes(ctx, seat, at)) return;
   }
 }
 
@@ -609,6 +629,10 @@ function moveHunters(ctx: Ctx) {
   for (const [i, def] of room.map.hunters.entries()) {
     const h = room.hunters[i]!;
     if (h.at === null) continue;
+    if (def.kind === "army") {
+      marchArmy(ctx, i);
+      continue;
+    }
 
     const [lo, hi] = def.zone;
     const prey = activeSeats(room).filter((s) => s.pos >= lo && s.pos <= hi);
@@ -624,7 +648,7 @@ function moveHunters(ctx: Ctx) {
           ? prey[randomInt(prey.length)]!.pos
           : randomInt(lo, hi + 1);
     } else {
-      // Скиннер, Торен и армия бросают свой кубик и проходят ровно столько к
+      // Скиннер и Торен бросают свой кубик и проходят ровно столько к
       // ближайшему игроку — вперёд или назад. Могут и проскочить: ловят,
       // только если закончили ход на клетке игрока. Останавливайся они
       // ровно на жертве, увернуться было бы нельзя — будто угадывали ход.
@@ -643,6 +667,37 @@ function moveHunters(ctx: Ctx) {
     for (const seat of activeSeats(room))
       if (seat.pos === to) meetHunter(ctx, i, seat);
   }
+}
+
+/** Армия Гоблинов ни за кем не гонится и никогда не идёт назад: каждый круг
+ *  марширует ровно на ARMY_STEP клеток вперёд — есть кто на её участке или
+ *  нет — и отбрасывает всех, кого обогнала или на чью клетку встала. Дошла
+ *  до конца участка — на следующем круге уходит с карты и снова выступает со
+ *  своей начальной клетки. */
+function marchArmy(ctx: Ctx, index: number) {
+  const { room } = ctx;
+  const def = room.map.hunters[index]!;
+  const h = room.hunters[index]!;
+  const from = h.at!;
+
+  if (from >= def.zone[1]) {
+    h.at = def.start;
+    ctx.fx.push({ kind: "hunter", hunter: index, to: null });
+    ctx.fx.push({ kind: "hunter", hunter: index, to: h.at });
+    ctx.notes.push(`${def.name} снова выступает в поход — с клетки ${h.at}`);
+    for (const seat of activeSeats(room))
+      if (seat.pos === h.at) meetHunter(ctx, index, seat);
+    return;
+  }
+
+  const to = Math.min(from + ARMY_STEP, def.zone[1]);
+  // Кого обогнала — решаем до отбросов: отброшенный не должен попасть под
+  // армию второй раз.
+  const passed = activeSeats(room).filter((s) => s.pos > from && s.pos <= to);
+  h.at = to;
+  ctx.fx.push({ kind: "hunter", hunter: index, to });
+  for (const seat of passed)
+    throwBack(ctx, seat, HUNTER_THROW, "армия Гоблинов обгоняет");
 }
 
 /** Встали на одну клетку: оба бросают, меньший отступает. На старте не

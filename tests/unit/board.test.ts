@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ARMY_STEP,
   BOARD_MAP_IDS,
   BOARD_MAPS,
   boardLast,
@@ -47,17 +48,35 @@ function playGame(mapId: (typeof BOARD_MAP_IDS)[number], seats: number) {
   /** Охотник, раз выйдя, с карты не уходит. */
   let left = false;
   let prevAt: (number | null)[] = [];
+  /** Как шагала армия Гоблинов, если ступила не так: только вперёд, ровным
+   *  шагом, а с конца участка — снова к началу. */
+  const armyBad: string[] = [];
+  /** Сколько раз армия дошла до конца и выступила снова. */
+  let armyLaps = 0;
   const host = peers[0]!;
   for (let step = 0; step < 4000; step++) {
     const st = host.state!;
     for (const [i, h] of st.hunters.entries()) {
       if (h.at !== null) woke.add(BOARD_MAPS[mapId].hunters[i]!.kind);
       if (h.at === null && prevAt[i] != null) left = true;
+      const def = BOARD_MAPS[mapId].hunters[i]!;
+      const was = prevAt[i];
+      if (def.kind !== "army" || was == null || h.at === null) continue;
+      if (h.at === was) continue;
+      // За одно действие круг может замкнуться и дважды — если кто-то
+      // пропускает ход: тогда и шагов у армии два.
+      const ok =
+        h.at > was
+          ? (h.at - was) % ARMY_STEP === 0 || h.at === def.zone[1]
+          : was + ARMY_STEP >= def.zone[1] &&
+            (h.at - def.start) % ARMY_STEP === 0;
+      if (!ok) armyBad.push(`${was} → ${h.at}`);
+      if (h.at < was) armyLaps++;
     }
     prevAt = st.hunters.map((h) => h.at);
     if (st.status === "finished") {
       for (const p of peers) leaveRoom(p);
-      return { st, woke, left, steps: step };
+      return { st, woke, left, steps: step, armyBad, armyLaps };
     }
     const seat = st.players.findIndex((p) => p.slot === st.turnSlot);
     const peer = peers[seat]!;
@@ -189,6 +208,7 @@ describe("настольная игра: партии ботов", () => {
   for (const id of BOARD_MAP_IDS) {
     it(`карта ${id}: партии доходят до финиша, охотники выходят`, () => {
       const woke = new Set<string>();
+      let armyLaps = 0;
       for (let g = 0; g < 150; g++) {
         const r = playGame(id, 1 + (g % 4));
         expect(r.st.winnerSlot).not.toBeNull();
@@ -207,7 +227,11 @@ describe("настольная игра: партии ботов", () => {
         }
         for (const k of r.woke) woke.add(k);
         expect(r.left).toBe(false);
+        expect(r.armyBad).toEqual([]);
+        armyLaps += r.armyLaps;
       }
+      if (BOARD_MAPS[id].hunters.some((h) => h.kind === "army"))
+        expect(armyLaps).toBeGreaterThan(0);
       expect([...woke].sort()).toEqual(
         BOARD_MAPS[id].hunters.map((h) => h.kind).sort(),
       );
