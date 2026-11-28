@@ -114,30 +114,46 @@ const track = () => useClarity().event(`tg_click_${props.place || "other"}`);
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  animation: tg-pulse 2.8s ease-out infinite;
 }
 
 /* Расходящееся кольцо вместо изменения размера самой кнопки — иначе она
-   дёргала бы соседний текст при каждом такте. */
+   дёргала бы соседний текст при каждом такте. Кольцо — отдельный слой, и
+   меняются у него только прозрачность и масштаб: их считает видеокарта.
+   Раньше расходилась тень кнопки (box-shadow), и браузер перерисовывал её
+   каждый кадр — на телефоне это съедало почти весь процессор главной. */
+.tg-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 3px rgba(214, 136, 62, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  animation: tg-pulse 2.8s ease-out infinite;
+}
+
 @keyframes tg-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(214, 136, 62, 0.45);
+    opacity: 1;
+    transform: scale(1);
   }
   65% {
-    box-shadow: 0 0 0 12px rgba(214, 136, 62, 0);
+    opacity: 0;
+    transform: scale(1.06, 1.35);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(214, 136, 62, 0);
+    opacity: 0;
+    transform: scale(1.06, 1.35);
   }
 }
 
-.tg-btn:hover {
+.tg-btn:hover::after {
   animation-play-state: paused;
 }
 
 /* У кого в системе отключены анимации — не мигаем. */
 @media (prefers-reduced-motion: reduce) {
-  .tg-btn {
+  .tg-btn::after {
     animation: none;
   }
 }
