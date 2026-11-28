@@ -171,6 +171,9 @@ export type ShakeResult = {
   current: NameTitle | null;
   /** Какое одно слово можно поставить в надетый титул. */
   swaps: TitleSwap[];
+  /** Строка доски титулов с этим титулом — окно само докидывает её на доску
+   *  главной, а не перезапрашивает всю. null — на доске его не будет. */
+  entry: BoardEntry | null;
 };
 
 /** Строка доски титулов. */
@@ -185,7 +188,17 @@ export type BoardEntry = NameTitle & {
 export type TreeBoard = {
   rare: BoardEntry[];
   recent: BoardEntry[];
+  /** Редкости, чьи титулы стоят сверху доски (TreeTier.pinned): по ним
+   *  браузер решает, куда поставить свежий титул. */
+  pinned: number[];
 };
+
+/** Сколько строк в каждой части доски. */
+export const TREE_BOARD_RARE = 30;
+export const TREE_BOARD_RECENT = 40;
+
+/** Ёлка на главной: тексты баннера и доска. */
+export type TreeBannerData = { texts: TreeTexts; board: TreeBoard };
 
 /** Что окну ёлки нужно знать о вошедшем. */
 export type TreeMe = {

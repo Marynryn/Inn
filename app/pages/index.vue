@@ -30,22 +30,12 @@ const { data: reelBanner } = await useFetch("/api/reel/banner", {
 });
 
 // Новогодняя ёлка с доской титулов — тоже вместо плашки игры. Сбой — так же
-// не беда.
-const { data: treeBanner, refresh: refreshTree } = await useFetch(
-  "/api/tree/banner",
-  { default: () => null },
-);
+// не беда. Грузится раз за заход на главную; что выпало в окне, окно само
+// дописывает в доску (stores/tree), без повторного запроса.
+const tree = useTreeStore();
+await callOnce("tree-banner", () => tree.load(), { mode: "navigation" });
+const treeBanner = computed(() => tree.banner);
 const treeOpen = ref(false);
-// Доску титулов под окном обновляем, когда его закрыли: обновление посреди
-// встряски шло вместе с падением подарков и тормозило его на телефоне, а
-// доску под окном всё равно не видно.
-const treeStale = ref(false);
-const closeTree = () => {
-  treeOpen.value = false;
-  if (!treeStale.value) return;
-  treeStale.value = false;
-  refreshTree();
-};
 
 // Лабиринт — тоже вместо плашки игры, под ёлкой. Сбой — так же не беда.
 const { data: mazeBanner } = await useFetch("/api/maze/banner", {
@@ -381,11 +371,7 @@ useSeoMeta({
         />
       </div>
       <ReelModal v-if="reelOpen" @close="reelOpen = false" />
-      <TreeModal
-        v-if="treeOpen"
-        @close="closeTree"
-        @shaken="treeStale = true"
-      />
+      <TreeModal v-if="treeOpen" @close="treeOpen = false" />
 
       <!-- ОГЛАВЛЕНИЕ -->
       <div class="ledger" id="ledger">

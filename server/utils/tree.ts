@@ -14,6 +14,8 @@ import type {
   WordBook,
 } from "#shared/utils/tree";
 import {
+  TREE_BOARD_RARE,
+  TREE_BOARD_RECENT,
   TREE_THREE_CHANCE_DEFAULT,
   buildTitle,
   drawTitle,
@@ -205,11 +207,13 @@ export async function shake(
     ];
   }
 
+  const book = await wordBook();
   return {
     gifts: draw.gifts,
-    title: toNameTitle(row, await wordBook()),
+    title: toNameTitle(row, book),
     current: await wornTitle(userId),
     swaps: await swapsFor(userId, row),
+    entry: await boardEntryOf(row, settings.mode, book),
   };
 }
 
@@ -394,23 +398,53 @@ export async function treeBoard(mode: TreeMode): Promise<TreeBoard> {
       ? select()
           .where(and(where, inArray(userTitles.tierId, pinned)))
           .orderBy(desc(userTitles.id))
-          .limit(30)
+          .limit(TREE_BOARD_RARE)
       : Promise.resolve([]),
-    select().where(where).orderBy(desc(userTitles.id)).limit(40),
+    select().where(where).orderBy(desc(userTitles.id)).limit(TREE_BOARD_RECENT),
   ]);
 
-  const frames = await framesByIds(
-    [...rare, ...recent].map((r) => r.u.avatarFrameId),
-  );
-  const toEntry = ({ t, u }: (typeof recent)[number]): BoardEntry => ({
+  const entries = await toBoardEntries([...rare, ...recent], book);
+  return {
+    rare: entries.slice(0, rare.length),
+    recent: entries.slice(rare.length),
+    pinned,
+  };
+}
+
+type BoardRow = { t: TitleRow; u: typeof users.$inferSelect };
+
+/** Строки доски: титул с хозяином — именем, аватаркой и рамкой. */
+async function toBoardEntries(
+  rows: BoardRow[],
+  book: WordBook,
+): Promise<BoardEntry[]> {
+  const frames = await framesByIds(rows.map((r) => r.u.avatarFrameId));
+  return rows.map(({ t, u }) => ({
     ...toNameTitle(t, book),
     wonAt: t.createdAt,
     name: readerName(u),
     code: u.publicId,
     avatarUrl: u.avatarUrl,
     avatarFrame: u.avatarFrameId ? (frames.get(u.avatarFrameId) ?? null) : null,
-  });
-  return { rare: rare.map(toEntry), recent: recent.map(toEntry) };
+  }));
+}
+
+/** Строка доски для только что выпавшего титула — по тем же правилам, что и
+ *  treeBoard: пробные встряски админа, пока ёлка для всех, и титулы
+ *  забаненных на доску не попадают (null). */
+async function boardEntryOf(
+  row: TitleRow,
+  mode: TreeMode,
+  book: WordBook,
+): Promise<BoardEntry | null> {
+  if (mode === "on" && row.day.includes("#")) return null;
+  const [u] = await useDb()
+    .select()
+    .from(users)
+    .where(eq(users.id, row.userId));
+  if (!u || u.isBanned) return null;
+  const [entry] = await toBoardEntries([{ t: row, u }], book);
+  return entry ?? null;
 }
 
 /** Убрать титул совсем — из коллекции и с того, кто его носит. Для админки:

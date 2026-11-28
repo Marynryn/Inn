@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {
+  BoardEntry,
   NameTitle,
   ShakeResult,
   TitleSwap,
@@ -19,9 +20,21 @@ import { TREE_HITS, fullTreeTexts } from "#shared/utils/tree";
  * Гость трясёт ёлку так же, но подарки достаются только вошедшим — в конце
  * его зовут войти, и после входа главная откроет окно сама (?tree=1).
  */
+// shaken — что-то выпало или взято: панель обновляет свой список титулов.
 const emit = defineEmits<{ close: []; shaken: [] }>();
 
 const auth = useAuthStore();
+const treeStore = useTreeStore();
+
+// Что выпало и что взято — в доску титулов на главной, без её перезапроса.
+// Дописываем, когда окно закрылось: доска под окном всё равно не видна, а
+// перестройка списка посреди падения подарков отнимала бы у него кадры.
+const boardEntries: BoardEntry[] = [];
+const boardPatches: NameTitle[] = [];
+const flushBoard = () => {
+  for (const e of boardEntries.splice(0)) treeStore.addEntry(e);
+  for (const t of boardPatches.splice(0)) treeStore.patchTitle(t);
+};
 useScrollLock();
 usePausePage();
 
@@ -290,6 +303,7 @@ const finish = async () => {
     swaps.value = res.swaps;
     opened.value = res.gifts.map(() => false);
     phase.value = "gifts";
+    if (res.entry) boardEntries.push(res.entry);
     emit("shaken");
   } catch (e: any) {
     error.value = e.data?.message || "Ёлка не отдала подарки — попробуй ещё";
@@ -324,6 +338,7 @@ const take = async (title: NameTitle, slot?: TreeWordKind) => {
     today.value = current.value;
     swaps.value = [];
     phase.value = "taken";
+    boardPatches.push(current.value);
     emit("shaken");
   } catch (e: any) {
     takeError.value = e.data?.message || "Не получилось — попробуй ещё";
@@ -487,6 +502,7 @@ onMounted(() => {
 onUnmounted(() => {
   clearTimeout(catTimer);
   cancelAnimationFrame(swayFrame);
+  flushBoard();
   actx?.close().catch(() => {});
   document.removeEventListener("keydown", onKeydown);
   stopMotion();

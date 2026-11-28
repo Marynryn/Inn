@@ -1,4 +1,4 @@
-import type { TreeBoard, TreeTexts } from "#shared/utils/tree";
+import type { TreeBannerData } from "#shared/utils/tree";
 import { treeBoard, treeFor } from "../../utils/tree";
 
 /**
@@ -7,7 +7,7 @@ import { treeBoard, treeFor } from "../../utils/tree";
  * админам; ёлки нет — null, и на главной остаётся плашка игры.
  */
 export default defineEventHandler(
-  async (event): Promise<{ texts: TreeTexts; board: TreeBoard } | null> => {
+  async (event): Promise<TreeBannerData | null> => {
     const session = await getUserSession(event);
     const tree = await treeFor(
       (session.user as { role?: string } | undefined)?.role,
