@@ -58,7 +58,13 @@ const canRematch = computed(() => {
 });
 const playerBySlot = (slot: number | null | undefined) =>
   players.value.find((p) => p.slot === slot) ?? null;
-const turnPlayer = computed(() => playerBySlot(state.value?.turnSlot));
+/** Чей ход на экране. Сервер передаёт ход сразу, а на экране ещё
+ *  доигрывается прошлый: шаги, встреча, стрелка. Пока не доиграл, подсветка
+ *  и «Ходит …» остаются у того, кто ходил, — иначе следующий загорался
+ *  раньше, чем соперник дошёл. Во время показа — тот, чей ход показываем.
+ *  Ставится в play() и в watch(state) ниже. */
+const shownTurnSlot = ref<number | null>(null);
+const turnPlayer = computed(() => playerBySlot(shownTurnSlot.value));
 const winner = computed(() => playerBySlot(state.value?.winnerSlot));
 /** Счёт стола — с первой доигранной партии, у кого больше побед, тот выше. */
 const score = computed(() =>
@@ -119,6 +125,8 @@ const wait = (ms: number) =>
 
 let seenAction = 0;
 let queue: Promise<void> = Promise.resolve();
+/** Сколько ходов ждут показа: ход переходит на экране после последнего. */
+let pending = 0;
 
 function syncPositions() {
   for (const p of players.value) shown[p.slot] = p.pos;
@@ -162,6 +170,9 @@ async function fly(slot: number, to: number) {
 /** Проиграть действие по шагам, которые прислал сервер. */
 async function play(action: BoardAction) {
   animating.value = true;
+  // Пока показываем ход, горит тот, кто ходит: ходы могут прийти подряд, и
+  // без этого подсветка перепрыгивала через игрока.
+  shownTurnSlot.value = action.slot;
   duelShown.value = null;
   if (duelTimer) clearTimeout(duelTimer);
   prankShown.value = null;
@@ -223,7 +234,8 @@ async function play(action: BoardAction) {
       duelTimer = setTimeout(() => {
         duelShown.value = null;
       }, 4000);
-      await wait(1100);
+      // Ход перейдёт, когда итог встречи прочитан, а не сразу.
+      await wait(1800);
     } else if (fx.kind === "prank") {
       // Встреча могла ещё висеть — феи важнее, плашка одна.
       duelShown.value = null;
@@ -242,7 +254,10 @@ async function play(action: BoardAction) {
     }
   }
 
-  animating.value = false;
+  if (--pending === 0) {
+    animating.value = false;
+    shownTurnSlot.value = state.value?.turnSlot ?? null;
+  }
   syncPositions();
   // Ход принёс победу — объявляем, когда фишка дошла, а не раньше.
   if (
@@ -254,13 +269,10 @@ async function play(action: BoardAction) {
   }
 }
 
-watch(
-  () => state.value?.turnSlot,
-  (slot) => {
-    if (slot === null || slot === undefined || animating.value) return;
-    nextTick(() => follow(shown[slot]));
-  },
-);
+watch(shownTurnSlot, (slot) => {
+  if (slot === null) return;
+  nextTick(() => follow(shown[slot]));
+});
 watch(mapScroll, (el) => {
   if (el) nextTick(() => follow(shown[you.value ?? -1] ?? 0));
 });
@@ -287,6 +299,7 @@ watch(state, (s) => {
   if (!seenAction) {
     seenAction = action?.id ?? -1;
     syncPositions();
+    shownTurnSlot.value = s.turnSlot;
     if (action) {
       const dice = action.fx.find((f) => f.kind === "dice");
       if (dice?.kind === "dice") {
@@ -311,9 +324,13 @@ watch(state, (s) => {
   }
   if (action && action.id !== seenAction) {
     seenAction = action.id;
+    // Сразу, а не когда очередь дойдёт: иначе ход успел бы перейти на экране.
+    animating.value = true;
+    pending++;
     queue = queue.then(() => play(action));
   } else if (!animating.value) {
     syncPositions();
+    shownTurnSlot.value = s.turnSlot;
   }
 });
 
@@ -432,16 +449,24 @@ const zones = computed(() =>
 
 const effectClass = (e: BoardEffect) => `cell--${e.kind}`;
 
-/** Несколько фишек на одной клетке расходятся по углам, чтобы не прятать друг
- *  друга. Отступ — в пикселях (--pawn-off в стилях): в процентах высокой карты
- *  томов 2–3 фишка уезжала от своей клетки к соседней. */
+/** Фишка одна на клетке — стоит кончиком ровно на ней. Несколько на одной
+ *  клетке встают в ряд, чтобы не прятать друг друга. Вверх их не разводим —
+ *  метка и так поднята над клеткой, и у старта под верхним краем карты
+ *  уходила бы за край. Отступ — в пикселях (--pawn-off в стилях): в процентах
+ *  высокой карты томов 2–3 фишка уезжала от своей клетки к соседней. */
 function pawnStyle(slot: number) {
-  const cell = cells.value[shown[slot] ?? 0]!;
+  const at = shown[slot] ?? 0;
+  const cell = cells.value[at]!;
+  const mates = players.value
+    .filter((p) => (shown[p.slot] ?? 0) === at)
+    .map((p) => p.slot);
   return {
     left: `${cell.x}%`,
-    top: `${cell.y}%`,
-    "--dx": slot % 2 ? 1 : -1,
-    "--dy": slot < 2 ? -1 : 1,
+    // Старт — не кружок, а место у таверны под самым краем карты: там метки
+    // ставим ниже, иначе головки срезал бы край.
+    top: at === 0 ? `calc(${cell.y}% + 22px)` : `${cell.y}%`,
+    "--dx": mates.indexOf(slot) - (mates.length - 1) / 2,
+    "--dy": 0,
   };
 }
 
@@ -812,7 +837,7 @@ useHead({
                   class="pawn"
                   :class="{
                     'pawn--left': p.left,
-                    'pawn--turn': p.slot === state.turnSlot,
+                    'pawn--turn': p.slot === shownTurnSlot,
                     'pawn--jump': p.slot === jumpingSlot,
                   }"
                   :style="{ ...pawnStyle(p.slot), '--pawn': p.color }"
@@ -1191,7 +1216,7 @@ useHead({
                 :key="p.slot"
                 class="player"
                 :class="{
-                  'player--turn': p.slot === state.turnSlot,
+                  'player--turn': p.slot === shownTurnSlot,
                   'player--left': p.left,
                 }"
               >
@@ -1640,25 +1665,48 @@ useHead({
     0 0 12px 3px var(--danger);
 }
 
+/* Фишка — метка, как на карте геолокации: круглая головка цвета игрока с
+   аватаркой и острый кончик вниз. Кончиком она стоит на клетке, поэтому
+   поднята над точкой клетки на свою «ножку» (--pawn-tip). */
 .pawn {
-  --pawn-off: 15px;
+  --pawn-off: 26px;
+  --pawn-head: 34px;
+  /* Угол квадрата, повёрнутого на 45°, дальше от центра в √2 раз. */
+  --pawn-tip: calc(var(--pawn-head) * 0.707);
   position: absolute;
+  display: grid;
+  place-items: center;
+  width: var(--pawn-head);
+  height: var(--pawn-head);
   transform: translate(
     calc(-50% + var(--dx) * var(--pawn-off)),
-    calc(-50% + var(--dy) * var(--pawn-off))
+    calc(-50% - var(--pawn-tip) + var(--dy) * var(--pawn-off) * 0.5)
   );
-  border-radius: var(--radius-round);
-  /* Светлое кольцо отделяет фишку от тёмной картины, цвет игрока — снаружи. */
-  box-shadow:
-    0 0 0 2px var(--parchment),
-    0 0 0 5px var(--pawn),
-    0 3px 10px 2px rgba(0, 0, 0, 0.75);
   transition:
     left 0.2s ease,
     top 0.2s ease;
   pointer-events: none;
   line-height: 0;
   z-index: 2;
+}
+
+/* Сама капелька: квадрат со скруглёнными углами, кроме одного, повёрнут
+   острым углом вниз. */
+.pawn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50% 50% 50% 0;
+  background: var(--pawn);
+  transform: rotate(-45deg);
+  box-shadow: 0 0 10px 1px rgba(0, 0, 0, 0.7);
+}
+
+/* Светлое кольцо отделяет аватарку от цвета игрока. */
+.pawn :deep(.ua) {
+  position: relative;
+  border-radius: var(--radius-round);
+  box-shadow: 0 0 0 2px var(--parchment);
 }
 
 /* По стрелке фишка летит одним прыжком — медленнее, чем шагает по клеткам. */
@@ -1669,9 +1717,11 @@ useHead({
 
 .pawn--turn {
   z-index: 3;
+}
+
+.pawn--turn::before {
   box-shadow:
     0 0 0 2px var(--parchment),
-    0 0 0 5px var(--pawn),
     0 0 16px 6px var(--pawn);
 }
 /* Ушедший из-за стола: фишка остаётся, но серая — ход её пропускается. */
@@ -1843,7 +1893,8 @@ useHead({
     height: 29px;
   }
   .map--dense .pawn {
-    --pawn-off: 12px;
+    --pawn-off: 22px;
+    --pawn-head: 30px;
   }
   .map--dense .pawn :deep(.ua) {
     --ua-size: 22px !important;
