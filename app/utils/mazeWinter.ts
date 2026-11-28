@@ -188,7 +188,7 @@ export function drawFrostSparks(
   }
 }
 
-/** Выход — окошко таверны с тёплым светом и снегом на подоконнике. Свет
+/** Выход — окошко таверны с тёплым светом и деревянным подоконником. Свет
  *  чуть дышит, как огонь за стеклом. */
 export function drawInnWindow(
   g: CanvasRenderingContext2D,
@@ -220,8 +220,10 @@ export function drawInnWindow(
   g.fillStyle = "#4a2f1a";
   g.fillRect(cx - bar / 2, cy - h / 2, bar, h);
   g.fillRect(cx - w / 2, cy - bar / 2, w, bar);
+  // Подоконник деревянный, в цвет рамы: белый, со снегом, читался как полоска
+  // дорожки и сбивал на последних шагах.
   const sill = Math.max(2.5, cs * 0.14);
-  g.fillStyle = "#f4f8fc";
+  g.fillStyle = "#4a2f1a";
   g.beginPath();
   g.roundRect(
     cx - w / 2 - fr - cs * 0.08,
